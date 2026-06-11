@@ -189,48 +189,14 @@ INSERT INTO warehouses (id, name) VALUES
 ('wh-west', 'დასავლეთის საწყობი') ON CONFLICT (id) DO NOTHING;
 
 -- ====================================================================
---  SUPABASE AUTOMATIC AUTH SIGN-UP PROFILE POPULATION (profiles / users)
+--  SUPABASE AUTOMATIC AUTH SIGN-UP USER POPULATION (users)
 -- ====================================================================
 
--- 10. Public Profiles / Users Table
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT,
-    role TEXT DEFAULT 'admin',
-    phone TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS for profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
--- Dynamic RLS Policies
-DROP POLICY IF EXISTS "Allow public read access" ON public.profiles;
-CREATE POLICY "Allow public read access" ON public.profiles FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow individual write" ON public.profiles;
-CREATE POLICY "Allow individual write" ON public.profiles FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow individual update" ON public.profiles;
-CREATE POLICY "Allow individual update" ON public.profiles FOR UPDATE USING (true);
-
--- Automating profile creation upon Supabase Authed User creation
+-- Automating user creation upon Supabase Authed User creation
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Insert into public.profiles
-  INSERT INTO public.profiles (id, email, name, role, phone)
-  VALUES (
-    new.id,
-    new.email,
-    COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    COALESCE(new.raw_user_meta_data->>'role', 'admin'),
-    COALESCE(new.raw_user_meta_data->>'phone', '')
-  )
-  ON CONFLICT (id) DO NOTHING;
-  
-  -- Insert into public.users to sync types
+  -- Insert directly into public.users to sync types
   INSERT INTO public.users (id, name, personal_id, email, phone, role, privileges)
   VALUES (
     new.id::text,
@@ -253,3 +219,47 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ====================================================================
+--  ROW LEVEL SECURITY (RLS) FOR SYSTEM SECURITY
+-- ====================================================================
+
+-- Enable RLS on all 9 application tables
+ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.districts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.warehouses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trucks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.communications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.change_history ENABLE ROW LEVEL SECURITY;
+
+-- Apply simplified, safe, full-access policies for authenticated users on all tables
+DROP POLICY IF EXISTS "Authenticated full access on cities" ON public.cities;
+CREATE POLICY "Authenticated full access on cities" ON public.cities FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on districts" ON public.districts;
+CREATE POLICY "Authenticated full access on districts" ON public.districts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on warehouses" ON public.warehouses;
+CREATE POLICY "Authenticated full access on warehouses" ON public.warehouses FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on users" ON public.users;
+CREATE POLICY "Authenticated full access on users" ON public.users FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on trucks" ON public.trucks;
+CREATE POLICY "Authenticated full access on trucks" ON public.trucks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on vendors" ON public.vendors;
+CREATE POLICY "Authenticated full access on vendors" ON public.vendors FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on orders" ON public.orders;
+CREATE POLICY "Authenticated full access on orders" ON public.orders FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on communications" ON public.communications;
+CREATE POLICY "Authenticated full access on communications" ON public.communications FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.change_history;
+CREATE POLICY "Authenticated full access on change_history" ON public.change_history FOR ALL TO authenticated USING (true) WITH CHECK (true);
+

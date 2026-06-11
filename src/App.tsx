@@ -311,10 +311,10 @@ export default function App() {
   const menuItems = [
     { id: 'dashboard', name: 'მთავარი მენიუ', icon: <LayoutDashboard size={16} /> },
     { id: 'analytics', name: 'ანალიტიკა', icon: <BarChart3 size={16} /> },
-    { id: 'vendors', name: 'ობიექტები (Vendors)', icon: <Building2 size={16} /> },
+    { id: 'vendors', name: 'ობიექტები', icon: <Building2 size={16} /> },
     { id: 'communications', name: 'კომუნიკაცია', icon: <MessageSquare size={16} /> },
     { id: 'orders', name: 'შეკვეთები', icon: <ShoppingBag size={16} /> },
-    { id: 'users', name: 'მომხმარებლები (მომავალი)', icon: <Users size={16} /> },
+    { id: 'users', name: 'მომხმარებლები', icon: <Users size={16} /> },
     { id: 'reports', name: 'რეპორტები', icon: <FileText size={16} /> },
     { id: 'lookups', name: 'ცნობარები', icon: <Globe size={16} /> },
     { id: 'history', name: 'ცვლილებების ისტორია', icon: <History size={16} /> },
@@ -339,9 +339,6 @@ export default function App() {
               <h1 className="text-sm font-black tracking-tight leading-none text-white">
                 ბიოდიზელი ჯორჯია
               </h1>
-              <span className="text-[9px] font-mono text-emerald-400 tracking-widest uppercase block mt-1">
-                პორტალი v2.0
-              </span>
             </div>
           </div>
           
@@ -355,27 +352,6 @@ export default function App() {
 
         {/* Links list */}
         <div className="flex-1 py-4 overflow-y-auto px-3 space-y-1 select-none">
-          <button 
-            onClick={() => setShowStructureDesc(!showStructureDesc)}
-            className="w-full text-left px-3 py-2 bg-slate-800 hover:bg-slate-75 * rounded-xl text-[11px] font-medium text-emerald-300 flex items-center justify-between mb-2.5 cursor-pointer"
-          >
-            <span className="flex items-center gap-1.5 font-bold">
-              <Info size={14} />
-              სტრუქტურის აღწერა
-            </span>
-            <ChevronRight size={12} className={`transition ${showStructureDesc ? 'rotate-90' : ''}`} />
-          </button>
-
-          {showStructureDesc && (
-            <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl text-[10px] text-slate-400 leading-normal space-y-1.5 mb-2 font-mono">
-              <p className="font-bold text-slate-200 uppercase">მონაცემთა სტრუქტურა:</p>
-              <p>• <strong>ობიექტები</strong> - სრული იურიდიული, საბანკო და საკონტაქტო მონაცემები, კომენტარების ისტორია.</p>
-              <p>• <strong>შეკვეთები</strong> - ლოგისტიკური დაგეგმვა, ავზების და ფაქტობრივი ლიტრების მართვა მძღოლებზე.</p>
-              <p>• <strong>კონტაქტები</strong> - ოპერატორთან, ბუღალტერთან, დირექტორთან კავშირის ხაზი.</p>
-              <p>• <strong>ცნობარები</strong> - ქალაქები, უბნები, საწყობები და მანქანების სია.</p>
-            </div>
-          )}
-
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (

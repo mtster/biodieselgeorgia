@@ -1,6 +1,6 @@
 import React from 'react';
 import { isSupabaseConfigured } from '../lib/db';
-import { Database, ShieldCheck, RefreshCw, Key, ArrowRight, Github, HelpCircle } from 'lucide-react';
+import { Database, RefreshCw } from 'lucide-react';
 
 interface Props {
   onResetDatabase: () => void;
@@ -21,10 +21,10 @@ export default function SettingsView({ onResetDatabase }: Props) {
       {/* Header */}
       <div>
         <h2 className="text-xl font-extrabold text-gray-800">პარამეტრები და სისტემა</h2>
-        <p className="text-xs text-gray-500 mt-1 font-sans">აკონტროლეთ მონაცემთა ბაზა, დააკონფიგურირეთ ინტეგრაციები და იხილეთ სინქრონიზაციის ინსტრუქცია.</p>
+        <p className="text-xs text-gray-500 mt-1 font-sans">მონაცემთა ბაზის სრული მართვა და სისტემის პარამეტრები.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="max-w-xl">
         
         {/* Status indicator database */}
         <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4">
@@ -35,7 +35,7 @@ export default function SettingsView({ onResetDatabase }: Props) {
 
           <div className="space-y-3.5 text-xs text-gray-650">
             <div className="flex items-center justify-between">
-              <span>სინქრონიზებული SUPABASE-თან:</span>
+              <span>კავშირის სტატუსი:</span>
               <span className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
                 isSupabaseConfigured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
               }`}>
@@ -43,42 +43,15 @@ export default function SettingsView({ onResetDatabase }: Props) {
               </span>
             </div>
 
-            <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
-              * როდესაც Supabase URL & Key ცვლადები გაწერილია ბილდზე, აპლიკაცია ავტომატურად გადადის PostgreSQL DURABLE რეჟიმში. წინააღმდეგ შემთხვევაში, გამოიყენება უსაფრთხო, სწრაფი ლოკალური შენახვა.
-            </p>
-
             <div className="pt-2 border-t space-y-2.5">
-              <p className="font-bold text-gray-800">საცდელი ბაზის აღდგენა:</p>
+              <p className="font-bold text-gray-800">საცდელი ბაზის გასუფთავება/აღდგენა:</p>
               <button 
                 onClick={handleReset}
-                className="w-full py-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw size={13} className="animate-spin" />
                 მონაცემთა სრული გასუფთავება (Wipe DB)
               </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Sync manual details */}
-        <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4">
-          <h3 className="text-sm font-black text-gray-850 flex items-center gap-1.5 border-b pb-2">
-            <ShieldCheck size={16} className="text-emerald-700" />
-            ავტომატური სინქრონიზაციის ინსტრუქცია
-          </h3>
-
-          <div className="space-y-3 text-xs leading-relaxed text-gray-600">
-            <p>
-              თქვენ შეგიძლიათ თქვენი GitHub საცავი მყისიერად დაუკავშიროთ თქვენს ლოკალურ თუ ღრუბლოვან სერვერს Supabase-თან, რათა კოდის ნებისმიერი ცვლილება (როგორიცაა SQL სქემა) ავტომატურად აისახოს.
-            </p>
-
-            <div className="space-y-1.5 font-mono text-[10px] bg-slate-50 p-3 rounded-xl border">
-              <span className="font-bold text-slate-800 block">საჭირო ცვლადები Vercel/.env ფაილში:</span>
-              <p className="text-emerald-800 font-bold mt-1">VITE_SUPABASE_URL=xxxx</p>
-              <p className="text-emerald-800 font-bold">VITE_SUPABASE_ANON_KEY=xxxx</p>
-              <p className="text-gray-400 italic leading-none mt-1">
-                * სქემის კოპირებისთვის გამოიყენეთ 'schema.sql' პროექტის ფესვში. პაროლების შეცვლა და როლების შექმნა შეგიძლიათ პირდაპირ Supabase Dashboard-ის Auth/Table Editor მოდულიდან.
-              </p>
             </div>
           </div>
         </div>
