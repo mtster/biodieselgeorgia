@@ -4,7 +4,10 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { Venue, LogisticsTask, UserProfile, ActivityLog, UserRole } from '../types';
+import { 
+  Employee, Supplier, Order, Communication, Truck, 
+  ChangeHistory, Warehouse, City, District 
+} from '../types';
 
 // Detect Supabase credentials
 const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || '';
@@ -18,628 +21,621 @@ export const supabase = isSupabaseConfigured
   : null;
 
 // ==========================================
-// SEED DATA FOR MOCK LOCALSTORAGE DATABASE
+// DEFAULT SEED KEYS AND LOCALSTORAGE HELPERS
 // ==========================================
-const SEED_USERS: UserProfile[] = [
-  { id: 'usr-admin', email: 'admin@biodiesel.ge', name: 'სანდრო კალანდაძე (ადმინი)', role: 'admin' },
-  { id: 'usr-mgr1', email: 'giorgi@biodiesel.ge', name: 'გიორგი მებურიშვილი', role: 'manager', base_region: 'თბილისი' },
-  { id: 'usr-mgr2', email: 'nino@biodiesel.ge', name: 'ნინო დევდარიანი', role: 'manager', base_region: 'ქუთაისი' },
-  { id: 'usr-mgr3', email: 'levan@biodiesel.ge', name: 'ლევან კაპანაძე', role: 'manager', base_region: 'ბათუმი' },
-  { id: 'usr-drv1', email: 'dato@biodiesel.ge', name: 'დათო კვარაცხელია', role: 'driver', phone: '599-11-22-33' },
-  { id: 'usr-drv2', email: 'temo@biodiesel.ge', name: 'თემო შენგელია', role: 'driver', phone: '595-44-55-66' },
-  { id: 'usr-drv3', email: 'zura@biodiesel.ge', name: 'ზურა ჯაფარიძე', role: 'driver', phone: '577-77-88-99' },
-  { id: 'usr-venue1', email: 'khinkali@biodiesel.ge', name: 'ხინკლის სახლი (საბურთალო)', role: 'venue', venue_id: 'v-01' },
-  { id: 'usr-venue2', email: 'machakhela@biodiesel.ge', name: 'მაჭახელა (კოტე აფხაზი)', role: 'venue', venue_id: 'v-02' }
-];
 
-const SEED_VENUES: Venue[] = [
+const KEY_EMPLOYEES = 'biodiesel_employees_v2';
+const KEY_SUPPLIERS = 'biodiesel_suppliers_v2';
+const KEY_ORDERS = 'biodiesel_orders_v2';
+const KEY_COMMUNICATIONS = 'biodiesel_communications_v2';
+const KEY_TRUCKS = 'biodiesel_trucks_v2';
+const KEY_CHANGE_HISTORY = 'biodiesel_change_history_v2';
+const KEY_WAREHOUSES = 'biodiesel_warehouses_v2';
+const KEY_CITIES = 'biodiesel_cities_v2';
+const KEY_DISTRICTS = 'biodiesel_districts_v2';
+
+const DEFAULT_EMPLOYEES: Employee[] = [
   {
-    id: 'v-01',
-    trade_name: 'ხინკლის სახლი (საბურთალო)',
-    legal_name: 'შპს ქართული კერძები',
-    id_code: '204857392',
-    bank_account: 'GE82TB1100000360401122',
-    price_per_liter: 1.50,
-    city: 'თბილისი',
-    address: 'ვაჟა-ფშაველას გამზ. 25',
-    district: 'საბურთალო',
-    company_code: 'TBS-SAB-042',
-    contact_person: 'ლადო კახაძე',
-    contact_phones: '599-123-456 (მენეჯერი), 599-456-789 (მთავარი მზარეული)',
-    contract_manager: 'გიორგი მებურიშვილი',
-    operator: 'ნათია ანდრონიკაშვილი',
-    created_at: '2026-05-01T12:00:00Z',
-    last_pickup_date: '2026-05-28T14:30:00Z',
-    average_interval_days: 12
-  },
-  {
-    id: 'v-02',
-    trade_name: 'მაჭახელა (კოტე აფხაზი)',
-    legal_name: 'შპს აჭარული ხაჭაპური',
-    id_code: '405029381',
-    bank_account: 'GE45BG0000000192837465',
-    price_per_liter: 1.40,
-    city: 'თბილისი',
-    address: 'კოტე აფხაზის ქ. 34',
-    district: 'ძველი თბილისი',
-    company_code: 'TBS-OLD-108',
-    contact_person: 'თინათინ ბერიძე',
-    contact_phones: '595-33-44-55 (დირექტორი)',
-    contract_manager: 'გიორგი მებურიშვილი',
-    operator: 'ნათია ანდრონიკაშვილი',
-    created_at: '2026-05-02T10:00:00Z',
-    last_pickup_date: '2026-06-02T16:00:00Z',
-    average_interval_days: 10
-  },
-  {
-    id: 'v-03',
-    trade_name: 'რესტორანი პასანაური',
-    legal_name: 'შპს პასანაური ჯგუფი',
-    id_code: '204123547',
-    bank_account: 'GE12TB1592648375928172',
-    price_per_liter: 1.60,
-    city: 'თბილისი',
-    address: 'რუსთაველის გამზ. 37',
-    district: 'მთაწმინდა',
-    company_code: 'TBS-MT-015',
-    contact_person: 'მიხეილი',
-    contact_phones: '591-22-33-44 (საკონტაქტო)',
-    contract_manager: 'ნინო დევდარიანი',
-    operator: 'ალექსანდრე ხუციშვილი',
-    created_at: '2026-05-05T09:30:00Z',
-    last_pickup_date: '2026-05-15T11:00:00Z', // Overdue! Last pickup was a month ago
-    average_interval_days: 14
-  },
-  {
-    id: 'v-04',
-    trade_name: 'შავი ლომი',
-    legal_name: 'სს კულინარიული ხელოვნება',
-    id_code: '404111222',
-    bank_account: 'GE93BG0000000302010192',
-    price_per_liter: 1.55,
-    city: 'თბილისი',
-    address: 'ამაღლების ქ. 23',
-    district: 'სოლოლაკი',
-    company_code: 'TBS-SOL-009',
-    contact_person: 'ნუცა ბაგრატიონი',
-    contact_phones: '599-99-99-88 (ადმინისტრატორი)',
-    contract_manager: 'გიორგი მებურიშვილი',
-    operator: 'ნათია ანდრონიკაშვილი',
-    created_at: '2026-05-10T15:00:00Z',
-    last_pickup_date: '2026-06-09T18:00:00Z',
-    average_interval_days: 8
-  },
-  {
-    id: 'v-05',
-    trade_name: 'იმერული გემო',
-    legal_name: 'ინდ. მეწარმე დავით გაბუნია',
-    id_code: '600010293',
-    bank_account: 'GE55LB0112233445566778',
-    price_per_liter: 1.30,
-    city: 'ქუთაისი',
-    address: 'ჭავჭავაძის გამზ. 18',
-    district: 'ცენტრი',
-    company_code: 'KUT-CTR-001',
-    contact_person: 'დათო გაბუნია',
-    contact_phones: '555-88-77-66',
-    contract_manager: 'ნინო დევდარიანი',
-    operator: 'ალექსანდრე ხუციშვილი',
-    created_at: '2026-05-12T11:00:00Z',
-    last_pickup_date: '2026-05-20T10:00:00Z', // Overdue
-    average_interval_days: 15
-  },
-  {
-    id: 'v-06',
-    trade_name: 'ბათუმი ფიშ ჰაუსი',
-    legal_name: 'შპს შავი ზღვის ნობათი',
-    id_code: '445239102',
-    bank_account: 'GE62TB0908070605040302',
-    price_per_liter: 1.45,
-    city: 'ბათუმი',
-    address: 'გოგებაშვილის ქ. 3',
-    district: 'პორტი',
-    company_code: 'BAT-PRT-004',
-    contact_person: 'მალხაზი',
-    contact_phones: '597-44-88-22',
-    contract_manager: 'ლევან კაპანაძე',
-    operator: 'ხატია მამულაძე',
-    created_at: '2026-05-15T14:00:00Z',
-    last_pickup_date: '2026-06-05T12:00:00Z',
-    average_interval_days: 12
+    id: 'emp-admin',
+    name: 'ადმინისტრატორი',
+    personal_id: '12345678901',
+    email: 'admin@biodiesel.ge',
+    password: 'admin',
+    phone: '599112233',
+    role: 'admin',
+    privileges: ['සියველფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
+    created_at: new Date().toISOString()
   }
 ];
 
-const SEED_TASKS: LogisticsTask[] = [
-  {
-    id: 't-01',
-    venue_id: 'v-01',
-    venue_name: 'ხინკლის სახლი (საბურთალო)',
-    venue_address: 'ვაჟა-ფშაველას გამზ. 25',
-    venue_district: 'საბურთალო',
-    driver_id: 'usr-drv1',
-    driver_name: 'დათო კვარაცხელია',
-    status: 'assigned',
-    tanks_to_remove: 3,
-    tanks_to_leave: 3,
-    notes: 'კაპები შეამოწმეთ, წინა ჯერზე დაზიანებული იყო',
-    working_hours: '11:00 - 23:00',
-    created_at: '2026-06-10T09:00:00Z',
-    created_by_name: 'გიორგი მებურიშვილი'
-  },
-  {
-    id: 't-02',
-    venue_id: 'v-02',
-    venue_name: 'მაჭახელა (კოტე აფხაზი)',
-    venue_address: 'კოტე აფხაზის ქ. 34',
-    venue_district: 'ძველი თბილისი',
-    driver_id: 'usr-drv1',
-    driver_name: 'დათო კვარაცხელია',
-    status: 'completed',
-    tanks_to_remove: 2,
-    tanks_to_leave: 2,
-    notes: 'ავზების გამოცვლა სწრაფად',
-    working_hours: '10:00 - 22:00',
-    actual_liters: 120,
-    created_at: '2026-06-02T10:00:00Z',
-    completed_at: '2026-06-02T16:00:00Z',
-    created_by_name: 'გიორგი მებურიშვილი'
-  },
-  {
-    id: 't-03',
-    venue_id: 'v-04',
-    venue_name: 'შავი ლომი',
-    venue_address: 'ამაღლების ქ. 23',
-    venue_district: 'სოლოლაკი',
-    driver_id: 'usr-drv2',
-    driver_name: 'თემო შენგელია',
-    status: 'completed',
-    tanks_to_remove: 1,
-    tanks_to_leave: 1,
-    working_hours: '13:00 - 01:00',
-    actual_liters: 55,
-    created_at: '2026-06-09T11:00:00Z',
-    completed_at: '2026-06-09T18:00:00Z',
-    created_by_name: 'გიორგი მებურიშვილი'
-  },
-  {
-    id: 't-04',
-    venue_id: 'v-03',
-    venue_name: 'რესტორანი პასანაური',
-    venue_address: 'რუსთაველის გამზ. 37',
-    venue_district: 'მთაწმინდა',
-    status: 'pending',
-    tanks_to_remove: 4,
-    tanks_to_leave: 4,
-    notes: 'საჭიროა დიდი მანქანა, ბევრი ზეთია დაგროვილი',
-    working_hours: '24/7',
-    created_at: '2026-06-11T08:30:00Z',
-    created_by_name: 'ნინო დევდარიანი'
-  }
+const DEFAULT_CITIES: City[] = [
+  { id: 'city-tbilisi', name: 'თბილისი' },
+  { id: 'city-kutaisi', name: 'ქუთაისი' },
+  { id: 'city-batumi', name: 'ბათუმი' }
 ];
 
-const SEED_LOGS: ActivityLog[] = [
-  {
-    id: 'log-01',
-    user_name: 'სანდრო კალანდაძე (ადმინი)',
-    user_role: 'ადმინისტრატორი',
-    action_type: 'სისტემის გაშვება',
-    details: 'ბიოდიზელ ჯორჯიას პორტალის ინიციალიზაცია წარმატებით დასრულდა',
-    created_at: '2026-06-11T08:00:00Z'
-  },
-  {
-    id: 'log-02',
-    user_name: 'გიორგი მებურიშვილი',
-    user_role: 'მენეჯერი',
-    action_type: 'დავალების შექმნა',
-    details: 'შეიქმნა ახალი დავალება ობიექტისთვის: ხინკლის სახლი (საბურთალო), მძღოლი: დათო კვარაცხელია',
-    created_at: '2026-06-10T09:05:00Z'
-  }
+const DEFAULT_DISTRICTS: District[] = [
+  { id: 'dist-sab-tb', city_id: 'city-tbilisi', name: 'საბურთალო' },
+  { id: 'dist-vake-tb', city_id: 'city-tbilisi', name: 'ვაკე' },
+  { id: 'dist-gld-tb', city_id: 'city-tbilisi', name: 'გლდანი' },
+  { id: 'dist-ctr-kut', city_id: 'city-kutaisi', name: 'ცენტრი' },
+  { id: 'dist-prt-bat', city_id: 'city-batumi', name: 'პორტი' }
 ];
 
-// Helper to load/save from LocalStorage
-const getLocalStorage = <T>(key: string, preset: T): T => {
+const DEFAULT_WAREHOUSES: Warehouse[] = [
+  { id: 'wh-main', name: 'ცენტრალური საწყობი' },
+  { id: 'wh-west', name: 'დასავლეთის საწყობი' }
+];
+
+const DEFAULT_TRUCKS: Truck[] = [
+  { plate_number: 'BB-777-GG', model: 'Scania R500', driver_id: '', companion_id: '' }
+];
+
+// LocalStorage loaders
+const getLocal = <T>(key: string, preset: T): T => {
   const data = localStorage.getItem(key);
   if (!data) {
     localStorage.setItem(key, JSON.stringify(preset));
     return preset;
   }
-  return JSON.parse(data) as T;
+  try {
+    return JSON.parse(data) as T;
+  } catch (e) {
+    return preset;
+  }
 };
 
-const setLocalStorage = <T>(key: string, data: T): void => {
+const setLocal = <T>(key: string, data: T): void => {
   localStorage.setItem(key, JSON.stringify(data));
 };
 
-// Local storage keys
-const KEY_USERS = 'biodiesel_users';
-const KEY_VENUES = 'biodiesel_venues';
-const KEY_TASKS = 'biodiesel_tasks';
-const KEY_LOGS = 'biodiesel_logs';
-
-// Initialize Simulated Database
-export const localDB = {
-  getUsers: () => getLocalStorage<UserProfile[]>(KEY_USERS, SEED_USERS),
-  setUsers: (users: UserProfile[]) => setLocalStorage(KEY_USERS, users),
-
-  getVenues: () => getLocalStorage<Venue[]>(KEY_VENUES, SEED_VENUES),
-  setVenues: (venues: Venue[]) => setLocalStorage(KEY_VENUES, venues),
-
-  getTasks: () => getLocalStorage<LogisticsTask[]>(KEY_TASKS, SEED_TASKS),
-  setTasks: (tasks: LogisticsTask[]) => setLocalStorage(KEY_TASKS, tasks),
-
-  getLogs: () => getLocalStorage<ActivityLog[]>(KEY_LOGS, SEED_LOGS),
-  setLogs: (logs: ActivityLog[]) => setLocalStorage(KEY_LOGS, logs),
-
-  reset: () => {
-    localStorage.removeItem(KEY_USERS);
-    localStorage.removeItem(KEY_VENUES);
-    localStorage.removeItem(KEY_TASKS);
-    localStorage.removeItem(KEY_LOGS);
-    return {
-      users: getLocalStorage<UserProfile[]>(KEY_USERS, SEED_USERS),
-      venues: getLocalStorage<Venue[]>(KEY_VENUES, SEED_VENUES),
-      tasks: getLocalStorage<LogisticsTask[]>(KEY_TASKS, SEED_TASKS),
-      logs: getLocalStorage<ActivityLog[]>(KEY_LOGS, SEED_LOGS),
-    };
-  }
-};
-
 // ==========================================
-// HIGH LEVEL API (Auto-fallback to Sim-DB)
+// SYSTEM AUDIT LOGGING
 // ==========================================
-
-export async function addLog(userName: string, userRole: string, actionType: string, details: string) {
-  const newLog: ActivityLog = {
-    id: 'log-' + Math.random().toString(36).substr(2, 9),
-    user_name: userName,
-    user_role: userRole,
-    action_type: actionType,
-    details,
-    created_at: new Date().toISOString()
+export async function trackChange(
+  employeeName: string, 
+  operation: string, 
+  fieldName?: string, 
+  oldValue?: string, 
+  newValue?: string
+) {
+  const newLog: ChangeHistory = {
+    id: 'ch-' + Math.random().toString(36).substring(2, 9),
+    date_time: new Date().toISOString(),
+    employee_name: employeeName,
+    operation,
+    field_name: fieldName,
+    old_value: oldValue,
+    new_value: newValue
   };
 
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('activity_logs').insert([newLog]);
+      await supabase.from('change_history').insert([newLog]);
     } catch (e) {
-      console.error('Supabase error, logging locally:', e);
+      console.error('Supabase trackChange failed, fallback:', e);
     }
   }
 
-  // Always keep simulated in sync as fallback
-  const logs = localDB.getLogs();
-  localDB.setLogs([newLog, ...logs]);
+  const logs = getLocal<ChangeHistory[]>(KEY_CHANGE_HISTORY, []);
+  setLocal(KEY_CHANGE_HISTORY, [newLog, ...logs]);
 }
 
-// 1. Venues (ობიექტები)
-export async function getVenues(): Promise<Venue[]> {
+// ==========================================
+// API GETTERS & SETTERS (WITH SUPABASE SYNC)
+// ==========================================
+
+// 1. Employee (თანამშრომლები)
+export async function getEmployees(): Promise<Employee[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('venues').select('*').order('trade_name', { ascending: true });
+      const { data, error } = await supabase.from('employees').select('*').order('name');
       if (!error && data) return data;
     } catch (e) {
-      console.warn('Supabase getVenues failed - returning simulated data', e);
+      console.warn('Supabase getEmployees failed', e);
     }
   }
-  return localDB.getVenues();
+  return getLocal<Employee[]>(KEY_EMPLOYEES, DEFAULT_EMPLOYEES);
 }
 
-export async function saveVenue(venue: Venue, editorName: string, editorRole: string): Promise<Venue> {
-  const isNew = !venue.id || venue.id === '';
-  const finalVenue = {
-    ...venue,
-    id: isNew ? 'v-' + Math.random().toString(36).substr(2, 9) : venue.id,
-    created_at: venue.created_at || new Date().toISOString()
+export async function saveEmployee(employee: Employee, loggerName: string): Promise<Employee> {
+  const isNew = !employee.id;
+  const finalEmployee = {
+    ...employee,
+    id: isNew ? 'emp-' + Math.random().toString(36).substring(2, 9) : employee.id,
+    created_at: employee.created_at || new Date().toISOString()
   };
 
   if (isSupabaseConfigured && supabase) {
     try {
       if (isNew) {
-        await supabase.from('venues').insert([finalVenue]);
+        await supabase.from('employees').insert([finalEmployee]);
       } else {
-        await supabase.from('venues').update(finalVenue).eq('id', finalVenue.id);
+        await supabase.from('employees').update(finalEmployee).eq('id', finalEmployee.id);
       }
     } catch (e) {
-      console.error('Supabase write failed', e);
+      console.error('Supabase saveEmployee failed', e);
     }
   }
 
-  // Local sync
-  const venues = localDB.getVenues();
+  const list = getLocal<Employee[]>(KEY_EMPLOYEES, DEFAULT_EMPLOYEES);
   if (isNew) {
-    localDB.setVenues([...venues, finalVenue]);
-    await addLog(
-      editorName,
-      editorRole,
-      'ობიექტის დამატება',
-      `დაემატა ახალი ობიექტი: ${finalVenue.trade_name} (კოდი: ${finalVenue.company_code})`
-    );
+    setLocal(KEY_EMPLOYEES, [...list, finalEmployee]);
+    await trackChange(loggerName, 'თანამშრომლის დამატება', 'სახელი', '', finalEmployee.name);
   } else {
-    localDB.setVenues(venues.map(v => v.id === finalVenue.id ? finalVenue : v));
-    await addLog(
-      editorName,
-      editorRole,
-      'ობიექტის რედაქტირება',
-      `რედაქტირდა ობიექტი: ${finalVenue.trade_name}. ცვლილება განახორციელა ${editorName}-მა.`
-    );
+    setLocal(KEY_EMPLOYEES, list.map(item => item.id === finalEmployee.id ? finalEmployee : item));
+    await trackChange(loggerName, 'თანამშრომლის რედაქტირება', 'სახელი', '', finalEmployee.name);
   }
-
-  return finalVenue;
+  return finalEmployee;
 }
 
-export async function deleteVenue(venueId: string, tradeName: string, editorName: string, editorRole: string): Promise<boolean> {
+export async function deleteEmployee(id: string, name: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('venues').delete().eq('id', venueId);
+      await supabase.from('employees').delete().eq('id', id);
     } catch (e) {
-      console.error('Supabase delete failed', e);
+      console.error('Supabase deleteEmployee failed', e);
     }
   }
 
-  const venues = localDB.getVenues();
-  localDB.setVenues(venues.filter(v => v.id !== venueId));
-
-  // Remove corresponding tasks
-  const tasks = localDB.getTasks();
-  localDB.setTasks(tasks.filter(t => t.venue_id !== venueId));
-
-  await addLog(
-    editorName,
-    editorRole,
-    'ობიექტის წაშლა',
-    `სისტემიდან წაიშალა ობიექტი: ${tradeName}`
-  );
-
+  const list = getLocal<Employee[]>(KEY_EMPLOYEES, DEFAULT_EMPLOYEES);
+  setLocal(KEY_EMPLOYEES, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'თანამშრომლის წაშლა', 'სახელი', name, '');
   return true;
 }
 
-// 2. Logistics & Tasks (ლოგისტიკა და დავალებები)
-export async function getTasks(): Promise<LogisticsTask[]> {
+// 2. Suppliers (მომწოდებლები)
+export async function getSuppliers(): Promise<Supplier[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('suppliers').select('*').order('trade_name');
       if (!error && data) return data;
     } catch (e) {
-      console.warn('Supabase getTasks failed', e);
+      console.warn('Supabase getSuppliers failed', e);
     }
   }
-  return localDB.getTasks();
+  return getLocal<Supplier[]>(KEY_SUPPLIERS, []);
 }
 
-export async function saveTask(task: LogisticsTask, editorName: string, editorRole: string): Promise<LogisticsTask> {
-  const isNew = !task.id || task.id === '';
-  const finalTask = {
-    ...task,
-    id: isNew ? 't-' + Math.random().toString(36).substr(2, 9) : task.id,
-    created_at: task.created_at || new Date().toISOString()
+export async function saveSupplier(supplier: Supplier, loggerName: string): Promise<Supplier> {
+  const isNew = !supplier.id;
+  const finalSupplier = {
+    ...supplier,
+    id: isNew ? 'sup-' + Math.random().toString(36).substring(2, 9) : supplier.id,
+    created_at: supplier.created_at || new Date().toISOString()
   };
 
   if (isSupabaseConfigured && supabase) {
     try {
       if (isNew) {
-        await supabase.from('tasks').insert([finalTask]);
+        await supabase.from('suppliers').insert([finalSupplier]);
       } else {
-        await supabase.from('tasks').update(finalTask).eq('id', finalTask.id);
+        await supabase.from('suppliers').update(finalSupplier).eq('id', finalSupplier.id);
       }
     } catch (e) {
-      console.error('Supabase write task failed', e);
+      console.error('Supabase saveSupplier failed', e);
     }
   }
 
-  const tasks = localDB.getTasks();
+  const list = getLocal<Supplier[]>(KEY_SUPPLIERS, []);
   if (isNew) {
-    localDB.setTasks([finalTask, ...tasks]);
-    await addLog(
-      editorName,
-      editorRole,
-      'დავალების შექმნა',
-      `შეიქმნა დავალება: ${finalTask.venue_name}-დან ${finalTask.tanks_to_remove} ავზის წასაღებად და ${finalTask.tanks_to_leave} ავზის დასატოვებლად`
-    );
+    setLocal(KEY_SUPPLIERS, [...list, finalSupplier]);
+    await trackChange(loggerName, 'მომწოდებლის დამატება', 'სავაჭრო სახელი', '', finalSupplier.trade_name);
   } else {
-    localDB.setTasks(tasks.map(t => t.id === finalTask.id ? finalTask : t));
-    await addLog(
-      editorName,
-      editorRole,
-      'დავალების განახლება',
-      `განახლდა დავალება #${finalTask.id} (${finalTask.venue_name}) - სტატუსი: ${translateStatus(finalTask.status)}`
-    );
+    setLocal(KEY_SUPPLIERS, list.map(item => item.id === finalSupplier.id ? finalSupplier : item));
+    await trackChange(loggerName, 'მომწოდებლის რედაქტირება', 'სავაჭრო სახელი', '', finalSupplier.trade_name);
   }
-
-  return finalTask;
+  return finalSupplier;
 }
 
-// 3. Complete Task by Driver (დავალების შესრულება მძღოლის მიერ)
-export async function completeTask(taskId: string, liters: number, driverName: string): Promise<LogisticsTask | null> {
-  const tasks = localDB.getTasks();
-  const task = tasks.find(t => t.id === taskId);
-  if (!task) return null;
-
-  const completedTask: LogisticsTask = {
-    ...task,
-    status: 'completed',
-    actual_liters: liters,
-    completed_at: new Date().toISOString()
-  };
-
-  // Update venue's last pickup date
-  const venues = localDB.getVenues();
-  const updatedVenues = venues.map(v => {
-    if (v.id === task.venue_id) {
-      // Recalculate average interval days if there was a previous pickup
-      let newInterval = v.average_interval_days;
-      if (v.last_pickup_date) {
-        const last = new Date(v.last_pickup_date).getTime();
-        const current = new Date().getTime();
-        const diffDays = Math.max(1, Math.round((current - last) / (1000 * 60 * 60 * 24)));
-        newInterval = v.average_interval_days
-          ? Math.round((v.average_interval_days + diffDays) / 2)
-          : diffDays;
-      }
-      return {
-        ...v,
-        last_pickup_date: completedTask.completed_at,
-        average_interval_days: newInterval
-      };
-    }
-    return v;
-  });
-
-  localDB.setVenues(updatedVenues);
-
+export async function deleteSupplier(id: string, tradeName: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('tasks').update(completedTask).eq('id', taskId);
-      await supabase.from('venues').update({
-        last_pickup_date: completedTask.completed_at
-      }).eq('id', task.venue_id);
+      await supabase.from('suppliers').delete().eq('id', id);
     } catch (e) {
-      console.error('Supabase complete task failed', e);
+      console.error('Supabase deleteSupplier failed', e);
     }
   }
 
-  // Save updated task locally
-  localDB.setTasks(tasks.map(t => t.id === taskId ? completedTask : t));
-
-  await addLog(
-    driverName,
-    'მძღოლი',
-    'დავალების დასრულება',
-    `მძღოლმა ${driverName} წარმატებით წაიღო ${liters} ლიტრი ზეთი ობიექტიდან: ${task.venue_name}`
-  );
-
-  // Return completed task
-  return completedTask;
-}
-
-// 4. Users & Authentication Mock (მომხმარებლების მართვა)
-export async function getUsers(): Promise<UserProfile[]> {
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase.from('user_profiles').select('*');
-      if (!error && data) return data;
-    } catch (e) {
-      console.warn('Supabase getUsers failed', e);
-    }
-  }
-  return localDB.getUsers();
-}
-
-export async function updateUserRole(userId: string, newRole: UserRole, venueId?: string, baseRegion?: string, editorName = 'ადმინი'): Promise<boolean> {
-  const users = localDB.getUsers();
-  const index = users.findIndex(u => u.id === userId);
-  if (index === -1) return false;
-
-  const targetUser = users[index];
-  const updatedUser: UserProfile = {
-    ...targetUser,
-    role: newRole,
-    venue_id: venueId,
-    base_region: baseRegion
-  };
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('user_profiles').update({
-        role: newRole,
-        venue_id: venueId,
-        base_region: baseRegion
-      }).eq('id', userId);
-    } catch (e) {
-      console.error('Supabase database role update failed', e);
-    }
-  }
-
-  users[index] = updatedUser;
-  localDB.setUsers(users);
-
-  await addLog(
-    editorName,
-    'ადმინისტრატორი',
-    'უფლებების შეცვლა',
-    `მომხმარებელს ${targetUser.name} შეეცვალა როლი. ახალი როლი: ${translateRole(newRole)}`
-  );
-
+  const list = getLocal<Supplier[]>(KEY_SUPPLIERS, []);
+  setLocal(KEY_SUPPLIERS, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'მომწოდებლის წაშლა', 'სავაჭრო სახელი', tradeName, '');
   return true;
 }
 
-// 5. Audit Log (ლოგები)
-export async function getActivityLogs(): Promise<ActivityLog[]> {
+// 3. Orders (შეკვეთები)
+export async function getOrders(): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('orders').select('*').order('order_date', { ascending: false });
       if (!error && data) return data;
     } catch (e) {
-      console.warn('Supabase getActivityLogs failed', e);
+      console.warn('Supabase getOrders failed', e);
     }
   }
-  return localDB.getLogs();
+  return getLocal<Order[]>(KEY_ORDERS, []);
 }
 
-// ==========================================
-// BUSINESS LOGIC & ANALYTICS HELPER METHODS
-// ==========================================
-
-export function translateStatus(status: string): string {
-  switch (status) {
-    case 'pending': return 'მოსამზადებელი (რიგში)';
-    case 'assigned': return 'დანიშნული მძღოლი';
-    case 'completed': return 'შესრულებული';
-    default: return status;
-  }
-}
-
-export function translateRole(role: string): string {
-  switch (role) {
-    case 'admin': return 'ადმინისტრატორი';
-    case 'manager': return 'მენეჯერი';
-    case 'driver': return 'მძღოლი';
-    case 'venue': return 'ობიექტი (რესტორანი)';
-    default: return role;
-  }
-}
-
-// Calculate if a venue is overdue for pickup (გადაცილებული ობიექტები)
-export function getOverdueVenues(venues: Venue[]): Venue[] {
-  const now = new Date().getTime();
-  const fifteenDaysInMs = 15 * 24 * 60 * 60 * 1000;
-
-  return venues.filter(v => {
-    if (!v.last_pickup_date) {
-      // If it has never been picked up, check if the creation date is older than 15 days
-      const created = new Date(v.created_at).getTime();
-      return (now - created) > fifteenDaysInMs;
-    }
-    const lastPickup = new Date(v.last_pickup_date).getTime();
-    const intervalLimit = v.average_interval_days
-      ? v.average_interval_days * 24 * 60 * 60 * 1000
-      : fifteenDaysInMs;
-
-    // It's overdue if time since last pickup exceeds the limit (or default 15 days)
-    return (now - lastPickup) > intervalLimit;
-  });
-}
-
-// Simulated automated notifications (SMS, Push FCM simulation)
-export interface NotificationMessage {
-  id: string;
-  sender: string;
-  recipient: string;
-  text: string;
-  sent_at: string;
-}
-
-export function sendNotificationSim(sender: string, recipient: string, text: string): void {
-  const notifs = getLocalStorage<NotificationMessage[]>('biodiesel_notifications', []);
-  const newNotif: NotificationMessage = {
-    id: 'n-' + Math.random().toString(36).substr(2, 9),
-    sender,
-    recipient,
-    text,
-    sent_at: new Date().toISOString()
+export async function saveOrder(order: Order, loggerName: string): Promise<Order> {
+  const isNew = !order.id;
+  const finalOrder = {
+    ...order,
+    id: isNew ? 'ord-' + Math.random().toString(36).substring(2, 9) : order.id
   };
-  setLocalStorage('biodiesel_notifications', [newNotif, ...notifs]);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (isNew) {
+        await supabase.from('orders').insert([finalOrder]);
+      } else {
+        await supabase.from('orders').update(finalOrder).eq('id', finalOrder.id);
+      }
+    } catch (e) {
+      console.error('Supabase saveOrder failed', e);
+    }
+  }
+
+  const list = getLocal<Order[]>(KEY_ORDERS, []);
+  if (isNew) {
+    setLocal(KEY_ORDERS, [finalOrder, ...list]);
+    await trackChange(loggerName, 'შეკვეთის შექმნა', 'დოკუმენტი #', '', finalOrder.doc_number);
+  } else {
+    // Check if status changed to completed to trigger SMS simulation
+    const oldOrder = list.find(o => o.id === finalOrder.id);
+    if (oldOrder && oldOrder.status !== 'completed' && finalOrder.status === 'completed') {
+      finalOrder.sms_sent = true;
+      // Trigger instant simulation of SMS to accountant
+      triggerSMS(finalOrder);
+    }
+    
+    setLocal(KEY_ORDERS, list.map(item => item.id === finalOrder.id ? finalOrder : item));
+    await trackChange(loggerName, 'შეკვეთის განახლება', 'სტატუსი', oldOrder?.status || '', finalOrder.status);
+  }
+  return finalOrder;
 }
 
-export function getNotificationsSim(): NotificationMessage[] {
-  return getLocalStorage<NotificationMessage[]>('biodiesel_notifications', []);
+// SMS log simulator
+function triggerSMS(order: Order) {
+  const logs = getLocal<any[]>('biodiesel_sms_logs', []);
+  const newSMS = {
+    id: 'sms-' + Math.random().toString(36).substring(2, 9),
+    date_time: new Date().toISOString(),
+    recipient: 'ბუღალტერია / დირექტორია',
+    message: `ბიოდიზელი ჯორჯია: შეკვეთა დოკუმენტის ნომრით #${order.doc_number} წარმატებით შესრულდა. დადასტურებული რაოდენობა: ${order.qty_actual || order.qty_requested} ლიტრი.`,
+    status: 'გაგზავნილია (Simulated)',
+  };
+  setLocal('biodiesel_sms_logs', [newSMS, ...logs]);
+}
+
+export async function getSMSLogs(): Promise<any[]> {
+  return getLocal<any[]>('biodiesel_sms_logs', []);
+}
+
+export async function deleteOrder(id: string, docNum: string, loggerName: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('orders').delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase deleteOrder failed', e);
+    }
+  }
+
+  const list = getLocal<Order[]>(KEY_ORDERS, []);
+  setLocal(KEY_ORDERS, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'შეკვეთის წაშლა', 'დოკუმენტი #', docNum, '');
+  return true;
+}
+
+// 4. Communications (კომუნიკაცია)
+export async function getCommunications(): Promise<Communication[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('communications').select('*').order('date_time', { ascending: false });
+      if (!error && data) return data;
+    } catch (e) {
+      console.warn('Supabase getCommunications failed', e);
+    }
+  }
+  return getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
+}
+
+export async function saveCommunication(comm: Communication, loggerName: string): Promise<Communication> {
+  const isNew = !comm.id;
+  const finalComm = {
+    ...comm,
+    id: isNew ? 'comm-' + Math.random().toString(36).substring(2, 9) : comm.id
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (isNew) {
+        await supabase.from('communications').insert([finalComm]);
+      } else {
+        await supabase.from('communications').update(finalComm).eq('id', finalComm.id);
+      }
+    } catch (e) {
+      console.error('Supabase saveCommunication failed', e);
+    }
+  }
+
+  const list = getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
+  if (isNew) {
+    setLocal(KEY_COMMUNICATIONS, [finalComm, ...list]);
+    await trackChange(loggerName, 'კომუნიკაციის აღრიცხვა', 'კომენტარი', '', finalComm.comment);
+  } else {
+    setLocal(KEY_COMMUNICATIONS, list.map(item => item.id === finalComm.id ? finalComm : item));
+    await trackChange(loggerName, 'კომუნიკაციის განახლება', 'კომენტარი', '', finalComm.comment);
+  }
+  return finalComm;
+}
+
+export async function deleteCommunication(id: string, loggerName: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('communications').delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase deleteCommunication failed', e);
+    }
+  }
+
+  const list = getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
+  setLocal(KEY_COMMUNICATIONS, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'კომუნიკაციის წაშლა', 'ID', id, '');
+  return true;
+}
+
+// 5. Trucks (მანქანები)
+export async function getTrucks(): Promise<Truck[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('trucks').select('*').order('plate_number');
+      if (!error && data) return data;
+    } catch (e) {
+      console.warn('Supabase getTrucks failed', e);
+    }
+  }
+  return getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
+}
+
+export async function saveTruck(truck: Truck, loggerName: string): Promise<Truck> {
+  const list = getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
+  const exists = list.some(t => t.plate_number === truck.plate_number);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (!exists) {
+        await supabase.from('trucks').insert([truck]);
+      } else {
+        await supabase.from('trucks').update(truck).eq('plate_number', truck.plate_number);
+      }
+    } catch (e) {
+      console.error('Supabase saveTruck failed', e);
+    }
+  }
+
+  if (!exists) {
+    setLocal(KEY_TRUCKS, [...list, truck]);
+    await trackChange(loggerName, 'მანქანის დამატება', 'სახელმწიფო ნომერი', '', truck.plate_number);
+  } else {
+    setLocal(KEY_TRUCKS, list.map(item => item.plate_number === truck.plate_number ? truck : item));
+    await trackChange(loggerName, 'მანქანის განახლება', 'მოდელი', '', truck.model);
+  }
+  return truck;
+}
+
+export async function deleteTruck(plate: string, loggerName: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('trucks').delete().eq('plate_number', plate);
+    } catch (e) {
+      console.error('Supabase deleteTruck failed', e);
+    }
+  }
+
+  const list = getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
+  setLocal(KEY_TRUCKS, list.filter(item => item.plate_number !== plate));
+  await trackChange(loggerName, 'მანქანის წაშლა', 'სახელმწიფო ნომერი', plate, '');
+  return true;
+}
+
+// 6. Change History (ცვლილებების ისტორია)
+export async function getChangeHistory(): Promise<ChangeHistory[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('change_history').select('*').order('date_time', { ascending: false });
+      if (!error && data) return data;
+    } catch (e) {
+      console.warn('Supabase getChangeHistory failed', e);
+    }
+  }
+  return getLocal<ChangeHistory[]>(KEY_CHANGE_HISTORY, []);
+}
+
+// 7. Warehouses (საწყობები)
+export async function getWarehouses(): Promise<Warehouse[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('warehouses').select('*').order('name');
+      if (!error && data) return data;
+    } catch (e) {
+      console.warn('Supabase getWarehouses failed', e);
+    }
+  }
+  return getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
+}
+
+export async function saveWarehouse(wh: Warehouse, loggerName: string): Promise<Warehouse> {
+  const isNew = !wh.id;
+  const finalWh = {
+    ...wh,
+    id: isNew ? 'wh-' + Math.random().toString(36).substring(2, 9) : wh.id
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (isNew) {
+        await supabase.from('warehouses').insert([finalWh]);
+      } else {
+        await supabase.from('warehouses').update(finalWh).eq('id', finalWh.id);
+      }
+    } catch (e) {
+      console.error('Supabase saveWarehouse failed', e);
+    }
+  }
+
+  const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
+  if (isNew) {
+    setLocal(KEY_WAREHOUSES, [...list, finalWh]);
+    await trackChange(loggerName, 'საწყობის დამატება', 'დასახელება', '', finalWh.name);
+  } else {
+    setLocal(KEY_WAREHOUSES, list.map(item => item.id === finalWh.id ? finalWh : item));
+    await trackChange(loggerName, 'საწყობის განახლება', 'დასახელება', '', finalWh.name);
+  }
+  return finalWh;
+}
+
+export async function deleteWarehouse(id: string, name: string, loggerName: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('warehouses').delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase deleteWarehouse failed', e);
+    }
+  }
+
+  const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
+  setLocal(KEY_WAREHOUSES, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'საწყობის წაშლა', 'დასახელება', name, '');
+  return true;
+}
+
+// 8. Cities (ქალაქები)
+export async function getCities(): Promise<City[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('cities').select('*').order('name');
+      if (!error && data) return data;
+    } catch (e) {
+      console.warn('Supabase getCities failed', e);
+    }
+  }
+  return getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
+}
+
+export async function saveCity(city: City, loggerName: string): Promise<City> {
+  const isNew = !city.id;
+  const finalCity = {
+    ...city,
+    id: isNew ? 'city-' + Math.random().toString(36).substring(2, 9) : city.id
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (isNew) {
+        await supabase.from('cities').insert([finalCity]);
+      } else {
+        await supabase.from('cities').update(finalCity).eq('id', finalCity.id);
+      }
+    } catch (e) {
+      console.error('Supabase saveCity failed', e);
+    }
+  }
+
+  const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
+  if (isNew) {
+    setLocal(KEY_CITIES, [...list, finalCity]);
+    await trackChange(loggerName, 'ქალაქის დამატება', 'დასახელება', '', finalCity.name);
+  } else {
+    setLocal(KEY_CITIES, list.map(item => item.id === finalCity.id ? finalCity : item));
+    await trackChange(loggerName, 'ქალაქის განახლება', 'დასახელება', '', finalCity.name);
+  }
+  return finalCity;
+}
+
+export async function deleteCity(id: string, name: string, loggerName: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('cities').delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase deleteCity failed', e);
+    }
+  }
+
+  const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
+  setLocal(KEY_CITIES, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'ქალაქის წაშლა', 'დასახელება', name, '');
+  return true;
+}
+
+// 9. Districts (უბნები)
+export async function getDistricts(): Promise<District[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('districts').select('*').order('name');
+      if (!error && data) return data;
+    } catch (e) {
+      console.warn('Supabase getDistricts failed', e);
+    }
+  }
+  return getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
+}
+
+export async function saveDistrict(dist: District, loggerName: string): Promise<District> {
+  const isNew = !dist.id;
+  const finalDist = {
+    ...dist,
+    id: isNew ? 'dist-' + Math.random().toString(36).substring(2, 9) : dist.id
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (isNew) {
+        await supabase.from('districts').insert([finalDist]);
+      } else {
+        await supabase.from('districts').update(finalDist).eq('id', finalDist.id);
+      }
+    } catch (e) {
+      console.error('Supabase saveDistrict failed', e);
+    }
+  }
+
+  const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
+  if (isNew) {
+    setLocal(KEY_DISTRICTS, [...list, finalDist]);
+    await trackChange(loggerName, 'უბნის დამატება', 'დასახელება', '', finalDist.name);
+  } else {
+    setLocal(KEY_DISTRICTS, list.map(item => item.id === finalDist.id ? finalDist : item));
+    await trackChange(loggerName, 'უბნის განახლება', 'დასახელება', '', finalDist.name);
+  }
+  return finalDist;
+}
+
+export async function deleteDistrict(id: string, name: string, loggerName: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('districts').delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase deleteDistrict failed', e);
+    }
+  }
+
+  const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
+  setLocal(KEY_DISTRICTS, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'უბნის წაშლა', 'დასახელება', name, '');
+  return true;
+}
+
+// 10. SYSTEM RESET
+export function resetSystemDatabase() {
+  localStorage.removeItem(KEY_EMPLOYEES);
+  localStorage.removeItem(KEY_SUPPLIERS);
+  localStorage.removeItem(KEY_ORDERS);
+  localStorage.removeItem(KEY_COMMUNICATIONS);
+  localStorage.removeItem(KEY_TRUCKS);
+  localStorage.removeItem(KEY_CHANGE_HISTORY);
+  localStorage.removeItem(KEY_WAREHOUSES);
+  localStorage.removeItem(KEY_CITIES);
+  localStorage.removeItem(KEY_DISTRICTS);
+  localStorage.removeItem('biodiesel_sms_logs');
+  localStorage.removeItem('biodiesel_notifications');
 }

@@ -4,55 +4,93 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { UserProfile, Venue, LogisticsTask, ActivityLog } from './types';
 import { 
-  getVenues, getTasks, getUsers, getActivityLogs, 
-  isSupabaseConfigured, translateRole 
+  Employee, Supplier, Order, Communication, Truck, 
+  ChangeHistory, Warehouse, City, District 
+} from './types';
+
+import { 
+  getEmployees, saveEmployee, deleteEmployee,
+  getSuppliers, saveSupplier, deleteSupplier,
+  getOrders, saveOrder, deleteOrder,
+  getCommunications, saveCommunication, deleteCommunication,
+  getTrucks, saveTruck, deleteTruck,
+  getChangeHistory,
+  getWarehouses, saveWarehouse, deleteWarehouse,
+  getCities, saveCity, deleteCity,
+  getDistricts, saveDistrict, deleteDistrict,
+  resetSystemDatabase, isSupabaseConfigured
 } from './lib/db';
-import RoleSelector from './components/RoleSelector';
-import AdminPanel from './components/AdminPanel';
-import ManagerPanel from './components/ManagerPanel';
-import DriverPanel from './components/DriverPanel';
-import VenuePanel from './components/VenuePanel';
+
+// Modular view components
+import LoginView from './components/LoginView';
+import DashboardView from './components/DashboardView';
+import AnalyticsView from './components/AnalyticsView';
+import SuppliersView from './components/SuppliersView';
+import CommunicationsView from './components/CommunicationsView';
+import OrdersView from './components/OrdersView';
+import EmployeesView from './components/EmployeesView';
+import ReportsView from './components/ReportsView';
+import LookupsView from './components/LookupsView';
+import SettingsView from './components/SettingsView';
+import HistoryView from './components/HistoryView';
+
+// Icons for Left Sidebar pairing
 import { 
-  Leaf, Info, Key, Server, Settings, ExternalLink, HelpCircle, 
-  Database, ShieldCheck, Cpu, Smartphone, BellRing 
+  Leaf, LayoutDashboard, BarChart3, Building2, MessageSquare, 
+  ShoppingBag, Users, FileText, Database, Settings, History, 
+  Globe, LogOut, Info, ShieldCheck, ChevronRight, Menu, X
 } from 'lucide-react';
 
 export default function App() {
-  // Live State managers
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [venues, setVenues] = useState<Venue[]>([]);
-  const [tasks, setTasks] = useState<LogisticsTask[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  
+  // Database Live Models
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [communications, setCommunications] = useState<Communication[]>([]);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [changeHistory, setChangeHistory] = useState<ChangeHistory[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
 
-  // Load and refresh core DB models
+  // System status
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showStructureDesc, setShowStructureDesc] = useState(false);
+
+  // Sync data function
   const refreshAllData = async () => {
     try {
-      const liveUsers = await getUsers();
-      const liveVenues = await getVenues();
-      const liveTasks = await getTasks();
-      const liveLogs = await getActivityLogs();
+      const emps = await getEmployees();
+      const sups = await getSuppliers();
+      const ords = await getOrders();
+      const comms = await getCommunications();
+      const trks = await getTrucks();
+      const hist = await getChangeHistory();
+      const whs = await getWarehouses();
+      const cts = await getCities();
+      const dsts = await getDistricts();
 
-      setAllUsers(liveUsers);
-      setVenues(liveVenues);
-      setTasks(liveTasks);
-      setActivityLogs(liveLogs);
+      setEmployees(emps);
+      setSuppliers(sups);
+      setOrders(ords);
+      setCommunications(comms);
+      setTrucks(trks);
+      setChangeHistory(hist);
+      setWarehouses(whs);
+      setCities(cts);
+      setDistricts(dsts);
 
-      // Auto-assign default active simulation user (admin on first load)
-      if (!currentUser && liveUsers.length > 0) {
-        setCurrentUser(liveUsers[0]); // default to admin
-      } else if (currentUser) {
-        // Keep active user object in sync with DB state modifications (e.g. role edits)
-        const updatedSelf = liveUsers.find(u => u.id === currentUser.id);
-        if (updatedSelf) {
-          setCurrentUser(updatedSelf);
-        }
+      // Auto login in local mode if has users
+      if (!currentUser && emps.length > 0) {
+        // Just let them sign in, don't force auto-login if they want login view
       }
     } catch (e) {
-      console.error('Error fetching system database data:', e);
+      console.error('Error synchronizing database:', e);
     } finally {
       setIsLoading(false);
     }
@@ -60,227 +98,364 @@ export default function App() {
 
   useEffect(() => {
     refreshAllData();
-  }, []);
+  }, [currentUser]);
 
-  const handleUserSelectionChange = (user: UserProfile) => {
-    setCurrentUser(user);
+  // Operations
+  const handleEmployeeSave = async (emp: Employee) => {
+    await saveEmployee(emp, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+
+  const handleEmployeeDelete = async (id: string, name: string) => {
+    if (confirm(`ნამდვილად გსურთ წაშალოთ თანამშრომელი: ${name}?`)) {
+      await deleteEmployee(id, name, currentUser?.name || 'სისტემა');
+      await refreshAllData();
+    }
+  };
+
+  const handleSupplierSave = async (sup: Supplier) => {
+    await saveSupplier(sup, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+
+  const handleSupplierDelete = async (id: string, tradeName: string) => {
+    if (confirm(`ნამდვილად გსურთ მომწოდებლის (${tradeName}) წაშლა?`)) {
+      await deleteSupplier(id, tradeName, currentUser?.name || 'სისტემა');
+      await refreshAllData();
+    }
+  };
+
+  const handleOrderSave = async (ord: Order) => {
+    await saveOrder(ord, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+
+  const handleOrderDelete = async (id: string, docNum: string) => {
+    if (confirm(`გსურთ წაშალოთ შეკვეთა #${docNum}?`)) {
+      await deleteOrder(id, docNum, currentUser?.name || 'სისტემა');
+      await refreshAllData();
+    }
+  };
+
+  const handleCommunicationSave = async (comm: Communication) => {
+    await saveCommunication(comm, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+
+  const handleCommunicationDelete = async (id: string) => {
+    if (confirm('ნამდვილად გსურთ ჩანაწერის წაშლა?')) {
+      await deleteCommunication(id, currentUser?.name || 'სისტემა');
+      await refreshAllData();
+    }
+  };
+
+  // Lookups updates
+  const handleSaveCity = async (c: City) => {
+    await saveCity(c, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+  const handleDeleteCity = async (id: string, name: string) => {
+    if (confirm(`წაიშალოს ქალაქი ${name}?`)) {
+      await deleteCity(id, name, currentUser?.name || 'სისტემა');
+      await refreshAllData();
+    }
+  };
+
+  const handleSaveDistrict = async (d: District) => {
+    await saveDistrict(d, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+  const handleDeleteDistrict = async (id: string, name: string) => {
+    if (confirm(`წაიშალოს უბანი ${name}?`)) {
+      await deleteDistrict(id, name, currentUser?.name || 'სისტემა');
+      await refreshAllData();
+    }
+  };
+
+  const handleSaveTruck = async (t: Truck) => {
+    await saveTruck(t, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+  const handleDeleteTruck = async (plate: string) => {
+    if (confirm(`გსურთ მანქანის (${plate}) წაშლა?`)) {
+      await deleteTruck(plate, currentUser?.name || 'სისტემა');
+      await refreshAllData();
+    }
+  };
+
+  const handleLogOut = () => {
+    setCurrentUser(null);
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center space-y-3">
-        <Disc size={40} className="text-emerald-700 animate-spin" />
-        <p className="text-xs font-bold text-gray-500 font-mono tracking-widest animate-pulse">
-          ბიოდიზელ ჯორჯია - იტვირთება...
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center space-y-3.5">
+        <div className="w-10 h-10 border-4 border-emerald-800 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-xs font-bold font-mono text-gray-400 tracking-widest uppercase">
+          ბიოდიზელი ჯორჯია - იტვირთება...
         </p>
       </div>
     );
   }
 
-  // Drivers list helper
-  const drivers = allUsers.filter(u => u.role === 'driver');
+  // Auth requirement
+  if (!currentUser) {
+    return (
+      <LoginView 
+        employees={employees} 
+        onLoginSuccess={(emp) => setCurrentUser(emp)} 
+      />
+    );
+  }
+
+  // Sidebar List configuration matching user options perfectly
+  const menuItems = [
+    { id: 'dashboard', name: 'მთავარი მენიუ', icon: <LayoutDashboard size={16} /> },
+    { id: 'analytics', name: 'ანალიტიკა', icon: <BarChart3 size={16} /> },
+    { id: 'suppliers', name: 'მომწოდებლები', icon: <Building2 size={16} /> },
+    { id: 'communications', name: 'კომუნიკაცია', icon: <MessageSquare size={16} /> },
+    { id: 'orders', name: 'შეკვეთები', icon: <ShoppingBag size={16} /> },
+    { id: 'employees', name: 'თანამშრომლები', icon: <Users size={16} /> },
+    { id: 'reports', name: 'რეპორტები', icon: <FileText size={16} /> },
+    { id: 'lookups', name: 'ცნობარები', icon: <Globe size={16} /> },
+    { id: 'history', name: 'ცვლილებების ისტორია', icon: <History size={16} /> },
+    { id: 'settings', name: 'პარამეტრები', icon: <Settings size={16} /> }
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 flex flex-col justify-between">
+    <div className="min-h-screen bg-[#f8fafc] text-gray-700 flex flex-col md:flex-row font-sans">
       
-      {/* Top Corporate Branding Navbar */}
-      <header id="main-corporate-header" className="bg-emerald-800 text-white shadow-md relative overflow-hidden shrink-0">
-        <div className="absolute inset-0 bg-radial-gradient from-emerald-700 to-emerald-900 opacity-90"></div>
+      {/* Sidebar - Collapsible on Mobile, Fixed on Desktop */}
+      <aside className={`bg-slate-900 text-slate-100 flex-shrink-0 flex flex-col justify-between transition-all duration-300 z-30 ${
+        mobileMenuOpen ? 'fixed inset-y-0 left-0 w-64' : 'hidden md:flex md:w-64'
+      }`}>
         
-        <div className="max-w-7xl mx-auto px-4 py-4 relative z-10 flex flex-col sm:flex-row items-center justify-between gap-3">
+        {/* Sidebar Header Brand */}
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="bg-white/10 p-2 rounded-xl border border-white/20 animate-pulse">
-              <Leaf size={22} className="text-emerald-300" />
+            <div className="bg-emerald-850 p-1.5 rounded-lg text-white">
+              <Leaf size={18} />
             </div>
             <div>
-              <span className="text-[10px] font-black tracking-widest text-emerald-400 uppercase font-mono block">
-                ლოგისტიკა და მართვა
-              </span>
-              <h1 className="text-lg font-black tracking-tight leading-none">
-                ბიოდიზელ ჯორჯია <span className="text-emerald-300">| BIODIESEL GEORGIA</span>
+              <h1 className="text-sm font-black tracking-tight leading-none text-white">
+                ბიოდიზელი ჯორჯია
               </h1>
+              <span className="text-[9px] font-mono text-emerald-400 tracking-widest uppercase block mt-1">
+                პორტალი v2.0
+              </span>
             </div>
           </div>
+          
+          {/* Close mobile nav */}
+          <button 
+            onClick={() => setMobileMenuOpen(false)}
+            className="md:hidden text-slate-400 hover:text-white"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-          <div className="flex items-center gap-1.5 bg-black/15 border border-white/10 px-3 py-1.5 rounded-lg text-xs font-semibold">
-            <Cpu size={14} className="text-emerald-400" />
-            <span>სესია:</span>
-            <span className="text-emerald-300 font-bold">
-              {currentUser ? currentUser.name : 'ადმინისტრატორი'}
+        {/* Sidebar Middle - Menu Items Link list */}
+        <div className="flex-1 py-4 overflow-y-auto px-3 space-y-1 select-none">
+          
+          {/* Quick Structure Description trigger */}
+          <button 
+            onClick={() => setShowStructureDesc(!showStructureDesc)}
+            className="w-full text-left px-3 py-2 bg-slate-800 hover:bg-slate-75 * rounded-xl text-[11px] font-medium text-emerald-300 flex items-center justify-between mb-2.5"
+          >
+            <span className="flex items-center gap-1.5 font-bold">
+              <Info size={14} />
+              სტრუქტურის აღწერა
             </span>
-          </div>
-        </div>
-      </header>
+            <ChevronRight size={12} className={`transition ${showStructureDesc ? 'rotate-90' : ''}`} />
+          </button>
 
-      {/* Dynamic Role Switcher Segments */}
-      {currentUser && (
-        <RoleSelector
-          currentUser={currentUser}
-          allUsers={allUsers}
-          onUserChange={handleUserSelectionChange}
-        />
-      )}
-
-      {/* Main Panel Content - Displays the panel that matchesCurrentUserRole */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 pb-12">
-        {currentUser ? (
-          <div>
-            {currentUser.role === 'admin' && (
-              <AdminPanel
-                adminUser={currentUser}
-                allUsers={allUsers}
-                venues={venues}
-                activityLogs={activityLogs}
-                onRefreshData={refreshAllData}
-              />
-            )}
-
-            {currentUser.role === 'manager' && (
-              <ManagerPanel
-                currentUser={currentUser}
-                venues={venues}
-                tasks={tasks}
-                allDrivers={drivers}
-                onRefreshData={refreshAllData}
-              />
-            )}
-
-            {currentUser.role === 'driver' && (
-              <DriverPanel
-                currentUser={currentUser}
-                tasks={tasks}
-                onRefreshData={refreshAllData}
-              />
-            )}
-
-            {currentUser.role === 'venue' && (
-              <VenuePanel
-                currentUser={currentUser}
-                venues={venues}
-                tasks={tasks}
-                onRefreshData={refreshAllData}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-24 bg-white rounded-2xl border border-gray-100">
-            <HelpCircle size={48} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-xs text-gray-400">მომხმარებლის პროფილი ვერ მოიძებნა</p>
-          </div>
-        )}
-      </main>
-
-      {/* ========================================== */}
-      {/* INTEGRATION INSTRUCTIONS SIDEBAR CARD */}
-      {/* ========================================== */}
-      <section id="developer-guide-instruction" className="max-w-7xl w-full mx-auto px-4 md:px-6 pb-12 border-t border-gray-200/60 pt-8">
-        <div className="bg-white border border-gray-200/80 rounded-2xl p-6 shadow-xs space-y-6">
-          <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
-            <Settings size={20} className="text-emerald-700 animate-spin" />
-            <h2 className="text-sm font-black text-gray-800 uppercase tracking-widest">
-              ინტეგრაციის დეტალური ინსტრუქცია (Developer & API Keys Guide)
-            </h2>
-          </div>
-
-          <p className="text-xs text-gray-600 leading-relaxed">
-            პროექტი მზადაა **Supabase Db**, **Vercel Cloud Real-Time Hosting** და **Firebase Cloud Messaging** სრულფასოვანი ინტეგრაციისთვის. ქვევით მოცემულია ინსტრუქცია თუ რა გასაღებები (API Keys) გჭირდებათ, საიდან უნდა აიღოთ და როგორ დააკონფიგურიროთ ისინი. 
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-            
-            {/* Supabase details card */}
-            <div className="p-4 bg-emerald-50/20 border border-emerald-100 rounded-xl space-y-2.5">
-              <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs uppercase">
-                <Database size={16} className="text-emerald-700" />
-                1. Database & Auth (Supabase)
-              </div>
-              <p className="text-[11px] text-gray-500 leading-relaxed">
-                **როგორ მივიღოთ**: ეწვიეთ [supabase.com](https://supabase.com/). შექმენით უფასო პროექტი (Free Tier Project). გადადით `Project Settings` - `API`.
-              </p>
-              <div className="space-y-1 font-mono text-[10px] text-gray-600 bg-white p-2.5 rounded-lg border border-gray-150">
-                <span className="font-bold text-emerald-800">.env / Vercel-ის ცვლადები:</span>
-                <p className="mt-1 font-bold">VITE_SUPABASE_URL</p>
-                <p className="text-gray-400">მაგ: 'https://xxx.supabase.co'</p>
-                <p className="font-bold mt-1">VITE_SUPABASE_ANON_KEY</p>
-                <p className="text-gray-400">Public Anonymous Token</p>
-              </div>
+          {showStructureDesc && (
+            <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl text-[10px] text-slate-400 leading-normal space-y-1.5 mb-2 font-mono">
+              <p className="font-bold text-slate-200 uppercase">მონაცემთა სტრუქტურა:</p>
+              <p>• <strong>მომწოდებლები</strong> - სრული იურიდიული, საბანკო და საკონტაქტო მონაცემები, კომენტარების ისტორია.</p>
+              <p>• <strong>შეკვეთები</strong> - ლოგისტიკური დაგეგმვა, ავზების და ფაქტობრივი ლიტრების მართვა მძღოლებზე.</p>
+              <p>• <strong>კონტაქტები</strong> - ოპერატორთან, ბუღალტერთან, დირექტორთან კავშირის ხაზი.</p>
+              <p>• <strong>ცნობარები</strong> - ქალაქები, უბნები, საწყობები და მანქანების სია.</p>
             </div>
+          )}
 
-            {/* FCM Details card */}
-            <div className="p-4 bg-orange-50/20 border border-orange-150 rounded-xl space-y-2.5">
-              <div className="flex items-center gap-2 text-orange-850 font-extrabold text-xs uppercase">
-                <BellRing size={16} className="text-orange-600" />
-                2. Notification Hub (FCM)
-              </div>
-              <p className="text-[11px] text-gray-500 leading-relaxed">
-                **როგორ მივიღოთ**: გადადით [console.firebase.google.com](https://console.firebase.google.com/), შექმენით პროექტი, ჩართეთ `Cloud Messaging`.
-              </p>
-              <div className="space-y-1 font-mono text-[10px] text-gray-700 bg-white p-2.5 rounded-lg border border-gray-150">
-                <span className="font-bold text-orange-800">სახელები .env - ში:</span>
-                <p className="mt-1 font-bold">VITE_FCM_API_KEY</p>
-                <p className="font-bold">VITE_FCM_SENDER_ID</p>
-                <p className="text-gray-405">FCM-ით ბრაუზერებში Push-ების მისაღებად PWA-ზე</p>
-              </div>
+          {menuItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold tracking-tight transition text-left cursor-pointer ${
+                  isActive 
+                    ? 'bg-emerald-800 text-white shadow-sm' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                {item.icon}
+                <span>{item.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sidebar Bottom - User Profile block and signout */}
+        <div className="p-4 border-t border-slate-800 bg-slate-950/20 select-none">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-xs text-slate-200 uppercase">
+              {currentUser.name.slice(0, 2)}
             </div>
-
-            {/* Vercel deployment card */}
-            <div className="p-4 bg-indigo-50/20 border border-indigo-100 rounded-xl space-y-2.5">
-              <div className="flex items-center gap-2 text-indigo-800 font-extrabold text-xs uppercase">
-                <Smartphone size={16} className="text-indigo-650" />
-                3. Hosting Sync (Vercel PWA)
-              </div>
-              <p className="text-[11px] text-gray-500 leading-relaxed">
-                **გაშვება**: შექმენით უფასო ანგარიში [vercel.com](https://vercel.com/)-ზე. დააკავშირეთ თქვენი GitHub საცავი (Repository) და გააკეთეთ სინქრონიზაცია.
-              </p>
-              <div className="text-[10px] text-gray-650 bg-white p-2.5 rounded-lg border border-gray-150/80 space-y-1">
-                <p className="font-bold text-indigo-850">ცვლადების გაწერა Vercel-ზე:</p>
-                <p className="italic leading-normal text-gray-500">
-                  Vercel პანელში `Project Settings` - `Environment Variables`. შეიყვანეთ ზემოთ ხსენებული Supabase / FCM გასაღებები. Vercel ავტომატურად გაუშვებს PWA-ს HTTPS სერტიფიკატით!
-                </p>
-              </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
+              <span className="text-[10px] text-emerald-400 font-mono capitalize">
+                {currentUser.role === 'admin' ? 'ადმინისტრატორი' : 'პერსონალი'}
+              </span>
             </div>
-
           </div>
 
-          <div className="p-4 bg-gray-50 border border-gray-100/80 rounded-xl text-[11px] text-gray-650 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
-            <span className="font-medium flex items-center gap-1">
-              <ShieldCheck size={14} className="text-emerald-700 font-bold" />
-              <strong>ლოკალური რეჟიმის გარანტია</strong>: თუ გასაღებები ჯერ არ გაქვთ, სისტემა მუშაობს LocalStorage-ის ულტრა-თანამედროვე სიმულატორზე, რათა არცერთი ფუნქცია არ შეიზღუდოს.
-            </span>
-            <span className="font-mono text-gray-405">v1.2.0 • Biodiesel Georgia Co.</span>
+          <button 
+            onClick={handleLogOut}
+            className="w-full py-1.5 bg-slate-850 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
+          >
+            <LogOut size={13} />
+            სისტემიდან გასვლა
+          </button>
+        </div>
+
+      </aside>
+
+      {/* Main Panel Box */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* Mobile Navbar Top */}
+        <header className="md:hidden bg-white border-b border-gray-100 flex items-center justify-between p-4 flex-shrink-0 shadow-xs">
+          <div className="flex items-center gap-2">
+            <div className="bg-emerald-800 text-white p-1 rounded-lg">
+              <Leaf size={16} />
+            </div>
+            <span className="font-black text-sm text-gray-800">ბიოდიზელი ჯორჯია</span>
           </div>
 
-        </div>
-      </section>
+          <button 
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-1.5 bg-gray-50 border rounded-lg text-gray-700"
+          >
+            <Menu size={18} />
+          </button>
+        </header>
 
-      {/* Modern Minimalist Footer */}
-      <footer id="biodiesel-footer" className="bg-zinc-900 text-gray-400 py-6 px-4 text-center text-xs border-t border-zinc-850 shrink-0 select-none">
-        <div className="max-w-7xl mx-auto space-y-1">
-          <p className="text-zinc-300 font-black">© 2026 ბიოდიზელ ჯორჯია. ყველა უფლება დაცულია.</p>
-          <p className="text-[10px] text-zinc-500">ლოგისტიკისა და მართვის პროგრესული ვებ აპლიკაცია (PWA)</p>
-        </div>
-      </footer>
+        {/* Right content viewport */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-16">
+          
+          {/* Main workspace container route outputs */}
+          <div className="max-w-6xl mx-auto">
+            {activeTab === 'dashboard' && (
+              <DashboardView 
+                suppliers={suppliers}
+                orders={orders}
+                employees={employees}
+                trucks={trucks}
+                onNavigate={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+            {activeTab === 'analytics' && (
+              <AnalyticsView 
+                suppliers={suppliers}
+                orders={orders}
+                onNavigate={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+            {activeTab === 'suppliers' && (
+              <SuppliersView 
+                suppliers={suppliers}
+                warehouses={warehouses}
+                employees={employees}
+                cities={cities}
+                districts={districts}
+                currentEmployee={currentUser}
+                onSave={handleSupplierSave}
+                onDelete={handleSupplierDelete}
+              />
+            )}
+
+            {activeTab === 'communications' && (
+              <CommunicationsView 
+                communications={communications}
+                suppliers={suppliers}
+                employees={employees}
+                currentEmployee={currentUser}
+                onSave={handleCommunicationSave}
+                onDelete={handleCommunicationDelete}
+              />
+            )}
+
+            {activeTab === 'orders' && (
+              <OrdersView 
+                orders={orders}
+                suppliers={suppliers}
+                warehouses={warehouses}
+                employees={employees}
+                trucks={trucks}
+                currentEmployee={currentUser}
+                onSave={handleOrderSave}
+                onDelete={handleOrderDelete}
+              />
+            )}
+
+            {activeTab === 'employees' && (
+              <EmployeesView 
+                employees={employees}
+                currentEmployee={currentUser}
+                onSave={handleEmployeeSave}
+                onDelete={handleEmployeeDelete}
+              />
+            )}
+
+            {activeTab === 'reports' && (
+              <ReportsView 
+                suppliers={suppliers}
+                orders={orders}
+              />
+            )}
+
+            {activeTab === 'lookups' && (
+              <LookupsView 
+                cities={cities}
+                districts={districts}
+                trucks={trucks}
+                employees={employees}
+                currentEmployee={currentUser}
+                onSaveCity={handleSaveCity}
+                onDeleteCity={handleDeleteCity}
+                onSaveDistrict={handleSaveDistrict}
+                onDeleteDistrict={handleDeleteDistrict}
+                onSaveTruck={handleSaveTruck}
+                onDeleteTruck={handleDeleteTruck}
+              />
+            )}
+
+            {activeTab === 'history' && (
+              <HistoryView 
+                history={changeHistory}
+              />
+            )}
+
+            {activeTab === 'settings' && (
+              <SettingsView 
+                onResetDatabase={resetSystemDatabase}
+              />
+            )}
+          </div>
+
+        </main>
+
+      </div>
 
     </div>
-  );
-}
-
-// Inline loader components replacement
-function Disc({ className, size }: { className?: string; size?: number }) {
-  return (
-    <svg 
-      className={className} 
-      width={size || 24} 
-      height={size || 24} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2.5" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 6a6 6 0 0 1 6 6" />
-    </svg>
   );
 }
