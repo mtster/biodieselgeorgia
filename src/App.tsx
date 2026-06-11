@@ -92,7 +92,9 @@ export default function App() {
   };
 
   useEffect(() => {
-    refreshAllData();
+    if (currentUser) {
+      refreshAllData();
+    }
   }, [currentUser]);
 
   // Read Supabase auth session on boot

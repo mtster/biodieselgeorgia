@@ -14,6 +14,21 @@
 
 -- Enable robust extension support if needed
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Clean drop of pre-existing tables to prevent version mismatch errors
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+DROP TABLE IF EXISTS public.change_history CASCADE;
+DROP TABLE IF EXISTS public.communications CASCADE;
+DROP TABLE IF EXISTS public.orders CASCADE;
+DROP TABLE IF EXISTS public.vendors CASCADE;
+DROP TABLE IF EXISTS public.trucks CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.warehouses CASCADE;
+DROP TABLE IF EXISTS public.districts CASCADE;
+DROP TABLE IF EXISTS public.cities CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
 
 -- 1. Cities (ქალაქები)
 CREATE TABLE IF NOT EXISTS cities (
