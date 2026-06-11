@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Communication, Supplier, Employee } from '../types';
+import { Communication, Vendor, User } from '../types';
 import { Plus, Search, HelpCircle, Calendar, MessageSquare, Trash2, X, Check } from 'lucide-react';
 import { LANG } from '../utils/lang';
 
@@ -39,7 +39,7 @@ function IosDateTimePicker({
     }
   }, [value, isOpen]);
 
-  // Formatter for display
+  // Formatter for georgian display month name
   const monthsGE = [
     LANG.months.jan, LANG.months.feb, LANG.months.mar, LANG.months.apr, 
     LANG.months.may, LANG.months.jun, LANG.months.jul, LANG.months.aug, 
@@ -73,16 +73,16 @@ function IosDateTimePicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono text-gray-700 transition shadow-inner text-left"
+        className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono text-gray-700 transition shadow-inner text-left cursor-pointer"
       >
         <span className="flex items-center gap-2">
-          <Calendar size={14} className="text-emerald-700" />
+          <Calendar size={14} className="text-emerald-755" />
           {formattedDisplay}
         </span>
         <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition">არჩევა</span>
       </button>
 
-      {/* iOS styled Bottom-Sheet overlay dialog */}
+      {/* iOS styled Bottom-Sheet dropdown */}
       {isOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center z-55 p-4 transition-opacity">
           <div className="absolute inset-0" onClick={() => setIsOpen(false)}></div>
@@ -94,7 +94,7 @@ function IosDateTimePicker({
               <button 
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded"
+                className="text-gray-400 hover:text-gray-650 p-1 rounded"
               >
                 <X size={15} />
               </button>
@@ -135,7 +135,7 @@ function IosDateTimePicker({
 
               {/* Hour */}
               <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-450 font-bold uppercase mb-1">სთ</span>
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">სთ</span>
                 <select
                   value={hour}
                   onChange={(e) => setHour(parseInt(e.target.value))}
@@ -147,7 +147,7 @@ function IosDateTimePicker({
 
               {/* Minute */}
               <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-450 font-bold uppercase mb-1">წთ</span>
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">წთ</span>
                 <select
                   value={minute}
                   onChange={(e) => setMinute(parseInt(e.target.value))}
@@ -158,19 +158,19 @@ function IosDateTimePicker({
               </div>
             </div>
 
-            {/* Bottom Panel Actions */}
+            {/* Bottom Actions */}
             <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="flex-1 py-2 bg-gray-100 hover:bg-gray-150 text-gray-700 rounded-xl text-xs font-bold transition"
+                className="flex-1 py-2 bg-gray-100 hover:bg-gray-150 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 გაუქმება
               </button>
               <button
                 type="button"
                 onClick={handleApply}
-                className="flex-1 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                className="flex-1 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
               >
                 დადასტურება
               </button>
@@ -185,9 +185,9 @@ function IosDateTimePicker({
 
 interface Props {
   communications: Communication[];
-  suppliers: Supplier[];
-  employees: Employee[];
-  currentEmployee: Employee;
+  suppliers: Vendor[];
+  employees: User[];
+  currentEmployee: User;
   onSave: (comm: Communication) => void;
   onDelete: (id: string) => void;
 }
@@ -207,9 +207,9 @@ export default function CommunicationsView({
       date_time: new Date().toISOString().substring(0, 16),
       type: 'action',
       reminder_time: undefined,
-      employee_id: currentEmployee.id,
-      supplier_id: suppliers[0]?.id || '',
-      supplier_contact_id: '',
+      user_id: currentEmployee.id,
+      vendor_id: suppliers[0]?.id || '',
+      vendor_contact_id: '',
       comment: ''
     };
     setEditingComm(defaultComm);
@@ -223,17 +223,17 @@ export default function CommunicationsView({
       return;
     }
 
-    const supplierObj = suppliers.find(s => s.id === editingComm.supplier_id);
-    const employeeObj = employees.find(e => e.id === editingComm.employee_id);
+    const supplierObj = suppliers.find(s => s.id === editingComm.vendor_id);
+    const employeeObj = employees.find(e => e.id === editingComm.user_id);
     const defaultContactId = supplierObj?.contacts?.[0]?.id || '';
     const defaultContactName = supplierObj?.contacts?.[0]?.name || '';
 
     const final: Communication = {
       ...editingComm,
-      supplier_name: supplierObj?.trade_name || '',
-      employee_name: employeeObj?.name || currentEmployee.name,
-      supplier_contact_id: editingComm.supplier_contact_id || defaultContactId,
-      supplier_contact_name: defaultContactName
+      vendor_name: supplierObj?.trade_name || '',
+      user_name: employeeObj?.name || currentEmployee.name,
+      vendor_contact_id: editingComm.vendor_contact_id || defaultContactId,
+      vendor_contact_name: defaultContactName
     };
 
     onSave(final);
@@ -241,26 +241,27 @@ export default function CommunicationsView({
   };
 
   const filtered = communications.filter(comm => {
-    const suppObj = suppliers.find(s => s.id === comm.supplier_id);
+    const suppObj = suppliers.find(s => s.id === comm.vendor_id);
     const sName = suppObj ? suppObj.trade_name : '';
     return sName.toLowerCase().includes(searchTerm.toLowerCase()) || 
            comm.comment.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="communications-view-panel">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-gray-800">კომუნიკაცია</h2>
-          <p className="text-xs text-gray-500 mt-1">მომწოდებლებთან ურთიერთობის, კომენტარების და შეხსენებების ორგანიზება.</p>
+          <p className="text-xs text-gray-500 mt-1 pb-1">მომწოდებლებთან ურთიერთობის, კომენტარების და შეხსენებების ორგანიზება.</p>
         </div>
 
         <div>
           <button 
+            id="btn-add-comm"
             onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition"
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer"
           >
             <Plus size={15} />
             ახალი კომუნიკაცია
@@ -274,11 +275,12 @@ export default function CommunicationsView({
           <Search size={15} />
         </span>
         <input 
+          id="input-comm-search"
           type="text"
           placeholder="მოძებნეთ კომუნიკაციის ჩანაწერებში..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200/80 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
+          className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
         />
       </div>
 
@@ -287,11 +289,11 @@ export default function CommunicationsView({
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left text-gray-700">
             <thead>
-              <tr className="border-b border-gray-100 text-[10px] text-gray-450 uppercase font-mono bg-gray-50">
+              <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
                 <th className="py-3 px-4">თარიღი და დრო</th>
                 <th className="py-3 px-4">ტიპი</th>
-                <th className="py-3 px-4">მომწოდებელი</th>
-                <th className="py-3 px-4">თანამშრომელი</th>
+                <th className="py-3 px-4">ობიექტი</th>
+                <th className="py-3 px-4">მომხმარებელი</th>
                 <th className="py-3 px-4">კომენტარი</th>
                 <th className="py-3 px-4">შეხსენების დრო</th>
                 <th className="py-3 px-4 text-right">ქმედება</th>
@@ -299,7 +301,7 @@ export default function CommunicationsView({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((comm) => {
-                const suppObj = suppliers.find(s => s.id === comm.supplier_id);
+                const suppObj = suppliers.find(s => s.id === comm.vendor_id);
                 return (
                   <tr key={comm.id} className="hover:bg-slate-50/20">
                     <td className="py-3.5 px-4 font-mono">
@@ -307,16 +309,16 @@ export default function CommunicationsView({
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        comm.type === 'action' ? 'bg-indigo-50 text-indigo-755 border border-indigo-100' : 'bg-orange-50 text-orange-755 border border-orange-100'
+                        comm.type === 'action' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-orange-50 text-orange-700 border border-orange-100'
                       }`}>
                         {comm.type === 'action' ? 'მოქმედება' : 'შეხსენება'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 font-bold text-gray-800">
-                      {suppObj ? suppObj.trade_name : 'მომწოდებელი'}
+                      {suppObj ? suppObj.trade_name : (comm.vendor_name || 'მომწოდებელი')}
                     </td>
-                    <td className="py-3.5 px-4 text-gray-500">
-                      {comm.employee_name || 'მენეჯერი'}
+                    <td className="py-3.5 px-4 text-gray-500 font-sans">
+                      {comm.user_name || 'მენეჯერი'}
                     </td>
                     <td className="py-3.5 px-4 text-gray-700 font-medium">
                       {comm.comment}
@@ -327,7 +329,7 @@ export default function CommunicationsView({
                     <td className="py-3.5 px-4 text-right">
                       <button 
                         onClick={() => onDelete(comm.id)}
-                        className="text-gray-400 hover:text-red-630 p-1 bg-gray-50 rounded"
+                        className="text-gray-450 hover:text-red-600 p-1.5 bg-gray-50 rounded select-none cursor-pointer"
                         title="წაშლა"
                       >
                         <Trash2 size={13} />
@@ -341,7 +343,7 @@ export default function CommunicationsView({
         </div>
 
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-xs text-gray-400">
+          <div className="text-center py-12 text-gray-400 text-xs">
             კომუნიკაციის ჩანაწერები არ მოიძებნა.
           </div>
         )}
@@ -352,8 +354,8 @@ export default function CommunicationsView({
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-150">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <h3 className="font-extrabold text-sm text-gray-850">კომუნიკაციის ახალი ჩანაწერი</h3>
-              <button onClick={() => setEditingComm(null)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="font-extrabold text-sm text-gray-800">კომუნიკაციის ახალი ჩანაწერი</h3>
+              <button onClick={() => setEditingComm(null)} className="text-gray-400 hover:text-gray-650 cursor-pointer">
                 <X size={17} />
               </button>
             </div>
@@ -367,11 +369,11 @@ export default function CommunicationsView({
               />
 
               <div>
-                <label className="text-[10px] font-semibold text-gray-400 block mb-1">მოქმედების სახეობა</label>
+                <label className="text-[10px] font-semibold text-gray-450 block mb-1">მოქმედების სახეობა</label>
                 <select
                   value={editingComm.type}
                   onChange={(e) => setEditingComm({...editingComm, type: e.target.value as any})}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 >
                   <option value="action">მოქმედება</option>
                   <option value="reminder">შეხსენება (Reminder)</option>
@@ -387,39 +389,39 @@ export default function CommunicationsView({
               )}
 
               <div>
-                <label className="text-[10px] font-semibold text-gray-400 block mb-1">მომწოდებელი ობიექტი *</label>
+                <label className="text-[10px] font-semibold text-gray-450 block mb-1">მომწოდებელი ობიექტი *</label>
                 <select
-                  value={editingComm.supplier_id}
-                  onChange={(e) => setEditingComm({...editingComm, supplier_id: e.target.value})}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
+                  value={editingComm.vendor_id}
+                  onChange={(e) => setEditingComm({...editingComm, vendor_id: e.target.value})}
+                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 >
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.trade_name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-[10px] font-semibold text-gray-400 block mb-1">კომენტარი *</label>
+                <label className="text-[10px] font-semibold text-gray-450 block mb-1">კომენტარი *</label>
                 <textarea 
                   rows={4}
                   placeholder="განხორციელდა სატელეფონო საუბარი, შეგვპირდა ორშაბათისთვის..."
                   value={editingComm.comment}
                   onChange={(e) => setEditingComm({...editingComm, comment: e.target.value})}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
+                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 ></textarea>
               </div>
 
             </div>
 
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2.5">
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2.5 font-sans">
               <button 
                 onClick={() => setEditingComm(null)}
-                className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold"
+                className="px-4 py-1.5 bg-gray-100 text-gray-750 hover:bg-gray-200 rounded-lg text-xs font-semibold cursor-pointer"
               >
                 გაუქმება
               </button>
               <button 
                 onClick={handleSaveAll}
-                className="px-4 py-1.5 bg-emerald-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-900 transition"
+                className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
               >
                 შენახვა
               </button>

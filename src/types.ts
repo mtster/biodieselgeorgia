@@ -3,21 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type EmployeeRole = 'admin' | 'manager' | 'driver' | 'companion';
+export type UserRole = 'admin' | 'manager' | 'driver' | 'vendor';
 
-export interface Employee {
+export interface User {
   id: string;
   name: string;
   personal_id: string; // პირადი ნომერი
   email: string;
   password?: string;
   phone: string;
-  role: EmployeeRole;
+  role: UserRole;
   privileges: string[]; // ოპერაციების პრივილეგიები
   created_at?: string;
 }
 
-export interface SupplierContact {
+export interface VendorContact {
   id: string;
   name: string;
   phone: string;
@@ -26,14 +26,14 @@ export interface SupplierContact {
   is_default: boolean;
 }
 
-export interface SupplierComment {
+export interface VendorComment {
   id: string;
   comment: string;
   date: string;
-  employee_name: string;
+  user_name: string;
 }
 
-export interface Supplier {
+export interface Vendor {
   id: string;
   id_code: string;            // კომპანიის საიდენტიფიკაციო კოდი
   company_name: string;       // კომპანიის დასახელება
@@ -47,8 +47,8 @@ export interface Supplier {
   warehouse_id: string;       // საწყობი
   manager_id: string;         // მენეჯერი
   operator_id: string;        // ოპერატორი
-  contacts: SupplierContact[]; // კონტაქტები
-  comments: SupplierComment[]; // კომენტარები
+  contacts: VendorContact[];  // კონტაქტები
+  comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
   created_at: string;
   last_pickup_date?: string;
@@ -61,8 +61,8 @@ export interface Order {
   id: string;
   order_date: string;         // შეკვეთის თარიღი
   doc_number: string;         // დოკუმენტის ნომერი
-  supplier_id: string;        // მომწოდებელი
-  supplier_name?: string;     // დამხმარე ველი
+  vendor_id: string;          // მომწოდებელი (Vendor)
+  vendor_name?: string;       // დამხმარე ველი
   warehouse_id: string;       // საწყობი
   warehouse_name?: string;    // დამხმარე ველი
   note?: string;              // შენიშვნა
@@ -77,7 +77,7 @@ export interface Order {
   operator_name?: string;
   driver_id?: string;         // მძღოლი თანამშრომელი
   driver_name?: string;
-  companion_id?: string;      // თანხლები თანამშრომელი
+  companion_id?: string;      // (ფუნქციური დამხმარე - driver role can have optional companions mapped in trucks, but roles are streamlined)
   companion_name?: string;
   truck_plate?: string;       // მანქანა
   status: OrderStatus;        // სტატუსი
@@ -89,12 +89,12 @@ export interface Communication {
   date_time: string;          // თარიღი და დრო
   type: 'action' | 'reminder'; // სახეობა (მოქმედება, შეხსენება)
   reminder_time?: string;     // შეხსენების დრო
-  employee_id: string;        // თანამშრომელი
-  employee_name?: string;
-  supplier_id: string;        // მომწოდებელი
-  supplier_name?: string;
-  supplier_contact_id: string;// მომწოდებლის კონტაქტი
-  supplier_contact_name?: string;
+  user_id: string;            // მომხმარებელი (User)
+  user_name?: string;
+  vendor_id: string;          // მომწოდებელი (Vendor)
+  vendor_name?: string;
+  vendor_contact_id: string;  // მომწოდებლის კონტაქტი
+  vendor_contact_name?: string;
   comment: string;            // კომენტარი
 }
 
@@ -103,14 +103,14 @@ export interface Truck {
   model: string;              // მოდელი
   driver_id?: string;         // მძღოლი თანამშრომელი
   driver_name?: string;
-  companion_id?: string;      // თანხლები თანამშრომელი
+  companion_id?: string;      // (optional profile companion reference)
   companion_name?: string;
 }
 
 export interface ChangeHistory {
   id: string;
   date_time: string;          // თარიღი და დრო
-  employee_name: string;      // თანამშრომელი
+  employee_name: string;      // თანამშრომელი name (keep structural field name as is or adapt logger)
   operation: string;          // ოპერაცია (მაგ: დამატება, განახლება, წაშლა)
   field_name?: string;        // ველი
   old_value?: string;         // ძველი მნიშვნელობა

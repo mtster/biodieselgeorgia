@@ -10,15 +10,6 @@
 --  3. Click on "SQL Editor" in the left-hand navigation bar.
 --  4. Paste this script into the editing box and click "Run".
 --
---  HOW TO SYNC YOUR GITHUB REPOSITORY WITH SUPABASE:
---  - Supabase supports automatic migrations using the Supabase CLI.
---  - To fully automate deployments upon push:
---    1. Initialize the Supabase directory: `npx supabase init`
---    2. Save this schema under `supabase/migrations/<timestamp>_init.sql`.
---    3. Setup GitHub Actions with the official Supabase workflow.
---    4. Add your secrets `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` to your GitHub repo settings.
---    5. Whenever you commit and push to `main`, GitHub Actions will verify your database changes and deploy them.
---
 -- ====================================================================
 
 -- Enable robust extension support if needed
@@ -46,15 +37,15 @@ CREATE TABLE IF NOT EXISTS warehouses (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Employees (თანამშრომლები)
-CREATE TABLE IF NOT EXISTS employees (
+-- 4. Users / Employees (მომხმარებლები)
+CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     personal_id TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT,
     phone TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'driver', 'companion')),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'driver', 'vendor')),
     privileges TEXT[] DEFAULT '{}'::TEXT[],
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -63,13 +54,13 @@ CREATE TABLE IF NOT EXISTS employees (
 CREATE TABLE IF NOT EXISTS trucks (
     plate_number TEXT PRIMARY KEY,
     model TEXT NOT NULL,
-    driver_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
-    companion_id TEXT REFERENCES employees(id) ON DELETE SET NULL,
+    driver_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    companion_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Suppliers (მომწოდებლები)
-CREATE TABLE IF NOT EXISTS suppliers (
+-- 6. Vendors / Suppliers (მომწოდებლები)
+CREATE TABLE IF NOT EXISTS vendors (
     id TEXT PRIMARY KEY,
     id_code TEXT NOT NULL,                  -- კომპანიის საიდენტიფიკაციო კოდი
     company_name TEXT NOT NULL,             -- კომპანიის დასახელება
@@ -81,8 +72,8 @@ CREATE TABLE IF NOT EXISTS suppliers (
     address TEXT NOT NULL,                  -- მისამართი
     price_per_liter NUMERIC(10, 2) DEFAULT 0.00,  -- ლიტრის ღირებულება
     warehouse_id TEXT REFERENCES warehouses(id) ON DELETE SET NULL, -- საწყობი
-    manager_id TEXT REFERENCES employees(id) ON DELETE SET NULL,   -- მენეჯერი
-    operator_id TEXT REFERENCES employees(id) ON DELETE SET NULL,  -- ოპერატორი
+    manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,   -- მენეჯერი
+    operator_id TEXT REFERENCES users(id) ON DELETE SET NULL,  -- ოპერატორი
     contacts JSONB DEFAULT '[]'::JSONB,     -- ტელ, სახელი, პოზიცია, შენიშვნა, დეფაულტი
     comments JSONB DEFAULT '[]'::JSONB,     -- კომენტარი, თარიღი, თანამშრომელი
     working_hours TEXT,                     -- სამუშაო საათები
@@ -96,7 +87,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY,
     order_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     doc_number TEXT UNIQUE NOT NULL,         -- დოკუმენტის ნომერი
-    supplier_id TEXT REFERENCES suppliers(id) ON DELETE CASCADE,
+    vendor_id TEXT REFERENCES vendors(id) ON DELETE CASCADE,
     warehouse_id TEXT REFERENCES warehouses(id) ON DELETE SET NULL,
     note TEXT,                               -- შენიშვნა
     qty_requested NUMERIC(12, 2) NOT NULL,   -- რაოდენობა
@@ -106,9 +97,9 @@ CREATE TABLE IF NOT EXISTS orders (
     tanks_left_actual INT,                   -- ფაქტ. დასატოვებელი ავზები რაოდ
     tanks_bring_actual INT,                  -- ფაქტ. წამოსაღები ავზების რაოდ
     pickup_date_time TIMESTAMPTZ,            -- წამოღების თარიღი და დრო
-    operator_id TEXT REFERENCES employees(id) ON DELETE SET NULL, -- შეკვეთის თანამშრომელი
-    driver_id TEXT REFERENCES employees(id) ON DELETE SET NULL,   -- მძღოლი თანამშრომელი
-    companion_id TEXT REFERENCES employees(id) ON DELETE SET NULL,-- თანხლები თანამშრომელი
+    operator_id TEXT REFERENCES users(id) ON DELETE SET NULL, -- შეკვეთის თანამშრომელი
+    driver_id TEXT REFERENCES users(id) ON DELETE SET NULL,   -- მძღოლი თანამშრომელი
+    companion_id TEXT REFERENCES users(id) ON DELETE SET NULL,-- თანხლები თანამშრომელი
     truck_plate TEXT REFERENCES trucks(plate_number) ON DELETE SET NULL, -- მანქანა
     status TEXT NOT NULL DEFAULT 'registered' CHECK (status IN ('registered', 'scheduled', 'completed', 'cancelled')),
     sms_sent BOOLEAN DEFAULT FALSE,
@@ -121,9 +112,9 @@ CREATE TABLE IF NOT EXISTS communications (
     date_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     type TEXT NOT NULL CHECK (type IN ('action', 'reminder')), -- სახეობა (მოქმედება, შეხსენება)
     reminder_time TIMESTAMPTZ,                -- შეხსენების დრო
-    employee_id TEXT REFERENCES employees(id) ON DELETE SET NULL, -- თანამშრომელი
-    supplier_id TEXT REFERENCES suppliers(id) ON DELETE CASCADE,  -- მომწოდებელი
-    supplier_contact_id TEXT,                 -- მომწოდებლის კონტაქტი (JSON lookup/id reference)
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL, -- მომხმარებელი
+    vendor_id TEXT REFERENCES vendors(id) ON DELETE CASCADE,  -- მომწოდებელი (Vendor)
+    vendor_contact_id TEXT,                   -- მომწოდებლის კონტაქტი
     comment TEXT NOT NULL,                     -- კომენტარი
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -143,18 +134,18 @@ CREATE TABLE IF NOT EXISTS change_history (
 --  INDICES FOR HIGH-SPEED INTERACTION AND PERFORMANCE
 -- ====================================================================
 CREATE INDEX IF NOT EXISTS idx_districts_city_id ON districts (city_id);
-CREATE INDEX IF NOT EXISTS idx_suppliers_company_code ON suppliers (company_code);
+CREATE INDEX IF NOT EXISTS idx_vendors_company_code ON vendors (company_code);
 CREATE INDEX IF NOT EXISTS idx_orders_doc_number ON orders (doc_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
-CREATE INDEX IF NOT EXISTS idx_communications_supplier ON communications (supplier_id);
+CREATE INDEX IF NOT EXISTS idx_communications_vendor ON communications (vendor_id);
 CREATE INDEX IF NOT EXISTS idx_change_history_date ON change_history (date_time DESC);
 
 -- ====================================================================
---  INSERT INITIAL DEFAULT CORE CREDENTIALS / CONFIG (SAFE ON RE-RUN)
+--  INSERT INITIAL DEFAULT CORE VALUES (SAFE ON RE-RUN)
 -- ====================================================================
-INSERT INTO employees (id, name, personal_id, email, password, phone, role, privileges)
+INSERT INTO users (id, name, personal_id, email, password, phone, role, privileges)
 VALUES (
-    'emp-admin', 
+    'user-admin', 
     'ადმინისტრატორი', 
     '12345678901', 
     'admin@biodiesel.ge', 
@@ -222,8 +213,8 @@ BEGIN
   )
   ON CONFLICT (id) DO NOTHING;
   
-  -- Insert into public.employees to sync types
-  INSERT INTO public.employees (id, name, personal_id, email, phone, role, privileges)
+  -- Insert into public.users to sync types
+  INSERT INTO public.users (id, name, personal_id, email, phone, role, privileges)
   VALUES (
     new.id::text,
     COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
@@ -245,4 +236,3 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-

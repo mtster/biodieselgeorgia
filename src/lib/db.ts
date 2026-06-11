@@ -5,7 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { 
-  Employee, Supplier, Order, Communication, Truck, 
+  User, Vendor, Order, Communication, Truck, 
   ChangeHistory, Warehouse, City, District 
 } from '../types';
 
@@ -24,8 +24,8 @@ export const supabase = isSupabaseConfigured
 // DEFAULT SEED KEYS AND LOCALSTORAGE HELPERS
 // ==========================================
 
-const KEY_EMPLOYEES = 'biodiesel_employees_v2';
-const KEY_SUPPLIERS = 'biodiesel_suppliers_v2';
+const KEY_USERS = 'biodiesel_users_v2';
+const KEY_VENDORS = 'biodiesel_vendors_v2';
 const KEY_ORDERS = 'biodiesel_orders_v2';
 const KEY_COMMUNICATIONS = 'biodiesel_communications_v2';
 const KEY_TRUCKS = 'biodiesel_trucks_v2';
@@ -34,9 +34,9 @@ const KEY_WAREHOUSES = 'biodiesel_warehouses_v2';
 const KEY_CITIES = 'biodiesel_cities_v2';
 const KEY_DISTRICTS = 'biodiesel_districts_v2';
 
-const DEFAULT_EMPLOYEES: Employee[] = [
+const DEFAULT_USERS: User[] = [
   {
-    id: 'emp-admin',
+    id: 'user-admin',
     name: 'ადმინისტრატორი',
     personal_id: '12345678901',
     email: 'admin@biodiesel.ge',
@@ -125,120 +125,120 @@ export async function trackChange(
 // API GETTERS & SETTERS (WITH SUPABASE SYNC)
 // ==========================================
 
-// 1. Employee (თანამშრომლები)
-export async function getEmployees(): Promise<Employee[]> {
+// 1. Users (მომხმარებლები)
+export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('employees').select('*').order('name');
+      const { data, error } = await supabase.from('users').select('*').order('name');
       if (!error && data) return data;
     } catch (e) {
-      console.warn('Supabase getEmployees failed', e);
+      console.warn('Supabase getUsers failed', e);
     }
   }
-  return getLocal<Employee[]>(KEY_EMPLOYEES, DEFAULT_EMPLOYEES);
+  return getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
 }
 
-export async function saveEmployee(employee: Employee, loggerName: string): Promise<Employee> {
-  const isNew = !employee.id;
-  const finalEmployee = {
-    ...employee,
-    id: isNew ? 'emp-' + Math.random().toString(36).substring(2, 9) : employee.id,
-    created_at: employee.created_at || new Date().toISOString()
+export async function saveUser(user: User, loggerName: string): Promise<User> {
+  const isNew = !user.id;
+  const finalUser = {
+    ...user,
+    id: isNew ? 'user-' + Math.random().toString(36).substring(2, 9) : user.id,
+    created_at: user.created_at || new Date().toISOString()
   };
 
   if (isSupabaseConfigured && supabase) {
     try {
       if (isNew) {
-        await supabase.from('employees').insert([finalEmployee]);
+        await supabase.from('users').insert([finalUser]);
       } else {
-        await supabase.from('employees').update(finalEmployee).eq('id', finalEmployee.id);
+        await supabase.from('users').update(finalUser).eq('id', finalUser.id);
       }
     } catch (e) {
-      console.error('Supabase saveEmployee failed', e);
+      console.error('Supabase saveUser failed', e);
     }
   }
 
-  const list = getLocal<Employee[]>(KEY_EMPLOYEES, DEFAULT_EMPLOYEES);
+  const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
   if (isNew) {
-    setLocal(KEY_EMPLOYEES, [...list, finalEmployee]);
-    await trackChange(loggerName, 'თანამშრომლის დამატება', 'სახელი', '', finalEmployee.name);
+    setLocal(KEY_USERS, [...list, finalUser]);
+    await trackChange(loggerName, 'მომხმარებლის დამატება', 'სახელი', '', finalUser.name);
   } else {
-    setLocal(KEY_EMPLOYEES, list.map(item => item.id === finalEmployee.id ? finalEmployee : item));
-    await trackChange(loggerName, 'თანამშრომლის რედაქტირება', 'სახელი', '', finalEmployee.name);
+    setLocal(KEY_USERS, list.map(item => item.id === finalUser.id ? finalUser : item));
+    await trackChange(loggerName, 'მომხმარებლის რედაქტირება', 'სახელი', '', finalUser.name);
   }
-  return finalEmployee;
+  return finalUser;
 }
 
-export async function deleteEmployee(id: string, name: string, loggerName: string): Promise<boolean> {
+export async function deleteUser(id: string, name: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('employees').delete().eq('id', id);
+      await supabase.from('users').delete().eq('id', id);
     } catch (e) {
-      console.error('Supabase deleteEmployee failed', e);
+      console.error('Supabase deleteUser failed', e);
     }
   }
 
-  const list = getLocal<Employee[]>(KEY_EMPLOYEES, DEFAULT_EMPLOYEES);
-  setLocal(KEY_EMPLOYEES, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'თანამშრომლის წაშლა', 'სახელი', name, '');
+  const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
+  setLocal(KEY_USERS, list.filter(item => item.id !== id));
+  await trackChange(loggerName, 'მომხმარებლის წაშლა', 'სახელი', name, '');
   return true;
 }
 
-// 2. Suppliers (მომწოდებლები)
-export async function getSuppliers(): Promise<Supplier[]> {
+// 2. Vendors (მომწოდებლები)
+export async function getVendors(): Promise<Vendor[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('suppliers').select('*').order('trade_name');
+      const { data, error } = await supabase.from('vendors').select('*').order('trade_name');
       if (!error && data) return data;
     } catch (e) {
-      console.warn('Supabase getSuppliers failed', e);
+      console.warn('Supabase getVendors failed', e);
     }
   }
-  return getLocal<Supplier[]>(KEY_SUPPLIERS, []);
+  return getLocal<Vendor[]>(KEY_VENDORS, []);
 }
 
-export async function saveSupplier(supplier: Supplier, loggerName: string): Promise<Supplier> {
-  const isNew = !supplier.id;
-  const finalSupplier = {
-    ...supplier,
-    id: isNew ? 'sup-' + Math.random().toString(36).substring(2, 9) : supplier.id,
-    created_at: supplier.created_at || new Date().toISOString()
+export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
+  const isNew = !vendor.id;
+  const finalVendor = {
+    ...vendor,
+    id: isNew ? 'vendor-' + Math.random().toString(36).substring(2, 9) : vendor.id,
+    created_at: vendor.created_at || new Date().toISOString()
   };
 
   if (isSupabaseConfigured && supabase) {
     try {
       if (isNew) {
-        await supabase.from('suppliers').insert([finalSupplier]);
+        await supabase.from('vendors').insert([finalVendor]);
       } else {
-        await supabase.from('suppliers').update(finalSupplier).eq('id', finalSupplier.id);
+        await supabase.from('vendors').update(finalVendor).eq('id', finalVendor.id);
       }
     } catch (e) {
-      console.error('Supabase saveSupplier failed', e);
+      console.error('Supabase saveVendor failed', e);
     }
   }
 
-  const list = getLocal<Supplier[]>(KEY_SUPPLIERS, []);
+  const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   if (isNew) {
-    setLocal(KEY_SUPPLIERS, [...list, finalSupplier]);
-    await trackChange(loggerName, 'მომწოდებლის დამატება', 'სავაჭრო სახელი', '', finalSupplier.trade_name);
+    setLocal(KEY_VENDORS, [...list, finalVendor]);
+    await trackChange(loggerName, 'მომწოდებლის დამატება', 'სავაჭრო სახელი', '', finalVendor.trade_name);
   } else {
-    setLocal(KEY_SUPPLIERS, list.map(item => item.id === finalSupplier.id ? finalSupplier : item));
-    await trackChange(loggerName, 'მომწოდებლის რედაქტირება', 'სავაჭრო სახელი', '', finalSupplier.trade_name);
+    setLocal(KEY_VENDORS, list.map(item => item.id === finalVendor.id ? finalVendor : item));
+    await trackChange(loggerName, 'მომწოდებლის რედაქტირება', 'სავაჭრო სახელი', '', finalVendor.trade_name);
   }
-  return finalSupplier;
+  return finalVendor;
 }
 
-export async function deleteSupplier(id: string, tradeName: string, loggerName: string): Promise<boolean> {
+export async function deleteVendor(id: string, tradeName: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('suppliers').delete().eq('id', id);
+      await supabase.from('vendors').delete().eq('id', id);
     } catch (e) {
-      console.error('Supabase deleteSupplier failed', e);
+      console.error('Supabase deleteVendor failed', e);
     }
   }
 
-  const list = getLocal<Supplier[]>(KEY_SUPPLIERS, []);
-  setLocal(KEY_SUPPLIERS, list.filter(item => item.id !== id));
+  const list = getLocal<Vendor[]>(KEY_VENDORS, []);
+  setLocal(KEY_VENDORS, list.filter(item => item.id !== id));
   await trackChange(loggerName, 'მომწოდებლის წაშლა', 'სავაჭრო სახელი', tradeName, '');
   return true;
 }
@@ -267,7 +267,7 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
     try {
       // Strip virtual UI helper fields before pushing to Supabase
       const { 
-        supplier_name, 
+        vendor_name, 
         warehouse_name, 
         operator_name, 
         driver_name, 
@@ -360,9 +360,9 @@ export async function saveCommunication(comm: Communication, loggerName: string)
     try {
       // Strip virtual UI helper fields before pushing to Supabase
       const { 
-        supplier_name, 
-        employee_name, 
-        supplier_contact_name, 
+        vendor_name, 
+        user_name, 
+        vendor_contact_name, 
         ...dbComm 
       } = finalComm as any;
 
@@ -645,8 +645,8 @@ export async function deleteDistrict(id: string, name: string, loggerName: strin
 
 // 10. SYSTEM RESET
 export function resetSystemDatabase() {
-  localStorage.removeItem(KEY_EMPLOYEES);
-  localStorage.removeItem(KEY_SUPPLIERS);
+  localStorage.removeItem(KEY_USERS);
+  localStorage.removeItem(KEY_VENDORS);
   localStorage.removeItem(KEY_ORDERS);
   localStorage.removeItem(KEY_COMMUNICATIONS);
   localStorage.removeItem(KEY_TRUCKS);

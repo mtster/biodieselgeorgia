@@ -5,13 +5,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Employee, Supplier, Order, Communication, Truck, 
+  User, Vendor, Order, Communication, Truck, 
   ChangeHistory, Warehouse, City, District 
 } from './types';
 
 import { 
-  getEmployees, saveEmployee, deleteEmployee,
-  getSuppliers, saveSupplier, deleteSupplier,
+  getUsers, saveUser, deleteUser,
+  getVendors, saveVendor, deleteVendor,
   getOrders, saveOrder, deleteOrder,
   getCommunications, saveCommunication, deleteCommunication,
   getTrucks, saveTruck, deleteTruck,
@@ -26,10 +26,10 @@ import {
 import LoginView from './components/LoginView';
 import DashboardView from './components/DashboardView';
 import AnalyticsView from './components/AnalyticsView';
-import SuppliersView from './components/SuppliersView';
+import VendorsView from './components/VendorsView';
 import CommunicationsView from './components/CommunicationsView';
 import OrdersView from './components/OrdersView';
-import EmployeesView from './components/EmployeesView';
+import UsersView from './components/UsersView';
 import ReportsView from './components/ReportsView';
 import LookupsView from './components/LookupsView';
 import SettingsView from './components/SettingsView';
@@ -43,11 +43,11 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Database Live Models
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [trucks, setTrucks] = useState<Truck[]>([]);
@@ -65,8 +65,8 @@ export default function App() {
   // Sync data function
   const refreshAllData = async () => {
     try {
-      const emps = await getEmployees();
-      const sups = await getSuppliers();
+      const usrs = await getUsers();
+      const vnds = await getVendors();
       const ords = await getOrders();
       const comms = await getCommunications();
       const trks = await getTrucks();
@@ -75,8 +75,8 @@ export default function App() {
       const cts = await getCities();
       const dsts = await getDistricts();
 
-      setEmployees(emps);
-      setSuppliers(sups);
+      setUsers(usrs);
+      setVendors(vnds);
       setOrders(ords);
       setCommunications(comms);
       setTrucks(trks);
@@ -84,11 +84,6 @@ export default function App() {
       setWarehouses(whs);
       setCities(cts);
       setDistricts(dsts);
-
-      // Auto login in local mode if has users
-      if (!currentUser && emps.length > 0) {
-        // Just let them sign in, don't force auto-login if they want login view
-      }
     } catch (e) {
       console.error('Error synchronizing database:', e);
     } finally {
@@ -107,28 +102,28 @@ export default function App() {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
-            const { data: dbEmp } = await supabase
-              .from('employees')
+            const { data: dbUser } = await supabase
+              .from('users')
               .select('*')
               .eq('email', session.user.email)
               .single();
               
-            if (dbEmp) {
-              setCurrentUser(dbEmp);
+            if (dbUser) {
+              setCurrentUser(dbUser);
             } else {
-              // Auto-create matching employee database record
-              const newEmp: Employee = {
+              // Auto-create matching user database record
+              const newUser: User = {
                 id: session.user.id,
                 name: session.user.email?.split('@')[0] || 'ადმინისტრატორი',
                 email: session.user.email || '',
                 personal_id: '12345678901',
                 phone: '599112233',
                 role: 'admin',
-                privileges: ['සියველფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
+                privileges: ['ყველაფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
                 created_at: new Date().toISOString()
               };
-              await supabase.from('employees').insert([newEmp]);
-              setCurrentUser(newEmp);
+              await supabase.from('users').insert([newUser]);
+              setCurrentUser(newUser);
             }
           }
         } catch (e) {
@@ -145,12 +140,12 @@ export default function App() {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           try {
-            const { data: dbEmp } = await supabase
-              .from('employees')
+            const { data: dbUser } = await supabase
+              .from('users')
               .select('*')
               .eq('email', session.user.email)
               .single();
-            if (dbEmp) setCurrentUser(dbEmp);
+            if (dbUser) setCurrentUser(dbUser);
           } catch (err) {
             console.error('Live Event login sync error:', err);
           }
@@ -165,26 +160,26 @@ export default function App() {
   }, []);
 
   // Operations
-  const handleEmployeeSave = async (emp: Employee) => {
-    await saveEmployee(emp, currentUser?.name || 'სისტემა');
+  const handleUserSave = async (user: User) => {
+    await saveUser(user, currentUser?.name || 'სისტემა');
     await refreshAllData();
   };
 
-  const handleEmployeeDelete = async (id: string, name: string) => {
-    if (confirm(`ნამდვილად გსურთ წაშალოთ თანამშრომელი: ${name}?`)) {
-      await deleteEmployee(id, name, currentUser?.name || 'სისტემა');
+  const handleUserDelete = async (id: string, name: string) => {
+    if (confirm(`ნამდვილად გსურთ წაშალოთ მომხმარებელი: ${name}?`)) {
+      await deleteUser(id, name, currentUser?.name || 'სისტემა');
       await refreshAllData();
     }
   };
 
-  const handleSupplierSave = async (sup: Supplier) => {
-    await saveSupplier(sup, currentUser?.name || 'სისტემა');
+  const handleVendorSave = async (vnd: Vendor) => {
+    await saveVendor(vnd, currentUser?.name || 'სისტემა');
     await refreshAllData();
   };
 
-  const handleSupplierDelete = async (id: string, tradeName: string) => {
-    if (confirm(`ნამდვილად გსურთ მომწოდებლის (${tradeName}) წაშლა?`)) {
-      await deleteSupplier(id, tradeName, currentUser?.name || 'სისტემა');
+  const handleVendorDelete = async (id: string, tradeName: string) => {
+    if (confirm(`ნამდვილად გსურთ ობიექტის (${tradeName}) წაშლა?`)) {
+      await deleteVendor(id, tradeName, currentUser?.name || 'სისტემა');
       await refreshAllData();
     }
   };
@@ -247,6 +242,32 @@ export default function App() {
     }
   };
 
+  const handleAddCityDirect = async (name: string) => {
+    const newCity: City = {
+      id: '',
+      name
+    };
+    await handleSaveCity(newCity);
+  };
+
+  const handleAddDistrictDirect = async (cityId: string, name: string) => {
+    const newDst: District = {
+      id: '',
+      city_id: cityId,
+      name
+    };
+    await handleSaveDistrict(newDst);
+  };
+
+  const handleAddWarehouseDirect = async (name: string) => {
+    const newWh: Warehouse = {
+      id: '',
+      name
+    };
+    await saveWarehouse(newWh, currentUser?.name || 'სისტემა');
+    await refreshAllData();
+  };
+
   const handleLogOut = async () => {
     if (isSupabaseConfigured && supabase) {
       try {
@@ -273,20 +294,20 @@ export default function App() {
   if (!currentUser) {
     return (
       <LoginView 
-        employees={employees} 
-        onLoginSuccess={(emp) => setCurrentUser(emp)} 
+        users={users} 
+        onLoginSuccess={(usr) => setCurrentUser(usr)} 
       />
     );
   }
 
-  // Sidebar List configuration matching user options perfectly
+  // Sidebar navigation configuration
   const menuItems = [
     { id: 'dashboard', name: 'მთავარი მენიუ', icon: <LayoutDashboard size={16} /> },
     { id: 'analytics', name: 'ანალიტიკა', icon: <BarChart3 size={16} /> },
-    { id: 'suppliers', name: 'მომწოდებლები', icon: <Building2 size={16} /> },
+    { id: 'vendors', name: 'ობიექტები (Vendors)', icon: <Building2 size={16} /> },
     { id: 'communications', name: 'კომუნიკაცია', icon: <MessageSquare size={16} /> },
     { id: 'orders', name: 'შეკვეთები', icon: <ShoppingBag size={16} /> },
-    { id: 'employees', name: 'თანამშრომლები', icon: <Users size={16} /> },
+    { id: 'users', name: 'მომხმარებლები (მომავალი)', icon: <Users size={16} /> },
     { id: 'reports', name: 'რეპორტები', icon: <FileText size={16} /> },
     { id: 'lookups', name: 'ცნობარები', icon: <Globe size={16} /> },
     { id: 'history', name: 'ცვლილებების ისტორია', icon: <History size={16} /> },
@@ -294,9 +315,9 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-gray-700 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-[#f8fafc] text-gray-750 flex flex-col md:flex-row font-sans">
       
-      {/* Sidebar - Collapsible on Mobile, Fixed on Desktop */}
+      {/* Sidebar collapsible */}
       <aside className={`bg-slate-900 text-slate-100 flex-shrink-0 flex flex-col justify-between transition-all duration-300 z-30 ${
         mobileMenuOpen ? 'fixed inset-y-0 left-0 w-64' : 'hidden md:flex md:w-64'
       }`}>
@@ -304,7 +325,7 @@ export default function App() {
         {/* Sidebar Header Brand */}
         <div className="p-5 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="bg-emerald-850 p-1.5 rounded-lg text-white">
+            <div className="bg-emerald-800 p-1.5 rounded-lg text-white">
               <Leaf size={18} />
             </div>
             <div>
@@ -317,22 +338,19 @@ export default function App() {
             </div>
           </div>
           
-          {/* Close mobile nav */}
           <button 
             onClick={() => setMobileMenuOpen(false)}
-            className="md:hidden text-slate-400 hover:text-white"
+            className="md:hidden text-slate-400 hover:text-white cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Sidebar Middle - Menu Items Link list */}
+        {/* Links list */}
         <div className="flex-1 py-4 overflow-y-auto px-3 space-y-1 select-none">
-          
-          {/* Quick Structure Description trigger */}
           <button 
             onClick={() => setShowStructureDesc(!showStructureDesc)}
-            className="w-full text-left px-3 py-2 bg-slate-800 hover:bg-slate-75 * rounded-xl text-[11px] font-medium text-emerald-300 flex items-center justify-between mb-2.5"
+            className="w-full text-left px-3 py-2 bg-slate-800 hover:bg-slate-75 * rounded-xl text-[11px] font-medium text-emerald-300 flex items-center justify-between mb-2.5 cursor-pointer"
           >
             <span className="flex items-center gap-1.5 font-bold">
               <Info size={14} />
@@ -344,7 +362,7 @@ export default function App() {
           {showStructureDesc && (
             <div className="p-3 bg-slate-950/50 border border-slate-800 rounded-xl text-[10px] text-slate-400 leading-normal space-y-1.5 mb-2 font-mono">
               <p className="font-bold text-slate-200 uppercase">მონაცემთა სტრუქტურა:</p>
-              <p>• <strong>მომწოდებლები</strong> - სრული იურიდიული, საბანკო და საკონტაქტო მონაცემები, კომენტარების ისტორია.</p>
+              <p>• <strong>ობიექტები</strong> - სრული იურიდიული, საბანკო და საკონტაქტო მონაცემები, კომენტარების ისტორია.</p>
               <p>• <strong>შეკვეთები</strong> - ლოგისტიკური დაგეგმვა, ავზების და ფაქტობრივი ლიტრების მართვა მძღოლებზე.</p>
               <p>• <strong>კონტაქტები</strong> - ოპერატორთან, ბუღალტერთან, დირექტორთან კავშირის ხაზი.</p>
               <p>• <strong>ცნობარები</strong> - ქალაქები, უბნები, საწყობები და მანქანების სია.</p>
@@ -362,7 +380,7 @@ export default function App() {
                 }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold tracking-tight transition text-left cursor-pointer ${
                   isActive 
-                    ? 'bg-emerald-800 text-white shadow-sm' 
+                    ? 'bg-emerald-800 text-white shadow-sm font-extrabold' 
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 }`}
               >
@@ -373,7 +391,7 @@ export default function App() {
           })}
         </div>
 
-        {/* Sidebar Bottom - User Profile block and signout */}
+        {/* Profile and signout */}
         <div className="p-4 border-t border-slate-800 bg-slate-950/20 select-none">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-xs text-slate-200 uppercase">
@@ -381,7 +399,7 @@ export default function App() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
-              <span className="text-[10px] text-emerald-400 font-mono capitalize">
+              <span className="text-[10px] text-emerald-400 font-mono capitalize block">
                 {currentUser.role === 'admin' ? 'ადმინისტრატორი' : 'პერსონალი'}
               </span>
             </div>
@@ -389,7 +407,7 @@ export default function App() {
 
           <button 
             onClick={handleLogOut}
-            className="w-full py-1.5 bg-slate-850 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
+            className="w-full py-2 bg-slate-800 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
           >
             <LogOut size={13} />
             სისტემიდან გასვლა
@@ -398,7 +416,7 @@ export default function App() {
 
       </aside>
 
-      {/* Main Panel Box */}
+      {/* Main Viewport Panel */}
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* Mobile Navbar Top */}
@@ -407,58 +425,73 @@ export default function App() {
             <div className="bg-emerald-800 text-white p-1 rounded-lg">
               <Leaf size={16} />
             </div>
-            <span className="font-black text-sm text-gray-800">ბიოდიზელი ჯორჯია</span>
+            <span className="font-black text-sm text-gray-800 font-sans">ბიოდიზელი ჯორჯია</span>
           </div>
 
           <button 
             onClick={() => setMobileMenuOpen(true)}
-            className="p-1.5 bg-gray-50 border rounded-lg text-gray-700"
+            className="p-1.5 bg-gray-50 border rounded-lg text-gray-700 cursor-pointer"
           >
             <Menu size={18} />
           </button>
         </header>
 
-        {/* Right content viewport */}
+        {/* Content viewport */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-16">
-          
-          {/* Main workspace container route outputs */}
           <div className="max-w-6xl mx-auto">
             {activeTab === 'dashboard' && (
               <DashboardView 
-                suppliers={suppliers}
+                suppliers={vendors}
                 orders={orders}
-                employees={employees}
+                employees={users}
                 trucks={trucks}
-                onNavigate={(tab) => setActiveTab(tab)}
+                onNavigate={(tab) => {
+                  if (tab === 'suppliers') {
+                    setActiveTab('vendors');
+                  } else if (tab === 'employees') {
+                    setActiveTab('users');
+                  } else {
+                    setActiveTab(tab);
+                  }
+                }}
               />
             )}
 
             {activeTab === 'analytics' && (
               <AnalyticsView 
-                suppliers={suppliers}
+                suppliers={vendors}
                 orders={orders}
-                onNavigate={(tab) => setActiveTab(tab)}
+                onNavigate={(tab) => {
+                  if (tab === 'suppliers') {
+                    setActiveTab('vendors');
+                  } else {
+                    setActiveTab(tab);
+                  }
+                }}
               />
             )}
 
-            {activeTab === 'suppliers' && (
-              <SuppliersView 
-                suppliers={suppliers}
+            {activeTab === 'vendors' && (
+              <VendorsView 
+                vendors={vendors}
                 warehouses={warehouses}
-                employees={employees}
+                users={users}
                 cities={cities}
                 districts={districts}
-                currentEmployee={currentUser}
-                onSave={handleSupplierSave}
-                onDelete={handleSupplierDelete}
+                currentUser={currentUser}
+                onSave={handleVendorSave}
+                onDelete={handleVendorDelete}
+                onAddCity={handleAddCityDirect}
+                onAddDistrict={handleAddDistrictDirect}
+                onAddWarehouse={handleAddWarehouseDirect}
               />
             )}
 
             {activeTab === 'communications' && (
               <CommunicationsView 
                 communications={communications}
-                suppliers={suppliers}
-                employees={employees}
+                suppliers={vendors}
+                employees={users}
                 currentEmployee={currentUser}
                 onSave={handleCommunicationSave}
                 onDelete={handleCommunicationDelete}
@@ -468,9 +501,9 @@ export default function App() {
             {activeTab === 'orders' && (
               <OrdersView 
                 orders={orders}
-                suppliers={suppliers}
+                suppliers={vendors}
                 warehouses={warehouses}
-                employees={employees}
+                employees={users}
                 trucks={trucks}
                 currentEmployee={currentUser}
                 onSave={handleOrderSave}
@@ -478,18 +511,18 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'employees' && (
-              <EmployeesView 
-                employees={employees}
-                currentEmployee={currentUser}
-                onSave={handleEmployeeSave}
-                onDelete={handleEmployeeDelete}
+            {activeTab === 'users' && (
+              <UsersView 
+                users={users}
+                currentUser={currentUser}
+                onSave={handleUserSave}
+                onDelete={handleUserDelete}
               />
             )}
 
             {activeTab === 'reports' && (
               <ReportsView 
-                suppliers={suppliers}
+                suppliers={vendors}
                 orders={orders}
               />
             )}
@@ -499,7 +532,7 @@ export default function App() {
                 cities={cities}
                 districts={districts}
                 trucks={trucks}
-                employees={employees}
+                employees={users}
                 currentEmployee={currentUser}
                 onSaveCity={handleSaveCity}
                 onDeleteCity={handleDeleteCity}
@@ -522,7 +555,6 @@ export default function App() {
               />
             )}
           </div>
-
         </main>
 
       </div>

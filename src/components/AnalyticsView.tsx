@@ -1,9 +1,9 @@
 import React from 'react';
-import { Supplier, Order, City, District } from '../types';
+import { Vendor, Order, City, District } from '../types';
 import { Bell, ShieldAlert, Award, TrendingUp, Compass } from 'lucide-react';
 
 interface Props {
-  suppliers: Supplier[];
+  suppliers: Vendor[];
   orders: Order[];
   onNavigate: (tab: string) => void;
 }
@@ -39,19 +39,19 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
   });
 
   completedOrders.forEach(ord => {
-    const s = suppliers.find(x => x.id === ord.supplier_id);
+    const s = suppliers.find(x => x.id === ord.vendor_id);
     if (s) {
       cityLitersMap[s.city] = (cityLitersMap[s.city] || 0) + (ord.qty_actual || 0);
     }
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="analytics-view-panel">
       
       {/* Overview Head */}
       <div>
         <h2 className="text-xl font-extrabold text-gray-800">ანალიტიკა და მონიტორინგი</h2>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-gray-500 mt-1 pb-1">
           მომწოდებლების აქტივობის მონიტორინგი, გადაცილებული ობიექტების გამოვლენა და გეოგრაფიული მაჩვენებლები.
         </p>
       </div>
@@ -102,12 +102,12 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
         
         {/* Overdue Suppliers list */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
-          <div className="border-b border-gray-55 pb-3">
+          <div className="border-b border-gray-50 pb-3">
             <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
               გადაცილებული ობიექტები (Pick-up საჭიროა სასწრაფოდ)
             </h3>
-            <p className="text-[11px] text-gray-400 mt-1">
+            <p className="text-[11px] text-gray-400 mt-1 font-sans">
               ეს ობიექტები 15 დღეზე მეტია ან მათი ინდივიდუალური ინტერვალით არ შეგროვებულა.
             </p>
           </div>
@@ -118,7 +118,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left text-gray-700">
+              <table className="w-full text-xs text-left text-gray-750">
                 <thead>
                   <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50/50">
                     <th className="py-2.5 px-3">ობიექტი</th>
@@ -137,23 +137,23 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
                       <tr key={sup.id} className="hover:bg-red-50/10">
                         <td className="py-3 px-3">
                           <span className="font-bold text-gray-900 block">{sup.trade_name}</span>
-                          <span className="text-[9px] text-gray-400 block font-mono">კოდი: {sup.company_code}</span>
+                          <span className="text-[9px] text-gray-400 block font-mono">საიდენტიფიკაციო კოდი: {sup.id_code}</span>
                         </td>
                         <td className="py-3 px-3 text-gray-600">
                           {sup.city}, {sup.district}
                         </td>
-                        <td className="py-3 px-3 text-red-600 font-mono font-bold">
+                        <td className="py-3 px-3 text-red-650 font-mono font-bold">
                           {sup.last_pickup_date 
                             ? new Date(sup.last_pickup_date).toLocaleDateString('ka-GE') 
                             : 'არასდროს'}
                         </td>
-                        <td className="py-3 px-3 font-mono font-medium text-gray-500">
+                        <td className="py-3 px-3 font-mono font-medium text-gray-550">
                           {daysPast === 'არასდროს' ? 'ახალი' : `${daysPast} დღის წინ`}
                         </td>
                         <td className="py-3 px-3 text-right">
                           <button 
                             onClick={() => onNavigate('communications')}
-                            className="bg-red-50 text-red-700 hover:bg-red-100 text-[10px] font-bold px-2.5 py-1 rounded-lg transition inline-flex items-center gap-1"
+                            className="bg-red-50 text-red-700 hover:bg-red-100 text-[10px] font-bold px-2.5 py-1 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
                           >
                             <Bell size={12} />
                             კავშირი
@@ -170,7 +170,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
 
         {/* City breakdowns indicators */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
-          <div className="border-b border-gray-55 pb-3">
+          <div className="border-b border-gray-50 pb-3 font-sans">
             <h3 className="font-extrabold text-sm text-gray-800">გეოგრაფიული წილი</h3>
             <p className="text-[11px] text-gray-400 mt-1">ობიექტების და ლიტრაჟის განაწილება ქალაქებზე</p>
           </div>
@@ -181,10 +181,10 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
               const liters = cityLitersMap[city] || 0;
               const pct = Math.round((count / suppliers.length) * 100) || 0;
               return (
-                <div key={city} className="space-y-1.5">
+                <div key={city} className="space-y-1.5 font-sans">
                   <div className="flex items-center justify-between text-xs font-bold text-gray-800">
                     <span>{city}</span>
-                    <span className="text-[11px] text-gray-400 font-mono">
+                    <span className="text-[11px] text-gray-450 font-mono">
                       {count} ობიექტი ({liters.toLocaleString()} ლ.)
                     </span>
                   </div>

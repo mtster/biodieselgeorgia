@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { City, District, Truck, Employee } from '../types';
+import { City, District, Truck, User } from '../types';
 import { 
   Plus, Trash2, Check, X, Truck as TruckIcon, 
   MapPin, Landmark, Settings 
@@ -9,8 +9,8 @@ interface Props {
   cities: City[];
   districts: District[];
   trucks: Truck[];
-  employees: Employee[];
-  currentEmployee: Employee;
+  employees: User[];
+  currentEmployee: User;
   onSaveCity: (c: City) => void;
   onDeleteCity: (id: string, name: string) => void;
   onSaveDistrict: (d: District) => void;
@@ -78,28 +78,28 @@ export default function LookupsView({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="lookups-view-panel">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800">ცნობარები და კონფიგურაცია</h2>
-          <p className="text-xs text-gray-500 mt-1">ქალაქების, უბნების, სპეციალური ლოკაციების და სატრანსპორტო საშუალებების მართვა.</p>
+          <h2 className="text-xl font-extrabold text-gray-800 font-sans">ცნობარები და კონფიგურაცია</h2>
+          <p className="text-xs text-gray-400 mt-1 pb-1 font-sans">ქალაქების, უბნების, სპეციალური ლოკაციების და სატრანსპორტო საშუალებების მართვა.</p>
         </div>
 
         {/* Tab switchers */}
-        <div className="flex bg-gray-100 p-1 rounded-xl border">
+        <div className="flex bg-gray-100 p-1 rounded-xl border font-sans">
           <button 
             onClick={() => setActiveTab('cities')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              activeTab === 'cities' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550'
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+              activeTab === 'cities' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-500'
             }`}
           >
             გეოგრაფიული ცნობარი
           </button>
           <button 
             onClick={() => setActiveTab('trucks')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
               activeTab === 'trucks' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550'
             }`}
           >
@@ -109,27 +109,28 @@ export default function LookupsView({
       </div>
 
       {activeTab === 'cities' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 font-sans">
           
           {/* Cities Card */}
           <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4">
             <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
-              <MapPin size={16} className="text-emerald-700" />
+              <MapPin size={16} className="text-emerald-700 font-bold" />
               ქალაქები
             </h3>
 
             {/* Save City inline form */}
             <div className="flex gap-2">
               <input 
+                id="input-new-city"
                 type="text" 
                 placeholder="ახალი ქალაქის დასახელება..."
                 value={newCityName}
                 onChange={(e) => setNewCityName(e.target.value)}
-                className="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
+                className="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
               <button 
                 onClick={handleAddCity}
-                className="px-3 py-1.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition"
+                className="px-3 py-1.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
               >
                 დამატება
               </button>
@@ -141,7 +142,7 @@ export default function LookupsView({
                   <span className="font-bold text-gray-800">{city.name}</span>
                   <button 
                     onClick={() => onDeleteCity(city.id, city.name)}
-                    className="p-1 hover:text-red-630 hover:bg-white rounded text-gray-400"
+                    className="p-1 hover:text-red-600 hover:bg-white rounded text-gray-400 cursor-pointer"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -153,7 +154,7 @@ export default function LookupsView({
           {/* Districts/Neighborhoods Card */}
           <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4">
             <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
-              <Landmark size={16} className="text-emerald-700" />
+              <Landmark size={16} className="text-emerald-700 font-bold" />
               უბნები / რაიონები
             </h3>
 
@@ -162,21 +163,22 @@ export default function LookupsView({
               <select
                 value={selectedCityId}
                 onChange={(e) => setSelectedCityId(e.target.value)}
-                className="px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                className="px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
               >
                 <option value="">-- აირჩიეთ ქალაქი --</option>
                 {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <input 
+                id="input-new-district"
                 type="text" 
                 placeholder="ახალი უბანი..."
                 value={newDistName}
                 onChange={(e) => setNewDistName(e.target.value)}
-                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
               />
               <button 
                 onClick={handleAddDistrict}
-                className="bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition"
+                className="bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
               >
                 უბნის დამატება
               </button>
@@ -186,14 +188,14 @@ export default function LookupsView({
               {districts.map((dist) => {
                 const cityObj = cities.find(c => c.id === dist.city_id);
                 return (
-                  <div key={dist.id} className="p-3 bg-slate-50 border rounded-xl flex items-center justify-between text-xs">
+                  <div key={dist.id} className="p-3 bg-slate-50 border rounded-xl flex items-center justify-between text-xs animate-fade-in">
                     <div>
                       <span className="font-bold text-gray-800">{dist.name}</span>
                       <span className="text-[10px] text-gray-400 font-mono block">ქალაქი: {cityObj ? cityObj.name : 'უცნობი'}</span>
                     </div>
                     <button 
                       onClick={() => onDeleteDistrict(dist.id, dist.name)}
-                      className="p-1 hover:text-red-630 hover:bg-white rounded text-gray-400"
+                      className="p-1 hover:text-red-630 hover:bg-white rounded text-gray-400 cursor-pointer"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -206,40 +208,40 @@ export default function LookupsView({
         </div>
       ) : (
         /* Trucks vehicle directory CRUD */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 font-sans">
           
           {/* Add form */}
           <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4 h-fit">
             <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
-              <TruckIcon size={16} className="text-emerald-700" />
+              <TruckIcon size={16} className="text-emerald-700 font-bold" />
               სატრანსპორტო აქტივის რეგისტრაცია
             </h3>
 
             <div className="space-y-3.5">
               <div>
-                <label className="text-[10px] text-gray-400 font-semibold block mb-0.5">სახელმწიფო ნომერი *</label>
+                <label className="text-[10px] text-gray-450 font-semibold block mb-0.5">სახელმწიფო ნომერი *</label>
                 <input 
                   type="text" 
                   placeholder="მაგ: BB-777-GG"
                   value={tPlate}
                   onChange={(e) => setTPlate(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-gray-400 font-semibold block mb-0.5">მოდელი / მარკა *</label>
+                <label className="text-[10px] text-gray-455 font-semibold block mb-0.5">მოდელი / მარკა *</label>
                 <input 
                   type="text" 
                   placeholder="მაგ: Mercedes-Benz Sprinter"
                   value={tModel}
                   onChange={(e) => setTModel(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-gray-400 font-semibold block mb-0.5">მძღოლი მომხმარებელი</label>
+                <label className="text-[10px] text-gray-455 font-semibold block mb-0.5 font-sans">მძღოლი მომხმარებელი</label>
                 <select
                   value={tDriver}
                   onChange={(e) => setTDriver(e.target.value)}
@@ -253,22 +255,22 @@ export default function LookupsView({
               </div>
 
               <div>
-                <label className="text-[10px] text-gray-400 font-semibold block mb-0.5">თანმხლები მომხმარებელი</label>
+                <label className="text-[10px] text-gray-455 font-semibold block mb-0.5 font-sans">თანმხლები მომხმარებელი</label>
                 <select
                   value={tCompanion}
                   onChange={(e) => setTCompanion(e.target.value)}
                   className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
                 >
                   <option value="">-- აირჩიეთ თანმხლები --</option>
-                  {employees.filter(e => e.role === 'companion').map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
+                  {employees.filter(e => e.role !== 'driver').map(e => (
+                    <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
                   ))}
                 </select>
               </div>
 
               <button 
                 onClick={handleAddTruck}
-                className="w-full py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition"
+                className="w-full py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer"
               >
                 მანქანის დამატება / განახლება
               </button>
@@ -288,12 +290,12 @@ export default function LookupsView({
                     </span>
                     <span className="font-semibold text-gray-800 ml-2">{truck.model}</span>
                     <p className="text-[10px] text-gray-400 font-sans mt-1">
-                      მიმაგრებული მძღოლი: <strong className="text-gray-600">{truck.driver_name || 'არ არის'}</strong> • თანმხლები: {truck.companion_name || 'არ არის'}
+                      მიმაგრებული მძღოლი: <strong className="text-gray-650">{truck.driver_name || 'არ არის'}</strong> • თანმხლები: {truck.companion_name || 'არ არის'}
                     </p>
                   </div>
                   <button 
                     onClick={() => onDeleteTruck(truck.plate_number)}
-                    className="p-1 px-2.5 hover:text-red-630 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs"
+                    className="p-1 px-2.5 hover:text-red-650 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs cursor-pointer"
                   >
                     წაშლა
                   </button>

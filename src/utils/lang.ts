@@ -9,10 +9,10 @@ export const LANG = {
   portalVersion: 'პორტალი v2.0',
   dashboard: 'მთავარი მენიუ',
   analytics: 'ანალიტიკა',
-  suppliers: 'მომწოდებლები',
+  suppliers: 'ობიექტები (Vendors)',
   communications: 'კომუნიკაცია',
   orders: 'შეკვეთები',
-  employees: 'თანამშრომლები',
+  employees: 'მომხმარებლები (მომავალი)',
   reports: 'რეპორტები',
   lookups: 'ცნობარები',
   history: 'ცვლილებების ისტორია',
@@ -28,7 +28,7 @@ export const LANG = {
     edit: 'რედაქტირება',
     add: 'დამატება',
     importExcel: 'იმპორტი ექსელიდან',
-    newSupplier: 'ახალი მომწოდებელი',
+    newSupplier: 'ახალი ობიექტი',
     newComm: 'ახალი კომუნიკაცია',
   },
 
@@ -36,7 +36,7 @@ export const LANG = {
     admin: 'ადმინისტრატორი',
     manager: 'მენეჯერი',
     driver: 'მძღოლი',
-    companion: 'დამხმარე',
+    companion: 'მომწოდებელი (Vendor)',
   },
 
   orderStatuses: {

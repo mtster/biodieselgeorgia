@@ -1,41 +1,47 @@
 import React, { useState } from 'react';
 import { 
-  Supplier, SupplierContact, SupplierComment, 
-  Warehouse, Employee, City, District 
+  Vendor, VendorContact, VendorComment, 
+  Warehouse, User, City, District 
 } from '../types';
 import { 
   Search, Plus, Edit3, Trash2, FileSpreadsheet, 
-  Check, X, Phone, User, MessageSquare, Clock, ArrowRight,
+  Check, X, Phone, User as UserIcon, MessageSquare, Clock, ArrowRight,
   Database, UserCheck
 } from 'lucide-react';
 
 interface Props {
-  suppliers: Supplier[];
+  vendors: Vendor[];
   warehouses: Warehouse[];
-  employees: Employee[];
+  users: User[];
   cities: City[];
   districts: District[];
-  currentEmployee: Employee;
-  onSave: (supplier: Supplier) => void;
+  currentUser: User;
+  onSave: (vendor: Vendor) => void;
   onDelete: (id: string, tradeName: string) => void;
+
+  // Callback props for dynamically adding lookups directly from drop-downs
+  onAddCity?: (name: string) => void;
+  onAddDistrict?: (cityId: string, name: string) => void;
+  onAddWarehouse?: (name: string) => void;
 }
 
-export default function SuppliersView({ 
-  suppliers, warehouses, employees, cities, districts, 
-  currentEmployee, onSave, onDelete 
+export default function VendorsView({ 
+  vendors, warehouses, users, cities, districts, 
+  currentUser, onSave, onDelete,
+  onAddCity, onAddDistrict, onAddWarehouse
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   
   // Active edit state
-  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importText, setImportText] = useState('');
 
   // Contacts temp creation helper state
-  const [tempContacts, setTempContacts] = useState<SupplierContact[]>([]);
+  const [tempContacts, setTempContacts] = useState<VendorContact[]>([]);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactPos, setNewContactPos] = useState<'accountant' | 'director' | 'operator' | 'other'>('accountant');
@@ -44,11 +50,52 @@ export default function SuppliersView({
   // Comment helper state
   const [newCommentText, setNewCommentText] = useState('');
 
+  // Prompt dialog triggers
+  const triggerAddCity = () => {
+    const name = prompt('შეიყვანეთ ახალი ქალაქის დასახელება:');
+    if (name && name.trim()) {
+      if (onAddCity) {
+        onAddCity(name.trim());
+      }
+    }
+  };
+
+  const triggerAddDistrict = (cityId?: string) => {
+    // If no city is specified, find the current editing vendor's city
+    let activeCityId = '';
+    if (cityId) {
+      activeCityId = cityId;
+    } else if (editingVendor) {
+      const cityObj = cities.find(c => c.name === editingVendor.city);
+      if (cityObj) activeCityId = cityObj.id;
+    }
+
+    if (!activeCityId) {
+      alert('გთხოვთ ჯერ აირჩიოთ ქალაქი, რათა დაამატოთ შესაბამისი უბანი.');
+      return;
+    }
+
+    const name = prompt('შეიყვანეთ ახალი უბნის დასახელება:');
+    if (name && name.trim()) {
+      if (onAddDistrict) {
+        onAddDistrict(activeCityId, name.trim());
+      }
+    }
+  };
+
+  const triggerAddWarehouse = () => {
+    const name = prompt('შეიყვანეთ ახალი საწყობის დასახელება:');
+    if (name && name.trim()) {
+      if (onAddWarehouse) {
+        onAddWarehouse(name.trim());
+      }
+    }
+  };
+
   // Import Excel Simulation
   const handleImportExcel = () => {
     if (!importText.trim()) return;
     try {
-      // Clean parsing simulation (tab-separated or comma-separated raw values)
       const lines = importText.split('\n');
       let importCount = 0;
       
@@ -58,12 +105,12 @@ export default function SuppliersView({
           const tradeName = parts[0].trim();
           const legalName = parts[1].trim();
           const idCode = parts[2].trim();
-          const code = parts[3]?.trim() || 'I-' + Math.floor(100 + Math.random() * 900);
-          const address = parts[4]?.trim() || 'თბილისი, საქართველო';
+          const code = 'V-' + Math.floor(100 + Math.random() * 900);
+          const address = parts[3]?.trim() || 'თბილისი, საქართველო';
           
           if (tradeName && idCode) {
-            const rawSup: Supplier = {
-              id: 'sup-' + Math.random().toString(36).substring(2, 9),
+            const rawVendor: Vendor = {
+              id: 'vendor-' + Math.random().toString(36).substring(2, 9),
               id_code: idCode,
               company_name: legalName || tradeName,
               trade_name: tradeName,
@@ -74,19 +121,19 @@ export default function SuppliersView({
               address: address,
               price_per_liter: 1.5,
               warehouse_id: warehouses[0]?.id || '',
-              manager_id: employees.find(e => e.role === 'manager')?.id || currentEmployee.id,
-              operator_id: currentEmployee.id,
+              manager_id: users.find(e => e.role === 'manager')?.id || currentUser.id,
+              operator_id: currentUser.id,
               contacts: [],
               comments: [{
                 id: 'c-1',
                 comment: 'იმპორტირებულია ექსელიდან',
                 date: new Date().toISOString(),
-                employee_name: currentEmployee.name
+                user_name: currentUser.name
               }],
               working_hours: '10:00 - 20:00',
               created_at: new Date().toISOString()
             };
-            onSave(rawSup);
+            onSave(rawVendor);
             importCount++;
           }
         }
@@ -99,15 +146,15 @@ export default function SuppliersView({
     }
   };
 
-  const startEdit = (sup: Supplier) => {
-    setEditingSupplier(JSON.parse(JSON.stringify(sup)));
-    setTempContacts(sup.contacts || []);
+  const startEdit = (vendor: Vendor) => {
+    setEditingVendor(JSON.parse(JSON.stringify(vendor)));
+    setTempContacts(vendor.contacts || []);
     setIsNew(false);
     setNewCommentText('');
   };
 
   const startNew = () => {
-    const defaultSup: Supplier = {
+    const defaultVendor: Vendor = {
       id: '',
       id_code: '',
       company_name: '',
@@ -119,14 +166,14 @@ export default function SuppliersView({
       address: '',
       price_per_liter: 1.40,
       warehouse_id: warehouses[0]?.id || '',
-      manager_id: employees.find(e => e.role === 'manager')?.id || currentEmployee.id,
-      operator_id: currentEmployee.id,
+      manager_id: users.find(e => e.role === 'manager')?.id || currentUser.id,
+      operator_id: currentUser.id,
       contacts: [],
       comments: [],
       working_hours: '09:00 - 18:00',
       created_at: new Date().toISOString()
     };
-    setEditingSupplier(defaultSup);
+    setEditingVendor(defaultVendor);
     setTempContacts([]);
     setIsNew(true);
     setNewCommentText('');
@@ -135,7 +182,7 @@ export default function SuppliersView({
   const handleAddContact = () => {
     if (!newContactName.trim() || !newContactPhone.trim()) return;
     const isFirst = tempContacts.length === 0;
-    const contact: SupplierContact = {
+    const contact: VendorContact = {
       id: 'cont-' + Math.random().toString(36).substring(2, 9),
       name: newContactName,
       phone: newContactPhone,
@@ -161,71 +208,73 @@ export default function SuppliersView({
   };
 
   const handleAddComment = () => {
-    if (!newCommentText.trim() || !editingSupplier) return;
-    const newComment: SupplierComment = {
+    if (!newCommentText.trim() || !editingVendor) return;
+    const newComment: VendorComment = {
       id: 'comm-' + Math.random().toString(36).substring(2, 9),
       comment: newCommentText,
       date: new Date().toISOString(),
-      employee_name: currentEmployee.name
+      user_name: currentUser.name
     };
-    setEditingSupplier({
-      ...editingSupplier,
-      comments: [newComment, ...(editingSupplier.comments || [])]
+    setEditingVendor({
+      ...editingVendor,
+      comments: [newComment, ...(editingVendor.comments || [])]
     });
     setNewCommentText('');
   };
 
   const handleSaveAll = () => {
-    if (!editingSupplier) return;
-    if (!editingSupplier.trade_name.trim() || !editingSupplier.id_code.trim()) {
+    if (!editingVendor) return;
+    if (!editingVendor.trade_name.trim() || !editingVendor.id_code.trim()) {
       alert('გთხოვთ შეავსოთ ობიექტის სავაჭრო დასახელება და საიდენტიფიკაციო კოდი');
       return;
     }
-    const final: Supplier = {
-      ...editingSupplier,
-      company_code: editingSupplier.company_code || 'BIO-' + Math.floor(1000 + Math.random() * 9000),
+    const final: Vendor = {
+      ...editingVendor,
+      company_code: editingVendor.company_code || 'BIO-' + Math.floor(1000 + Math.random() * 9000),
       contacts: tempContacts
     };
     onSave(final);
-    setEditingSupplier(null);
+    setEditingVendor(null);
   };
 
   // Filter logic
-  const filteredSuppliers = suppliers.filter(sup => {
-    const matchesSearch = sup.trade_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          sup.company_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          sup.company_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          sup.id_code.includes(searchTerm);
-    const matchesCity = selectedCity === '' || sup.city === selectedCity;
-    const matchesDistrict = selectedDistrict === '' || sup.district === selectedDistrict;
+  const filteredVendors = vendors.filter(v => {
+    const matchesSearch = v.trade_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          v.company_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          v.company_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          v.id_code.includes(searchTerm);
+    const matchesCity = selectedCity === '' || v.city === selectedCity;
+    const matchesDistrict = selectedDistrict === '' || v.district === selectedDistrict;
     return matchesSearch && matchesCity && matchesDistrict;
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="vendors-view-panel">
       
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800">მომწოდებლები</h2>
+          <h2 className="text-xl font-extrabold text-gray-800">ობიექტები (მომწოდებლები)</h2>
           <p className="text-xs text-gray-500 mt-1">მომწოდებელი ობიექტების (რესტორნების) სრული მონაცემები, კონტაქტები და კომენტარები.</p>
         </div>
         
         <div className="flex items-center gap-2">
           <button 
+            id="btn-import-vendors"
             onClick={() => setIsImporting(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 border border-gray-250/60 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-150 transition"
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 border border-gray-250/60 rounded-xl text-xs font-bold text-gray-750 hover:bg-gray-150 transition cursor-pointer"
           >
             <FileSpreadsheet size={15} />
             იმპორტი ექსელიდან
           </button>
           
           <button 
+            id="btn-add-new-vendor"
             onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer"
           >
             <Plus size={15} />
-            ახალი მომწოდებელი
+            ახალი ობიექტი
           </button>
         </div>
       </div>
@@ -242,7 +291,7 @@ export default function SuppliersView({
             placeholder="ძებნა (დასახელება, კოდი, საიდენტიფიკაციო)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200/80 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-250/75 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
           />
         </div>
 
@@ -251,13 +300,19 @@ export default function SuppliersView({
           <select
             value={selectedCity}
             onChange={(e) => {
-              setSelectedCity(e.target.value);
-              setSelectedDistrict('');
+              if (e.target.value === 'ADD_NEW') {
+                triggerAddCity();
+                setSelectedCity('');
+              } else {
+                setSelectedCity(e.target.value);
+                setSelectedDistrict('');
+              }
             }}
-            className="w-full px-3 py-2 bg-gray-50 border border-gray-200/80 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full px-3 py-2 bg-gray-50 border border-gray-250/75 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="">ყველა ქალაქი</option>
             {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            <option value="ADD_NEW" className="text-emerald-700 font-bold">+ ახალი ქალაქი...</option>
           </select>
         </div>
 
@@ -265,7 +320,15 @@ export default function SuppliersView({
         <div className="w-full md:w-44">
           <select
             value={selectedDistrict}
-            onChange={(e) => setSelectedDistrict(e.target.value)}
+            onChange={(e) => {
+              if (e.target.value === 'ADD_NEW') {
+                const cityObj = cities.find(c => c.name === selectedCity);
+                triggerAddDistrict(cityObj?.id);
+                setSelectedDistrict('');
+              } else {
+                setSelectedDistrict(e.target.value);
+              }
+            }}
             disabled={!selectedCity}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200/80 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
           >
@@ -277,36 +340,37 @@ export default function SuppliersView({
               })
               .map(d => <option key={d.id} value={d.name}>{d.name}</option>)
             }
+            <option value="ADD_NEW" className="text-emerald-700 font-bold">+ ახალი უბანი...</option>
           </select>
         </div>
 
       </div>
 
-      {/* SUPPLIERS LIST GRID */}
+      {/* VENDORS LIST GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredSuppliers.map((sup) => {
-          const defaultContact = sup.contacts?.find(c => c.is_default) || sup.contacts?.[0];
+        {filteredVendors.map((vendor) => {
+          const defaultContact = vendor.contacts?.find(c => c.is_default) || vendor.contacts?.[0];
           return (
             <div 
-              key={sup.id} 
+              key={vendor.id} 
               className="bg-white border border-gray-100 hover:border-emerald-200 rounded-2xl p-5 shadow-xs transition flex flex-col justify-between space-y-4"
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-sm font-black text-gray-800 mt-1">
-                      {sup.trade_name}
+                      {vendor.trade_name}
                     </h3>
                   </div>
                   <div className="flex gap-1.5">
                     <button 
-                      onClick={() => startEdit(sup)}
+                      onClick={() => startEdit(vendor)}
                       className="text-gray-400 hover:text-emerald-700 p-1 bg-gray-50 rounded"
                     >
                       <Edit3 size={14} />
                     </button>
                     <button 
-                      onClick={() => onDelete(sup.id, sup.trade_name)}
+                      onClick={() => onDelete(vendor.id, vendor.trade_name)}
                       className="text-gray-400 hover:text-red-630 p-1 bg-gray-50 rounded"
                     >
                       <Trash2 size={14} />
@@ -315,10 +379,10 @@ export default function SuppliersView({
                 </div>
 
                 <div className="text-[11px] text-gray-500 space-y-1 pt-1 font-sans">
-                  <p><strong>იურიდიული სახელი:</strong> {sup.company_name}</p>
-                  <p><strong>საიდენტიფიკაციო კოდი:</strong> {sup.id_code}</p>
-                  <p><strong>მისამართი:</strong> {sup.city}, {sup.district}, {sup.address}</p>
-                  <p><strong>ფასი ლიტრზე:</strong> <span className="font-bold text-emerald-800">{sup.price_per_liter} ₾</span></p>
+                  <p><strong>იურიდიული სახელი:</strong> {vendor.company_name}</p>
+                  <p><strong>საიდენტიფიკაციო კოდი:</strong> {vendor.id_code}</p>
+                  <p><strong>მისამართი:</strong> {vendor.city}, {vendor.district}, {vendor.address}</p>
+                  <p><strong>ფასი ლიტრზე:</strong> <span className="font-bold text-emerald-800">{vendor.price_per_liter} ₾</span></p>
                 </div>
               </div>
 
@@ -328,7 +392,7 @@ export default function SuppliersView({
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">მთავარი კონტაქტი</span>
                   <div className="flex items-center justify-between text-xs font-bold text-gray-700">
                     <span className="flex items-center gap-1">
-                      <User size={12} className="text-gray-400" />
+                      <UserIcon size={12} className="text-gray-400" />
                       {defaultContact.name}
                     </span>
                     <span className="text-[10px] bg-slate-200 px-1 rounded font-normal text-gray-500">
@@ -348,16 +412,16 @@ export default function SuppliersView({
 
               {/* Bottom detail stats */}
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
-                <span>კომენტარები: {sup.comments?.length || 0}</span>
+                <span>კომენტარები: {vendor.comments?.length || 0}</span>
                 <span className="font-mono">
-                  ბოლო კოლექცია: {sup.last_pickup_date ? new Date(sup.last_pickup_date).toLocaleDateString() : 'არასდროს'}
+                  ბოლო კოლექცია: {vendor.last_pickup_date ? new Date(vendor.last_pickup_date).toLocaleDateString() : 'არასდროს'}
                 </span>
               </div>
             </div>
           );
         })}
 
-        {filteredSuppliers.length === 0 && (
+        {filteredVendors.length === 0 && (
           <div className="col-span-full text-center py-20 bg-white border border-gray-100 rounded-2xl text-xs text-gray-400">
             მომწოდებელი ობიექტები არ მოიძებნა.
           </div>
@@ -365,17 +429,17 @@ export default function SuppliersView({
       </div>
 
       {/* MODAL EDIT / CREATE FORM */}
-      {editingSupplier && (
+      {editingVendor && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-xl border border-gray-150 transition-all scale-100">
             
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="font-black text-gray-800 text-base">
-                {isNew ? 'ახალი მომწოდებლის შექმნა' : `მომწოდებლის რედაქტირება: ${editingSupplier.trade_name}`}
+                {isNew ? 'ახალი მომწოდებლის შექმნა' : `მომწოდებლის რედაქტირება: ${editingVendor.trade_name}`}
               </h3>
               <button 
-                onClick={() => setEditingSupplier(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-405"
+                onClick={() => setEditingVendor(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-405 cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -395,8 +459,8 @@ export default function SuppliersView({
                     <label className="text-[11px] font-semibold text-gray-400 block mb-1">ობიექტის სავაჭრო დასახელება *</label>
                     <input 
                       type="text"
-                      value={editingSupplier.trade_name}
-                      onChange={(e) => setEditingSupplier({...editingSupplier, trade_name: e.target.value})}
+                      value={editingVendor.trade_name}
+                      onChange={(e) => setEditingVendor({...editingVendor, trade_name: e.target.value})}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -405,8 +469,8 @@ export default function SuppliersView({
                     <label className="text-[11px] font-semibold text-gray-400 block mb-1">კომპანიის იურიდიული დასახელება</label>
                     <input 
                       type="text"
-                      value={editingSupplier.company_name}
-                      onChange={(e) => setEditingSupplier({...editingSupplier, company_name: e.target.value})}
+                      value={editingVendor.company_name}
+                      onChange={(e) => setEditingVendor({...editingVendor, company_name: e.target.value})}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -415,8 +479,8 @@ export default function SuppliersView({
                     <label className="text-[11px] font-semibold text-gray-400 block mb-1">საიდენტიფიკაციო კოდი *</label>
                     <input 
                       type="text"
-                      value={editingSupplier.id_code}
-                      onChange={(e) => setEditingSupplier({...editingSupplier, id_code: e.target.value})}
+                      value={editingVendor.id_code}
+                      onChange={(e) => setEditingVendor({...editingVendor, id_code: e.target.value})}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -426,45 +490,66 @@ export default function SuppliersView({
                     <input 
                       type="text"
                       placeholder="GE00TB00000..."
-                      value={editingSupplier.bank_account}
-                      onChange={(e) => setEditingSupplier({...editingSupplier, bank_account: e.target.value})}
+                      value={editingVendor.bank_account}
+                      onChange={(e) => setEditingVendor({...editingVendor, bank_account: e.target.value})}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">ქალაქი</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-gray-400 block">ქალაქი</label>
+                        <button 
+                          type="button"
+                          onClick={triggerAddCity}
+                          className="text-[9px] text-emerald-700 font-bold hover:underline"
+                        >
+                          + ახალი
+                        </button>
+                      </div>
                       <select
-                        value={editingSupplier.city}
+                        value={editingVendor.city}
                         onChange={(e) => {
                           const val = e.target.value;
                           const filtered = districts.filter(d => {
                             const cObj = cities.find(x => x.name === val);
                             return cObj && d.city_id === cObj.id;
                           });
-                          setEditingSupplier({
-                            ...editingSupplier,
+                          setEditingVendor({
+                            ...editingVendor,
                             city: val,
                             district: filtered[0]?.name || ''
                           });
                         }}
-                        className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
                       >
                         {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                       </select>
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">უბანი</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-gray-400 block">უბანი</label>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const activeCity = cities.find(c => c.name === editingVendor.city);
+                            triggerAddDistrict(activeCity?.id);
+                          }}
+                          className="text-[9px] text-emerald-700 font-bold hover:underline"
+                        >
+                          + ახალი
+                        </button>
+                      </div>
                       <select
-                        value={editingSupplier.district}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, district: e.target.value})}
-                        className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        value={editingVendor.district}
+                        onChange={(e) => setEditingVendor({...editingVendor, district: e.target.value})}
+                        className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
                       >
                         {districts
                           .filter(d => {
-                            const cObj = cities.find(x => x.name === editingSupplier.city);
+                            const cObj = cities.find(x => x.name === editingVendor.city);
                             return !cObj || d.city_id === cObj.id;
                           })
                           .map(d => <option key={d.id} value={d.name}>{d.name}</option>)
@@ -477,8 +562,8 @@ export default function SuppliersView({
                       <input 
                         type="number" 
                         step="0.01"
-                        value={editingSupplier.price_per_liter}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, price_per_liter: parseFloat(e.target.value) || 0})}
+                        value={editingVendor.price_per_liter}
+                        onChange={(e) => setEditingVendor({...editingVendor, price_per_liter: parseFloat(e.target.value) || 0})}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                       />
                     </div>
@@ -488,18 +573,27 @@ export default function SuppliersView({
                     <label className="text-[11px] font-semibold text-gray-400 block mb-1 font-sans">ზუსტი მისამართი</label>
                     <input 
                       type="text"
-                      value={editingSupplier.address}
-                      onChange={(e) => setEditingSupplier({...editingSupplier, address: e.target.value})}
+                      value={editingVendor.address}
+                      onChange={(e) => setEditingVendor({...editingVendor, address: e.target.value})}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">საწყობი</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-gray-400 block">საწყობი</label>
+                        <button 
+                          type="button"
+                          onClick={triggerAddWarehouse}
+                          className="text-[9px] text-emerald-700 font-bold hover:underline"
+                        >
+                          + ახალი
+                        </button>
+                      </div>
                       <select
-                        value={editingSupplier.warehouse_id}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, warehouse_id: e.target.value})}
+                        value={editingVendor.warehouse_id}
+                        onChange={(e) => setEditingVendor({...editingVendor, warehouse_id: e.target.value})}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
                       >
                         {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -511,8 +605,8 @@ export default function SuppliersView({
                       <input 
                         type="text"
                         placeholder="11:00 - 23:00"
-                        value={editingSupplier.working_hours}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, working_hours: e.target.value})}
+                        value={editingVendor.working_hours}
+                        onChange={(e) => setEditingVendor({...editingVendor, working_hours: e.target.value})}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                       />
                     </div>
@@ -522,21 +616,21 @@ export default function SuppliersView({
                     <div>
                       <label className="text-[11px] font-semibold text-gray-400 block mb-1">მომწერი მენეჯერი</label>
                       <select
-                        value={editingSupplier.manager_id}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, manager_id: e.target.value})}
+                        value={editingVendor.manager_id}
+                        onChange={(e) => setEditingVendor({...editingVendor, manager_id: e.target.value})}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
                       >
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.role})</option>)}
+                        {users.map(e => <option key={e.id} value={e.id}>{e.name} ({e.role})</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="text-[11px] font-semibold text-gray-400 block mb-1">აქტიური ოპერატორი</label>
                       <select
-                        value={editingSupplier.operator_id}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, operator_id: e.target.value})}
+                        value={editingVendor.operator_id}
+                        onChange={(e) => setEditingVendor({...editingVendor, operator_id: e.target.value})}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs"
                       >
-                        {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        {users.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                       </select>
                     </div>
                   </div>
@@ -550,12 +644,12 @@ export default function SuppliersView({
                 
                 {/* Contact List */}
                 <div className="space-y-3">
-                  <span className="text-xs font-extrabold text-blue-800 uppercase tracking-widest block border-b border-blue-50 pb-1">
+                  <span className="text-xs font-extrabold text-indigo-800 uppercase tracking-widest block border-b border-indigo-50 pb-1">
                     2. საკონტაქტო პირების მართვა
                   </span>
 
                   {/* Add contact helpers inline */}
-                  <div className="p-3 bg-blue-50/30 rounded-xl border border-blue-100/50 space-y-2.5">
+                  <div className="p-3 bg-indigo-50/30 rounded-xl border border-indigo-100/50 space-y-2.5">
                     <div className="grid grid-cols-2 gap-2">
                       <input 
                         type="text" 
@@ -592,7 +686,7 @@ export default function SuppliersView({
                       />
                       <button 
                         onClick={handleAddContact}
-                        className="px-3 py-1 bg-blue-700 text-white rounded-lg text-[11px] font-bold hover:bg-blue-800 transition shadow-xs"
+                        className="px-3 py-1 bg-indigo-700 text-white rounded-lg text-[11px] font-bold hover:bg-indigo-800 transition shadow-xs leading-none cursor-pointer"
                       >
                         დამატება
                       </button>
@@ -616,17 +710,17 @@ export default function SuppliersView({
                         <div className="flex items-center gap-1.5">
                           <button 
                             onClick={() => handleSetDefaultContact(c.id)}
-                            className={`p-1 rounded text-[10px] font-medium transition ${
+                            className={`p-1 rounded text-[10px] font-medium transition cursor-pointer ${
                               c.is_default 
                                 ? 'bg-emerald-50 text-emerald-700 font-extrabold border border-emerald-100' 
-                                : 'bg-gray-50 text-gray-400 hover:text-gray-600'
+                                : 'bg-gray-50 text-gray-400 hover:text-gray-650'
                             }`}
                           >
                             მთავარი
                           </button>
                           <button 
                             onClick={() => handleRemoveContact(c.id)}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer"
                           >
                             <X size={13} />
                           </button>
@@ -653,17 +747,17 @@ export default function SuppliersView({
                     />
                     <button 
                       onClick={handleAddComment}
-                      className="px-3 bg-purple-700 text-white rounded-xl text-xs font-bold hover:bg-purple-800 transition"
+                      className="px-3 bg-purple-705 text-white bg-purple-700 rounded-xl text-xs font-bold hover:bg-purple-800 transition cursor-pointer leading-none"
                     >
                       დამატება
                     </button>
                   </div>
 
                   <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                    {editingSupplier.comments?.map((c) => (
+                    {editingVendor.comments?.map((c) => (
                       <div key={c.id} className="p-2 bg-purple-50/25 border border-purple-50/50 rounded-lg text-[11px] space-y-0.5">
-                        <div className="flex items-center justify-between text-gray-400 text-[10px] font-mono">
-                          <span>{c.employee_name}</span>
+                        <div className="flex items-center justify-between text-gray-450 text-[10px] font-mono">
+                          <span>{c.user_name}</span>
                           <span>{new Date(c.date).toLocaleString()}</span>
                         </div>
                         <p className="text-gray-700">{c.comment}</p>
@@ -676,11 +770,11 @@ export default function SuppliersView({
 
             </div>
 
-            {/* Bottom Actions banner */}
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-end shrink-0">
+            {/* Bottom Actions banner - NO redundant cancel button, only standard save */}
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-end">
               <button 
                 onClick={handleSaveAll}
-                className="px-5 py-2 bg-emerald-850 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5 cursor-pointer shadow-sm ml-auto"
               >
                 <Check size={14} />
                 მონაცემების შენახვა
@@ -700,7 +794,7 @@ export default function SuppliersView({
                 <FileSpreadsheet className="text-emerald-700" size={16} />
                 მონაცემების იმპორტი ექსელიდან
               </h3>
-              <button onClick={() => setIsImporting(false)} className="text-gray-400 hover:text-gray-650">
+              <button onClick={() => setIsImporting(false)} className="text-gray-400 hover:text-gray-650 cursor-pointer">
                 <X size={16} />
               </button>
             </div>
@@ -720,13 +814,13 @@ export default function SuppliersView({
             <div className="flex items-center justify-end gap-2.5">
               <button 
                 onClick={() => setIsImporting(false)} 
-                className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold"
+                className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold cursor-pointer"
               >
                 გაუქმება
               </button>
               <button 
                 onClick={handleImportExcel}
-                className="px-4 py-1.5 bg-emerald-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-900 transition inline-flex items-center gap-1"
+                className="px-4 py-1.5 bg-emerald-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-900 transition inline-flex items-center gap-1 cursor-pointer"
               >
                 დაწყება
               </button>

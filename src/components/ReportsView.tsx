@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Supplier, Order } from '../types';
+import { Vendor, Order } from '../types';
 import { FileSpreadsheet, Percent, BarChart3, HelpCircle, FileText } from 'lucide-react';
 
 interface Props {
-  suppliers: Supplier[];
+  suppliers: Vendor[];
   orders: Order[];
 }
 
@@ -30,7 +30,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
   // Group by Supplier
   const supplierData: Record<string, { total: number; count: number; tradeName: string; code: string }> = {};
   completedOrders.forEach(o => {
-    const sId = o.supplier_id;
+    const sId = o.vendor_id;
     const sObj = suppliers.find(x => x.id === sId);
     const lit = o.qty_actual || o.qty_requested || 0;
     
@@ -38,8 +38,8 @@ export default function ReportsView({ suppliers, orders }: Props) {
       supplierData[sId] = { 
         total: 0, 
         count: 0, 
-        tradeName: sObj?.trade_name || 'უცნობი', 
-        code: sObj?.company_code || 'N/A' 
+        tradeName: sObj?.trade_name || (o.vendor_name || 'უცნობი'), 
+        code: sObj?.id_code || 'N/A' 
       };
     }
     supplierData[sId].total += lit;
@@ -49,32 +49,32 @@ export default function ReportsView({ suppliers, orders }: Props) {
   const totalVolume = completedOrders.reduce((sum, curr) => sum + (curr.qty_actual || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="reports-view-panel">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-sans">
         <div>
           <h2 className="text-xl font-extrabold text-gray-800">რეპორტები და ანგარიშები</h2>
-          <p className="text-xs text-gray-500 mt-1">ზეთის შეგროვების ჯამური მაჩვენებლების გენერირება პერიოდების და მომწოდებლების მიხედვით.</p>
+          <p className="text-xs text-gray-500 mt-1 pb-1">ზეთის შეგროვების ჯამური მაჩვენებლების გენერირება პერიოდების და მომწოდებლების მიხედვით.</p>
         </div>
 
         {/* Filters */}
         <div className="flex bg-gray-100 p-1.5 rounded-xl border">
           <button 
             onClick={() => setReportType('monthly')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              reportType === 'monthly' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550 hover:text-gray-800'
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+              reportType === 'monthly' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-500 hover:text-gray-800'
             }`}
           >
             ყოველთვიური რეპორტი
           </button>
           <button 
             onClick={() => setReportType('supplier')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              reportType === 'supplier' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550 hover:text-gray-800'
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+              reportType === 'supplier' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-500 hover:text-gray-800'
             }`}
           >
-            რეპორტი მომწოდებლებზე
+            რეპორტი ობიექტებზე
           </button>
         </div>
       </div>
@@ -88,7 +88,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
           <span className="text-[11px] text-gray-400 font-bold block">შესრულებული შეკვეთები</span>
           <span className="text-xl font-mono font-black text-gray-800">{completedOrders.length} კოლექცია</span>
         </div>
-        <div className="bg-white border p-4 rounded-xl shadow-xs">
+        <div className="bg-white border p-4 rounded-xl shadow-xs font-sans">
           <span className="text-[11px] text-gray-400 font-bold block">შეგროვების საშუალო მაჩვენებელი</span>
           <span className="text-xl font-mono font-black text-gray-800">
             {completedOrders.length > 0 ? Math.round(totalVolume / completedOrders.length) : 0} ლ.
@@ -106,7 +106,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left text-gray-700">
               <thead>
-                <tr className="border-b text-[10px] text-gray-405 uppercase font-mono bg-gray-50/50">
+                <tr className="border-b text-[10px] text-gray-400 uppercase font-mono bg-gray-50/50">
                   <th className="py-2.5 px-3">საანგარიშო თვე</th>
                   <th className="py-2.5 px-3">შეგროვებული ლიტრები (ფაქტ.)</th>
                   <th className="py-2.5 px-3">გატანების რაოდენობა</th>
@@ -121,7 +121,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
                   const avg = Math.round(data.total / data.count);
                   const share = totalVolume > 0 ? Math.round((data.total / totalVolume) * 100) : 0;
                   return (
-                    <tr key={month} className="hover:bg-slate-50/20">
+                    <tr key={month} className="hover:bg-slate-50/25">
                       <td className="py-3 px-3 font-mono font-bold text-gray-900">{month}</td>
                       <td className="py-3 px-3 font-mono font-bold text-emerald-800">{data.total.toLocaleString()} ლ.</td>
                       <td className="py-3 px-3 font-mono text-gray-600">{data.count}</td>
@@ -145,16 +145,16 @@ export default function ReportsView({ suppliers, orders }: Props) {
         </div>
       ) : (
         <div className="bg-white border rounded-2xl p-5 shadow-xs space-y-4">
-          <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
-            <BarChart3 size={16} className="text-emerald-700" />
+          <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5 animate-pulse">
+            <BarChart3 size={16} className="text-emerald-700 font-bold" />
             ლიტრაჟის რეპორტი მომწოდებელი ობიექტების მიხედვით
           </h3>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left text-gray-700">
               <thead>
-                <tr className="border-b text-[10px] text-gray-405 uppercase font-mono bg-gray-50">
-                  <th className="py-2.5 px-3">მომწოდებელი ობიექტი</th>
+                <tr className="border-b text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
+                  <th className="py-2.5 px-3">ობიექტი</th>
                   <th className="py-2.5 px-3">კოდი</th>
                   <th className="py-2.5 px-3">სულ ჩაბარებული (ლიტრებში)</th>
                   <th className="py-2.5 px-3">გატანების სიხშირე (ჯერ)</th>
@@ -168,7 +168,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
                   const avg = Math.round(data.total / data.count);
                   const pct = totalVolume > 0 ? Math.round((data.total / totalVolume) * 100) : 0;
                   return (
-                    <tr key={sId} className="hover:bg-slate-50/20">
+                    <tr key={sId} className="hover:bg-slate-50/25">
                       <td className="py-3 px-3 font-bold text-gray-900">{data.tradeName}</td>
                       <td className="py-3 px-3 font-mono text-gray-400">{data.code}</td>
                       <td className="py-3 px-3 font-mono font-bold text-emerald-800">{data.total.toLocaleString()} ლ.</td>

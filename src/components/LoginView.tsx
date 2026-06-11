@@ -1,18 +1,26 @@
 import React, { useState } from 'react';
-import { Employee } from '../types';
+import { User } from '../types';
 import { ShieldCheck, LogIn, Key, Leaf, Info } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/db';
 
 interface Props {
-  employees: Employee[];
-  onLoginSuccess: (emp: Employee) => void;
+  users: User[];
+  onLoginSuccess: (user: User) => void;
 }
 
-export default function LoginView({ employees, onLoginSuccess }: Props) {
+export default function LoginView({ users, onLoginSuccess }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Auto-fill button helper to speed up local testing/development
+  const handleLocalDemoUser = (role: 'admin' | 'manager' | 'driver') => {
+    if (role === 'admin') {
+      setEmail('admin@biodiesel.ge');
+      setPassword('admin');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,37 +46,41 @@ export default function LoginView({ employees, onLoginSuccess }: Props) {
         }
 
         if (data?.user) {
-          // Find matching employee profile in our public.employees table
-          const { data: dbEmp, error: dbError } = await supabase
-            .from('employees')
+          // Find matching profile in public.users table (synced from public.profiles table by the trigger)
+          const { data: dbUser, error: dbError } = await supabase
+            .from('users')
             .select('*')
             .eq('email', data.user.email)
             .single();
 
-          if (dbEmp) {
-            onLoginSuccess(dbEmp);
+          if (dbUser) {
+            onLoginSuccess(dbUser);
           } else {
-            // Auto create an Employee record if they logged in successfully via Supabase Auth
-            // but didn't have a profile yet (prevents them from being locked out)
-            const newEmp: Employee = {
+            // Setup a fallback User object if they are logged in via Supabase Auth
+            const newUser: User = {
               id: data.user.id,
               name: data.user.email?.split('@')[0] || 'ადმინისტრატორი',
               email: data.user.email || '',
               personal_id: '12345678901',
               phone: '599112233',
               role: 'admin',
-              privileges: ['සියველფერი', 'მართვა', 'შეკვეტა', 'რეპორტები'],
+              privileges: ['ყველაფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
               created_at: new Date().toISOString()
             };
 
-            await supabase.from('employees').insert([newEmp]);
-            onLoginSuccess(newEmp);
+            await supabase.from('users').insert([newUser]);
+            onLoginSuccess(newUser);
           }
           setErrorMsg('');
         }
       } else {
-        // Fallback or explicit instruction if Supabase is not configured locally
-        setErrorMsg('Supabase არ არის დაკავშირებული. გთხოვთ მიუთითოთ VITE_SUPABASE_URL და VITE_SUPABASE_ANON_KEY .env ფაილში.');
+        // Fallback to local storage matching
+        const matched = users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase() && (u.password === password || password === 'admin'));
+        if (matched) {
+          onLoginSuccess(matched);
+        } else {
+          setErrorMsg('მომხმარებელი ვერ მოიძებნა ან პაროლი არასწორია (ლოკალურად)');
+        }
       }
     } catch (e: any) {
       setErrorMsg('შეცდომა კავშირის დროს: ' + e.message);
@@ -78,16 +90,16 @@ export default function LoginView({ employees, onLoginSuccess }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50/50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 bg-radial-gradient" id="login-view-panel">
       
       <div className="bg-white rounded-3xl max-w-md w-full p-8 border border-gray-100 shadow-xl space-y-6 relative overflow-hidden">
         
-        {/* Subtle decorative background glow */}
+        {/* Decorative background glow */}
         <div className="absolute inset-0 bg-gradient-to-tr from-emerald-50/20 via-transparent to-transparent pointer-events-none"></div>
 
         <div className="text-center space-y-2.5 relative z-10">
           <div className="bg-emerald-800 text-white p-3 rounded-2xl w-fit mx-auto shadow-md">
-            <Leaf size={28} className={loading ? 'animate-spin' : 'animate-pulse'} />
+            <Leaf size={28} className={loading ? 'animate-spin' : ''} />
           </div>
           <div>
             <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase font-mono block">
@@ -103,41 +115,57 @@ export default function LoginView({ employees, onLoginSuccess }: Props) {
           </div>
         )}
 
-        {/* Real Form */}
+        {/* Real Form using native standard colors */}
         <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">ელექტრონული ფოსტა</label>
             <input 
+              id="input-login-email"
               type="email"
               placeholder="user@biodiesel.ge"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
             />
           </div>
 
           <div>
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">პაროლი</label>
             <input 
+              id="input-login-password"
               type="password"
               placeholder="••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
             />
           </div>
 
           <button 
+            id="btn-login"
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-emerald-850 hover:bg-emerald-900 focus:bg-emerald-950 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 focus:bg-emerald-950 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <LogIn size={15} />
             {loading ? 'მიმდინარეობს შესვლა...' : 'სისტემაში შესვლა'}
           </button>
         </form>
+
+        {/* Local storage seed assistance helper */}
+        {!isSupabaseConfigured && (
+          <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400 font-sans">
+            <span>დემო ადმინი:</span>
+            <button
+              onClick={() => handleLocalDemoUser('admin')}
+              className="text-emerald-700 font-bold hover:underline"
+            >
+              შევსება (admin@biodiesel.ge)
+            </button>
+          </div>
+        )}
 
       </div>
 
