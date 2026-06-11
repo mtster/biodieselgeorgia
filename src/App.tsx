@@ -127,10 +127,15 @@ export default function App() {
               await supabase.from('users').insert([newUser]);
               setCurrentUser(newUser);
             }
+          } else {
+            setIsLoading(false);
           }
         } catch (e) {
           console.error('Initial load of active session failed:', e);
+          setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
     initAuth();
