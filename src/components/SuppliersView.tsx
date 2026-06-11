@@ -183,6 +183,7 @@ export default function SuppliersView({
     }
     const final: Supplier = {
       ...editingSupplier,
+      company_code: editingSupplier.company_code || 'BIO-' + Math.floor(1000 + Math.random() * 9000),
       contacts: tempContacts
     };
     onSave(final);
@@ -293,9 +294,6 @@ export default function SuppliersView({
               <div className="space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
-                      კოდი: {sup.company_code}
-                    </span>
                     <h3 className="text-sm font-black text-gray-800 mt-1">
                       {sup.trade_name}
                     </h3>
@@ -413,25 +411,14 @@ export default function SuppliersView({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">კოდი / კოდ-იდენტიფიკატორი</label>
-                      <input 
-                        type="text"
-                        value={editingSupplier.company_code}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, company_code: e.target.value})}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">საიდენტიფიკაციო კოდი *</label>
-                      <input 
-                        type="text"
-                        value={editingSupplier.id_code}
-                        onChange={(e) => setEditingSupplier({...editingSupplier, id_code: e.target.value})}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                      />
-                    </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">საიდენტიფიკაციო კოდი *</label>
+                    <input 
+                      type="text"
+                      value={editingSupplier.id_code}
+                      onChange={(e) => setEditingSupplier({...editingSupplier, id_code: e.target.value})}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                    />
                   </div>
 
                   <div>
@@ -690,13 +677,7 @@ export default function SuppliersView({
             </div>
 
             {/* Bottom Actions banner */}
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0">
-              <button 
-                onClick={() => setEditingSupplier(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-150 transition"
-              >
-                გაუქმება
-              </button>
+            <div className="pt-4 border-t border-gray-100 flex items-center justify-end shrink-0">
               <button 
                 onClick={handleSaveAll}
                 className="px-5 py-2 bg-emerald-850 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5"

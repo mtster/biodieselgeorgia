@@ -265,10 +265,20 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
 
   if (isSupabaseConfigured && supabase) {
     try {
+      // Strip virtual UI helper fields before pushing to Supabase
+      const { 
+        supplier_name, 
+        warehouse_name, 
+        operator_name, 
+        driver_name, 
+        companion_name, 
+        ...dbOrder 
+      } = finalOrder as any;
+
       if (isNew) {
-        await supabase.from('orders').insert([finalOrder]);
+        await supabase.from('orders').insert([dbOrder]);
       } else {
-        await supabase.from('orders').update(finalOrder).eq('id', finalOrder.id);
+        await supabase.from('orders').update(dbOrder).eq('id', dbOrder.id);
       }
     } catch (e) {
       console.error('Supabase saveOrder failed', e);
@@ -348,10 +358,18 @@ export async function saveCommunication(comm: Communication, loggerName: string)
 
   if (isSupabaseConfigured && supabase) {
     try {
+      // Strip virtual UI helper fields before pushing to Supabase
+      const { 
+        supplier_name, 
+        employee_name, 
+        supplier_contact_name, 
+        ...dbComm 
+      } = finalComm as any;
+
       if (isNew) {
-        await supabase.from('communications').insert([finalComm]);
+        await supabase.from('communications').insert([dbComm]);
       } else {
-        await supabase.from('communications').update(finalComm).eq('id', finalComm.id);
+        await supabase.from('communications').update(dbComm).eq('id', dbComm.id);
       }
     } catch (e) {
       console.error('Supabase saveCommunication failed', e);

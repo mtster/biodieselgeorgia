@@ -179,3 +179,70 @@ INSERT INTO districts (id, city_id, name) VALUES
 INSERT INTO warehouses (id, name) VALUES
 ('wh-main', 'ცენტრალური საწყობი'),
 ('wh-west', 'დასავლეთის საწყობი') ON CONFLICT (id) DO NOTHING;
+
+-- ====================================================================
+--  SUPABASE AUTOMATIC AUTH SIGN-UP PROFILE POPULATION (profiles / users)
+-- ====================================================================
+
+-- 10. Public Profiles / Users Table
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT,
+    role TEXT DEFAULT 'admin',
+    phone TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Dynamic RLS Policies
+DROP POLICY IF EXISTS "Allow public read access" ON public.profiles;
+CREATE POLICY "Allow public read access" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow individual write" ON public.profiles;
+CREATE POLICY "Allow individual write" ON public.profiles FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow individual update" ON public.profiles;
+CREATE POLICY "Allow individual update" ON public.profiles FOR UPDATE USING (true);
+
+-- Automating profile creation upon Supabase Authed User creation
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Insert into public.profiles
+  INSERT INTO public.profiles (id, email, name, role, phone)
+  VALUES (
+    new.id,
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    COALESCE(new.raw_user_meta_data->>'role', 'admin'),
+    COALESCE(new.raw_user_meta_data->>'phone', '')
+  )
+  ON CONFLICT (id) DO NOTHING;
+  
+  -- Insert into public.employees to sync types
+  INSERT INTO public.employees (id, name, personal_id, email, phone, role, privileges)
+  VALUES (
+    new.id::text,
+    COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    COALESCE(new.raw_user_meta_data->>'personal_id', '12345678901'),
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'phone', '599112233'),
+    COALESCE(new.raw_user_meta_data->>'role', 'admin'),
+    '{"සියველფერი", "მართვა", "შეკვეთა", "რეპორტები"}'
+  )
+  ON CONFLICT (email) DO UPDATE 
+  SET id = EXCLUDED.id; -- Sync the primary id
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Bind Trigger to auth.users inserts
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+

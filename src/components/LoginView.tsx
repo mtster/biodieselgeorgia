@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Employee } from '../types';
 import { ShieldCheck, LogIn, Key, Leaf, Info } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../lib/db';
 
 interface Props {
   employees: Employee[];
@@ -11,32 +12,68 @@ export default function LoginView({ employees, onLoginSuccess }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setErrorMsg('შეიყვანეთ ელ-ფოსტა და პაროლი');
       return;
     }
 
-    // Try finding in employees
-    const matched = employees.find(
-      (emp) => emp.email.toLowerCase() === email.toLowerCase() && emp.password === password
-    );
+    setLoading(true);
+    setErrorMsg('');
 
-    if (matched) {
-      onLoginSuccess(matched);
-      setErrorMsg('');
-    } else {
-      setErrorMsg('მომხმარებელი მსგავსი ელ ფოსტით ან პაროლით ვერ მოიძებნა. (ნაგულისხმევი: admin@biodiesel.ge / admin)');
-    }
-  };
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password,
+        });
 
-  // Quick Demo logins as helper
-  const handleQuickLogin = (role: 'admin' | 'manager' | 'driver') => {
-    const defaultAdmin = employees.find(e => e.role === role) || employees[0];
-    if (defaultAdmin) {
-      onLoginSuccess(defaultAdmin);
+        if (error) {
+          setErrorMsg('ავტორიზაცია ვერ მოხერხდა: ' + (error.message === 'Invalid login credentials' ? 'ელ-ფოსტა ან პაროლი არასწორია' : error.message));
+          setLoading(false);
+          return;
+        }
+
+        if (data?.user) {
+          // Find matching employee profile in our public.employees table
+          const { data: dbEmp, error: dbError } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('email', data.user.email)
+            .single();
+
+          if (dbEmp) {
+            onLoginSuccess(dbEmp);
+          } else {
+            // Auto create an Employee record if they logged in successfully via Supabase Auth
+            // but didn't have a profile yet (prevents them from being locked out)
+            const newEmp: Employee = {
+              id: data.user.id,
+              name: data.user.email?.split('@')[0] || 'ადმინისტრატორი',
+              email: data.user.email || '',
+              personal_id: '12345678901',
+              phone: '599112233',
+              role: 'admin',
+              privileges: ['සියველფერი', 'მართვა', 'შეკვეტა', 'რეპორტები'],
+              created_at: new Date().toISOString()
+            };
+
+            await supabase.from('employees').insert([newEmp]);
+            onLoginSuccess(newEmp);
+          }
+          setErrorMsg('');
+        }
+      } else {
+        // Fallback or explicit instruction if Supabase is not configured locally
+        setErrorMsg('Supabase არ არის დაკავშირებული. გთხოვთ მიუთითოთ VITE_SUPABASE_URL და VITE_SUPABASE_ANON_KEY .env ფაილში.');
+      }
+    } catch (e: any) {
+      setErrorMsg('შეცდომა კავშირის დროს: ' + e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,18 +87,18 @@ export default function LoginView({ employees, onLoginSuccess }: Props) {
 
         <div className="text-center space-y-2.5 relative z-10">
           <div className="bg-emerald-800 text-white p-3 rounded-2xl w-fit mx-auto shadow-md">
-            <Leaf size={28} className="animate-pulse" />
+            <Leaf size={28} className={loading ? 'animate-spin' : 'animate-pulse'} />
           </div>
           <div>
             <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase font-mono block">
               ლოგისტიკის პორტალზე შესვლა
             </span>
-            <h2 className="text-2xl font-black text-gray-800">ბიოდიზელი ჯორჯია</h2>
+            <span className="text-sm font-black tracking-tight leading-none text-gray-800 block mt-1">ბიოდიზელი ჯორჯია</span>
           </div>
         </div>
 
         {errorMsg && (
-          <div className="p-3 bg-red-50 border border-red-150 rounded-xl text-center text-red-700 text-xs font-semibold">
+          <div className="p-3 bg-red-50 border border-red-150 rounded-xl text-center text-red-700 text-xs font-semibold leading-relaxed">
             {errorMsg}
           </div>
         )}
@@ -72,10 +109,11 @@ export default function LoginView({ employees, onLoginSuccess }: Props) {
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">ელექტრონული ფოსტა</label>
             <input 
               type="email"
-              placeholder="admin@biodiesel.ge"
+              placeholder="user@biodiesel.ge"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white"
+              disabled={loading}
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
             />
           </div>
 
@@ -86,39 +124,20 @@ export default function LoginView({ employees, onLoginSuccess }: Props) {
               placeholder="••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white animate-none"
+              disabled={loading}
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-150 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
             />
           </div>
 
           <button 
             type="submit"
-            className="w-full py-2.5 bg-emerald-850 hover:bg-emerald-900 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+            disabled={loading}
+            className="w-full py-2.5 bg-emerald-850 hover:bg-emerald-900 focus:bg-emerald-950 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <LogIn size={15} />
-            სისტემაში შესვლა
+            {loading ? 'მიმდინარეობს შესვლა...' : 'სისტემაში შესვლა'}
           </button>
         </form>
-
-        {/* Demo Fast Login helpers as fallback for testing the platform */}
-        <div className="pt-4 border-t border-gray-150/60 text-center space-y-2 relative z-10">
-          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">სეგმენტური ტექნიკური შესვლა (Demo)</span>
-          <div className="flex gap-1.5 justify-center">
-            <button 
-              type="button"
-              onClick={() => handleQuickLogin('admin')}
-              className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-[10px] font-bold transition border border-emerald-100"
-            >
-              ადმინისტრატორი
-            </button>
-            <button 
-              type="button"
-              onClick={() => handleQuickLogin('manager')}
-              className="px-3 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold transition border border-slate-150"
-            >
-              მძღოლი / მენეჯერი
-            </button>
-          </div>
-        </div>
 
       </div>
 

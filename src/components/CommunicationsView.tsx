@@ -1,6 +1,187 @@
 import React, { useState } from 'react';
 import { Communication, Supplier, Employee } from '../types';
 import { Plus, Search, HelpCircle, Calendar, MessageSquare, Trash2, X, Check } from 'lucide-react';
+import { LANG } from '../utils/lang';
+
+// Integrated Premium iOS-Style Wheel/Grid DateTime Selector
+function IosDateTimePicker({ 
+  value, 
+  onChange, 
+  label 
+}: { 
+  value: string; 
+  onChange: (val: string) => void; 
+  label: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Parse current value
+  const dateObj = value ? new Date(value) : new Date();
+  
+  // States of picker
+  const [year, setYear] = useState(isNaN(dateObj.getTime()) ? new Date().getFullYear() : dateObj.getFullYear());
+  const [month, setMonth] = useState(isNaN(dateObj.getTime()) ? new Date().getMonth() + 1 : dateObj.getMonth() + 1); // 1-12
+  const [day, setDay] = useState(isNaN(dateObj.getTime()) ? new Date().getDate() : dateObj.getDate());
+  const [hour, setHour] = useState(isNaN(dateObj.getTime()) ? 12 : dateObj.getHours());
+  const [minute, setMinute] = useState(isNaN(dateObj.getTime()) ? 0 : dateObj.getMinutes());
+
+  // Re-sync on value change
+  React.useEffect(() => {
+    if (value) {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) {
+        setYear(d.getFullYear());
+        setMonth(d.getMonth() + 1);
+        setDay(d.getDate());
+        setHour(d.getHours());
+        setMinute(d.getMinutes());
+      }
+    }
+  }, [value, isOpen]);
+
+  // Formatter for display
+  const monthsGE = [
+    LANG.months.jan, LANG.months.feb, LANG.months.mar, LANG.months.apr, 
+    LANG.months.may, LANG.months.jun, LANG.months.jul, LANG.months.aug, 
+    LANG.months.sep, LANG.months.oct, LANG.months.nov, LANG.months.dec
+  ];
+
+  const formattedDisplay = `${day} ${monthsGE[month - 1] || monthsGE[0]} ${year}, ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+  const handleApply = () => {
+    const yStr = String(year);
+    const mStr = String(month).padStart(2, '0');
+    const dStr = String(day).padStart(2, '0');
+    const hStr = String(hour).padStart(2, '0');
+    const minStr = String(minute).padStart(2, '0');
+    
+    onChange(`${yStr}-${mStr}-${dStr}T${hStr}:${minStr}`);
+    setIsOpen(false);
+  };
+
+  const years = [2025, 2026, 2027, 2028];
+  const daysInMonth = new Date(year, month, 0).getDate() || 31;
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+
+  return (
+    <div className="space-y-1 select-none">
+      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">{label}</label>
+      
+      {/* Trigger Button with styled calendar icon */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono text-gray-700 transition shadow-inner text-left"
+      >
+        <span className="flex items-center gap-2">
+          <Calendar size={14} className="text-emerald-700" />
+          {formattedDisplay}
+        </span>
+        <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition">არჩევა</span>
+      </button>
+
+      {/* iOS styled Bottom-Sheet overlay dialog */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center z-55 p-4 transition-opacity">
+          <div className="absolute inset-0" onClick={() => setIsOpen(false)}></div>
+
+          <div className="bg-white rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl relative z-10 border border-gray-150 text-gray-800 transform scale-100 transition-all">
+            
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
+              <button 
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Wheels Container */}
+            <div className="grid grid-cols-5 gap-1 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+              {/* Day */}
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">დღე</span>
+                <select
+                  value={day}
+                  onChange={(e) => setDay(parseInt(e.target.value))}
+                  className="w-full bg-white border border-gray-200 rounded-lg text-xs py-1.5 font-bold text-center focus:outline-none"
+                >
+                  {days.map(d => <option key={d} value={d}>{String(d).padStart(2, '0')}</option>)}
+                </select>
+              </div>
+
+              {/* Month */}
+              <div className="flex flex-col items-center col-span-2">
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">თვე</span>
+                <select
+                  value={month}
+                  onChange={(e) => {
+                    const m = parseInt(e.target.value);
+                    setMonth(m);
+                    const maxDays = new Date(year, m, 0).getDate() || 31;
+                    if (day > maxDays) setDay(maxDays);
+                  }}
+                  className="w-full bg-white border border-gray-200 rounded-lg text-xs py-1.5 font-bold text-center focus:outline-none"
+                >
+                  {monthsGE.map((mName, idx) => (
+                    <option key={idx} value={idx + 1}>{mName}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Hour */}
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] text-gray-450 font-bold uppercase mb-1">სთ</span>
+                <select
+                  value={hour}
+                  onChange={(e) => setHour(parseInt(e.target.value))}
+                  className="w-full bg-white border border-gray-200 rounded-lg text-xs py-1.5 font-bold text-center focus:outline-none"
+                >
+                  {hours.map(h => <option key={h} value={h}>{String(h).padStart(2, '0')}</option>)}
+                </select>
+              </div>
+
+              {/* Minute */}
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] text-gray-450 font-bold uppercase mb-1">წთ</span>
+                <select
+                  value={minute}
+                  onChange={(e) => setMinute(parseInt(e.target.value))}
+                  className="w-full bg-white border border-gray-200 rounded-lg text-xs py-1.5 font-bold text-center focus:outline-none"
+                >
+                  {minutes.map(m => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Bottom Panel Actions */}
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="flex-1 py-2 bg-gray-100 hover:bg-gray-150 text-gray-700 rounded-xl text-xs font-bold transition"
+              >
+                გაუქმება
+              </button>
+              <button
+                type="button"
+                onClick={handleApply}
+                className="flex-1 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition shadow-sm"
+              >
+                დადასტურება
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   communications: Communication[];
@@ -179,15 +360,11 @@ export default function CommunicationsView({
 
             <div className="space-y-3.5">
               
-              <div>
-                <label className="text-[10px] font-semibold text-gray-400 block mb-1">თარიღი და დრო *</label>
-                <input 
-                  type="datetime-local"
-                  value={editingComm.date_time}
-                  onChange={(e) => setEditingComm({...editingComm, date_time: e.target.value})}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none"
-                />
-              </div>
+              <IosDateTimePicker
+                label="თარიღი და დრო *"
+                value={editingComm.date_time}
+                onChange={(val) => setEditingComm({...editingComm, date_time: val})}
+              />
 
               <div>
                 <label className="text-[10px] font-semibold text-gray-400 block mb-1">მოქმედების სახეობა</label>
@@ -202,15 +379,11 @@ export default function CommunicationsView({
               </div>
 
               {editingComm.type === 'reminder' && (
-                <div>
-                  <label className="text-[10px] font-semibold text-gray-400 block mb-1">შეხსენების საკონტროლო დრო</label>
-                  <input 
-                    type="datetime-local"
-                    value={editingComm.reminder_time || ''}
-                    onChange={(e) => setEditingComm({...editingComm, reminder_time: e.target.value})}
-                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono"
-                  />
-                </div>
+                <IosDateTimePicker
+                  label="შეხსენების საკონტროლო დრო"
+                  value={editingComm.reminder_time || new Date().toISOString().substring(0, 16)}
+                  onChange={(val) => setEditingComm({...editingComm, reminder_time: val})}
+                />
               )}
 
               <div>

@@ -19,7 +19,7 @@ import {
   getWarehouses, saveWarehouse, deleteWarehouse,
   getCities, saveCity, deleteCity,
   getDistricts, saveDistrict, deleteDistrict,
-  resetSystemDatabase, isSupabaseConfigured
+  resetSystemDatabase, isSupabaseConfigured, supabase
 } from './lib/db';
 
 // Modular view components
@@ -99,6 +99,70 @@ export default function App() {
   useEffect(() => {
     refreshAllData();
   }, [currentUser]);
+
+  // Read Supabase auth session on boot
+  useEffect(() => {
+    const initAuth = async () => {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const { data: dbEmp } = await supabase
+              .from('employees')
+              .select('*')
+              .eq('email', session.user.email)
+              .single();
+              
+            if (dbEmp) {
+              setCurrentUser(dbEmp);
+            } else {
+              // Auto-create matching employee database record
+              const newEmp: Employee = {
+                id: session.user.id,
+                name: session.user.email?.split('@')[0] || 'ადმინისტრატორი',
+                email: session.user.email || '',
+                personal_id: '12345678901',
+                phone: '599112233',
+                role: 'admin',
+                privileges: ['සියველფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
+                created_at: new Date().toISOString()
+              };
+              await supabase.from('employees').insert([newEmp]);
+              setCurrentUser(newEmp);
+            }
+          }
+        } catch (e) {
+          console.error('Initial load of active session failed:', e);
+        }
+      }
+    };
+    initAuth();
+  }, []);
+
+  // Sync session changes from Supabase Live Subscriptions
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          try {
+            const { data: dbEmp } = await supabase
+              .from('employees')
+              .select('*')
+              .eq('email', session.user.email)
+              .single();
+            if (dbEmp) setCurrentUser(dbEmp);
+          } catch (err) {
+            console.error('Live Event login sync error:', err);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, []);
 
   // Operations
   const handleEmployeeSave = async (emp: Employee) => {
@@ -183,7 +247,14 @@ export default function App() {
     }
   };
 
-  const handleLogOut = () => {
+  const handleLogOut = async () => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Supabase sign-out failed:', err);
+      }
+    }
     setCurrentUser(null);
   };
 
