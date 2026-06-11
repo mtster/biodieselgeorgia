@@ -37,34 +37,34 @@ const KEY_DISTRICTS = 'biodiesel_districts_v2';
 const DEFAULT_USERS: User[] = [
   {
     id: 'user-admin',
-    name: 'ადმინისტრატორი',
+    name: 'Administrator',
     personal_id: '12345678901',
     email: 'admin@biodiesel.ge',
-    password: 'admin',
+    password: 'admin123',
     phone: '599112233',
     role: 'admin',
-    privileges: ['සියველფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
+    privileges: ['All', 'Manage', 'Order', 'Reports'],
     created_at: new Date().toISOString()
   }
 ];
 
 const DEFAULT_CITIES: City[] = [
-  { id: 'city-tbilisi', name: 'თბილისი' },
-  { id: 'city-kutaisi', name: 'ქუთაისი' },
-  { id: 'city-batumi', name: 'ბათუმი' }
+  { id: 'city-tbilisi', name: 'Tbilisi' },
+  { id: 'city-kutaisi', name: 'Kutaisi' },
+  { id: 'city-batumi', name: 'Batumi' }
 ];
 
 const DEFAULT_DISTRICTS: District[] = [
-  { id: 'dist-sab-tb', city_id: 'city-tbilisi', name: 'საბურთალო' },
-  { id: 'dist-vake-tb', city_id: 'city-tbilisi', name: 'ვაკე' },
-  { id: 'dist-gld-tb', city_id: 'city-tbilisi', name: 'გლდანი' },
-  { id: 'dist-ctr-kut', city_id: 'city-kutaisi', name: 'ცენტრი' },
-  { id: 'dist-prt-bat', city_id: 'city-batumi', name: 'პორტი' }
+  { id: 'dist-sab-tb', city_id: 'city-tbilisi', name: 'Saburtalo' },
+  { id: 'dist-vake-tb', city_id: 'city-tbilisi', name: 'Vake' },
+  { id: 'dist-gld-tb', city_id: 'city-tbilisi', name: 'Gldani' },
+  { id: 'dist-ctr-kut', city_id: 'city-kutaisi', name: 'Center' },
+  { id: 'dist-prt-bat', city_id: 'city-batumi', name: 'Port' }
 ];
 
 const DEFAULT_WAREHOUSES: Warehouse[] = [
-  { id: 'wh-main', name: 'ცენტრალური საწყობი' },
-  { id: 'wh-west', name: 'დასავლეთის საწყობი' }
+  { id: 'wh-main', name: 'Central Warehouse' },
+  { id: 'wh-west', name: 'West Warehouse' }
 ];
 
 const DEFAULT_TRUCKS: Truck[] = [
@@ -125,7 +125,7 @@ export async function trackChange(
 // API GETTERS & SETTERS (WITH SUPABASE SYNC)
 // ==========================================
 
-// 1. Users (მომხმარებლები)
+// 1. Users
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -161,10 +161,10 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
   const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
   if (isNew) {
     setLocal(KEY_USERS, [...list, finalUser]);
-    await trackChange(loggerName, 'მომხმარებლის დამატება', 'სახელი', '', finalUser.name);
+    await trackChange(loggerName, 'User added', 'Name', '', finalUser.name);
   } else {
     setLocal(KEY_USERS, list.map(item => item.id === finalUser.id ? finalUser : item));
-    await trackChange(loggerName, 'მომხმარებლის რედაქტირება', 'სახელი', '', finalUser.name);
+    await trackChange(loggerName, 'User updated', 'Name', '', finalUser.name);
   }
   return finalUser;
 }
@@ -180,11 +180,11 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
 
   const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
   setLocal(KEY_USERS, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'მომხმარებლის წაშლა', 'სახელი', name, '');
+  await trackChange(loggerName, 'User deleted', 'Name', name, '');
   return true;
 }
 
-// 2. Vendors (მომწოდებლები)
+// 2. Vendors
 export async function getVendors(): Promise<Vendor[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -220,10 +220,10 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   if (isNew) {
     setLocal(KEY_VENDORS, [...list, finalVendor]);
-    await trackChange(loggerName, 'მომწოდებლის დამატება', 'სავაჭრო სახელი', '', finalVendor.trade_name);
+    await trackChange(loggerName, 'Vendor created', 'Trade Name', '', finalVendor.trade_name);
   } else {
     setLocal(KEY_VENDORS, list.map(item => item.id === finalVendor.id ? finalVendor : item));
-    await trackChange(loggerName, 'მომწოდებლის რედაქტირება', 'სავაჭრო სახელი', '', finalVendor.trade_name);
+    await trackChange(loggerName, 'Vendor updated', 'Trade Name', '', finalVendor.trade_name);
   }
   return finalVendor;
 }
@@ -239,11 +239,11 @@ export async function deleteVendor(id: string, tradeName: string, loggerName: st
 
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   setLocal(KEY_VENDORS, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'მომწოდებლის წაშლა', 'სავაჭრო სახელი', tradeName, '');
+  await trackChange(loggerName, 'Vendor deleted', 'Trade Name', tradeName, '');
   return true;
 }
 
-// 3. Orders (შეკვეთები)
+// 3. Orders
 export async function getOrders(): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -288,7 +288,7 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
   const list = getLocal<Order[]>(KEY_ORDERS, []);
   if (isNew) {
     setLocal(KEY_ORDERS, [finalOrder, ...list]);
-    await trackChange(loggerName, 'შეკვეთის შექმნა', 'დოკუმენტი #', '', finalOrder.doc_number);
+    await trackChange(loggerName, 'Order created', 'Document #', '', finalOrder.doc_number);
   } else {
     // Check if status changed to completed to trigger SMS simulation
     const oldOrder = list.find(o => o.id === finalOrder.id);
@@ -299,7 +299,7 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
     }
     
     setLocal(KEY_ORDERS, list.map(item => item.id === finalOrder.id ? finalOrder : item));
-    await trackChange(loggerName, 'შეკვეთის განახლება', 'სტატუსი', oldOrder?.status || '', finalOrder.status);
+    await trackChange(loggerName, 'Order updated', 'Status', oldOrder?.status || '', finalOrder.status);
   }
   return finalOrder;
 }
@@ -310,9 +310,9 @@ function triggerSMS(order: Order) {
   const newSMS = {
     id: 'sms-' + Math.random().toString(36).substring(2, 9),
     date_time: new Date().toISOString(),
-    recipient: 'ბუღალტერია / დირექტორია',
-    message: `ბიოდიზელი ჯორჯია: შეკვეთა დოკუმენტის ნომრით #${order.doc_number} წარმატებით შესრულდა. დადასტურებული რაოდენობა: ${order.qty_actual || order.qty_requested} ლიტრი.`,
-    status: 'გაგზავნილია (Simulated)',
+    recipient: 'Accounting / Directors',
+    message: `Biodiesel Georgia: Order doc #${order.doc_number} completed. Quantity: ${order.qty_actual || order.qty_requested} liters.`,
+    status: 'Sent (Simulated)',
   };
   setLocal('biodiesel_sms_logs', [newSMS, ...logs]);
 }
@@ -332,11 +332,11 @@ export async function deleteOrder(id: string, docNum: string, loggerName: string
 
   const list = getLocal<Order[]>(KEY_ORDERS, []);
   setLocal(KEY_ORDERS, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'შეკვეთის წაშლა', 'დოკუმენტი #', docNum, '');
+  await trackChange(loggerName, 'Order deleted', 'Document #', docNum, '');
   return true;
 }
 
-// 4. Communications (კომუნიკაცია)
+// 4. Communications
 export async function getCommunications(): Promise<Communication[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -379,10 +379,10 @@ export async function saveCommunication(comm: Communication, loggerName: string)
   const list = getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
   if (isNew) {
     setLocal(KEY_COMMUNICATIONS, [finalComm, ...list]);
-    await trackChange(loggerName, 'კომუნიკაციის აღრიცხვა', 'კომენტარი', '', finalComm.comment);
+    await trackChange(loggerName, 'Communication logged', 'Comment', '', finalComm.comment);
   } else {
     setLocal(KEY_COMMUNICATIONS, list.map(item => item.id === finalComm.id ? finalComm : item));
-    await trackChange(loggerName, 'კომუნიკაციის განახლება', 'კომენტარი', '', finalComm.comment);
+    await trackChange(loggerName, 'Communication updated', 'Comment', '', finalComm.comment);
   }
   return finalComm;
 }
@@ -398,11 +398,11 @@ export async function deleteCommunication(id: string, loggerName: string): Promi
 
   const list = getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
   setLocal(KEY_COMMUNICATIONS, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'კომუნიკაციის წაშლა', 'ID', id, '');
+  await trackChange(loggerName, 'Communication deleted', 'ID', id, '');
   return true;
 }
 
-// 5. Trucks (მანქანები)
+// 5. Trucks
 export async function getTrucks(): Promise<Truck[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -433,10 +433,10 @@ export async function saveTruck(truck: Truck, loggerName: string): Promise<Truck
 
   if (!exists) {
     setLocal(KEY_TRUCKS, [...list, truck]);
-    await trackChange(loggerName, 'მანქანის დამატება', 'სახელმწიფო ნომერი', '', truck.plate_number);
+    await trackChange(loggerName, 'Truck added', 'Plate Number', '', truck.plate_number);
   } else {
     setLocal(KEY_TRUCKS, list.map(item => item.plate_number === truck.plate_number ? truck : item));
-    await trackChange(loggerName, 'მანქანის განახლება', 'მოდელი', '', truck.model);
+    await trackChange(loggerName, 'Truck updated', 'Model', '', truck.model);
   }
   return truck;
 }
@@ -452,11 +452,11 @@ export async function deleteTruck(plate: string, loggerName: string): Promise<bo
 
   const list = getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
   setLocal(KEY_TRUCKS, list.filter(item => item.plate_number !== plate));
-  await trackChange(loggerName, 'მანქანის წაშლა', 'სახელმწიფო ნომერი', plate, '');
+  await trackChange(loggerName, 'Truck deleted', 'Plate Number', plate, '');
   return true;
 }
 
-// 6. Change History (ცვლილებების ისტორია)
+// 6. Change History
 export async function getChangeHistory(): Promise<ChangeHistory[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -469,7 +469,7 @@ export async function getChangeHistory(): Promise<ChangeHistory[]> {
   return getLocal<ChangeHistory[]>(KEY_CHANGE_HISTORY, []);
 }
 
-// 7. Warehouses (საწყობები)
+// 7. Warehouses
 export async function getWarehouses(): Promise<Warehouse[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -504,10 +504,10 @@ export async function saveWarehouse(wh: Warehouse, loggerName: string): Promise<
   const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
   if (isNew) {
     setLocal(KEY_WAREHOUSES, [...list, finalWh]);
-    await trackChange(loggerName, 'საწყობის დამატება', 'დასახელება', '', finalWh.name);
+    await trackChange(loggerName, 'Warehouse added', 'Name', '', finalWh.name);
   } else {
     setLocal(KEY_WAREHOUSES, list.map(item => item.id === finalWh.id ? finalWh : item));
-    await trackChange(loggerName, 'საწყობის განახლება', 'დასახელება', '', finalWh.name);
+    await trackChange(loggerName, 'Warehouse updated', 'Name', '', finalWh.name);
   }
   return finalWh;
 }
@@ -523,11 +523,11 @@ export async function deleteWarehouse(id: string, name: string, loggerName: stri
 
   const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
   setLocal(KEY_WAREHOUSES, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'საწყობის წაშლა', 'დასახელება', name, '');
+  await trackChange(loggerName, 'Warehouse deleted', 'Name', name, '');
   return true;
 }
 
-// 8. Cities (ქალაქები)
+// 8. Cities
 export async function getCities(): Promise<City[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -562,10 +562,10 @@ export async function saveCity(city: City, loggerName: string): Promise<City> {
   const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
   if (isNew) {
     setLocal(KEY_CITIES, [...list, finalCity]);
-    await trackChange(loggerName, 'ქალაქის დამატება', 'დასახელება', '', finalCity.name);
+    await trackChange(loggerName, 'City added', 'Name', '', finalCity.name);
   } else {
     setLocal(KEY_CITIES, list.map(item => item.id === finalCity.id ? finalCity : item));
-    await trackChange(loggerName, 'ქალაქის განახლება', 'დასახელება', '', finalCity.name);
+    await trackChange(loggerName, 'City updated', 'Name', '', finalCity.name);
   }
   return finalCity;
 }
@@ -581,11 +581,11 @@ export async function deleteCity(id: string, name: string, loggerName: string): 
 
   const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
   setLocal(KEY_CITIES, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'ქალაქის წაშლა', 'დასახელება', name, '');
+  await trackChange(loggerName, 'City deleted', 'Name', name, '');
   return true;
 }
 
-// 9. Districts (უბნები)
+// 9. Districts
 export async function getDistricts(): Promise<District[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -620,10 +620,10 @@ export async function saveDistrict(dist: District, loggerName: string): Promise<
   const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
   if (isNew) {
     setLocal(KEY_DISTRICTS, [...list, finalDist]);
-    await trackChange(loggerName, 'უბნის დამატება', 'დასახელება', '', finalDist.name);
+    await trackChange(loggerName, 'District added', 'Name', '', finalDist.name);
   } else {
     setLocal(KEY_DISTRICTS, list.map(item => item.id === finalDist.id ? finalDist : item));
-    await trackChange(loggerName, 'უბნის განახლება', 'დასახელება', '', finalDist.name);
+    await trackChange(loggerName, 'District updated', 'Name', '', finalDist.name);
   }
   return finalDist;
 }
@@ -639,7 +639,7 @@ export async function deleteDistrict(id: string, name: string, loggerName: strin
 
   const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
   setLocal(KEY_DISTRICTS, list.filter(item => item.id !== id));
-  await trackChange(loggerName, 'უბნის წაშლა', 'დასახელება', name, '');
+  await trackChange(loggerName, 'District deleted', 'Name', name, '');
   return true;
 }
 

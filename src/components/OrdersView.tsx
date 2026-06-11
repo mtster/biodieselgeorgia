@@ -73,7 +73,7 @@ export default function OrdersView({
   const handleSaveAll = () => {
     if (!editingOrder) return;
     if (!editingOrder.vendor_id || !editingOrder.doc_number) {
-      alert('მიუთითეთ ობიექტი და დოკუმენტის ნომერი');
+      alert('Please select a supplier and document number');
       return;
     }
 
@@ -111,8 +111,8 @@ export default function OrdersView({
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800">შეკვეთები</h2>
-          <p className="text-xs text-gray-500 mt-1 pb-1">ზეთის შეგროვების საფეხურები, დავალებები მძღოლებზე და დასაკავშირებელი საწყობები.</p>
+          <h2 className="text-xl font-extrabold text-gray-800">Orders</h2>
+          <p className="text-xs text-gray-500 mt-1 pb-1">Oil collection progress, driver assignments, and warehouses routing.</p>
         </div>
 
         <div className="flex items-center gap-2 font-sans">
@@ -124,7 +124,7 @@ export default function OrdersView({
             className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-250 rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer"
           >
             <MessageSquareCode size={15} className="text-emerald-700 animate-pulse" />
-            სმს შეტყობინებების ლოგი ({smsLogs.length})
+            SMS Notifications Log ({smsLogs.length})
           </button>
           
           <button 
@@ -132,7 +132,7 @@ export default function OrdersView({
             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
           >
             <Plus size={15} />
-            ახალი შეკვეთა
+            New Order
           </button>
         </div>
       </div>
@@ -147,7 +147,7 @@ export default function OrdersView({
           <input 
             id="orders-search"
             type="text"
-            placeholder="ძებნა მომწოდებლით ან დოკუმენტის ნომრით..."
+            placeholder="Search by supplier or doc number..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
@@ -157,11 +157,11 @@ export default function OrdersView({
         <div className="w-full md:w-56 flex gap-2 font-sans">
           <button 
             onClick={() => setSelectedStatus('')}
-            className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+            className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
               selectedStatus === '' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
             }`}
           >
-            ყველა
+            All
           </button>
           <button 
             onClick={() => setSelectedStatus('registered')}
@@ -169,7 +169,7 @@ export default function OrdersView({
               selectedStatus === 'registered' ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-650 border-gray-200 hover:bg-gray-100'
             }`}
           >
-            რეგისტრირ.
+            Registered
           </button>
           <button 
             onClick={() => setSelectedStatus('completed')}
@@ -177,7 +177,7 @@ export default function OrdersView({
               selectedStatus === 'completed' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-gray-50 text-gray-650 border-gray-200 hover:bg-gray-100'
             }`}
           >
-            დასრულებული
+            Completed
           </button>
         </div>
 
@@ -189,14 +189,14 @@ export default function OrdersView({
           <table className="w-full text-xs text-left text-gray-700">
             <thead>
               <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
-                <th className="py-3 px-4">დოკუმენტი #</th>
-                <th className="py-3 px-4">ობიექტი</th>
-                <th className="py-3 px-4">საწყობი</th>
-                <th className="py-3 px-4">რაოდენობა (დაგეგმ / ფაქტ)</th>
-                <th className="py-3 px-4">ავზები (დასატ / წამოსაღ)</th>
-                <th className="py-3 px-4">მძღოლი / თანმხლები</th>
-                <th className="py-3 px-4">სტატუსი</th>
-                <th className="py-3 px-4 text-right">ქმედება</th>
+                <th className="py-3 px-4">Document #</th>
+                <th className="py-3 px-4">Supplier Object</th>
+                <th className="py-3 px-4">Warehouse</th>
+                <th className="py-3 px-4">QTY (Planned / Actual)</th>
+                <th className="py-3 px-4">Tanks (Dropoff / Pickup)</th>
+                <th className="py-3 px-4">Driver / Companion</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -210,40 +210,40 @@ export default function OrdersView({
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="font-extrabold text-gray-800 block">
-                        {supplierObj ? supplierObj.trade_name : (ord.vendor_name || 'კომპანია')}
+                        {supplierObj ? supplierObj.trade_name : (ord.vendor_name || 'Company')}
                       </span>
                       {ord.note && <span className="text-[10px] text-amber-700 block bg-amber-50 rounded px-1.5 py-0.5 w-fit font-mono mt-1">{ord.note}</span>}
                     </td>
                     <td className="py-3.5 px-4 text-gray-600 font-sans">
-                      {ord.warehouse_name || 'დაუზუსტებელი'}
+                      {ord.warehouse_name || 'Unassigned'}
                     </td>
                     <td className="py-3.5 px-4 font-mono">
-                      <span className="text-gray-550">{ord.qty_requested} ლ.</span>
+                      <span className="text-gray-550">{ord.qty_requested} L.</span>
                       {ord.qty_actual !== undefined && (
-                        <span className="text-emerald-700 font-bold block">→ {ord.qty_actual} ლ. (ფაქტ.)</span>
+                        <span className="text-emerald-700 font-bold block">→ {ord.qty_actual} L. (Actual)</span>
                       )}
                     </td>
                     <td className="py-3.5 px-4 font-mono">
-                      <span>დატოვილება: {ord.tanks_to_leave} | წამოღება: {ord.tanks_to_bring}</span>
+                      <span>Dropoff: {ord.tanks_to_leave} | Pickup: {ord.tanks_to_bring}</span>
                       {ord.tanks_left_actual !== undefined && (
-                        <span className="text-blue-700 block font-bold">აღებული: {ord.tanks_bring_actual} | ახალი: {ord.tanks_left_actual}</span>
+                        <span className="text-blue-700 block font-bold">Collected: {ord.tanks_bring_actual} | Placed: {ord.tanks_left_actual}</span>
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-gray-600 font-sans">
-                      <span className="block font-bold">🚗 {ord.driver_name || 'არ არის'}</span>
-                      <span className="text-[10px] block text-gray-450">👥 {ord.companion_name || 'არ არის'}</span>
+                      <span className="block font-bold">🚗 Driver: {ord.driver_name || 'None'}</span>
+                      <span className="text-[10px] block text-gray-450">👥 Companion: {ord.companion_name || 'None'}</span>
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider block w-fit ${
                         ord.status === 'registered' ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' :
                         ord.status === 'scheduled' ? 'bg-[#e0f2fe] text-[#0369a1]' :
-                        ord.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-150' :
+                        ord.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-155' :
                         'bg-red-50 text-red-700 border border-red-100'
                       }`}>
-                        {ord.status === 'registered' ? 'რეგისტრირებული' :
-                         ord.status === 'scheduled' ? 'დაგეგმილი' :
-                         ord.status === 'completed' ? 'დასრულებული' :
-                         'გაუქმებული'}
+                        {ord.status === 'registered' ? 'Registered' :
+                         ord.status === 'scheduled' ? 'Scheduled' :
+                         ord.status === 'completed' ? 'Completed' :
+                         'Cancelled'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
@@ -251,14 +251,14 @@ export default function OrdersView({
                         <button 
                           onClick={() => startEdit(ord)}
                           className="p-1.5 bg-gray-50 hover:bg-gray-100 rounded text-emerald-800 font-bold cursor-pointer"
-                          title="რედაქტირება"
+                          title="Edit"
                         >
                           <Edit2 size={13} />
                         </button>
                         <button 
                           onClick={() => onDelete(ord.id, ord.doc_number)}
                           className="p-1.5 bg-gray-50 hover:bg-red-50 text-red-650 rounded cursor-pointer"
-                          title="წაშლა"
+                          title="Delete"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -273,7 +273,7 @@ export default function OrdersView({
 
         {filteredOrders.length === 0 && (
           <div className="text-center py-16 text-xs text-gray-400">
-            შეკვეთები ჩანაწერებში არ ფიქსირდება.
+            No orders found in records.
           </div>
         )}
       </div>
@@ -285,9 +285,9 @@ export default function OrdersView({
             
             <div className="flex items-center justify-between border-b border-gray-100 pb-2 font-sans">
               <h3 className="font-extrabold text-gray-800 text-sm">
-                {isNew ? 'ახალი შეკვეთის გაფორმება' : `შეკვეთის რედაქტირება: #${editingOrder.doc_number}`}
+                {isNew ? 'Book New Collection Order' : `Edit Assignment Order: #${editingOrder.doc_number}`}
               </h3>
-              <button onClick={() => setEditingOrder(null)} className="text-gray-400 hover:text-gray-650 cursor-pointer">
+              <button onClick={() => setEditingOrder(null)} className="text-gray-400 hover:text-gray-655 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -295,7 +295,7 @@ export default function OrdersView({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
               <div>
-                <label className="text-[11px] font-semibold text-gray-450 block mb-1">ობიექტი *</label>
+                <label className="text-[11px] font-semibold text-gray-450 block mb-1">Supplier Object *</label>
                 <select
                   value={editingOrder.vendor_id}
                   onChange={(e) => setEditingOrder({...editingOrder, vendor_id: e.target.value})}
@@ -306,7 +306,7 @@ export default function OrdersView({
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-450 block mb-1">საწყობი *</label>
+                <label className="text-[11px] font-semibold text-gray-450 block mb-1">Warehouse *</label>
                 <select
                   value={editingOrder.warehouse_id}
                   onChange={(e) => setEditingOrder({...editingOrder, warehouse_id: e.target.value})}
@@ -317,7 +317,7 @@ export default function OrdersView({
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-450 block mb-1 font-mono">დოკუმენტის ნომერი</label>
+                <label className="text-[11px] font-semibold text-gray-450 block mb-1 font-mono">Document Number</label>
                 <input 
                   type="text"
                   value={editingOrder.doc_number}
@@ -327,7 +327,7 @@ export default function OrdersView({
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-450 block mb-1 font-mono">შეკვეთის თარიღი</label>
+                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-mono">Order Date</label>
                 <input 
                   type="date"
                   value={editingOrder.order_date}
@@ -338,7 +338,7 @@ export default function OrdersView({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-semibold text-gray-450 block mb-1">რაოდენობა (დაგეგმ.)</label>
+                  <label className="text-[10px] font-semibold text-gray-450 block mb-1">Planned Volume (L.)</label>
                   <input 
                     type="number"
                     value={editingOrder.qty_requested}
@@ -347,7 +347,7 @@ export default function OrdersView({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-semibold text-gray-450 block mb-1 font-sans">დასატოვებელი ავზი</label>
+                  <label className="text-[10px] font-semibold text-gray-450 block mb-1 font-sans">Tanks to Dropoff</label>
                   <input 
                     type="number"
                     value={editingOrder.tanks_to_leave}
@@ -359,7 +359,7 @@ export default function OrdersView({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-semibold text-gray-450 block mb-1 font-sans">წასაღები ავზი</label>
+                  <label className="text-[10px] font-semibold text-gray-450 block mb-1 font-sans">Tanks to Pickup</label>
                   <input 
                     type="number"
                     value={editingOrder.tanks_to_bring}
@@ -368,7 +368,7 @@ export default function OrdersView({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-emerald-800 block mb-1 font-sans">სტატუსის მართვა *</label>
+                  <label className="text-[10px] font-bold text-emerald-800 block mb-1 font-sans">Status Control *</label>
                   <select
                     value={editingOrder.status}
                     onChange={(e) => {
@@ -382,47 +382,47 @@ export default function OrdersView({
                     }}
                     className="w-full px-2 py-2 bg-emerald-50/50 border border-emerald-300 font-bold rounded-xl text-xs focus:outline-none"
                   >
-                    <option value="registered">რეგისტრირებული</option>
-                    <option value="scheduled">დაგეგმილი</option>
-                    <option value="completed">დასრულებული (completed)</option>
-                    <option value="cancelled">გაუქმებული</option>
+                    <option value="registered">Registered</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
               </div>
 
               {/* Driver and staff assignment */}
               <div>
-                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">პასუხისმგებელი მძღოლი</label>
+                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">Assigned Driver</label>
                 <select
                   value={editingOrder.driver_id}
                   onChange={(e) => setEditingOrder({...editingOrder, driver_id: e.target.value})}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 >
-                  <option value="">-- აირჩიეთ მძღოლი --</option>
+                  <option value="">-- Select Driver --</option>
                   {employees.filter(e => e.role === 'driver').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">თანმხლები პირი</label>
+                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">Companion / Helper</label>
                 <select
                   value={editingOrder.companion_id}
                   onChange={(e) => setEditingOrder({...editingOrder, companion_id: e.target.value})}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 >
-                  <option value="">-- აირჩიეთ თანმხლები --</option>
+                  <option value="">-- Select Companion --</option>
                   {employees.filter(e => e.role !== 'driver').map(e => <option key={e.id} value={e.id}>{e.name} ({e.role})</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">მანქანის სახელმწიფო ნომერი</label>
+                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">Truck Plate Number</label>
                 <select
                   value={editingOrder.truck_plate}
                   onChange={(e) => setEditingOrder({...editingOrder, truck_plate: e.target.value})}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 >
-                  <option value="">-- აირჩიეთ მანქანა --</option>
+                  <option value="">-- Select Truck --</option>
                   {trucks.map(t => <option key={t.plate_number} value={t.plate_number}>{t.plate_number} ({t.model})</option>)}
                 </select>
               </div>
@@ -430,9 +430,9 @@ export default function OrdersView({
               {/* Special ACTUAL properties when completed */}
               {editingOrder.status === 'completed' && (
                 <div className="bg-emerald-50/40 p-3 rounded-2xl border border-emerald-100 col-span-1 sm:col-span-2 grid grid-cols-2 gap-3.5">
-                  <span className="col-span-2 text-[10px] font-black uppercase text-emerald-800 tracking-wider block font-sans">სავალდებულო ფაქტობრივი მონაცემები</span>
+                  <span className="col-span-2 text-[10px] font-black uppercase text-emerald-800 tracking-wider block font-sans">Mandatory Actual Pickup Data</span>
                   <div>
-                    <label className="text-[9px] font-extrabold text-gray-450 block mb-0.5 font-sans">ფაქტობრივი რაოდენობა (ლ.)</label>
+                    <label className="text-[9px] font-extrabold text-gray-450 block mb-0.5 font-sans">Actual Volume Received (L.)</label>
                     <input 
                       type="number"
                       required
@@ -442,7 +442,7 @@ export default function OrdersView({
                     />
                   </div>
                   <div>
-                    <label className="text-[9px] font-extrabold text-gray-455 block mb-0.5 font-sans">ფაქტ. წამოღებული ავზები</label>
+                    <label className="text-[9px] font-extrabold text-gray-455 block mb-0.5 font-sans">Actual Collected Tanks</label>
                     <input 
                       type="number"
                       value={editingOrder.tanks_bring_actual || ''}
@@ -452,17 +452,17 @@ export default function OrdersView({
                   </div>
                   <div className="col-span-2">
                     <p className="text-[10px] text-amber-800 font-bold leading-none font-mono">
-                      * ყურადღება: მონაცემის 'დასრულებული' სტატუსზე შენახვისას სისტემა ავტომატურად გააგზავნის simulated სმს შეტყობინებას ბუღალტერთან!
+                      * Note: Saving as Completed will automatically trigger a simulated SMS receipt to accounting!
                     </p>
                   </div>
                 </div>
               )}
 
               <div className="col-span-1 sm:col-span-2">
-                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">კომენტარი / შენიშვნა</label>
+                <label className="text-[11px] font-semibold text-gray-455 block mb-1 font-sans">Comment / Handover Note</label>
                 <input 
                   type="text"
-                  placeholder="მაგ: სპეციალური ავზია საჭირო..."
+                  placeholder="e.g. Special tank adapter required on site..."
                   value={editingOrder.note || ''}
                   onChange={(e) => setEditingOrder({...editingOrder, note: e.target.value})}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
@@ -476,14 +476,14 @@ export default function OrdersView({
                 onClick={() => setEditingOrder(null)} 
                 className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold cursor-pointer"
               >
-                გაუქმება
+                Cancel
               </button>
               <button 
                 onClick={handleSaveAll}
                 className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <Check size={14} />
-                დავალების შენახვა
+                Save Assignment
               </button>
             </div>
 
@@ -495,18 +495,18 @@ export default function OrdersView({
       {showSMSLogs && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-gray-150">
-            <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+            <div className="flex items-center justify-between border-b border-gray-55 pb-2">
               <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
                 <MessageSquareCode className="text-emerald-700 font-bold" size={17} />
-                სმს შეტყობინებების ჟურნალი (ბუღალტერია)
+                SMS Dispatch Logs (Accounting Gate)
               </h3>
-              <button onClick={() => setShowSMSLogs(false)} className="text-gray-400 hover:text-gray-650 cursor-pointer">
+              <button onClick={() => setShowSMSLogs(false)} className="text-gray-400 hover:text-gray-655 cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
             <p className="text-[11px] text-gray-500 font-sans">
-              სისტემაში შეკვეთის დასრულებისას გაგზავნილი SMS შეტყობინებები:
+              Simulated SMS receipt notifications pushed to accounting upon order completion:
             </p>
 
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
@@ -514,7 +514,7 @@ export default function OrdersView({
                 <div key={sms.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1 text-xs">
                   <div className="flex items-center justify-between text-gray-400 text-[10px] font-mono">
                     <span>{sms.recipient}</span>
-                    <span>{new Date(sms.date_time).toLocaleString('ka-GE')}</span>
+                    <span>{new Date(sms.date_time).toLocaleString('en-US')}</span>
                   </div>
                   <p className="font-medium text-gray-800">{sms.message}</p>
                   <span className="text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold w-fit block">
@@ -525,7 +525,7 @@ export default function OrdersView({
 
               {smsLogs.length === 0 && (
                 <div className="text-center py-12 text-gray-400 text-xs italic">
-                  სმს შეტყობინებები ჯერ არ არის გაგზავნილი.
+                  No SMS dispatches registered yet.
                 </div>
               )}
             </div>
@@ -535,7 +535,7 @@ export default function OrdersView({
                 onClick={() => setShowSMSLogs(false)}
                 className="px-4 py-1.5 bg-gray-150 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold cursor-pointer"
               >
-                დახურვა
+                Close
               </button>
             </div>
           </div>

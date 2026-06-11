@@ -116,12 +116,12 @@ export default function App() {
               // Auto-create matching user database record
               const newUser: User = {
                 id: session.user.id,
-                name: session.user.email?.split('@')[0] || 'ადმინისტრატორი',
+                name: session.user.email?.split('@')[0] || 'Administrator',
                 email: session.user.email || '',
                 personal_id: '12345678901',
                 phone: '599112233',
                 role: 'admin',
-                privileges: ['ყველაფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
+                privileges: ['All', 'Manage', 'Order', 'Reports'],
                 created_at: new Date().toISOString()
               };
               await supabase.from('users').insert([newUser]);
@@ -168,83 +168,83 @@ export default function App() {
 
   // Operations
   const handleUserSave = async (user: User) => {
-    await saveUser(user, currentUser?.name || 'სისტემა');
+    await saveUser(user, currentUser?.name || 'System');
     await refreshAllData();
   };
 
   const handleUserDelete = async (id: string, name: string) => {
-    if (confirm(`ნამდვილად გსურთ წაშალოთ მომხმარებელი: ${name}?`)) {
-      await deleteUser(id, name, currentUser?.name || 'სისტემა');
+    if (confirm(`Are you sure you want to delete user: ${name}?`)) {
+      await deleteUser(id, name, currentUser?.name || 'System');
       await refreshAllData();
     }
   };
 
   const handleVendorSave = async (vnd: Vendor) => {
-    await saveVendor(vnd, currentUser?.name || 'სისტემა');
+    await saveVendor(vnd, currentUser?.name || 'System');
     await refreshAllData();
   };
 
   const handleVendorDelete = async (id: string, tradeName: string) => {
-    if (confirm(`ნამდვილად გსურთ ობიექტის (${tradeName}) წაშლა?`)) {
-      await deleteVendor(id, tradeName, currentUser?.name || 'სისტემა');
+    if (confirm(`Are you sure you want to delete supplier (${tradeName})?`)) {
+      await deleteVendor(id, tradeName, currentUser?.name || 'System');
       await refreshAllData();
     }
   };
 
   const handleOrderSave = async (ord: Order) => {
-    await saveOrder(ord, currentUser?.name || 'სისტემა');
+    await saveOrder(ord, currentUser?.name || 'System');
     await refreshAllData();
   };
 
   const handleOrderDelete = async (id: string, docNum: string) => {
-    if (confirm(`გსურთ წაშალოთ შეკვეთა #${docNum}?`)) {
-      await deleteOrder(id, docNum, currentUser?.name || 'სისტემა');
+    if (confirm(`Are you sure you want to delete order #${docNum}?`)) {
+      await deleteOrder(id, docNum, currentUser?.name || 'System');
       await refreshAllData();
     }
   };
 
   const handleCommunicationSave = async (comm: Communication) => {
-    await saveCommunication(comm, currentUser?.name || 'სისტემა');
+    await saveCommunication(comm, currentUser?.name || 'System');
     await refreshAllData();
   };
 
   const handleCommunicationDelete = async (id: string) => {
-    if (confirm('ნამდვილად გსურთ ჩანაწერის წაშლა?')) {
-      await deleteCommunication(id, currentUser?.name || 'სისტემა');
+    if (confirm('Are you sure you want to delete this record?')) {
+      await deleteCommunication(id, currentUser?.name || 'System');
       await refreshAllData();
     }
   };
 
   // Lookups updates
   const handleSaveCity = async (c: City) => {
-    await saveCity(c, currentUser?.name || 'სისტემა');
+    await saveCity(c, currentUser?.name || 'System');
     await refreshAllData();
   };
   const handleDeleteCity = async (id: string, name: string) => {
-    if (confirm(`წაიშალოს ქალაქი ${name}?`)) {
-      await deleteCity(id, name, currentUser?.name || 'სისტემა');
+    if (confirm(`Delete city ${name}?`)) {
+      await deleteCity(id, name, currentUser?.name || 'System');
       await refreshAllData();
     }
   };
 
   const handleSaveDistrict = async (d: District) => {
-    await saveDistrict(d, currentUser?.name || 'სისტემა');
+    await saveDistrict(d, currentUser?.name || 'System');
     await refreshAllData();
   };
   const handleDeleteDistrict = async (id: string, name: string) => {
-    if (confirm(`წაიშალოს უბანი ${name}?`)) {
-      await deleteDistrict(id, name, currentUser?.name || 'სისტემა');
+    if (confirm(`Delete district ${name}?`)) {
+      await deleteDistrict(id, name, currentUser?.name || 'System');
       await refreshAllData();
     }
   };
 
   const handleSaveTruck = async (t: Truck) => {
-    await saveTruck(t, currentUser?.name || 'სისტემა');
+    await saveTruck(t, currentUser?.name || 'System');
     await refreshAllData();
   };
   const handleDeleteTruck = async (plate: string) => {
-    if (confirm(`გსურთ მანქანის (${plate}) წაშლა?`)) {
-      await deleteTruck(plate, currentUser?.name || 'სისტემა');
+    if (confirm(`Are you sure you want to delete vehicle (${plate})?`)) {
+      await deleteTruck(plate, currentUser?.name || 'System');
       await refreshAllData();
     }
   };
@@ -271,7 +271,7 @@ export default function App() {
       id: '',
       name
     };
-    await saveWarehouse(newWh, currentUser?.name || 'სისტემა');
+    await saveWarehouse(newWh, currentUser?.name || 'System');
     await refreshAllData();
   };
 
@@ -291,7 +291,7 @@ export default function App() {
       <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center space-y-3.5">
         <div className="w-10 h-10 border-4 border-emerald-800 border-t-transparent rounded-full animate-spin"></div>
         <p className="text-xs font-bold font-mono text-gray-400 tracking-widest uppercase">
-          ბიოდიზელი ჯორჯია - იტვირთება...
+          Biodiesel Georgia - Loading...
         </p>
       </div>
     );
@@ -309,16 +309,16 @@ export default function App() {
 
   // Sidebar navigation configuration
   const menuItems = [
-    { id: 'dashboard', name: 'მთავარი მენიუ', icon: <LayoutDashboard size={16} /> },
-    { id: 'analytics', name: 'ანალიტიკა', icon: <BarChart3 size={16} /> },
-    { id: 'vendors', name: 'ობიექტები', icon: <Building2 size={16} /> },
-    { id: 'communications', name: 'კომუნიკაცია', icon: <MessageSquare size={16} /> },
-    { id: 'orders', name: 'შეკვეთები', icon: <ShoppingBag size={16} /> },
-    { id: 'users', name: 'მომხმარებლები', icon: <Users size={16} /> },
-    { id: 'reports', name: 'რეპორტები', icon: <FileText size={16} /> },
-    { id: 'lookups', name: 'ცნობარები', icon: <Globe size={16} /> },
-    { id: 'history', name: 'ცვლილებების ისტორია', icon: <History size={16} /> },
-    { id: 'settings', name: 'პარამეტრები', icon: <Settings size={16} /> }
+    { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={16} /> },
+    { id: 'analytics', name: 'Analytics', icon: <BarChart3 size={16} /> },
+    { id: 'vendors', name: 'Suppliers', icon: <Building2 size={16} /> },
+    { id: 'communications', name: 'Communications', icon: <MessageSquare size={16} /> },
+    { id: 'orders', name: 'Orders', icon: <ShoppingBag size={16} /> },
+    { id: 'users', name: 'Users', icon: <Users size={16} /> },
+    { id: 'reports', name: 'Reports', icon: <FileText size={16} /> },
+    { id: 'lookups', name: 'Lookups', icon: <Globe size={16} /> },
+    { id: 'history', name: 'Change History', icon: <History size={16} /> },
+    { id: 'settings', name: 'Settings', icon: <Settings size={16} /> }
   ];
 
   return (
@@ -337,7 +337,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-sm font-black tracking-tight leading-none text-white">
-                ბიოდიზელი ჯორჯია
+                Biodiesel Georgia
               </h1>
             </div>
           </div>
@@ -383,7 +383,7 @@ export default function App() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
               <span className="text-[10px] text-emerald-400 font-mono capitalize block">
-                {currentUser.role === 'admin' ? 'ადმინისტრატორი' : 'პერსონალი'}
+                {currentUser.role === 'admin' ? 'Administrator' : 'Staff'}
               </span>
             </div>
           </div>
@@ -393,7 +393,7 @@ export default function App() {
             className="w-full py-2 bg-slate-800 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
           >
             <LogOut size={13} />
-            სისტემიდან გასვლა
+            Sign Out
           </button>
         </div>
 
@@ -408,7 +408,7 @@ export default function App() {
             <div className="bg-emerald-800 text-white p-1 rounded-lg">
               <Leaf size={16} />
             </div>
-            <span className="font-black text-sm text-gray-800 font-sans">ბიოდიზელი ჯორჯია</span>
+            <span className="font-black text-sm text-gray-800 font-sans">Biodiesel Georgia</span>
           </div>
 
           <button 

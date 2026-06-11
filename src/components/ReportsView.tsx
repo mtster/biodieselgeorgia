@@ -38,7 +38,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
       supplierData[sId] = { 
         total: 0, 
         count: 0, 
-        tradeName: sObj?.trade_name || (o.vendor_name || 'უცნობი'), 
+        tradeName: sObj?.trade_name || (o.vendor_name || 'Unknown'), 
         code: sObj?.id_code || 'N/A' 
       };
     }
@@ -54,8 +54,8 @@ export default function ReportsView({ suppliers, orders }: Props) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-sans">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800">რეპორტები და ანგარიშები</h2>
-          <p className="text-xs text-gray-500 mt-1 pb-1">ზეთის შეგროვების ჯამური მაჩვენებლების გენერირება პერიოდების და მომწოდებლების მიხედვით.</p>
+          <h2 className="text-xl font-extrabold text-gray-800">Reports & Summaries</h2>
+          <p className="text-xs text-gray-500 mt-1 pb-1">Generate oil collection aggregates by reporting periods and suppliers.</p>
         </div>
 
         {/* Filters */}
@@ -63,35 +63,35 @@ export default function ReportsView({ suppliers, orders }: Props) {
           <button 
             onClick={() => setReportType('monthly')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              reportType === 'monthly' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-500 hover:text-gray-800'
+              reportType === 'monthly' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550 hover:text-gray-800'
             }`}
           >
-            ყოველთვიური რეპორტი
+            Monthly Report
           </button>
           <button 
             onClick={() => setReportType('supplier')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              reportType === 'supplier' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-500 hover:text-gray-800'
+              reportType === 'supplier' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550 hover:text-gray-800'
             }`}
           >
-            რეპორტი ობიექტებზე
+            Supplier Report
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border p-4 rounded-xl shadow-xs">
-          <span className="text-[11px] text-gray-400 font-bold block">სულ მიღებული მოცულობა</span>
-          <span className="text-xl font-mono font-black text-emerald-800">{totalVolume.toLocaleString()} ლ.</span>
+          <span className="text-[11px] text-gray-400 font-bold block">Total Received Volume</span>
+          <span className="text-xl font-mono font-black text-emerald-800">{totalVolume.toLocaleString()} L.</span>
         </div>
         <div className="bg-white border p-4 rounded-xl shadow-xs">
-          <span className="text-[11px] text-gray-400 font-bold block">შესრულებული შეკვეთები</span>
-          <span className="text-xl font-mono font-black text-gray-800">{completedOrders.length} კოლექცია</span>
+          <span className="text-[11px] text-gray-400 font-bold block">Completed Collected Tasks</span>
+          <span className="text-xl font-mono font-black text-gray-800">{completedOrders.length} collections</span>
         </div>
         <div className="bg-white border p-4 rounded-xl shadow-xs font-sans">
-          <span className="text-[11px] text-gray-400 font-bold block">შეგროვების საშუალო მაჩვენებელი</span>
+          <span className="text-[11px] text-gray-400 font-bold block">Average Collected Per Task</span>
           <span className="text-xl font-mono font-black text-gray-800">
-            {completedOrders.length > 0 ? Math.round(totalVolume / completedOrders.length) : 0} ლ.
+            {completedOrders.length > 0 ? Math.round(totalVolume / completedOrders.length) : 0} L.
           </span>
         </div>
       </div>
@@ -100,19 +100,19 @@ export default function ReportsView({ suppliers, orders }: Props) {
         <div className="bg-white border rounded-2xl p-5 shadow-xs space-y-4">
           <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
             <FileText size={16} className="text-emerald-700" />
-            ყოველთვიური შეგროვების სტატისტიკა
+            Monthly Collection Stat Aggregates
           </h3>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left text-gray-700">
               <thead>
                 <tr className="border-b text-[10px] text-gray-400 uppercase font-mono bg-gray-50/50">
-                  <th className="py-2.5 px-3">საანგარიშო თვე</th>
-                  <th className="py-2.5 px-3">შეგროვებული ლიტრები (ფაქტ.)</th>
-                  <th className="py-2.5 px-3">გატანების რაოდენობა</th>
-                  <th className="py-2.5 px-3">საშუალო მოცულობა გატანაზე</th>
-                  <th className="py-2.5 px-3">მაქსიმალური გატანა</th>
-                  <th className="py-2.5 px-3 text-right">წილი მთლიანობაში</th>
+                  <th className="py-2.5 px-3">Report Month</th>
+                  <th className="py-2.5 px-3">Collected Liters (Actual)</th>
+                  <th className="py-2.5 px-3">Pickup Count</th>
+                  <th className="py-2.5 px-3">Average Volume / Pickup</th>
+                  <th className="py-2.5 px-3">Max Single Pickup</th>
+                  <th className="py-2.5 px-3 text-right">Total Share</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -123,10 +123,10 @@ export default function ReportsView({ suppliers, orders }: Props) {
                   return (
                     <tr key={month} className="hover:bg-slate-50/25">
                       <td className="py-3 px-3 font-mono font-bold text-gray-900">{month}</td>
-                      <td className="py-3 px-3 font-mono font-bold text-emerald-800">{data.total.toLocaleString()} ლ.</td>
+                      <td className="py-3 px-3 font-mono font-bold text-emerald-800">{data.total.toLocaleString()} L.</td>
                       <td className="py-3 px-3 font-mono text-gray-600">{data.count}</td>
-                      <td className="py-3 px-3 font-mono text-gray-500">{avg} ლ.</td>
-                      <td className="py-3 px-3 font-mono text-gray-500">{data.max} ლ.</td>
+                      <td className="py-3 px-3 font-mono text-gray-500">{avg} L.</td>
+                      <td className="py-3 px-3 font-mono text-gray-500">{data.max} L.</td>
                       <td className="py-3 px-3 text-right font-mono font-bold text-gray-450">{share}%</td>
                     </tr>
                   );
@@ -135,7 +135,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
                 {Object.keys(monthlyData).length === 0 && (
                   <tr>
                     <td colSpan={6} className="text-center py-10 text-xs text-gray-400">
-                      მონაცემები არ მოიძებნა.
+                      No records found.
                     </td>
                   </tr>
                 )}
@@ -145,21 +145,21 @@ export default function ReportsView({ suppliers, orders }: Props) {
         </div>
       ) : (
         <div className="bg-white border rounded-2xl p-5 shadow-xs space-y-4">
-          <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5 animate-pulse">
+          <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
             <BarChart3 size={16} className="text-emerald-700 font-bold" />
-            ლიტრაჟის რეპორტი მომწოდებელი ობიექტების მიხედვით
+            Supplier-wise Literage Accumulation Report
           </h3>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left text-gray-700">
               <thead>
                 <tr className="border-b text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
-                  <th className="py-2.5 px-3">ობიექტი</th>
-                  <th className="py-2.5 px-3">კოდი</th>
-                  <th className="py-2.5 px-3">სულ ჩაბარებული (ლიტრებში)</th>
-                  <th className="py-2.5 px-3">გატანების სიხშირე (ჯერ)</th>
-                  <th className="py-2.5 px-3">საშუალოდ გატანაზე (ლიტრი)</th>
-                  <th className="py-2.5 px-3 text-right">წილი (%)</th>
+                  <th className="py-2.5 px-3">Supplier Object</th>
+                  <th className="py-2.5 px-3">Code / Tax ID</th>
+                  <th className="py-2.5 px-3">Total Dispatched (Liters)</th>
+                  <th className="py-2.5 px-3">Collection Frequency</th>
+                  <th className="py-2.5 px-3">Average / Dispatched (L.)</th>
+                  <th className="py-2.5 px-3 text-right">Share (%)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -171,9 +171,9 @@ export default function ReportsView({ suppliers, orders }: Props) {
                     <tr key={sId} className="hover:bg-slate-50/25">
                       <td className="py-3 px-3 font-bold text-gray-900">{data.tradeName}</td>
                       <td className="py-3 px-3 font-mono text-gray-400">{data.code}</td>
-                      <td className="py-3 px-3 font-mono font-bold text-emerald-800">{data.total.toLocaleString()} ლ.</td>
-                      <td className="py-3 px-3 font-mono text-gray-500">{data.count} კოლექცია</td>
-                      <td className="py-3 px-3 font-mono text-gray-500">{avg} ლ.</td>
+                      <td className="py-3 px-3 font-mono font-bold text-emerald-800">{data.total.toLocaleString()} L.</td>
+                      <td className="py-3 px-3 font-mono text-gray-500">{data.count} collections</td>
+                      <td className="py-3 px-3 font-mono text-gray-500">{avg} L.</td>
                       <td className="py-3 px-3 text-right font-mono font-extrabold text-gray-450">{pct}%</td>
                     </tr>
                   );
@@ -182,7 +182,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
                 {Object.keys(supplierData).length === 0 && (
                   <tr>
                     <td colSpan={6} className="text-center py-10 text-xs text-gray-400">
-                      მონაცემები არ მოიძებნა.
+                      No records found.
                     </td>
                   </tr>
                 )}

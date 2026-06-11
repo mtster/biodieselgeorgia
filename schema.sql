@@ -1,5 +1,5 @@
 -- ====================================================================
---  BIODIESEL GEORGIA / ბიოდიზელი ჯორჯია - DATABASE SCHEMA SCRIPT
+--  BIODIESEL GEORGIA - DATABASE SCHEMA SCRIPT
 -- ====================================================================
 --  This script is designed to be executable repeatedly without errors.
 --  It establishes tables, primary keys, foreign constraints, indices, and defaults.
@@ -19,6 +19,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- Clean drop of pre-existing tables to prevent version mismatch errors
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
 DROP TABLE IF EXISTS public.change_history CASCADE;
 DROP TABLE IF EXISTS public.communications CASCADE;
 DROP TABLE IF EXISTS public.orders CASCADE;
@@ -27,35 +28,35 @@ DROP TABLE IF EXISTS public.suppliers CASCADE;
 DROP TABLE IF EXISTS public.trucks CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 DROP TABLE IF EXISTS public.employees CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TABLE IF EXISTS public.warehouses CASCADE;
 DROP TABLE IF EXISTS public.districts CASCADE;
 DROP TABLE IF EXISTS public.cities CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
 
--- 1. Cities (ქალაქები)
-CREATE TABLE IF NOT EXISTS cities (
+-- 1. Cities
+CREATE TABLE cities (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Districts (უბნები)
-CREATE TABLE IF NOT EXISTS districts (
+-- 2. Districts
+CREATE TABLE districts (
     id TEXT PRIMARY KEY,
     city_id TEXT REFERENCES cities(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Warehouses (საწყობები)
-CREATE TABLE IF NOT EXISTS warehouses (
+-- 3. Warehouses
+CREATE TABLE warehouses (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Users / Employees (მომხმარებლები)
-CREATE TABLE IF NOT EXISTS users (
+-- 4. Users / Employees
+CREATE TABLE users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     personal_id TEXT UNIQUE NOT NULL,
@@ -67,8 +68,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Vehicles / Trucks (მანქანები)
-CREATE TABLE IF NOT EXISTS trucks (
+-- 5. Vehicles / Trucks
+CREATE TABLE trucks (
     plate_number TEXT PRIMARY KEY,
     model TEXT NOT NULL,
     driver_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -76,68 +77,68 @@ CREATE TABLE IF NOT EXISTS trucks (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Vendors / Suppliers (მომწოდებლები)
-CREATE TABLE IF NOT EXISTS vendors (
+-- 6. Vendors
+CREATE TABLE vendors (
     id TEXT PRIMARY KEY,
-    id_code TEXT NOT NULL,                  -- კომპანიის საიდენტიფიკაციო კოდი
-    company_name TEXT NOT NULL,             -- კომპანიის დასახელება
-    trade_name TEXT NOT NULL,               -- ობიექტის სავაჭრო დასახელება
-    company_code TEXT UNIQUE NOT NULL,      -- კოდი
-    bank_account TEXT NOT NULL,             -- საბანკო ანგარიში
-    city TEXT NOT NULL,                     -- ქალაქი
-    district TEXT NOT NULL,                 -- უბანი
-    address TEXT NOT NULL,                  -- მისამართი
-    price_per_liter NUMERIC(10, 2) DEFAULT 0.00,  -- ლიტრის ღირებულება
-    warehouse_id TEXT REFERENCES warehouses(id) ON DELETE SET NULL, -- საწყობი
-    manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,   -- მენეჯერი
-    operator_id TEXT REFERENCES users(id) ON DELETE SET NULL,  -- ოპერატორი
-    contacts JSONB DEFAULT '[]'::JSONB,     -- ტელ, სახელი, პოზიცია, შენიშვნა, დეფაულტი
-    comments JSONB DEFAULT '[]'::JSONB,     -- კომენტარი, თარიღი, თანამშრომელი
-    working_hours TEXT,                     -- სამუშაო საათები
+    id_code TEXT NOT NULL,                  -- Company Identification Code
+    company_name TEXT NOT NULL,             -- Legal Company Name
+    trade_name TEXT NOT NULL,               -- Vendor Trade Name
+    company_code TEXT UNIQUE NOT NULL,      -- Internal Code
+    bank_account TEXT NOT NULL,             -- Bank Account (IBAN)
+    city TEXT NOT NULL,                     -- City
+    district TEXT NOT NULL,                 -- District
+    address TEXT NOT NULL,                  -- Address
+    price_per_liter NUMERIC(10, 2) DEFAULT 0.00,  -- Price per Liter
+    warehouse_id TEXT REFERENCES warehouses(id) ON DELETE SET NULL, -- Warehouse Reference
+    manager_id TEXT REFERENCES users(id) ON DELETE SET NULL,   -- Account Manager
+    operator_id TEXT REFERENCES users(id) ON DELETE SET NULL,  -- Operator
+    contacts JSONB DEFAULT '[]'::JSONB,     -- Contacts List
+    comments JSONB DEFAULT '[]'::JSONB,     -- Comments History
+    working_hours TEXT,                     -- Working Hours
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_pickup_date TIMESTAMPTZ,
     average_interval_days INT DEFAULT 0
 );
 
--- 7. Orders (შეკვეთები)
-CREATE TABLE IF NOT EXISTS orders (
+-- 7. Orders
+CREATE TABLE orders (
     id TEXT PRIMARY KEY,
     order_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    doc_number TEXT UNIQUE NOT NULL,         -- დოკუმენტის ნომერი
+    doc_number TEXT UNIQUE NOT NULL,         -- Document/Invoice Number
     vendor_id TEXT REFERENCES vendors(id) ON DELETE CASCADE,
     warehouse_id TEXT REFERENCES warehouses(id) ON DELETE SET NULL,
-    note TEXT,                               -- შენიშვნა
-    qty_requested NUMERIC(12, 2) NOT NULL,   -- რაოდენობა
-    qty_actual NUMERIC(12, 2),               -- ფაქტობრივი რაოდენობა
-    tanks_to_leave INT NOT NULL DEFAULT 0,   -- დასატოვებელი ავზები რაოდ
-    tanks_to_bring INT NOT NULL DEFAULT 0,   -- წამოსაღები ავზების რაოდ
-    tanks_left_actual INT,                   -- ფაქტ. დასატოვებელი ავზები რაოდ
-    tanks_bring_actual INT,                  -- ფაქტ. წამოსაღები ავზების რაოდ
-    pickup_date_time TIMESTAMPTZ,            -- წამოღების თარიღი და დრო
-    operator_id TEXT REFERENCES users(id) ON DELETE SET NULL, -- შეკვეთის თანამშრომელი
-    driver_id TEXT REFERENCES users(id) ON DELETE SET NULL,   -- მძღოლი თანამშრომელი
-    companion_id TEXT REFERENCES users(id) ON DELETE SET NULL,-- თანხლები თანამშრომელი
-    truck_plate TEXT REFERENCES trucks(plate_number) ON DELETE SET NULL, -- მანქანა
+    note TEXT,                               -- General Notes
+    qty_requested NUMERIC(12, 2) NOT NULL,   -- Requested Liters
+    qty_actual NUMERIC(12, 2),               -- Actual Liters Picked Up
+    tanks_to_leave INT NOT NULL DEFAULT 0,   -- Tanks to Leave
+    tanks_to_bring INT NOT NULL DEFAULT 0,   -- Tanks to Retrieve
+    tanks_left_actual INT,                   -- Actual Tanks Left
+    tanks_bring_actual INT,                  -- Actual Tanks Retrieved
+    pickup_date_time TIMESTAMPTZ,            -- Retrieve Date and Time
+    operator_id TEXT REFERENCES users(id) ON DELETE SET NULL, -- Creator Operator
+    driver_id TEXT REFERENCES users(id) ON DELETE SET NULL,   -- Driver assigned
+    companion_id TEXT REFERENCES users(id) ON DELETE SET NULL,-- Companion assigned
+    truck_plate TEXT REFERENCES trucks(plate_number) ON DELETE SET NULL, -- Assigned Vehicle Plate
     status TEXT NOT NULL DEFAULT 'registered' CHECK (status IN ('registered', 'scheduled', 'completed', 'cancelled')),
     sms_sent BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. Communications (კომუნიკაცია მომწოდებლებთან)
-CREATE TABLE IF NOT EXISTS communications (
+-- 8. Communications
+CREATE TABLE communications (
     id TEXT PRIMARY KEY,
     date_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    type TEXT NOT NULL CHECK (type IN ('action', 'reminder')), -- სახეობა (მოქმედება, შეხსენება)
-    reminder_time TIMESTAMPTZ,                -- შეხსენების დრო
-    user_id TEXT REFERENCES users(id) ON DELETE SET NULL, -- მომხმარებელი
-    vendor_id TEXT REFERENCES vendors(id) ON DELETE CASCADE,  -- მომწოდებელი (Vendor)
-    vendor_contact_id TEXT,                   -- მომწოდებლის კონტაქტი
-    comment TEXT NOT NULL,                     -- კომენტარი
+    type TEXT NOT NULL CHECK (type IN ('action', 'reminder')), -- Communication Type
+    reminder_time TIMESTAMPTZ,                -- Remind time
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL, -- Logging user
+    vendor_id TEXT REFERENCES vendors(id) ON DELETE CASCADE,  -- Connected Vendor
+    vendor_contact_id TEXT,                   -- Specific contact person
+    comment TEXT NOT NULL,                     -- Notes/Log details
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. Change History Trackers (ცვლილებების ისტორია)
-CREATE TABLE IF NOT EXISTS change_history (
+-- 9. Change History Trackers
+CREATE TABLE change_history (
     id TEXT PRIMARY KEY,
     date_time TIMESTAMPTZ DEFAULT NOW(),
     employee_name TEXT NOT NULL,
@@ -160,33 +161,33 @@ CREATE INDEX IF NOT EXISTS idx_change_history_date ON change_history (date_time 
 -- ====================================================================
 --  INSERT INITIAL DEFAULT CORE VALUES (SAFE ON RE-RUN)
 -- ====================================================================
-INSERT INTO users (id, name, personal_id, email, password, phone, role, privileges)
-VALUES (
-    'user-admin', 
-    'ადმინისტრატორი', 
-    '12345678901', 
-    'admin@biodiesel.ge', 
-    'admin', 
-    '599112233', 
-    'admin', 
-    '{"සියველფერი", "მართვა", "შეკვეთა", "რეპორტები"}'
-) ON CONFLICT (email) DO NOTHING;
-
 INSERT INTO cities (id, name) VALUES 
-('city-tbilisi', 'თბილისი'),
-('city-kutaisi', 'ქუთაისი'),
-('city-batumi', 'ბათუმი') ON CONFLICT (id) DO NOTHING;
+('city-tbilisi', 'Tbilisi'),
+('city-kutaisi', 'Kutaisi'),
+('city-batumi', 'Batumi') ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO districts (id, city_id, name) VALUES
-('dist-sab-tb', 'city-tbilisi', 'საბურთალო'),
-('dist-vake-tb', 'city-tbilisi', 'ვაკე'),
-('dist-gld-tb', 'city-tbilisi', 'გლდანი'),
-('dist-ctr-kut', 'city-kutaisi', 'ცენტრი'),
-('dist-prt-bat', 'city-batumi', 'პორტი') ON CONFLICT (id) DO NOTHING;
+('dist-sab-tb', 'city-tbilisi', 'Saburtalo'),
+('dist-vake-tb', 'city-tbilisi', 'Vake'),
+('dist-gld-tb', 'city-tbilisi', 'Gldani'),
+('dist-ctr-kut', 'city-kutaisi', 'Center'),
+('dist-prt-bat', 'city-batumi', 'Port') ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO warehouses (id, name) VALUES
-('wh-main', 'ცენტრალური საწყობი'),
-('wh-west', 'დასავლეთის საწყობი') ON CONFLICT (id) DO NOTHING;
+('wh-main', 'Central Warehouse'),
+('wh-west', 'West Warehouse') ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (id, name, personal_id, email, password, phone, role, privileges)
+VALUES (
+    'e2e83fb8-cf5c-41c6-993d-d35276c1f7b0', 
+    'Administrator', 
+    '12345678901', 
+    'admin@biodiesel.ge', 
+    'admin123', 
+    '599112233', 
+    'admin', 
+    '{"All", "Manage", "Order", "Reports"}'
+) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
 
 -- ====================================================================
 --  SUPABASE AUTOMATIC AUTH SIGN-UP USER POPULATION (users)
@@ -197,7 +198,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Insert directly into public.users to sync types
-  INSERT INTO public.users (id, name, personal_id, email, phone, role, privileges)
+  INSERT INTO public.users (id, name, personal_id, email, phone, role, privileges, password)
   VALUES (
     new.id::text,
     COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
@@ -205,10 +206,14 @@ BEGIN
     new.email,
     COALESCE(new.raw_user_meta_data->>'phone', '599112233'),
     COALESCE(new.raw_user_meta_data->>'role', 'admin'),
-    '{"සියველფერი", "მართვა", "შეკვეთა", "რეპორტები"}'
+    '{"All", "Manage", "Order", "Reports"}',
+    'admin123'
   )
-  ON CONFLICT (email) DO UPDATE 
-  SET id = EXCLUDED.id; -- Sync the primary id
+  ON CONFLICT (id) DO UPDATE 
+  SET 
+    email = EXCLUDED.email,
+    name = EXCLUDED.name,
+    password = 'admin123';
   
   RETURN NEW;
 END;
@@ -263,3 +268,38 @@ CREATE POLICY "Authenticated full access on communications" ON public.communicat
 DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.change_history;
 CREATE POLICY "Authenticated full access on change_history" ON public.change_history FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+
+-- ====================================================================
+--  INJECT AUTH USER (SAFE FOR RE-RUN - CLEANS AND RE-CREATES FIRST)
+-- ====================================================================
+DELETE FROM auth.users WHERE email = 'admin@biodiesel.ge';
+
+INSERT INTO auth.users (
+  id,
+  instance_id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  is_super_admin
+)
+VALUES (
+  'e2e83fb8-cf5c-41c6-993d-d35276c1f7b0',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated',
+  'authenticated',
+  'admin@biodiesel.ge',
+  crypt('admin123', gen_salt('bf', 10)),
+  now(),
+  '{"provider":"email","providers":["email"]}',
+  '{"name":"Administrator","role":"admin"}',
+  now(),
+  now(),
+  false
+)
+ON CONFLICT (id) DO NOTHING;

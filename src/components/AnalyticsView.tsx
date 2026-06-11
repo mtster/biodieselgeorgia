@@ -50,9 +50,9 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
       
       {/* Overview Head */}
       <div>
-        <h2 className="text-xl font-extrabold text-gray-800">ანალიტიკა და მონიტორინგი</h2>
+        <h2 className="text-xl font-extrabold text-gray-800">Analytics & Monitoring</h2>
         <p className="text-xs text-gray-500 mt-1 pb-1">
-          მომწოდებლების აქტივობის მონიტორინგი, გადაცილებული ობიექტების გამოვლენა და გეოგრაფიული მაჩვენებლები.
+          Monitor supplier activity, identify overdue collection points, and track geographical statistics.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
             <ShieldAlert size={20} />
           </div>
           <div>
-            <span className="text-[11px] text-gray-400 font-medium block">გადაცილებული ობიექტები</span>
+            <span className="text-[11px] text-gray-400 font-medium block">Overdue Suppliers</span>
             <span className="text-lg font-black text-red-600 font-mono">
               {overdueSuppliers.length}
             </span>
@@ -76,9 +76,9 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
             <TrendingUp size={20} />
           </div>
           <div>
-            <span className="text-[11px] text-gray-400 font-medium block">საშუალო მოცულობა / შეგროვებაზე</span>
+            <span className="text-[11px] text-gray-400 font-medium block">Average Volume / Collection</span>
             <span className="text-lg font-black text-gray-800 font-mono">
-              {avgLiters} ლ.
+              {avgLiters} L
             </span>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
             <Compass size={20} />
           </div>
           <div>
-            <span className="text-[11px] text-gray-400 font-medium block">აქტიური წერტილების წილი</span>
+            <span className="text-[11px] text-gray-400 font-medium block">Active Points Share</span>
             <span className="text-lg font-black text-gray-800 font-mono">
               {suppliers.filter(s => !!s.last_pickup_date).length} / {suppliers.length}
             </span>
@@ -105,50 +105,50 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
           <div className="border-b border-gray-50 pb-3">
             <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
-              გადაცილებული ობიექტები (Pick-up საჭიროა სასწრაფოდ)
+              Overdue Suppliers (Urgent Pick-up Required)
             </h3>
             <p className="text-[11px] text-gray-400 mt-1 font-sans">
-              ეს ობიექტები 15 დღეზე მეტია ან მათი ინდივიდუალური ინტერვალით არ შეგროვებულა.
+              These points have not been collected within the last 15 days or past their custom collection interval.
             </p>
           </div>
 
           {overdueSuppliers.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-xs">
-              შესანიშნავია! გადაცილებული ობიექტები არ ფიქსირდება.
+              Excellent! No overdue collection points identified.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left text-gray-750">
                 <thead>
                   <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50/50">
-                    <th className="py-2.5 px-3">ობიექტი</th>
-                    <th className="py-2.5 px-3">მისამართი / უბანი</th>
-                    <th className="py-2.5 px-3">ბოლო გატანა</th>
-                    <th className="py-2.5 px-3">საჭირო დღე</th>
-                    <th className="py-2.5 px-3 text-right">ქმედება</th>
+                    <th className="py-2.5 px-3">Supplier / Vendor</th>
+                    <th className="py-2.5 px-3">Address / District</th>
+                    <th className="py-2.5 px-3">Last Pick-up</th>
+                    <th className="py-2.5 px-3">Days Past</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {overdueSuppliers.map(sup => {
                     const daysPast = sup.last_pickup_date 
                       ? Math.round((now - new Date(sup.last_pickup_date).getTime()) / (1000 * 60 * 60 * 24))
-                      : 'არასდროს';
+                      : 'Never';
                     return (
                       <tr key={sup.id} className="hover:bg-red-50/10">
                         <td className="py-3 px-3">
                           <span className="font-bold text-gray-900 block">{sup.trade_name}</span>
-                          <span className="text-[9px] text-gray-400 block font-mono">საიდენტიფიკაციო კოდი: {sup.id_code}</span>
+                          <span className="text-[9px] text-gray-400 block font-mono">Tax ID: {sup.id_code}</span>
                         </td>
                         <td className="py-3 px-3 text-gray-600">
                           {sup.city}, {sup.district}
                         </td>
                         <td className="py-3 px-3 text-red-650 font-mono font-bold">
                           {sup.last_pickup_date 
-                            ? new Date(sup.last_pickup_date).toLocaleDateString('ka-GE') 
-                            : 'არასდროს'}
+                            ? new Date(sup.last_pickup_date).toLocaleDateString('en-US') 
+                            : 'Never'}
                         </td>
                         <td className="py-3 px-3 font-mono font-medium text-gray-550">
-                          {daysPast === 'არასდროს' ? 'ახალი' : `${daysPast} დღის წინ`}
+                          {daysPast === 'Never' ? 'New' : `${daysPast} days ago`}
                         </td>
                         <td className="py-3 px-3 text-right">
                           <button 
@@ -156,7 +156,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
                             className="bg-red-50 text-red-700 hover:bg-red-100 text-[10px] font-bold px-2.5 py-1 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
                           >
                             <Bell size={12} />
-                            კავშირი
+                            Contact
                           </button>
                         </td>
                       </tr>
@@ -171,8 +171,8 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
         {/* City breakdowns indicators */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
           <div className="border-b border-gray-50 pb-3 font-sans">
-            <h3 className="font-extrabold text-sm text-gray-800">გეოგრაფიული წილი</h3>
-            <p className="text-[11px] text-gray-400 mt-1">ობიექტების და ლიტრაჟის განაწილება ქალაქებზე</p>
+            <h3 className="font-extrabold text-sm text-gray-800">Geographical Distribution</h3>
+            <p className="text-[11px] text-gray-400 mt-1">Distribution of suppliers and collected Liters by city</p>
           </div>
 
           <div className="space-y-4">
@@ -185,7 +185,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
                   <div className="flex items-center justify-between text-xs font-bold text-gray-800">
                     <span>{city}</span>
                     <span className="text-[11px] text-gray-450 font-mono">
-                      {count} ობიექტი ({liters.toLocaleString()} ლ.)
+                      {count} supp. ({liters.toLocaleString()} L)
                     </span>
                   </div>
                   {/* Custom progress bars */}
@@ -201,7 +201,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
 
             {Object.keys(cityCountMap).length === 0 && (
               <div className="text-center py-10 text-xs text-gray-400">
-                მონაცემები არ არის ხელმისაწვდომი.
+                No geographical data available yet.
               </div>
             )}
           </div>

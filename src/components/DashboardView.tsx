@@ -27,13 +27,13 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-700/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
         <div className="relative z-10 space-y-2">
           <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-300 font-mono">
-            მართვის პანელი
+            Management Panel
           </p>
           <h2 className="text-xl md:text-2xl font-black">
-            მოგესალმებით, ბიოდიზელი ჯორჯიას პორტალზე
+            Welcome to Biodiesel Georgia Portal
           </h2>
           <p className="text-xs text-emerald-100/80 max-w-xl leading-relaxed">
-            აქ შეგიძლიათ მართოთ მომწოდებლები, დაგეგმოთ კოლექციის შეკვეთები, აკონტროლოთ საწყობების ნაშთები და იხილოთ დეტალური ანალიტიკა.
+            Here you can manage suppliers, plan collection orders, monitor warehouse balances and view detailed analytics.
           </p>
         </div>
       </div>
@@ -49,7 +49,7 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
           <div className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl w-fit mb-3 group-hover:scale-110 transition duration-300">
             <Building2 size={20} />
           </div>
-          <span className="text-xs text-gray-400 font-medium block">მომწოდებლები</span>
+          <span className="text-xs text-gray-400 font-medium block">Suppliers</span>
           <span className="text-xl font-extrabold text-gray-800 font-mono">
             {suppliers.length}
           </span>
@@ -63,7 +63,7 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
           <div className="bg-blue-50 text-blue-700 p-2.5 rounded-xl w-fit mb-3 group-hover:scale-110 transition duration-300">
             <ShoppingBag size={20} />
           </div>
-          <span className="text-xs text-gray-400 font-medium block">აქტიური შეკვეთები</span>
+          <span className="text-xs text-gray-400 font-medium block">Active Orders</span>
           <span className="text-xl font-extrabold text-gray-800 font-mono">
             {activeOrders.length}
           </span>
@@ -77,9 +77,9 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
           <div className="bg-orange-50 text-orange-700 p-2.5 rounded-xl w-fit mb-3 group-hover:scale-110 transition duration-300">
             <Fuel size={20} />
           </div>
-          <span className="text-xs text-gray-400 font-medium block">ჯამური ლიტრაჟი (ფაქტ.)</span>
+          <span className="text-xs text-gray-400 font-medium block">Total Volume (Actual)</span>
           <span className="text-xl font-extrabold text-gray-800 font-mono">
-            {totalLiters.toLocaleString()} ლ.
+            {totalLiters.toLocaleString()} L.
           </span>
         </button>
 
@@ -91,7 +91,7 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
           <div className="bg-purple-50 text-purple-700 p-2.5 rounded-xl w-fit mb-3 group-hover:scale-110 transition duration-300">
             <Users size={20} />
           </div>
-          <span className="text-xs text-gray-400 font-medium block">მძღოლები</span>
+          <span className="text-xs text-gray-400 font-medium block">Drivers</span>
           <span className="text-xl font-extrabold text-gray-800 font-mono">
             {activeDrivers} / {employees.length}
           </span>
@@ -105,18 +105,18 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
         {/* Latest active orders */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
           <div className="flex items-center justify-between border-b border-gray-50 pb-3">
-            <h3 className="font-extrabold text-sm text-gray-800">უახლესი აქტიური შეკვეთები</h3>
+            <h3 className="font-extrabold text-sm text-gray-800">Latest Active Orders</h3>
             <button 
               onClick={() => onNavigate('orders')}
               className="text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
             >
-              ყველას ნახვა
+              View All
             </button>
           </div>
 
           {activeOrders.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-xs">
-              აქტიური შეკვეთები ამჟამად არ არის რეგისტრირებული.
+              No active orders are currently registered.
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
@@ -127,14 +127,14 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-gray-800">
-                          {supplierObj ? supplierObj.trade_name : (order.vendor_name || 'უცნობი მომწოდებელი')}
+                          {supplierObj ? supplierObj.trade_name : (order.vendor_name || 'Unknown Supplier')}
                         </span>
                         <span className="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
                           {order.doc_number}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-450 font-sans">
-                        საწყობი: {order.warehouse_name || 'დაუზუსტებელი'} • რაოდენობა: {order.qty_requested} ლ.
+                        Warehouse: {order.warehouse_name || 'Unspecified'} • Qty: {order.qty_requested} L.
                       </p>
                     </div>
                     <div>
@@ -143,7 +143,7 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
                           ? 'bg-yellow-50 text-yellow-700 border border-yellow-150' 
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-150'
                       }`}>
-                        {order.status === 'registered' ? 'რეგისტრირებული' : 'დაგეგმილი'}
+                        {order.status === 'registered' ? 'Registered' : 'Scheduled'}
                       </span>
                     </div>
                   </div>
@@ -156,27 +156,27 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
         {/* Quick look status panel */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
           <div className="border-b border-gray-50 pb-3">
-            <h3 className="font-extrabold text-sm text-gray-800">ოპერაციების სტატუსი</h3>
+            <h3 className="font-extrabold text-sm text-gray-800">Operations Status</h3>
           </div>
 
           <div className="space-y-3.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500 font-medium font-sans">სულ მანქანა:</span>
+              <span className="text-gray-500 font-medium font-sans">Total Vehicles:</span>
               <span className="font-mono font-bold text-gray-800">{trucks.length}</span>
             </div>
             <div className="flex items-center justify-between text-xs font-sans">
-              <span className="text-gray-500 font-medium">აქტიური უბნები/ქალაქები:</span>
+              <span className="text-gray-500 font-medium">Active Locations:</span>
               <span className="font-mono font-bold text-gray-800">
-                {Array.from(new Set(suppliers.map(s => s.city))).length} ქალაქი
+                {Array.from(new Set(suppliers.map(s => s.city))).length} Cities
               </span>
             </div>
             <div className="flex items-center justify-between text-xs font-sans">
-              <span className="text-gray-500 font-medium">მიღებული ზეთი (ლიტრებში):</span>
-              <span className="font-mono font-bold text-emerald-700">{totalLiters} ლ.</span>
+              <span className="text-gray-500 font-medium">Collected Oil:</span>
+              <span className="font-mono font-bold text-emerald-700">{totalLiters} L.</span>
             </div>
             <div className="pt-2 border-t border-gray-50 space-y-1">
               <p className="text-[10px] text-gray-400 leading-relaxed font-mono">
-                სისტემა ავტომატურად აგზავნის შეტყობინებას ბუღალტერთან, როდესაც მძღოლი ასრულებს შეკვეთას.
+                The system automatically notifies the accountant once the driver completes an order.
               </p>
             </div>
           </div>

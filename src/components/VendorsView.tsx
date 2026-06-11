@@ -52,7 +52,7 @@ export default function VendorsView({
 
   // Prompt dialog triggers
   const triggerAddCity = () => {
-    const name = prompt('შეიყვანეთ ახალი ქალაქის დასახელება:');
+    const name = prompt('Enter new city name:');
     if (name && name.trim()) {
       if (onAddCity) {
         onAddCity(name.trim());
@@ -71,11 +71,11 @@ export default function VendorsView({
     }
 
     if (!activeCityId) {
-      alert('გთხოვთ ჯერ აირჩიოთ ქალაქი, რათა დაამატოთ შესაბამისი უბანი.');
+      alert('Please select a city first to add corresponding district.');
       return;
     }
 
-    const name = prompt('შეიყვანეთ ახალი უბნის დასახელება:');
+    const name = prompt('Enter new district name:');
     if (name && name.trim()) {
       if (onAddDistrict) {
         onAddDistrict(activeCityId, name.trim());
@@ -84,7 +84,7 @@ export default function VendorsView({
   };
 
   const triggerAddWarehouse = () => {
-    const name = prompt('შეიყვანეთ ახალი საწყობის დასახელება:');
+    const name = prompt('Enter new warehouse name:');
     if (name && name.trim()) {
       if (onAddWarehouse) {
         onAddWarehouse(name.trim());
@@ -106,7 +106,7 @@ export default function VendorsView({
           const legalName = parts[1].trim();
           const idCode = parts[2].trim();
           const code = 'V-' + Math.floor(100 + Math.random() * 900);
-          const address = parts[3]?.trim() || 'თბილისი, საქართველო';
+          const address = parts[3]?.trim() || 'Tbilisi, Georgia';
           
           if (tradeName && idCode) {
             const rawVendor: Vendor = {
@@ -116,8 +116,8 @@ export default function VendorsView({
               trade_name: tradeName,
               company_code: code,
               bank_account: 'GE00TB0000000000000000',
-              city: cities[0]?.name || 'თბილისი',
-              district: districts.filter(d => d.city_id === cities[0]?.id)[0]?.name || 'საბურთალო',
+              city: cities[0]?.name || 'Tbilisi',
+              district: districts.filter(d => d.city_id === cities[0]?.id)[0]?.name || 'Saburtalo',
               address: address,
               price_per_liter: 1.5,
               warehouse_id: warehouses[0]?.id || '',
@@ -126,7 +126,7 @@ export default function VendorsView({
               contacts: [],
               comments: [{
                 id: 'c-1',
-                comment: 'იმპორტირებულია ექსელიდან',
+                comment: 'Imported from Excel',
                 date: new Date().toISOString(),
                 user_name: currentUser.name
               }],
@@ -138,11 +138,11 @@ export default function VendorsView({
           }
         }
       });
-      alert(`წარმატებით იმპორტირდა ${importCount} მომწოდებელი!`);
+      alert(`Imported ${importCount} suppliers successfully!`);
       setIsImporting(false);
       setImportText('');
     } catch (e) {
-      alert('იმპორტის დროს მოხდა შეცდომა. დარწმუნდით რომ ფორმატი სწორია.');
+      alert('Error during import. Verify your column structure.');
     }
   };
 
@@ -161,8 +161,8 @@ export default function VendorsView({
       trade_name: '',
       company_code: 'BIO-' + Math.floor(1000 + Math.random() * 9000),
       bank_account: '',
-      city: cities[0]?.name || 'თბილისი',
-      district: districts.filter(d => d.city_id === cities[0]?.id)[0]?.name || 'საბურთალო',
+      city: cities[0]?.name || 'Tbilisi',
+      district: districts.filter(d => d.city_id === cities[0]?.id)[0]?.name || 'Saburtalo',
       address: '',
       price_per_liter: 1.40,
       warehouse_id: warehouses[0]?.id || '',
@@ -225,7 +225,7 @@ export default function VendorsView({
   const handleSaveAll = () => {
     if (!editingVendor) return;
     if (!editingVendor.trade_name.trim() || !editingVendor.id_code.trim()) {
-      alert('გთხოვთ შეავსოთ ობიექტის სავაჭრო დასახელება და საიდენტიფიკაციო კოდი');
+      alert('Please fill in trade name and identification code.');
       return;
     }
     const final: Vendor = {
@@ -254,18 +254,18 @@ export default function VendorsView({
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800">ობიექტები (მომწოდებლები)</h2>
-          <p className="text-xs text-gray-500 mt-1">მომწოდებელი ობიექტების (რესტორნების) სრული მონაცემები, კონტაქტები და კომენტარები.</p>
+          <h2 className="text-xl font-extrabold text-gray-800">Suppliers (Vendors)</h2>
+          <p className="text-xs text-gray-500 mt-1">Vendor/restaurant profiles, contacts, and historical log comments.</p>
         </div>
         
         <div className="flex items-center gap-2">
           <button 
             id="btn-import-vendors"
             onClick={() => setIsImporting(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 border border-gray-250/60 rounded-xl text-xs font-bold text-gray-750 hover:bg-gray-150 transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 border border-gray-250/60 rounded-xl text-xs font-bold text-gray-755 hover:bg-gray-150 transition cursor-pointer"
           >
             <FileSpreadsheet size={15} />
-            იმპორტი ექსელიდან
+            Import Excel
           </button>
           
           <button 
@@ -274,7 +274,7 @@ export default function VendorsView({
             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer"
           >
             <Plus size={15} />
-            ახალი ობიექტი
+            New Supplier
           </button>
         </div>
       </div>
@@ -288,7 +288,7 @@ export default function VendorsView({
           </span>
           <input 
             type="text"
-            placeholder="ძებნა (დასახელება, კოდი, საიდენტიფიკაციო)..."
+            placeholder="Search (name, code, ID)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-250/75 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -310,9 +310,9 @@ export default function VendorsView({
             }}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-250/75 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
-            <option value="">ყველა ქალაქი</option>
+            <option value="">All Cities</option>
             {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-            <option value="ADD_NEW" className="text-emerald-700 font-bold">+ ახალი ქალაქი...</option>
+            <option value="ADD_NEW" className="text-emerald-700 font-bold">+ New City...</option>
           </select>
         </div>
 
@@ -332,7 +332,7 @@ export default function VendorsView({
             disabled={!selectedCity}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200/80 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
           >
-            <option value="">ყველა უბანი</option>
+            <option value="">All Districts</option>
             {districts
               .filter(d => {
                 const cityObj = cities.find(c => c.name === selectedCity);
@@ -340,7 +340,7 @@ export default function VendorsView({
               })
               .map(d => <option key={d.id} value={d.name}>{d.name}</option>)
             }
-            <option value="ADD_NEW" className="text-emerald-700 font-bold">+ ახალი უბანი...</option>
+            <option value="ADD_NEW" className="text-emerald-700 font-bold">+ New District...</option>
           </select>
         </div>
 
@@ -379,24 +379,24 @@ export default function VendorsView({
                 </div>
 
                 <div className="text-[11px] text-gray-500 space-y-1 pt-1 font-sans">
-                  <p><strong>იურიდიული სახელი:</strong> {vendor.company_name}</p>
-                  <p><strong>საიდენტიფიკაციო კოდი:</strong> {vendor.id_code}</p>
-                  <p><strong>მისამართი:</strong> {vendor.city}, {vendor.district}, {vendor.address}</p>
-                  <p><strong>ფასი ლიტრზე:</strong> <span className="font-bold text-emerald-800">{vendor.price_per_liter} ₾</span></p>
+                  <p><strong>Legal Name:</strong> {vendor.company_name}</p>
+                  <p><strong>Tax/ID Code:</strong> {vendor.id_code}</p>
+                  <p><strong>Address:</strong> {vendor.city}, {vendor.district}, {vendor.address}</p>
+                  <p><strong>Price per Liter:</strong> <span className="font-bold text-emerald-800">{vendor.price_per_liter} ₾</span></p>
                 </div>
               </div>
 
               {/* Default Active Contact summary */}
               {defaultContact ? (
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">მთავარი კონტაქტი</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Primary Contact</span>
                   <div className="flex items-center justify-between text-xs font-bold text-gray-700">
                     <span className="flex items-center gap-1">
                       <UserIcon size={12} className="text-gray-400" />
                       {defaultContact.name}
                     </span>
                     <span className="text-[10px] bg-slate-200 px-1 rounded font-normal text-gray-500">
-                      {defaultContact.position === 'accountant' ? 'ბუღალტერი' : defaultContact.position === 'director' ? 'დირექტორი' : 'ოპერატორი'}
+                      {defaultContact.position === 'accountant' ? 'Accountant' : defaultContact.position === 'director' ? 'Director' : 'Dispatcher'}
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-700 font-bold flex items-center gap-1 font-mono">
@@ -406,15 +406,15 @@ export default function VendorsView({
                 </div>
               ) : (
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[10px] text-amber-700 italic">
-                  კონტაქტები არ არის მითითებული.
+                  No contacts specified yet.
                 </div>
               )}
 
               {/* Bottom detail stats */}
               <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
-                <span>კომენტარები: {vendor.comments?.length || 0}</span>
+                <span>Comments: {vendor.comments?.length || 0}</span>
                 <span className="font-mono">
-                  ბოლო კოლექცია: {vendor.last_pickup_date ? new Date(vendor.last_pickup_date).toLocaleDateString() : 'არასდროს'}
+                  Last Collection: {vendor.last_pickup_date ? new Date(vendor.last_pickup_date).toLocaleDateString() : 'Never'}
                 </span>
               </div>
             </div>
@@ -423,19 +423,17 @@ export default function VendorsView({
 
         {filteredVendors.length === 0 && (
           <div className="col-span-full text-center py-20 bg-white border border-gray-100 rounded-2xl text-xs text-gray-400">
-            მომწოდებელი ობიექტები არ მოიძებნა.
+            No vendors matched the filters.
           </div>
         )}
-      </div>
-
-      {/* MODAL EDIT / CREATE FORM */}
+      </div>      {/* MODAL EDIT / CREATE FORM */}
       {editingVendor && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 shadow-xl border border-gray-150 transition-all scale-100">
             
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="font-black text-gray-800 text-base">
-                {isNew ? 'ახალი მომწოდებლის შექმნა' : `მომწოდებლის რედაქტირება: ${editingVendor.trade_name}`}
+                {isNew ? 'Create New Supplier' : `Edit Supplier: ${editingVendor.trade_name}`}
               </h3>
               <button 
                 onClick={() => setEditingVendor(null)}
@@ -451,12 +449,12 @@ export default function VendorsView({
               {/* Core Information Section */}
               <div className="space-y-4">
                 <span className="text-xs font-extrabold text-emerald-800 uppercase tracking-widest block border-b border-emerald-50 pb-1">
-                  1. კომპანიის იურიდიული და სავაჭრო მონაცემები
+                  1. Company Legal & Commercial details
                 </span>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">ობიექტის სავაჭრო დასახელება *</label>
+                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">Trade Name *</label>
                     <input 
                       type="text"
                       value={editingVendor.trade_name}
@@ -466,7 +464,7 @@ export default function VendorsView({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">კომპანიის იურიდიული დასახელება</label>
+                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">Legal Company Name</label>
                     <input 
                       type="text"
                       value={editingVendor.company_name}
@@ -476,7 +474,7 @@ export default function VendorsView({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">საიდენტიფიკაციო კოდი *</label>
+                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">Tax/ID Code *</label>
                     <input 
                       type="text"
                       value={editingVendor.id_code}
@@ -486,7 +484,7 @@ export default function VendorsView({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">საბანკო ანგარიში (IBAN)</label>
+                    <label className="text-[11px] font-semibold text-gray-400 block mb-1">Bank Account (IBAN)</label>
                     <input 
                       type="text"
                       placeholder="GE00TB00000..."
@@ -499,13 +497,13 @@ export default function VendorsView({
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-semibold text-gray-400 block">ქალაქი</label>
+                        <label className="text-[11px] font-semibold text-gray-400 block">City</label>
                         <button 
                           type="button"
                           onClick={triggerAddCity}
                           className="text-[9px] text-emerald-700 font-bold hover:underline"
                         >
-                          + ახალი
+                          + New
                         </button>
                       </div>
                       <select
@@ -530,7 +528,7 @@ export default function VendorsView({
 
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-semibold text-gray-400 block">უბანი</label>
+                        <label className="text-[11px] font-semibold text-gray-400 block">District</label>
                         <button 
                           type="button"
                           onClick={() => {
@@ -539,7 +537,7 @@ export default function VendorsView({
                           }}
                           className="text-[9px] text-emerald-700 font-bold hover:underline"
                         >
-                          + ახალი
+                          + New
                         </button>
                       </div>
                       <select
@@ -558,7 +556,7 @@ export default function VendorsView({
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">ლიტრის ფასი (₾)</label>
+                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">Rate per Liter (₾)</label>
                       <input 
                         type="number" 
                         step="0.01"
@@ -570,7 +568,7 @@ export default function VendorsView({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-gray-400 block mb-1 font-sans">ზუსტი მისამართი</label>
+                    <label className="text-[11px] font-semibold text-gray-400 block mb-1 font-sans">Exact Address</label>
                     <input 
                       type="text"
                       value={editingVendor.address}
@@ -582,13 +580,13 @@ export default function VendorsView({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-semibold text-gray-400 block">საწყობი</label>
+                        <label className="text-[11px] font-semibold text-gray-400 block">Warehouse</label>
                         <button 
                           type="button"
                           onClick={triggerAddWarehouse}
                           className="text-[9px] text-emerald-700 font-bold hover:underline"
                         >
-                          + ახალი
+                          + New
                         </button>
                       </div>
                       <select
@@ -601,7 +599,7 @@ export default function VendorsView({
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">სამუშაო საათები</label>
+                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">Working Hours</label>
                       <input 
                         type="text"
                         placeholder="11:00 - 23:00"
@@ -614,7 +612,7 @@ export default function VendorsView({
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">მომწერი მენეჯერი</label>
+                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">Acquisition Manager</label>
                       <select
                         value={editingVendor.manager_id}
                         onChange={(e) => setEditingVendor({...editingVendor, manager_id: e.target.value})}
@@ -624,7 +622,7 @@ export default function VendorsView({
                       </select>
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">აქტიური ოპერატორი</label>
+                      <label className="text-[11px] font-semibold text-gray-400 block mb-1">Assigned Dispatcher</label>
                       <select
                         value={editingVendor.operator_id}
                         onChange={(e) => setEditingVendor({...editingVendor, operator_id: e.target.value})}
@@ -645,7 +643,7 @@ export default function VendorsView({
                 {/* Contact List */}
                 <div className="space-y-3">
                   <span className="text-xs font-extrabold text-indigo-800 uppercase tracking-widest block border-b border-indigo-50 pb-1">
-                    2. საკონტაქტო პირების მართვა
+                    2. Contact Personnel Management
                   </span>
 
                   {/* Add contact helpers inline */}
@@ -653,14 +651,14 @@ export default function VendorsView({
                     <div className="grid grid-cols-2 gap-2">
                       <input 
                         type="text" 
-                        placeholder="სახელი და გვარი"
+                        placeholder="Full Name"
                         value={newContactName}
                         onChange={(e) => setNewContactName(e.target.value)}
                         className="px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-[11px] focus:outline-none"
                       />
                       <input 
                         type="text" 
-                        placeholder="ტელეფონი"
+                        placeholder="Phone"
                         value={newContactPhone}
                         onChange={(e) => setNewContactPhone(e.target.value)}
                         className="px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-[11px] focus:outline-none"
@@ -672,14 +670,14 @@ export default function VendorsView({
                         onChange={(e) => setNewContactPos(e.target.value as any)}
                         className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-[11px]"
                       >
-                        <option value="accountant">ბუღალტერი</option>
-                        <option value="director">დირექტორი</option>
-                        <option value="operator">ოპერატორი</option>
-                        <option value="other">სხვა პოზიცია</option>
+                        <option value="accountant">Accountant</option>
+                        <option value="director">Director</option>
+                        <option value="operator">Dispatcher</option>
+                        <option value="other">Other Position</option>
                       </select>
                       <input 
                         type="text" 
-                        placeholder="შენიშვნა"
+                        placeholder="Handover Note"
                         value={newContactNote}
                         onChange={(e) => setNewContactNote(e.target.value)}
                         className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-[11px]"
@@ -688,7 +686,7 @@ export default function VendorsView({
                         onClick={handleAddContact}
                         className="px-3 py-1 bg-indigo-700 text-white rounded-lg text-[11px] font-bold hover:bg-indigo-800 transition shadow-xs leading-none cursor-pointer"
                       >
-                        დამატება
+                        Add
                       </button>
                     </div>
                   </div>
@@ -701,7 +699,7 @@ export default function VendorsView({
                           <p className="font-semibold text-gray-800 flex items-center gap-1">
                             {c.name} 
                             <span className="text-[9px] text-gray-450 font-mono">
-                              ({c.position === 'accountant' ? 'ბუღალტერი' : c.position === 'director' ? 'დირექტორი' : 'ოპერატორი'})
+                              ({c.position === 'accountant' ? 'Accountant' : c.position === 'director' ? 'Director' : 'Dispatcher'})
                             </span>
                           </p>
                           <p className="font-mono text-emerald-700 font-bold">{c.phone}</p>
@@ -713,10 +711,10 @@ export default function VendorsView({
                             className={`p-1 rounded text-[10px] font-medium transition cursor-pointer ${
                               c.is_default 
                                 ? 'bg-emerald-50 text-emerald-700 font-extrabold border border-emerald-100' 
-                                : 'bg-gray-50 text-gray-400 hover:text-gray-650'
+                                : 'bg-gray-50 text-gray-400 hover:text-gray-655'
                             }`}
                           >
-                            მთავარი
+                            Set Primary
                           </button>
                           <button 
                             onClick={() => handleRemoveContact(c.id)}
@@ -734,13 +732,13 @@ export default function VendorsView({
                 {/* Comment Logger */}
                 <div className="space-y-3">
                   <span className="text-xs font-extrabold text-purple-800 uppercase tracking-widest block border-b border-purple-50 pb-1">
-                    3. კომენტარები და ოპერატორის შენიშვნები
+                    3. Log Book Comments & Handler Notes
                   </span>
 
                   <div className="flex gap-2">
                     <input 
                       type="text" 
-                      placeholder="დაწერეთ კომენტარი..."
+                      placeholder="Type a comment..."
                       value={newCommentText}
                       onChange={(e) => setNewCommentText(e.target.value)}
                       className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
@@ -749,7 +747,7 @@ export default function VendorsView({
                       onClick={handleAddComment}
                       className="px-3 bg-purple-705 text-white bg-purple-700 rounded-xl text-xs font-bold hover:bg-purple-800 transition cursor-pointer leading-none"
                     >
-                      დამატება
+                      Add
                     </button>
                   </div>
 
@@ -777,7 +775,7 @@ export default function VendorsView({
                 className="px-5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition flex items-center gap-1.5 cursor-pointer shadow-sm ml-auto"
               >
                 <Check size={14} />
-                მონაცემების შენახვა
+                Save Supplier Profile
               </button>
             </div>
 
@@ -792,7 +790,7 @@ export default function VendorsView({
             <div className="flex items-center justify-between border-b border-gray-50 pb-2">
               <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5">
                 <FileSpreadsheet className="text-emerald-700" size={16} />
-                მონაცემების იმპორტი ექსელიდან
+                Import Data from Excel File
               </h3>
               <button onClick={() => setIsImporting(false)} className="text-gray-400 hover:text-gray-650 cursor-pointer">
                 <X size={16} />
@@ -800,12 +798,12 @@ export default function VendorsView({
             </div>
 
             <p className="text-[11px] text-gray-500 leading-relaxed font-sans">
-              დააკოპირეთ და ჩასვით სვეტები Excel-დან (სვეტების ფორმატი: <strong>ობიექტის სახელი, იურიდიული სახელი, საიდენტიფიკაციო კოდი</strong> (გამოყავით Tab-ით ან მძიმით).
+              Copy and paste columns directly from Excel (Format: <strong>Trade Name, Legal Name, Tax ID Code</strong> separated by TAB or commas).
             </p>
 
             <textarea 
               rows={8}
-              placeholder="მაგ: ხინკლის სახლი, შპს ქართული საქმე, 204857392"
+              placeholder="e.g. Traditional Tavern LLC, 204857392"
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
               className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
@@ -816,13 +814,13 @@ export default function VendorsView({
                 onClick={() => setIsImporting(false)} 
                 className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold cursor-pointer"
               >
-                გაუქმება
+                Cancel
               </button>
               <button 
                 onClick={handleImportExcel}
                 className="px-4 py-1.5 bg-emerald-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-900 transition inline-flex items-center gap-1 cursor-pointer"
               >
-                დაწყება
+                Launch Import
               </button>
             </div>
           </div>

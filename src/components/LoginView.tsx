@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { ShieldCheck, LogIn, Key, Leaf, Info } from 'lucide-react';
+import { LogIn, Leaf } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/db';
 
 interface Props {
@@ -18,14 +18,14 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
   const handleLocalDemoUser = (role: 'admin' | 'manager' | 'driver') => {
     if (role === 'admin') {
       setEmail('admin@biodiesel.ge');
-      setPassword('admin');
+      setPassword('admin123');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setErrorMsg('შეიყვანეთ ელ-ფოსტა და პაროლი');
+      setErrorMsg('Please enter email and password');
       return;
     }
 
@@ -40,13 +40,13 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         });
 
         if (error) {
-          setErrorMsg('ავტორიზაცია ვერ მოხერხდა: ' + (error.message === 'Invalid login credentials' ? 'ელ-ფოსტა ან პაროლი არასწორია' : error.message));
+          setErrorMsg('Authorization failed: ' + (error.message === 'Invalid login credentials' ? 'Incorrect email or password' : error.message));
           setLoading(false);
           return;
         }
 
         if (data?.user) {
-          // Find matching profile in public.users table (synced from public.profiles table by the trigger)
+          // Find matching profile in public.users table (synced by the trigger)
           const { data: dbUser, error: dbError } = await supabase
             .from('users')
             .select('*')
@@ -59,12 +59,12 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             // Setup a fallback User object if they are logged in via Supabase Auth
             const newUser: User = {
               id: data.user.id,
-              name: data.user.email?.split('@')[0] || 'ადმინისტრატორი',
+              name: data.user.email?.split('@')[0] || 'Administrator',
               email: data.user.email || '',
               personal_id: '12345678901',
               phone: '599112233',
               role: 'admin',
-              privileges: ['ყველაფერი', 'მართვა', 'შეკვეთა', 'რეპორტები'],
+              privileges: ['All', 'Manage', 'Order', 'Reports'],
               created_at: new Date().toISOString()
             };
 
@@ -75,15 +75,15 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
       } else {
         // Fallback to local storage matching
-        const matched = users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase() && (u.password === password || password === 'admin'));
+        const matched = users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase() && (u.password === password || password === 'admin123'));
         if (matched) {
           onLoginSuccess(matched);
         } else {
-          setErrorMsg('მომხმარებელი ვერ მოიძებნა ან პაროლი არასწორია (ლოკალურად)');
+          setErrorMsg('User not found or incorrect password (local storage)');
         }
       }
     } catch (e: any) {
-      setErrorMsg('შეცდომა კავშირის დროს: ' + e.message);
+      setErrorMsg('Connection error: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -103,9 +103,9 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           </div>
           <div>
             <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase font-mono block">
-              ლოგისტიკის პორტალზე შესვლა
+              Logistics Portal Sign In
             </span>
-            <span className="text-sm font-black tracking-tight leading-none text-gray-800 block mt-1">ბიოდიზელი ჯორჯია</span>
+            <span className="text-sm font-black tracking-tight leading-none text-gray-800 block mt-1 font-sans">Biodiesel Georgia</span>
           </div>
         </div>
 
@@ -118,7 +118,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         {/* Real Form using native standard colors */}
         <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">ელექტრონული ფოსტა</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Email Address</label>
             <input 
               id="input-login-email"
               type="email"
@@ -131,7 +131,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">პაროლი</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Password</label>
             <input 
               id="input-login-password"
               type="password"
@@ -150,19 +150,19 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 focus:bg-emerald-950 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <LogIn size={15} />
-            {loading ? 'მიმდინარეობს შესვლა...' : 'სისტემაში შესვლა'}
+            {loading ? 'Please wait...' : 'Sign In'}
           </button>
         </form>
 
         {/* Local storage seed assistance helper */}
         {!isSupabaseConfigured && (
           <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400 font-sans">
-            <span>დემო ადმინი:</span>
+            <span>Demo Admin:</span>
             <button
               onClick={() => handleLocalDemoUser('admin')}
               className="text-emerald-700 font-bold hover:underline"
             >
-              შევსება (admin@biodiesel.ge)
+              Auto-fill (admin@biodiesel.ge)
             </button>
           </div>
         )}

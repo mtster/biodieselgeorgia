@@ -39,14 +39,14 @@ function IosDateTimePicker({
     }
   }, [value, isOpen]);
 
-  // Formatter for georgian display month name
-  const monthsGE = [
-    LANG.months.jan, LANG.months.feb, LANG.months.mar, LANG.months.apr, 
-    LANG.months.may, LANG.months.jun, LANG.months.jul, LANG.months.aug, 
-    LANG.months.sep, LANG.months.oct, LANG.months.nov, LANG.months.dec
+  // Formatter for english display month name
+  const monthsEN = [
+    LANG.months.jan || 'Jan', LANG.months.feb || 'Feb', LANG.months.mar || 'Mar', LANG.months.apr || 'Apr', 
+    LANG.months.may || 'May', LANG.months.jun || 'Jun', LANG.months.jul || 'Jul', LANG.months.aug || 'Aug', 
+    LANG.months.sep || 'Sep', LANG.months.oct || 'Oct', LANG.months.nov || 'Nov', LANG.months.dec || 'Dec'
   ];
 
-  const formattedDisplay = `${day} ${monthsGE[month - 1] || monthsGE[0]} ${year}, ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const formattedDisplay = `${day} ${monthsEN[month - 1] || monthsEN[0]} ${year}, ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
   const handleApply = () => {
     const yStr = String(year);
@@ -79,7 +79,7 @@ function IosDateTimePicker({
           <Calendar size={14} className="text-emerald-755" />
           {formattedDisplay}
         </span>
-        <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition">არჩევა</span>
+        <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition">Select</span>
       </button>
 
       {/* iOS styled Bottom-Sheet dropdown */}
@@ -104,7 +104,7 @@ function IosDateTimePicker({
             <div className="grid grid-cols-5 gap-1 bg-gray-50 p-3 rounded-2xl border border-gray-100">
               {/* Day */}
               <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">დღე</span>
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">Day</span>
                 <select
                   value={day}
                   onChange={(e) => setDay(parseInt(e.target.value))}
@@ -116,7 +116,7 @@ function IosDateTimePicker({
 
               {/* Month */}
               <div className="flex flex-col items-center col-span-2">
-                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">თვე</span>
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">Month</span>
                 <select
                   value={month}
                   onChange={(e) => {
@@ -127,7 +127,7 @@ function IosDateTimePicker({
                   }}
                   className="w-full bg-white border border-gray-200 rounded-lg text-xs py-1.5 font-bold text-center focus:outline-none"
                 >
-                  {monthsGE.map((mName, idx) => (
+                  {monthsEN.map((mName, idx) => (
                     <option key={idx} value={idx + 1}>{mName}</option>
                   ))}
                 </select>
@@ -135,7 +135,7 @@ function IosDateTimePicker({
 
               {/* Hour */}
               <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">სთ</span>
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">Hour</span>
                 <select
                   value={hour}
                   onChange={(e) => setHour(parseInt(e.target.value))}
@@ -147,7 +147,7 @@ function IosDateTimePicker({
 
               {/* Minute */}
               <div className="flex flex-col items-center">
-                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">წთ</span>
+                <span className="text-[9px] text-gray-400 font-bold uppercase mb-1">Min</span>
                 <select
                   value={minute}
                   onChange={(e) => setMinute(parseInt(e.target.value))}
@@ -165,14 +165,14 @@ function IosDateTimePicker({
                 onClick={() => setIsOpen(false)}
                 className="flex-1 py-2 bg-gray-100 hover:bg-gray-150 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer"
               >
-                გაუქმება
+                Cancel
               </button>
               <button
                 type="button"
                 onClick={handleApply}
                 className="flex-1 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
               >
-                დადასტურება
+                Confirm
               </button>
             </div>
 
@@ -219,7 +219,7 @@ export default function CommunicationsView({
   const handleSaveAll = () => {
     if (!editingComm) return;
     if (!editingComm.comment.trim()) {
-      alert('მიუთითეთ კომენტარი');
+      alert('Please enter a comment');
       return;
     }
 
@@ -253,8 +253,8 @@ export default function CommunicationsView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800">კომუნიკაცია</h2>
-          <p className="text-xs text-gray-500 mt-1 pb-1">მომწოდებლებთან ურთიერთობის, კომენტარების და შეხსენებების ორგანიზება.</p>
+          <h2 className="text-xl font-extrabold text-gray-800">Communications Log</h2>
+          <p className="text-xs text-gray-500 mt-1 pb-1">Manage supplier interactions, comments, updates, and reminders.</p>
         </div>
 
         <div>
@@ -264,7 +264,7 @@ export default function CommunicationsView({
             className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer"
           >
             <Plus size={15} />
-            ახალი კომუნიკაცია
+            New Log Entry
           </button>
         </div>
       </div>
@@ -277,7 +277,7 @@ export default function CommunicationsView({
         <input 
           id="input-comm-search"
           type="text"
-          placeholder="მოძებნეთ კომუნიკაციის ჩანაწერებში..."
+          placeholder="Search communications logs..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
@@ -290,13 +290,13 @@ export default function CommunicationsView({
           <table className="w-full text-xs text-left text-gray-700">
             <thead>
               <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
-                <th className="py-3 px-4">თარიღი და დრო</th>
-                <th className="py-3 px-4">ტიპი</th>
-                <th className="py-3 px-4">ობიექტი</th>
-                <th className="py-3 px-4">მომხმარებელი</th>
-                <th className="py-3 px-4">კომენტარი</th>
-                <th className="py-3 px-4">შეხსენების დრო</th>
-                <th className="py-3 px-4 text-right">ქმედება</th>
+                <th className="py-3 px-4">Date & Time</th>
+                <th className="py-3 px-4">Type</th>
+                <th className="py-3 px-4">Supplier / Subject</th>
+                <th className="py-3 px-4">Operator / User</th>
+                <th className="py-3 px-4">Interaction Comment</th>
+                <th className="py-3 px-4">Reminder Time</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -305,32 +305,32 @@ export default function CommunicationsView({
                 return (
                   <tr key={comm.id} className="hover:bg-slate-50/20">
                     <td className="py-3.5 px-4 font-mono">
-                      {new Date(comm.date_time).toLocaleString('ka-GE')}
+                      {new Date(comm.date_time).toLocaleString('en-US')}
                     </td>
                     <td className="py-3.5 px-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         comm.type === 'action' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-orange-50 text-orange-700 border border-orange-100'
                       }`}>
-                        {comm.type === 'action' ? 'მოქმედება' : 'შეხსენება'}
+                        {comm.type === 'action' ? 'Action' : 'Reminder'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 font-bold text-gray-800">
-                      {suppObj ? suppObj.trade_name : (comm.vendor_name || 'მომწოდებელი')}
+                      {suppObj ? suppObj.trade_name : (comm.vendor_name || 'Supplier')}
                     </td>
                     <td className="py-3.5 px-4 text-gray-500 font-sans">
-                      {comm.user_name || 'მენეჯერი'}
+                      {comm.user_name || 'Manager'}
                     </td>
                     <td className="py-3.5 px-4 text-gray-700 font-medium">
                       {comm.comment}
                     </td>
                     <td className="py-3.5 px-4 font-mono text-gray-400">
-                      {comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('ka-GE') : '-'}
+                      {comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('en-US') : '-'}
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button 
                         onClick={() => onDelete(comm.id)}
                         className="text-gray-450 hover:text-red-600 p-1.5 bg-gray-50 rounded select-none cursor-pointer"
-                        title="წაშლა"
+                        title="Delete"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -344,7 +344,7 @@ export default function CommunicationsView({
 
         {filtered.length === 0 && (
           <div className="text-center py-12 text-gray-400 text-xs">
-            კომუნიკაციის ჩანაწერები არ მოიძებნა.
+            No communication records found.
           </div>
         )}
       </div>
@@ -354,7 +354,7 @@ export default function CommunicationsView({
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-150">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <h3 className="font-extrabold text-sm text-gray-800">კომუნიკაციის ახალი ჩანაწერი</h3>
+              <h3 className="font-extrabold text-sm text-gray-800">New Communication Record</h3>
               <button onClick={() => setEditingComm(null)} className="text-gray-400 hover:text-gray-650 cursor-pointer">
                 <X size={17} />
               </button>
@@ -363,33 +363,33 @@ export default function CommunicationsView({
             <div className="space-y-3.5">
               
               <IosDateTimePicker
-                label="თარიღი და დრო *"
+                label="Date & Time *"
                 value={editingComm.date_time}
                 onChange={(val) => setEditingComm({...editingComm, date_time: val})}
               />
 
               <div>
-                <label className="text-[10px] font-semibold text-gray-450 block mb-1">მოქმედების სახეობა</label>
+                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Interaction Type</label>
                 <select
                   value={editingComm.type}
                   onChange={(e) => setEditingComm({...editingComm, type: e.target.value as any})}
                   className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="action">მოქმედება</option>
-                  <option value="reminder">შეხსენება (Reminder)</option>
+                  <option value="action">Action</option>
+                  <option value="reminder">Reminder</option>
                 </select>
               </div>
 
               {editingComm.type === 'reminder' && (
                 <IosDateTimePicker
-                  label="შეხსენების საკონტროლო დრო"
+                  label="Reminder Due Time"
                   value={editingComm.reminder_time || new Date().toISOString().substring(0, 16)}
                   onChange={(val) => setEditingComm({...editingComm, reminder_time: val})}
                 />
               )}
 
               <div>
-                <label className="text-[10px] font-semibold text-gray-450 block mb-1">მომწოდებელი ობიექტი *</label>
+                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Supplier Object *</label>
                 <select
                   value={editingComm.vendor_id}
                   onChange={(e) => setEditingComm({...editingComm, vendor_id: e.target.value})}
@@ -400,10 +400,10 @@ export default function CommunicationsView({
               </div>
 
               <div>
-                <label className="text-[10px] font-semibold text-gray-450 block mb-1">კომენტარი *</label>
+                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Comment *</label>
                 <textarea 
                   rows={4}
-                  placeholder="განხორციელდა სატელეფონო საუბარი, შეგვპირდა ორშაბათისთვის..."
+                  placeholder="e.g. Phone call completed, promised dispatch on Monday..."
                   value={editingComm.comment}
                   onChange={(e) => setEditingComm({...editingComm, comment: e.target.value})}
                   className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
@@ -417,13 +417,13 @@ export default function CommunicationsView({
                 onClick={() => setEditingComm(null)}
                 className="px-4 py-1.5 bg-gray-100 text-gray-750 hover:bg-gray-200 rounded-lg text-xs font-semibold cursor-pointer"
               >
-                გაუქმება
+                Cancel
               </button>
               <button 
                 onClick={handleSaveAll}
                 className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
               >
-                შენახვა
+                Save
               </button>
             </div>
 

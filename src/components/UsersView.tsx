@@ -18,14 +18,14 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
 
   // Privileges choices
   const availablePrivileges = [
-    'ყველაფერი', 
-    'მართვა', 
-    'შეკვეთა', 
-    'რეპორტები', 
-    'ლოგისტიკა',
-    'მხოლოდ_ჩემი_დავალებები',
-    'ანალიტიკა',
-    'ცნობარები'
+    'All', 
+    'Management', 
+    'Orders', 
+    'Reports', 
+    'Logistics',
+    'My Tasks Only',
+    'Analytics',
+    'Lookups'
   ];
 
   const startNew = () => {
@@ -37,7 +37,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       password: '',
       phone: '',
       role: 'driver',
-      privileges: ['მხოლოდ_ჩემი_დავალებები'],
+      privileges: ['My Tasks Only'],
       created_at: new Date().toISOString()
     };
     setEditingUser(defaultUser);
@@ -67,19 +67,19 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
   const handleSaveAll = () => {
     if (!editingUser) return;
     if (!editingUser.name.trim() || !editingUser.personal_id || !editingUser.email) {
-      alert('გთხოვთ შეავსოთ რეალური სახელი, პირადი ნომერი და ელ-ფოსტა');
+      alert('Please enter full name, personal ID, and email address.');
       return;
     }
     // Set typical privileges based on role if left empty
     if (editingUser.privileges.length === 0) {
       if (editingUser.role === 'admin') {
-        editingUser.privileges = ['ყველაფერი', 'მართვა', 'შეკვეთა', 'რეპორტები', 'ანალიტიკა', 'ცნობარები'];
+        editingUser.privileges = ['All', 'Management', 'Orders', 'Reports', 'Analytics', 'Lookups'];
       } else if (editingUser.role === 'manager') {
-        editingUser.privileges = ['მართვა', 'შეკვეთა', 'რეპორტები', 'ანალიტიკა'];
+        editingUser.privileges = ['Management', 'Orders', 'Reports', 'Analytics'];
       } else if (editingUser.role === 'driver') {
-        editingUser.privileges = ['ლოგისტიკა', 'მხოლოდ_ჩემი_დავალებები'];
+        editingUser.privileges = ['Logistics', 'My Tasks Only'];
       } else if (editingUser.role === 'vendor') {
-        editingUser.privileges = ['მხოლოდ_ჩემი_დავალებები'];
+        editingUser.privileges = ['My Tasks Only'];
       }
     }
     onSave(editingUser);
@@ -98,9 +98,9 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800">სისტემის მომხმარებლები (მომავალი)</h2>
+          <h2 className="text-xl font-extrabold text-gray-800">System Users</h2>
           <p className="text-xs text-gray-500 mt-1">
-            ბიოდიზელი ჯორჯიას პერსონალი, მენეჯერები, მძღოლები, სავაჭრო პარტნიორები (Vendors) და მათი ოპერაციების პრივილეგიები.
+            Biodiesel Georgia staff, managers, drivers, suppliers, and their operations privileges.
           </p>
         </div>
 
@@ -112,7 +112,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer shadow-sm"
             >
               <Plus size={15} />
-              ახალი მომხმარებელი
+              New User
             </button>
           </div>
         )}
@@ -125,7 +125,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
         </span>
         <input 
           type="text"
-          placeholder="ძიება სახელით, პირადი ნომრით ან ელ-ფოსტით..."
+          placeholder="Search by name, ID, or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200/85 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white"
@@ -149,10 +149,10 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                     usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :
                     'bg-amber-50 text-amber-700'
                   }`}>
-                    {usr.role === 'admin' ? 'ადმინისტრატორი' :
-                     usr.role === 'manager' ? 'მენეჯერი' :
-                     usr.role === 'driver' ? 'მძღოლი' :
-                     'მომწოდებელი (Vendor)'}
+                    {usr.role === 'admin' ? 'Administrator' :
+                     usr.role === 'manager' ? 'Manager' :
+                     usr.role === 'driver' ? 'Driver' :
+                     'Supplier (Vendor)'}
                   </span>
                 </div>
                 {currentUser.role === 'admin' && (
@@ -176,15 +176,15 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               </div>
 
               <div className="text-[11px] text-gray-500 space-y-1 pt-1 font-sans">
-                <p><strong>პირადი ნომერი:</strong> <span className="font-mono">{usr.personal_id}</span></p>
-                <p><strong>ელ. ფოსტა:</strong> <span className="font-mono">{usr.email}</span></p>
-                <p><strong>ტელეფონი:</strong> <span className="font-mono text-emerald-950 font-bold">{usr.phone}</span></p>
+                <p><strong>Personal ID:</strong> <span className="font-mono">{usr.personal_id}</span></p>
+                <p><strong>Email:</strong> <span className="font-mono">{usr.email}</span></p>
+                <p><strong>Phone:</strong> <span className="font-mono text-emerald-950 font-bold">{usr.phone}</span></p>
               </div>
             </div>
 
             {/* Privileges render short */}
             <div className="pt-2.5 border-t border-gray-100 space-y-1">
-              <span className="text-[9px] font-black text-gray-400 uppercase block tracking-wider">პრივილეგიები</span>
+              <span className="text-[9px] font-black text-gray-400 uppercase block tracking-wider">Privileges</span>
               <div className="flex flex-wrap gap-1">
                 {usr.privileges?.map((p) => (
                   <span key={p} className="text-[9px] bg-slate-100 text-gray-650 px-1.5 py-0.5 rounded-md font-mono">
@@ -192,7 +192,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   </span>
                 ))}
                 {(!usr.privileges || usr.privileges.length === 0) && (
-                  <span className="text-[9px] text-gray-400 italic">პრივილეგიები არ აქვს</span>
+                  <span className="text-[9px] text-gray-400 italic">No custom privileges</span>
                 )}
               </div>
             </div>
@@ -208,7 +208,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
             
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <h3 className="font-extrabold text-gray-800 text-sm">
-                {isNew ? 'ახალი მომხმარებლის რეგისტრაცია' : `მომხმარებლის რედაქტირება: ${editingUser.name}`}
+                {isNew ? 'Register New User' : `Edit User: ${editingUser.name}`}
               </h3>
               <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
@@ -218,7 +218,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">სახელი და გვარი *</label>
+                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Full Name *</label>
                 <input 
                   type="text"
                   value={editingUser.name}
@@ -228,7 +228,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">პირადი ნომერი *</label>
+                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Personal ID *</label>
                 <input 
                   type="text"
                   maxLength={11}
@@ -239,7 +239,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">ელექტრონული ფოსტა *</label>
+                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Email Address *</label>
                 <input 
                   type="email"
                   value={editingUser.email}
@@ -249,7 +249,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">პაროლი</label>
+                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Password</label>
                 <input 
                   type="password"
                   placeholder="******"
@@ -260,7 +260,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">ტელეფონი *</label>
+                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Phone *</label>
                 <input 
                   type="text"
                   value={editingUser.phone}
@@ -270,22 +270,22 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 block mb-1">როლი / თანამდებობა *</label>
+                <label className="text-[11px] font-semibold text-gray-400 block mb-1">Role / Designation *</label>
                 <select
                   value={editingUser.role}
                   onChange={(e) => setEditingUser({...editingUser, role: e.target.value as UserRole})}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
                 >
-                  <option value="admin">ადმინისტრატორი (Admin)</option>
-                  <option value="manager">მენეჯერი (Manager)</option>
-                  <option value="driver">მძღოლი (Driver)</option>
-                  <option value="vendor">მომწოდებელი (Vendor)</option>
+                  <option value="admin">Administrator (Admin)</option>
+                  <option value="manager">Manager</option>
+                  <option value="driver">Driver</option>
+                  <option value="vendor">Supplier (Vendor)</option>
                 </select>
               </div>
 
               {/* Privileges checklist */}
               <div className="col-span-1 sm:col-span-2 space-y-1.5 align-left">
-                <label className="text-[11px] font-bold text-gray-400 block pb-1 border-b">ოპერაციების პრივილეგიები</label>
+                <label className="text-[11px] font-bold text-gray-400 block pb-1 border-b">Operation Privileges</label>
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   {availablePrivileges.map((p) => {
                     const checked = editingUser.privileges.includes(p);
@@ -311,13 +311,13 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 onClick={() => setEditingUser(null)}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold leading-none cursor-pointer"
               >
-                გაუქმება
+                Cancel
               </button>
               <button 
                 onClick={handleSaveAll}
                 className="px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition leading-none cursor-pointer"
               >
-                შენახვა
+                Save
               </button>
             </div>
 

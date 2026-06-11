@@ -12,8 +12,8 @@ export default function HistoryView({ history }: Props) {
       
       {/* Header */}
       <div>
-        <h2 className="text-xl font-extrabold text-gray-800">ცვლილებების ისტორია</h2>
-        <p className="text-xs text-gray-500 mt-1">საკონტროლო აუდიტორული ჩანაწერები - მონაცემების დამატების, რედაქტირების და წაშლის სრული ისტორია.</p>
+        <h2 className="text-xl font-extrabold text-gray-800">Change History</h2>
+        <p className="text-xs text-gray-500 mt-1">System audit logs - Full history of record additions, modifications, and deletions.</p>
       </div>
 
       <div className="bg-white border rounded-2xl shadow-xs overflow-hidden">
@@ -21,19 +21,19 @@ export default function HistoryView({ history }: Props) {
           <table className="w-full text-xs text-left text-gray-700">
             <thead>
               <tr className="border-b text-[10px] text-gray-405 uppercase font-mono bg-gray-50">
-                <th className="py-3 px-4">თარიღი და დრო</th>
-                <th className="py-3 px-4 font-sans">თანამშრომელი</th>
-                <th className="py-3 px-4 font-sans">ოპერაცია</th>
-                <th className="py-3 px-4">ველი</th>
-                <th className="py-3 px-4">ძველი მნიშვნელობა</th>
-                <th className="py-3 px-4">ახალი მნიშვნელობა</th>
+                <th className="py-3 px-4">Date & Time</th>
+                <th className="py-3 px-4 font-sans">User</th>
+                <th className="py-3 px-4 font-sans">Operation</th>
+                <th className="py-3 px-4">Field</th>
+                <th className="py-3 px-4">Old Value</th>
+                <th className="py-3 px-4">New Value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 font-mono">
               {history.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50/20 text-xs">
                   <td className="py-3 px-4 text-gray-550 font-mono">
-                    {new Date(log.date_time).toLocaleString('ka-GE')}
+                    {new Date(log.date_time).toLocaleString('en-US')}
                   </td>
                   <td className="py-3 px-4 font-sans font-bold text-gray-800">
                     {log.employee_name}
@@ -60,7 +60,7 @@ export default function HistoryView({ history }: Props) {
 
         {history.length === 0 && (
           <div className="text-center py-16 text-xs text-gray-400 font-sans">
-            ცვლილებების მაუწყებელი ისტორიული ჩანაწერები ამ დროისთვის არ არსებობს.
+            No change logs exist in the system at the moment.
           </div>
         )}
       </div>
