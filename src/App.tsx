@@ -34,6 +34,7 @@ import ReportsView from './components/ReportsView';
 import LookupsView from './components/LookupsView';
 import SettingsView from './components/SettingsView';
 import HistoryView from './components/HistoryView';
+import MobileLogisticsView from './components/MobileLogisticsView';
 
 // Icons for Left Sidebar pairing
 import { 
@@ -105,7 +106,7 @@ export default function App() {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             const { data: dbUser } = await supabase
-              .from('users')
+              .from('profiles')
               .select('*')
               .eq('email', session.user.email)
               .single();
@@ -116,15 +117,15 @@ export default function App() {
               // Auto-create matching user database record
               const newUser: User = {
                 id: session.user.id,
-                name: session.user.email?.split('@')[0] || 'Administrator',
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Administrator',
                 email: session.user.email || '',
-                personal_id: '12345678901',
-                phone: '599112233',
-                role: 'admin',
-                privileges: ['All', 'Manage', 'Order', 'Reports'],
+                personal_id: session.user.user_metadata?.personal_id || '12345678901',
+                phone: session.user.user_metadata?.phone || '599112233',
+                role: (session.user.user_metadata?.role as any) || 'admin',
+                privileges: session.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
                 created_at: new Date().toISOString()
               };
-              await supabase.from('users').insert([newUser]);
+              await supabase.from('profiles').insert([newUser]);
               setCurrentUser(newUser);
             }
           } else {
@@ -148,7 +149,7 @@ export default function App() {
         if (event === 'SIGNED_IN' && session?.user) {
           try {
             const { data: dbUser } = await supabase
-              .from('users')
+              .from('profiles')
               .select('*')
               .eq('email', session.user.email)
               .single();
@@ -303,6 +304,22 @@ export default function App() {
       <LoginView 
         users={users} 
         onLoginSuccess={(usr) => setCurrentUser(usr)} 
+      />
+    );
+  }
+
+  // If role is 'driver', route them to the mobile logistics interface
+  if (currentUser.role === 'driver') {
+    return (
+      <MobileLogisticsView 
+        currentUser={currentUser}
+        orders={orders}
+        suppliers={vendors}
+        warehouses={warehouses}
+        employees={users}
+        trucks={trucks}
+        onSaveOrder={handleOrderSave}
+        onLogOut={handleLogOut}
       />
     );
   }

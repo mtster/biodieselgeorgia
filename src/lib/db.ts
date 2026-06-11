@@ -129,7 +129,7 @@ export async function trackChange(
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('users').select('*').order('name');
+      const { data, error } = await supabase.from('profiles').select('*').order('name');
       if (!error && data) return data;
     } catch (e) {
       console.warn('Supabase getUsers failed', e);
@@ -140,22 +140,72 @@ export async function getUsers(): Promise<User[]> {
 
 export async function saveUser(user: User, loggerName: string): Promise<User> {
   const isNew = !user.id;
-  const finalUser = {
-    ...user,
-    id: isNew ? 'user-' + Math.random().toString(36).substring(2, 9) : user.id,
-    created_at: user.created_at || new Date().toISOString()
-  };
+  let finalUser = { ...user };
 
   if (isSupabaseConfigured && supabase) {
     try {
       if (isNew) {
-        await supabase.from('users').insert([finalUser]);
+        // Send a call to full-stack Express Admin user creation API
+        const sessionRes = await supabase.auth.getSession();
+        const token = sessionRes.data.session?.access_token;
+        if (!token) {
+          throw new Error('Not authenticated on client');
+        }
+
+        const res = await fetch('/api/create-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            email: user.email,
+            password: user.password || 'Georgia2026!',
+            name: user.name,
+            personal_id: user.personal_id,
+            phone: user.phone,
+            role: user.role,
+            privileges: user.privileges
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to create user through secure API');
+        }
+
+        const resData = await res.json();
+        if (resData.user) {
+          finalUser = resData.user;
+        } else {
+          throw new Error('No user data returned from admin creation engine');
+        }
       } else {
-        await supabase.from('users').update(finalUser).eq('id', finalUser.id);
+        // Perform direct update in profiles table
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            name: user.name,
+            personal_id: user.personal_id,
+            phone: user.phone,
+            role: user.role,
+            privileges: user.privileges
+          })
+          .eq('id', user.id);
+
+        if (error) throw error;
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Supabase saveUser failed', e);
+      throw e; // throw error so the UI displays it
     }
+  } else {
+    // Local storage mock mode
+    finalUser = {
+      ...user,
+      id: isNew ? 'user-' + Math.random().toString(36).substring(2, 9) : user.id,
+      created_at: user.created_at || new Date().toISOString()
+    };
   }
 
   const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
@@ -172,9 +222,28 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
 export async function deleteUser(id: string, name: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('users').delete().eq('id', id);
-    } catch (e) {
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
+      if (!token) {
+        throw new Error('Not authenticated on client');
+      }
+
+      const res = await fetch('/api/delete-user', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Secure API failed to delete user');
+      }
+    } catch (e: any) {
       console.error('Supabase deleteUser failed', e);
+      throw e;
     }
   }
 

@@ -46,9 +46,9 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
 
         if (data?.user) {
-          // Find matching profile in public.users table (synced by the trigger)
+          // Find matching profile in public.profiles table (synced by the trigger)
           const { data: dbUser, error: dbError } = await supabase
-            .from('users')
+            .from('profiles')
             .select('*')
             .eq('email', data.user.email)
             .single();
@@ -59,16 +59,16 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             // Setup a fallback User object if they are logged in via Supabase Auth
             const newUser: User = {
               id: data.user.id,
-              name: data.user.email?.split('@')[0] || 'Administrator',
+              name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Administrator',
               email: data.user.email || '',
-              personal_id: '12345678901',
-              phone: '599112233',
-              role: 'admin',
-              privileges: ['All', 'Manage', 'Order', 'Reports'],
+              personal_id: data.user.user_metadata?.personal_id || '12345678901',
+              phone: data.user.user_metadata?.phone || '599112233',
+              role: (data.user.user_metadata?.role as any) || 'admin',
+              privileges: data.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
               created_at: new Date().toISOString()
             };
 
-            await supabase.from('users').insert([newUser]);
+            await supabase.from('profiles').insert([newUser]);
             onLoginSuccess(newUser);
           }
           setErrorMsg('');
