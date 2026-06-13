@@ -385,7 +385,7 @@ export default function App() {
     <div className="min-h-screen bg-[#f8fafc] text-gray-750 flex flex-col md:flex-row font-sans">
       
       {/* Sidebar collapsible */}
-      <aside className={`bg-slate-900 text-slate-100 flex-shrink-0 flex flex-col justify-between transition-all duration-300 z-30 ${
+      <aside className={`bg-slate-900 text-slate-100 flex-shrink-0 flex flex-col justify-between transition-all duration-300 z-30 md:sticky md:top-0 md:h-screen md:overflow-hidden ${
         mobileMenuOpen ? 'fixed inset-y-0 left-0 w-64' : 'hidden md:flex md:w-64'
       }`}>
         

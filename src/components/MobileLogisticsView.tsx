@@ -249,7 +249,7 @@ export default function MobileLogisticsView({
                   return (
                     <div 
                       key={order.id}
-                      className="bg-white rounded-2xl border border-gray-150 p-4 shadow-xs space-y-3 hover:border-emerald-300 transition"
+                      className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3 hover:border-emerald-300 transition"
                     >
                       <div className="flex items-start justify-between border-b border-gray-50 pb-2">
                         <div>
@@ -342,11 +342,11 @@ export default function MobileLogisticsView({
                 completedOrders.map(order => (
                   <div 
                     key={order.id}
-                    className="bg-white rounded-2xl border border-gray-150 p-4 shadow-xs space-y-3 opacity-90"
+                    className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3 opacity-90"
                   >
                     <div className="flex items-center justify-between border-b border-gray-50 pb-2">
                       <div>
-                        <span className="text-[9px] font-mono bg-gray-105 px-1.5 py-0.5 rounded font-black text-gray-500">
+                        <span className="text-[9px] font-mono bg-gray-100 px-1.5 py-0.5 rounded font-black text-gray-500">
                           {order.doc_number}
                         </span>
                         <h3 className="font-extrabold text-xs text-gray-800 mt-1 leading-none">

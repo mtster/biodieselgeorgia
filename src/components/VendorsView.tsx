@@ -195,6 +195,24 @@ export default function VendorsView({
     setIsCommentModalOpen(false);
   };
 
+  const updateMainContact = (field: 'name' | 'phone', value: string) => {
+    const defaultContact = tempContacts.find(c => c.is_default);
+    if (defaultContact) {
+      setTempContacts(tempContacts.map(c => c.is_default ? { ...c, [field]: value } : c));
+    } else if (tempContacts.length > 0) {
+      setTempContacts(tempContacts.map((c, idx) => idx === 0 ? { ...c, is_default: true, [field]: value } : c));
+    } else {
+      const newContact: VendorContact = {
+        id: 'main-cont-' + Math.random().toString(36).substring(2, 9),
+        name: field === 'name' ? value : '',
+        phone: field === 'phone' ? value : '',
+        position: 'director',
+        is_default: true
+      };
+      setTempContacts([newContact]);
+    }
+  };
+
   const handleSetDefaultContact = (id: string) => {
     setTempContacts(tempContacts.map(c => ({
       ...c,
@@ -325,7 +343,7 @@ export default function VendorsView({
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5 select-none text-left">
+      <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md pb-5 pt-3 -mt-4 -mx-4 px-4 md:-mt-6 md:-mx-6 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left mb-6 shadow-xs">
         <div>
           <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
           <p className="text-xs text-gray-500 mt-1 font-sans">
@@ -392,116 +410,106 @@ export default function VendorsView({
             <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
               <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Supplier Parameters</span>
               
-              {/* Trade / Commercial Name floating label */}
+              {/* Trade / Commercial Name */}
               <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                  Trade/Commercial Name *
+                </span>
                 <input 
                   type="text"
                   id="v-trade-name"
-                  placeholder=" "
                   value={editingVendor.trade_name}
                   onChange={(e) => setEditingVendor({...editingVendor, trade_name: e.target.value})}
-                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+                  className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
                 />
-                <label 
-                  htmlFor="v-trade-name" 
-                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-155 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                >
-                  Trade/Commercial Name *
-                </label>
               </div>
 
               {/* Legal Name / Company Name */}
               <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                  Legal/Registered Name (Company Name)
+                </span>
                 <input 
                   type="text"
                   id="v-company-name"
-                  placeholder=" "
                   value={editingVendor.company_name}
                   onChange={(e) => setEditingVendor({...editingVendor, company_name: e.target.value})}
-                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+                  className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
                 />
-                <label 
-                  htmlFor="v-company-name" 
-                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-155 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                >
-                  Legal/Registered Name (Company Name)
-                </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Identification Code */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Identification Code *
+                  </span>
                   <input 
                     type="text"
                     id="v-id-code"
-                    placeholder=" "
                     value={editingVendor.id_code}
                     onChange={(e) => setEditingVendor({...editingVendor, id_code: e.target.value})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
                   />
-                  <label 
-                    htmlFor="v-id-code" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-155 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    Identification Code *
-                  </label>
+                </div>
+
+                {/* Code Assigned by Us */}
+                <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Code Assigned by Us *
+                  </span>
+                  <input 
+                    type="text"
+                    id="v-company-code"
+                    value={editingVendor.company_code || ''}
+                    onChange={(e) => setEditingVendor({...editingVendor, company_code: e.target.value})}
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                  />
                 </div>
 
                 {/* Current Price per liter */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Base Price per Liter (₾) *
+                  </span>
                   <input 
                     type="number"
                     step="0.01"
                     id="v-price"
-                    placeholder=" "
                     value={editingVendor.price_per_liter || ''}
                     onChange={(e) => setEditingVendor({...editingVendor, price_per_liter: parseFloat(e.target.value) || 0})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
                   />
-                  <label 
-                    htmlFor="v-price" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-155 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    Base Price per Liter (₾) *
-                  </label>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Bank account details */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    IBAN / Bank Account
+                  </span>
                   <input 
                     type="text"
                     id="v-bank"
-                    placeholder=" "
                     value={editingVendor.bank_account}
                     onChange={(e) => setEditingVendor({...editingVendor, bank_account: e.target.value})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
                   />
-                  <label 
-                    htmlFor="v-bank" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-155 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    IBAN / Bank Account
-                  </label>
                 </div>
 
-                {/* Working hours notch */}
+                {/* Working hours - restricted to numbers only */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Working Hours (digits only) *
+                  </span>
                   <input 
                     type="text"
                     id="v-hours"
-                    placeholder=" "
                     value={editingVendor.working_hours}
-                    onChange={(e) => setEditingVendor({...editingVendor, working_hours: e.target.value})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+                    onChange={(e) => setEditingVendor({...editingVendor, working_hours: e.target.value.replace(/\D/g, '')})}
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
                   />
-                  <label 
-                    htmlFor="v-hours" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-155 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    Working Hours (Schedule)
-                  </label>
                 </div>
               </div>
 
@@ -552,22 +560,18 @@ export default function VendorsView({
                 </div>
               </div>
 
-              {/* Address Floating notch */}
+              {/* Address */}
               <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                  Exact Address (Details, Floor, Entry)
+                </span>
                 <input 
                   type="text"
                   id="v-address"
-                  placeholder=" "
                   value={editingVendor.address}
                   onChange={(e) => setEditingVendor({...editingVendor, address: e.target.value})}
-                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+                  className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
                 />
-                <label 
-                  htmlFor="v-address" 
-                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-155 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                >
-                  Exact Address (Details, Floor, Entry)
-                </label>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -625,6 +629,35 @@ export default function VendorsView({
               </div>
             </div>
 
+            {/* Part 1: Main Contact Person - beautiful inline card layout */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5 text-left">
+              <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Part 1: Main Contact Person</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Main Contact Name *
+                  </span>
+                  <input 
+                    type="text"
+                    value={tempContacts.find(c => c.is_default)?.name || ''}
+                    onChange={(e) => updateMainContact('name', e.target.value)}
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+                  />
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Main Contact Phone *
+                  </span>
+                  <input 
+                    type="text"
+                    value={tempContacts.find(c => c.is_default)?.phone || ''}
+                    onChange={(e) => updateMainContact('phone', e.target.value)}
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Contacts & Comments Sections placed directly at the bottom of the form */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
               
@@ -632,7 +665,7 @@ export default function VendorsView({
               <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between border-b pb-2 mb-4">
-                    <span className="text-xs font-black uppercase text-gray-500 tracking-wider font-sans">Supplier Contact Persons</span>
+                    <span className="text-xs font-black uppercase text-gray-500 tracking-wider font-sans">Part 2: Additional Contact Persons</span>
                     <button
                       type="button"
                       onClick={() => openContactModal()}
@@ -643,7 +676,7 @@ export default function VendorsView({
                   </div>
 
                   <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                    {tempContacts.map((c) => (
+                    {tempContacts.filter(c => !c.is_default).map((c) => (
                       <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs transition">
                         <div>
                           <div className="flex items-center gap-1.5">
@@ -657,15 +690,6 @@ export default function VendorsView({
                         </div>
 
                         <div className="flex items-center gap-1 select-none">
-                          <button 
-                            type="button"
-                            onClick={() => handleSetDefaultContact(c.id)}
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition ${
-                              c.is_default ? 'bg-emerald-50 border-emerald-200 text-emerald-850 font-black' : 'bg-white text-gray-400 hover:text-gray-700'
-                            }`}
-                          >
-                            Default
-                          </button>
                           <button
                             type="button"
                             onClick={() => openContactModal(c)}
@@ -683,8 +707,8 @@ export default function VendorsView({
                         </div>
                       </div>
                     ))}
-                    {tempContacts.length === 0 && (
-                      <div className="text-center py-10 text-[10px] text-gray-400 italic">No contact personnel added.</div>
+                    {tempContacts.filter(c => !c.is_default).length === 0 && (
+                      <div className="text-center py-10 text-[10px] text-gray-400 italic">No additional contact personnel added.</div>
                     )}
                   </div>
                 </div>
@@ -795,77 +819,140 @@ export default function VendorsView({
           </div>
 
           {/* SPREADSHEET TABLE */}
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-xs overflow-hidden text-left">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden text-left">
             <div className="overflow-x-auto max-h-[600px]">
-              <table className="w-full text-xs text-left text-gray-700 relative border-collapse">
-                <thead className="sticky top-0 z-20 bg-slate-50 shadow-xs border-b border-gray-150">
+              <table className="w-full text-xs text-left text-gray-700 relative border-collapse min-w-[2100px]">
+                <thead className="sticky top-0 z-20 bg-slate-50 shadow-xs border-b border-gray-200">
                   <tr className="text-[10px] text-gray-400 uppercase font-mono">
-                    <th className="py-3 px-4 font-bold bg-slate-50 min-w-[140px]">Trade Name</th>
-                    <th className="py-3 px-4 bg-slate-50 min-w-[200px]">Legal Name</th>
+                    <th className="py-3 px-4 font-bold bg-slate-50 min-w-[150px]">Trade Name</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[180px]">Legal Name</th>
                     <th className="py-3 px-4 bg-slate-50 min-w-[125px]">Identification Code</th>
-                    <th className="py-3 px-4 bg-slate-50 min-w-[140px]">City & District</th>
-                    <th className="py-3 px-4 bg-slate-50 min-w-[100px]">Price per Liter</th>
-                    <th className="py-3 px-4 bg-slate-50 min-w-[180px]">Primary Contact</th>
-                    <th className="py-3 px-4 bg-slate-50 min-w-[140px]">Latest Comment</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[150px]">Bank Account</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[110px]">Price per Liter</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[240px]">City, District & Address</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[130px]">Code Assigned by Us</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[180px]">Primary Phone</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[200px]">Additional Phones</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[150px]">Acquisition Manager</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[150px]">Systems Dispatcher</th>
+                    <th className="py-3 px-4 bg-slate-50 min-w-[160px]">Latest Comment</th>
                     <th className="py-3 px-4 bg-slate-50 text-right min-w-[90px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredVendors.map((vendor) => {
                     const defaultContact = vendor.contacts?.find(c => c.is_default) || vendor.contacts?.[0];
+                    const additionalContacts = vendor.contacts?.filter(c => !c.is_default) || [];
                     const latestComment = vendor.comments?.[0];
+                    const manager = users.find(u => u.id === vendor.manager_id);
+                    const dispatcher = users.find(u => u.id === vendor.operator_id);
 
                     return (
                       <tr key={vendor.id} className="hover:bg-slate-50/50 text-xs transition-colors">
+                        {/* Trade Name */}
                         <td className="py-3 px-4 font-extrabold text-gray-900">
                           {vendor.trade_name}
                         </td>
+                        
+                        {/* Legal Name */}
                         <td className="py-3 px-4 text-gray-500 font-medium">
                           {vendor.company_name || vendor.trade_name}
                         </td>
+                        
+                        {/* Identification Code */}
                         <td className="py-3 px-4 font-mono font-bold text-gray-500">
                           {vendor.id_code}
                         </td>
-                        <td className="py-3 px-4 font-sans text-xs">
-                          <span className="font-bold text-gray-700 block">{vendor.city} ({vendor.district})</span>
-                          <span className="text-[10px] text-gray-400 block truncate max-w-[130px]">{vendor.address}</span>
+
+                        {/* Bank Account */}
+                        <td className="py-3 px-4 font-mono text-gray-500">
+                          {vendor.bank_account || <span className="text-gray-300">-</span>}
                         </td>
-                        <td className="py-3 px-4 font-mono font-extrabold text-emerald-800 text-[12.5px]">
+
+                        {/* Price per Liter */}
+                        <td className="py-3 px-4 font-mono font-extrabold text-emerald-800 text-[12px]">
                           {vendor.price_per_liter.toFixed(2)} ₾
                         </td>
+
+                        {/* City, District & Address */}
+                        <td className="py-3 px-4 font-sans text-xs">
+                          <span className="font-bold text-gray-700 block">{vendor.city} ({vendor.district})</span>
+                          <span className="text-[10px] text-gray-400 block truncate max-w-[200px]" title={vendor.address}>{vendor.address}</span>
+                        </td>
+
+                        {/* Code Assigned by Us */}
+                        <td className="py-3 px-4 font-mono text-gray-500">
+                          {vendor.company_code || <span className="text-gray-300">-</span>}
+                        </td>
+
+                        {/* Primary Phone */}
                         <td className="py-3 px-4 font-sans text-[11px]">
                           {defaultContact ? (
                             <div>
                               <span className="font-extrabold text-gray-800 block">{defaultContact.name}</span>
-                              <span className="text-emerald-800 font-mono font-bold block bg-emerald-50 px-1.5 py-0.5 rounded w-fit mt-0.5">{defaultContact.phone}</span>
+                              <span className="text-emerald-800 font-mono font-bold block bg-emerald-50 px-1.5 py-0.5 rounded w-fit mt-0.5 select-all">{defaultContact.phone}</span>
                             </div>
                           ) : (
-                            <span className="text-[10px] text-amber-600 block italic bg-amber-50 rounded px-1.5 py-0.5 w-fit">No contacts</span>
+                            <span className="text-[10px] text-gray-400 font-semibold bg-gray-50 px-1 rounded">No Primary Contact</span>
                           )}
                         </td>
 
-                        {/* Comment section: Shows beginning of the latest comment, beautiful custom hover popup for full details */}
-                        <td className="py-3 px-4 text-left relative group select-none min-w-[140px]">
+                        {/* Additional Phones */}
+                        <td className="py-3 px-4 font-sans text-[10px]">
+                          {additionalContacts.length > 0 ? (
+                            <div className="space-y-1">
+                              {additionalContacts.map(c => (
+                                <div key={c.id} className="leading-tight">
+                                  <span className="font-bold text-gray-600 block">{c.name} ({c.position}):</span>
+                                  <span className="text-emerald-800 font-mono font-bold select-all">{c.phone}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+
+                        {/* Acquisition Manager */}
+                        <td className="py-3 px-4 text-gray-700">
+                          {manager?.name ? (
+                            <span className="font-semibold">{manager.name}</span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+
+                        {/* Systems Dispatcher */}
+                        <td className="py-3 px-4 text-gray-700">
+                          {dispatcher?.name ? (
+                            <span className="font-semibold">{dispatcher.name}</span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+
+                        {/* Comment section: Shows beginning of the latest comment, custom grayscale hover popup */}
+                        <td className="py-3 px-4 text-left relative group select-none min-w-[160px]">
                           {latestComment ? (
-                            <div className="cursor-pointer max-w-[140px]">
-                              <p className="truncate font-sans text-gray-650 inline-flex items-center gap-1">
-                                <MessageSquare size={11} className="text-purple-400" />
+                            <div className="cursor-pointer max-w-[150px]">
+                              <p className="truncate font-sans text-gray-600 inline-flex items-center gap-1">
+                                <MessageSquare size={11} className="text-emerald-500" />
                                 {latestComment.comment}
                               </p>
                               
-                              {/* Hover Tooltip display full comments beautifully */}
-                              <div className="absolute hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-900 text-white rounded-xl p-3 shadow-xl text-[11px] leading-relaxed z-40 space-y-2 pointer-events-none border border-slate-700">
-                                <p className="font-bold font-sans border-b border-slate-700 pb-1 text-[10px] text-purple-300">
-                                  Comments Ledger ({vendor.comments?.length || 0})
+                              {/* Grayish Tooltip displayed below the comment cell with safe overflow rendering */}
+                              <div className="absolute opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 top-full left-1/3 mt-2 w-72 bg-slate-800 text-slate-100 rounded-xl p-3.5 shadow-2xl text-[11px] leading-relaxed z-40 space-y-2 border border-slate-700">
+                                <p className="font-extrabold font-sans border-b border-slate-700/60 pb-1 text-[10px] text-emerald-400 uppercase tracking-wider">
+                                  Full Comments Ledger ({vendor.comments?.length || 0})
                                 </p>
-                                <div className="space-y-2 max-h-40 overflow-y-auto">
+                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1 select-text scrollbar-thin">
                                   {vendor.comments?.map(c => (
-                                    <div key={c.id} className="border-b border-slate-800 last:border-0 pb-1">
-                                      <div className="flex justify-between items-center text-[9px] text-gray-400">
-                                        <span>{c.user_name}</span>
-                                        <span>{new Date(c.date).toLocaleDateString()}</span>
+                                    <div key={c.id} className="border-b border-slate-705 last:border-0 pb-1.5">
+                                      <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold mb-0.5">
+                                        <span className="text-emerald-300">{c.user_name}</span>
+                                        <span>{new Date(c.date).toLocaleString()}</span>
                                       </div>
-                                      <p className="mt-0.5 font-sans break-words">{c.comment}</p>
+                                      <p className="font-sans text-slate-250 break-words">{c.comment}</p>
                                     </div>
                                   ))}
                                 </div>
@@ -913,7 +1000,7 @@ export default function VendorsView({
       {/* 3. EXCEL BULK IMPORT MODAL */}
       {isImporting && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-gray-150 animate-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-gray-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
               <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5">
                 <FileSpreadsheet className="text-emerald-700" size={16} />
@@ -960,7 +1047,7 @@ export default function VendorsView({
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-gray-100 animate-in zoom-in-95">
             <div className="flex justify-between items-center border-b pb-2">
               <h4 className="font-extrabold text-gray-800 text-xs uppercase tracking-wide">
-                {activeContact ? '✏️ Edit Contact Person' : '✨ Add Contact Person'}
+                {activeContact ? 'Edit Contact Person' : 'Add Contact Person'}
               </h4>
               <button onClick={() => setIsContactModalOpen(false)} className="p-1 hover:bg-slate-50 rounded text-gray-400">
                 <X size={14} />
@@ -1062,7 +1149,7 @@ export default function VendorsView({
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-gray-100 animate-in zoom-in-95">
             <div className="flex justify-between items-center border-b pb-2">
               <h4 className="font-extrabold text-gray-800 text-xs uppercase tracking-wide">
-                {activeComment ? '✏️ Edit Comment' : '✨ Post Comment'}
+                {activeComment ? 'Edit Comment' : 'Post Comment'}
               </h4>
               <button onClick={() => setIsCommentModalOpen(false)} className="p-1 hover:bg-slate-50 rounded text-gray-400">
                 <X size={14} />

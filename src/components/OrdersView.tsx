@@ -222,7 +222,7 @@ export default function OrdersView({
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5 select-none text-left">
+      <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md pb-5 pt-3 -mt-4 -mx-4 px-4 md:-mt-6 md:-mx-6 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left mb-6 shadow-xs">
         <div>
           <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Collection Orders</h2>
           <p className="text-xs text-gray-550 mt-1 font-sans">
@@ -328,93 +328,74 @@ export default function OrdersView({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Document ID - Notch input */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Document Dispatch ID *
+                  </span>
                   <input 
                     type="text"
                     id="order-doc-number"
-                    placeholder=" "
                     value={editingOrder.doc_number}
                     onChange={(e) => setEditingOrder({...editingOrder, doc_number: e.target.value})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono font-bold transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono font-bold transition-all"
                   />
-                  <label 
-                    htmlFor="order-doc-number" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    Document Dispatch ID *
-                  </label>
                 </div>
 
                 {/* Dispatch Date - Notch input */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Order Dispatch Date *
+                  </span>
                   <input 
                     type="date"
                     id="order-dispatch-date"
                     value={editingOrder.order_date}
                     onChange={(e) => setEditingOrder({...editingOrder, order_date: e.target.value})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
                   />
-                  <label 
-                    htmlFor="order-dispatch-date" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 pointer-events-none font-bold select-none"
-                  >
-                    Order Dispatch Date *
-                  </label>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 {/* Planned Volume input - Notch input */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Planned QTY (L)
+                  </span>
                   <input 
                     type="number"
                     id="order-planned-qty"
-                    placeholder=" "
                     value={editingOrder.qty_requested || ''}
                     onChange={(e) => setEditingOrder({...editingOrder, qty_requested: parseFloat(e.target.value) || 0})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
                   />
-                  <label 
-                    htmlFor="order-planned-qty" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    Planned QTY (L)
-                  </label>
                 </div>
 
                 {/* Tanks dropoff - Notch input */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Tanks Dropoff
+                  </span>
                   <input 
                     type="number"
                     id="order-tanks-drop"
-                    placeholder=" "
                     value={editingOrder.tanks_to_leave}
                     onChange={(e) => setEditingOrder({...editingOrder, tanks_to_leave: parseInt(e.target.value) || 0})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
                   />
-                  <label 
-                    htmlFor="order-tanks-drop" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    Tanks Dropoff
-                  </label>
                 </div>
 
                 {/* Tanks pickup - Notch input */}
                 <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                    Tanks Pickup
+                  </span>
                   <input 
                     type="number"
                     id="order-tanks-pick"
-                    placeholder=" "
                     value={editingOrder.tanks_to_bring}
                     onChange={(e) => setEditingOrder({...editingOrder, tanks_to_bring: parseInt(e.target.value) || 0})}
-                    className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                    className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
                   />
-                  <label 
-                    htmlFor="order-tanks-pick" 
-                    className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                  >
-                    Tanks Pickup
-                  </label>
                 </div>
               </div>
 
@@ -444,20 +425,16 @@ export default function OrdersView({
 
               {/* Handover comments / Navigation note - Notch input */}
               <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                  Handover Comments / Navigation Note on Location
+                </span>
                 <input 
                   type="text"
                   id="order-location-note"
-                  placeholder=" "
                   value={editingOrder.note || ''}
                   onChange={(e) => setEditingOrder({...editingOrder, note: e.target.value})}
-                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+                  className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
                 />
-                <label 
-                  htmlFor="order-location-note" 
-                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                >
-                  Handover Comments / Navigation Note on Location
-                </label>
               </div>
             </div>
 
@@ -480,7 +457,7 @@ export default function OrdersView({
                       <select
                         value={pickupHour}
                         onChange={(e) => setPickupHour(e.target.value)}
-                        className="flex-1 px-3 py-2 bg-slate-50 border border-gray-205 focus:border-emerald-550 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 border-gray-200 rounded-xl text-sm font-extrabold focus:outline-none select-none text-center"
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl text-sm font-extrabold focus:outline-none select-none text-center"
                       >
                         {Array.from({ length: 24 }).map((_, h) => {
                           const val = h.toString().padStart(2, '0');
@@ -494,7 +471,7 @@ export default function OrdersView({
                       <select
                         value={pickupMin}
                         onChange={(e) => setPickupMin(e.target.value)}
-                        className="flex-1 px-3 py-2 bg-slate-50 border border-gray-205 focus:border-emerald-550 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 border-gray-200 rounded-xl text-sm font-extrabold focus:outline-none select-none text-center"
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl text-sm font-extrabold focus:outline-none select-none text-center"
                       >
                         {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(val => (
                           <option key={val} value={val}>{val} Mins</option>
@@ -559,55 +536,43 @@ export default function OrdersView({
                 {/* Additional actual logistical measurements */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-3 border-t">
                   <div className="relative">
+                    <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                      Actual Received (L) *
+                    </span>
                     <input 
                       type="number"
                       required
                       id="actual-vol-liters"
-                      placeholder=" "
                       value={editingOrder.qty_actual || ''}
                       onChange={(e) => setEditingOrder({...editingOrder, qty_actual: parseFloat(e.target.value) || 0})}
-                      className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl focus:outline-none font-mono"
+                      className="block w-full px-3.5 py-3 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl focus:outline-none font-mono"
                     />
-                    <label 
-                      htmlFor="actual-vol-liters" 
-                      className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                    >
-                      Actual Received (L) *
-                    </label>
                   </div>
 
                   <div className="relative">
+                    <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                      Actual Placed Tanks *
+                    </span>
                     <input 
                       type="number"
                       id="actual-tanks-left"
-                      placeholder=" "
                       value={editingOrder.tanks_left_actual !== undefined ? editingOrder.tanks_left_actual : ''}
                       onChange={(e) => setEditingOrder({...editingOrder, tanks_left_actual: parseInt(e.target.value) || 0})}
-                      className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl focus:outline-none font-mono"
+                      className="block w-full px-3.5 py-3 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl focus:outline-none font-mono"
                     />
-                    <label 
-                      htmlFor="actual-tanks-left" 
-                      className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                    >
-                      Actual Placed Tanks *
-                    </label>
                   </div>
 
                   <div className="relative">
+                    <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                      Actual Picked Tanks *
+                    </span>
                     <input 
                       type="number"
                       id="actual-tanks-picked"
-                      placeholder=" "
                       value={editingOrder.tanks_bring_actual !== undefined ? editingOrder.tanks_bring_actual : ''}
                       onChange={(e) => setEditingOrder({...editingOrder, tanks_bring_actual: parseInt(e.target.value) || 0})}
-                      className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl focus:outline-none font-mono"
+                      className="block w-full px-3.5 py-3 text-xs text-gray-950 bg-white border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl focus:outline-none font-mono"
                     />
-                    <label 
-                      htmlFor="actual-tanks-picked" 
-                      className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-                    >
-                      Actual Picked Tanks *
-                    </label>
                   </div>
                 </div>
               </div>
@@ -685,7 +650,7 @@ export default function OrdersView({
                 placeholder="Search dispatches by supplier trade name, legal entity, or document coordinate..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-205 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans transition"
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-800 font-sans transition"
               />
             </div>
 
@@ -701,7 +666,7 @@ export default function OrdersView({
               <button 
                 onClick={() => setSelectedStatus('registered')}
                 className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                  selectedStatus === 'registered' ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-650 border-gray-205 hover:bg-gray-100'
+                  selectedStatus === 'registered' ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-650 border-gray-200 hover:bg-gray-100'
                 }`}
               >
                 Registered
@@ -709,7 +674,7 @@ export default function OrdersView({
               <button 
                 onClick={() => setSelectedStatus('completed')}
                 className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                  selectedStatus === 'completed' ? 'bg-emerald-650 text-white border-emerald-650' : 'bg-gray-50 text-gray-655 border-gray-205 hover:bg-gray-100'
+                  selectedStatus === 'completed' ? 'bg-emerald-650 text-white border-emerald-650' : 'bg-gray-50 text-gray-655 border-gray-200 hover:bg-gray-100'
                 }`}
               >
                 Completed
@@ -718,11 +683,11 @@ export default function OrdersView({
           </div>
 
           {/* SPREADSHEET TABLE */}
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-xs overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left text-gray-700">
                 <thead>
-                  <tr className="border-b border-gray-150 text-[10px] text-gray-400 uppercase font-mono bg-slate-50 select-none">
+                  <tr className="border-b border-gray-200 text-[10px] text-gray-400 uppercase font-mono bg-slate-50 select-none">
                     <th className="py-3 px-4">Document #</th>
                     <th className="py-3 px-4">Supplier / Vendor</th>
                     <th className="py-3 px-4">Destination Storage</th>
@@ -733,7 +698,7 @@ export default function OrdersView({
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-150">
+                <tbody className="divide-y divide-gray-200">
                   {filteredOrders.map((ord) => {
                     const supplierObj = suppliers.find(s => s.id === ord.vendor_id);
                     return (
@@ -828,7 +793,7 @@ export default function OrdersView({
       {/* SMS DISPATCH LOG LOGGER POPUP */}
       {showSMSLogs && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-gray-150 animate-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-gray-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b pb-2">
               <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
                 <MessageSquareCode className="text-emerald-700 font-bold" size={17} />

@@ -87,7 +87,7 @@ function IosDateTimePicker({
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center z-55 p-4 transition-opacity">
           <div className="absolute inset-0" onClick={() => setIsOpen(false)}></div>
 
-          <div className="bg-white rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl relative z-10 border border-gray-150 text-gray-800 transform scale-100 transition-all">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl relative z-10 border border-gray-200 text-gray-800 transform scale-100 transition-all">
             
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
@@ -163,7 +163,7 @@ function IosDateTimePicker({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="flex-1 py-2 bg-gray-100 hover:bg-gray-150 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -352,7 +352,7 @@ export default function CommunicationsView({
       {/* FORM DIALOG */}
       {editingComm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-200">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <h3 className="font-extrabold text-sm text-gray-800">New Communication Record</h3>
               <button onClick={() => setEditingComm(null)} className="text-gray-400 hover:text-gray-650 cursor-pointer">

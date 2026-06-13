@@ -169,16 +169,47 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           })
         });
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Failed to create user through secure API');
+        let resData: any = null;
+        if (res.ok) {
+          resData = await res.json();
+        } else {
+          console.warn('Express /api/create-user failed, trying Supabase Edge function fallback...');
+          const { data, error } = await supabase.functions.invoke('create-user', {
+            body: {
+              email: user.email,
+              password: user.password || 'Georgia2026!',
+              name: user.name,
+              personal_id: user.personal_id,
+              phone: user.phone,
+              role: user.role,
+              privileges: user.privileges
+            }
+          });
+
+          if (error) {
+            throw new Error(`Edge Function failed: ${error.message}. Please configure SUPABASE_SERVICE_ROLE_KEY in the AI Studio Settings menu so that our integrated server proxy can route your requests safely.`);
+          }
+          if (data && (data.user || data.profile)) {
+            resData = data;
+          } else {
+            throw new Error('Supabase Edge function was invoked successfully but did not return any user or profile payload.');
+          }
         }
 
-        const resData = await res.json();
-        if (resData.user) {
+        if (resData && resData.user) {
           finalUser = resData.user;
+        } else if (resData && resData.profile) {
+          finalUser = {
+            id: resData.profile.id,
+            name: resData.profile.name,
+            personal_id: resData.profile.personal_id,
+            email: resData.profile.email || user.email,
+            phone: resData.profile.phone,
+            role: resData.profile.role,
+            privileges: resData.profile.privileges || []
+          };
         } else {
-          throw new Error('No user data returned from admin creation engine');
+          throw new Error('No user or profile data returned from user creation engines.');
         }
       } else {
         // Perform direct update in profiles table

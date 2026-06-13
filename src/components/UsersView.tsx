@@ -42,7 +42,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       email: '',
       password: '',
       phone: '',
-      role: '' as any, // force empty choosing
+      role: 'manager', // Default to manager
       privileges: [],
       created_at: new Date().toISOString()
     };
@@ -58,20 +58,23 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
 
   const togglePrivilege = (priv: string) => {
     if (!editingUser) return;
-    const isChecked = editingUser.privileges.includes(priv);
+    const hasAll = editingUser.privileges.includes('All');
+    const isChecked = priv === 'All' ? hasAll : (hasAll || editingUser.privileges.includes(priv));
     let updated: string[];
 
     if (priv === 'All') {
-      if (isChecked) {
+      if (hasAll) {
         updated = [];
       } else {
         updated = [...availablePrivileges];
       }
     } else {
       if (isChecked) {
+        // If "All" was checked, we remove "All" and also filter out the targeted privilege
         updated = editingUser.privileges.filter(p => p !== priv && p !== 'All');
       } else {
-        const temp = [...editingUser.privileges, priv];
+        // Checking this privilege
+        const temp = [...editingUser.privileges.filter(p => p !== 'All'), priv];
         const hasAllOthers = availablePrivileges.filter(p => p !== 'All').every(p => temp.includes(p));
         if (hasAllOthers) {
           updated = [...availablePrivileges];
@@ -162,7 +165,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5 select-none text-left">
+      <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md pb-5 pt-3 -mt-4 -mx-4 px-4 md:-mt-6 md:-mx-6 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left mb-6 shadow-xs">
         <div>
           <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
           <p className="text-xs text-gray-550 mt-1 font-sans">
@@ -219,94 +222,74 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
             
             {/* Full Name notch input */}
             <div className="relative">
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                Full Name *
+              </span>
               <input 
                 type="text"
                 id="user-full-name"
-                placeholder=" "
                 value={editingUser.name}
                 onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
-                className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
               />
-              <label 
-                htmlFor="user-full-name" 
-                className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-              >
-                Full Name *
-              </label>
             </div>
 
             {/* Personal ID notch input */}
             <div className="relative">
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                Personal ID (11 digits) *
+              </span>
               <input 
                 type="text"
                 id="user-personal-id"
                 maxLength={11}
-                placeholder=" "
                 value={editingUser.personal_id}
                 onChange={(e) => setEditingUser({...editingUser, personal_id: e.target.value.replace(/\D/g, '')})}
-                className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
-              <label 
-                htmlFor="user-personal-id" 
-                className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-              >
-                Personal ID (11 digits) *
-              </label>
             </div>
 
             {/* Email Address notch input */}
             <div className="relative">
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                Email Address *
+              </span>
               <input 
                 type="email"
                 id="user-email-address"
-                placeholder=" "
                 value={editingUser.email}
                 disabled={!isNew && currentUser.role !== 'admin'}
                 onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all disabled:opacity-65"
+                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all disabled:opacity-65"
               />
-              <label 
-                htmlFor="user-email-address" 
-                className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-              >
-                Email Address *
-              </label>
             </div>
 
             {/* Password notch input */}
             <div className="relative">
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                {isNew ? 'Password *' : 'Change Password (Optional)'}
+              </span>
               <input 
                 type="password"
                 id="user-password"
-                placeholder=" "
                 value={editingUser.password || ''}
                 onChange={(e) => setEditingUser({...editingUser, password: e.target.value})}
-                className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
-              <label 
-                htmlFor="user-password" 
-                className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-              >
-                {isNew ? 'Password *' : 'Change Password (Optional)'}
-              </label>
             </div>
 
             {/* Phone notch input */}
             <div className="relative">
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                Phone *
+              </span>
               <input 
                 type="text"
                 id="user-phone-number"
-                placeholder=" "
                 value={editingUser.phone}
                 onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
-                className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
-              <label 
-                htmlFor="user-phone-number" 
-                className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-emerald-700 font-bold select-none pointer-events-none"
-              >
-                Phone *
-              </label>
             </div>
 
             {/* Designation dropdown styled like notch */}
@@ -315,11 +298,10 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 Role / Designation *
               </span>
               <select
-                value={editingUser.role || ''}
+                value={editingUser.role || 'manager'}
                 onChange={(e) => setEditingUser({...editingUser, role: e.target.value as UserRole})}
                 className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
               >
-                <option value="" disabled>--- SELECT ROLE ---</option>
                 <option value="admin">Administrator (Admin)</option>
                 <option value="manager">Manager</option>
                 <option value="driver">Driver</option>
@@ -336,7 +318,8 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               
               <div className="space-y-3 select-none">
                 {availablePrivileges.map((privilege) => {
-                  const isChecked = editingUser.privileges.includes(privilege);
+                  const hasAll = editingUser.privileges.includes('All');
+                  const isChecked = privilege === 'All' ? hasAll : (hasAll || editingUser.privileges.includes(privilege));
                   return (
                     <div key={privilege} className="flex items-center justify-between py-1 border-b border-gray-200/50 last:border-0">
                       <span className="text-xs font-bold text-slate-700 font-sans">{privilege}</span>
