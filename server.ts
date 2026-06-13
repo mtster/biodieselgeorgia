@@ -49,7 +49,18 @@ async function startServer() {
       }
 
       // Check if user is admin
-      const isRequesterAdmin = user.user_metadata?.role === "admin";
+      let isRequesterAdmin = user.user_metadata?.role === "admin";
+      if (!isRequesterAdmin) {
+        const { data: requesterProfile, error: profileErr } = await supabaseAdmin
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        if (!profileErr && requesterProfile && requesterProfile.role === "admin") {
+          isRequesterAdmin = true;
+        }
+      }
+
       if (!isRequesterAdmin) {
         return res.status(403).json({ error: "Access denied: Only Administrators can create users." });
       }
@@ -126,7 +137,18 @@ async function startServer() {
         return res.status(401).json({ error: "Unauthorized: Invalid session token" });
       }
 
-      const isRequesterAdmin = user.user_metadata?.role === "admin";
+      let isRequesterAdmin = user.user_metadata?.role === "admin";
+      if (!isRequesterAdmin) {
+        const { data: requesterProfile, error: profileErr } = await supabaseAdmin
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        if (!profileErr && requesterProfile && requesterProfile.role === "admin") {
+          isRequesterAdmin = true;
+        }
+      }
+
       if (!isRequesterAdmin) {
         return res.status(403).json({ error: "Access denied: Only Administrators can delete users." });
       }

@@ -44,19 +44,12 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
     };
     setEditingUser(defaultUser);
     setIsNew(true);
-    // Smooth scroll to form
-    setTimeout(() => {
-      document.getElementById('user-form-anchor')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
   };
 
   const startEdit = (usr: User) => {
     setErrorMessage(null);
     setEditingUser(JSON.parse(JSON.stringify(usr)));
     setIsNew(false);
-    setTimeout(() => {
-      document.getElementById('user-form-anchor')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
   };
 
   const togglePrivilege = (priv: string) => {
@@ -144,6 +137,203 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
            usr.personal_id.includes(searchTerm);
   });
 
+  // architecture view replacement if form is visible
+  if (editingUser) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-200" id="users-form-panel">
+        <div className="bg-white border rounded-2xl shadow-sm flex flex-col relative overflow-hidden max-w-2xl min-h-[500px]">
+          
+          {/* Sticky header containing Action with Cancel & Save */}
+          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-gray-100 py-3.5 px-6 flex justify-between items-center select-none">
+            <div>
+              <h3 className="font-extrabold text-gray-900 text-sm">
+                {isNew ? '✨ Creating user' : `✏️ Editing: ${editingUser.name}`}
+              </h3>
+              <p className="text-[11px] text-gray-400 mt-0.5 font-sans">
+                {isNew ? 'Fill in user profile details to register them' : `Update user parameters and save changes`}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setEditingUser(null)}
+                className="px-4 py-2 bg-white border border-gray-250 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveAll}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-100 text-red-700 text-xs rounded-xl flex items-center gap-2 font-sans font-medium">
+                <ShieldAlert size={14} className="text-red-650" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Relaxed Top-to-Bottom single column layout */}
+            <div className="space-y-5 max-w-lg">
+              
+              {/* Full Name notch input */}
+              <div className="relative">
+                <input 
+                  type="text"
+                  id="user-full-name"
+                  placeholder=" "
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
+                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-250 focus:border-indigo-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-600 font-sans transition-all"
+                />
+                <label 
+                  htmlFor="user-full-name" 
+                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-indigo-600 font-bold select-none pointer-events-none"
+                >
+                  Full Name *
+                </label>
+              </div>
+
+              {/* Personal ID notch input */}
+              <div className="relative">
+                <input 
+                  type="text"
+                  id="user-personal-id"
+                  maxLength={11}
+                  placeholder=" "
+                  value={editingUser.personal_id}
+                  onChange={(e) => setEditingUser({...editingUser, personal_id: e.target.value.replace(/\D/g, '')})}
+                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-250 focus:border-indigo-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-600 font-mono transition-all"
+                />
+                <label 
+                  htmlFor="user-personal-id" 
+                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-indigo-600 font-bold select-none pointer-events-none"
+                >
+                  Personal ID (11 digits) *
+                </label>
+              </div>
+
+              {/* Email Address notch input */}
+              <div className="relative">
+                <input 
+                  type="email"
+                  id="user-email-address"
+                  placeholder=" "
+                  value={editingUser.email}
+                  disabled={!isNew && currentUser.role !== 'admin'}
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-250 focus:border-indigo-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-600 font-mono transition-all disabled:opacity-65"
+                />
+                <label 
+                  htmlFor="user-email-address" 
+                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-indigo-600 font-bold select-none pointer-events-none"
+                >
+                  Email Address *
+                </label>
+              </div>
+
+              {/* Password notch input */}
+              <div className="relative">
+                <input 
+                  type="password"
+                  id="user-password"
+                  placeholder=" "
+                  value={editingUser.password || ''}
+                  onChange={(e) => setEditingUser({...editingUser, password: e.target.value})}
+                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-250 focus:border-indigo-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-600 font-mono transition-all"
+                />
+                <label 
+                  htmlFor="user-password" 
+                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-indigo-600 font-bold select-none pointer-events-none"
+                >
+                  {isNew ? 'Password *' : 'Change Password (Optional)'}
+                </label>
+              </div>
+
+              {/* Phone notch input */}
+              <div className="relative">
+                <input 
+                  type="text"
+                  id="user-phone-number"
+                  placeholder=" "
+                  value={editingUser.phone}
+                  onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
+                  className="peer block w-full px-3.5 pt-5 pb-1.5 text-xs text-gray-900 bg-white border border-gray-250 focus:border-indigo-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-600 font-mono transition-all"
+                />
+                <label 
+                  htmlFor="user-phone-number" 
+                  className="absolute text-[10px] text-gray-400 bg-white px-1 leading-none transition-all duration-150 transform -translate-y-3.5 scale-90 top-3.5 origin-[0] left-3 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0.5 peer-placeholder-shown:text-gray-400 peer-focus:scale-90 peer-focus:-translate-y-3.5 peer-focus:text-indigo-600 font-bold select-none pointer-events-none"
+                >
+                  Phone *
+                </label>
+              </div>
+
+              {/* Designation dropdown styled like notch */}
+              <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10">
+                  Role / Designation *
+                </span>
+                <select
+                  value={editingUser.role || ''}
+                  onChange={(e) => setEditingUser({...editingUser, role: e.target.value as UserRole})}
+                  className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-250 focus:border-indigo-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-600 font-sans cursor-pointer relative"
+                >
+                  <option value="" disabled>--- SELECT ROLE ---</option>
+                  <option value="admin">Administrator (Admin)</option>
+                  <option value="manager">Manager</option>
+                  <option value="driver">Driver</option>
+                  <option value="vendor">Supplier (Vendor)</option>
+                </select>
+              </div>
+
+              {/* Privileges with beautiful iOS slider toggles inside a nice layout card */}
+              <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4">
+                <div>
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wide">Operation Privileges</h4>
+                  <p className="text-[10px] text-gray-400 mt-0.5 leading-tight font-sans">Toggle permission states. Toggle "All" to select every core standard functionality.</p>
+                </div>
+                
+                <div className="space-y-3 select-none">
+                  {availablePrivileges.map((privilege) => {
+                    const isChecked = editingUser.privileges.includes(privilege);
+                    return (
+                      <div key={privilege} className="flex items-center justify-between py-1 border-b border-gray-100/50 last:border-0">
+                        <span className="text-xs font-bold text-slate-700 font-sans">{privilege}</span>
+                        
+                        {/* Interactive iOS style Toggle button */}
+                        <button
+                          type="button"
+                          onClick={() => togglePrivilege(privilege)}
+                          className={`relative inline-flex h-5 w-9 shrinkage-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150 ease-in-out focus:outline-none ${
+                            isChecked ? 'bg-indigo-600' : 'bg-gray-250'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-150 ease-in-out ${
+                              isChecked ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // standard main view showing list/search if not editing/creating
   return (
     <div className="space-y-6" id="users-view-panel">
       
@@ -151,7 +341,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">System Users</h2>
-          <p className="text-xs text-gray-550 mt-1">
+          <p className="text-xs text-gray-550 mt-1 font-sans">
             Biodiesel Georgia staff, managers, drivers, suppliers, and their operations privileges.
           </p>
         </div>
@@ -170,160 +360,6 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
         )}
       </div>
 
-      {/* ON-SCREEN EDIT FORM */}
-      {editingUser && (
-        <div id="user-form-anchor" className="bg-white border rounded-2xl p-6 shadow-xs space-y-5 animate-in fade-in duration-200 border-emerald-300">
-          <div className="flex items-center justify-between border-b pb-3">
-            <div>
-              <h3 className="font-extrabold text-gray-900 text-sm">
-                {isNew ? '✨ Create New User Profile' : `✏️ Edit User Profile: ${editingUser.name}`}
-              </h3>
-              <p className="text-[11px] text-gray-405">All fields marked with an asterisk (*) are required</p>
-            </div>
-            <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600 p-1 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer">
-              <X size={16} />
-            </button>
-          </div>
-
-          {errorMessage && (
-            <div className="p-3 bg-red-50 border border-red-100 text-red-700 text-xs rounded-xl flex items-center gap-2 font-sans font-medium">
-              <ShieldAlert size={14} className="text-red-650" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Input card section */}
-            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-[11px] font-bold text-gray-550 block mb-1">Full Name *</label>
-                <input 
-                  type="text"
-                  placeholder="e.g. Giorgi Margvelashvili"
-                  value={editingUser.name}
-                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:bg-white transition rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-gray-550 block mb-1">Personal ID (11 digits) *</label>
-                <input 
-                  type="text"
-                  maxLength={11}
-                  placeholder="e.g. 01019022334"
-                  value={editingUser.personal_id}
-                  onChange={(e) => setEditingUser({...editingUser, personal_id: e.target.value.replace(/\D/g, '')})}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:bg-white transition rounded-xl text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-gray-555 block mb-1">Email Address *</label>
-                <input 
-                  type="email"
-                  placeholder="e.g. giorgi@biodiesel.ge"
-                  value={editingUser.email}
-                  disabled={!isNew && currentUser.role !== 'admin'}
-                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:bg-white transition rounded-xl text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-65"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-gray-555 block mb-1">{isNew ? 'Password *' : 'Change Password'}</label>
-                <input 
-                  type="password"
-                  placeholder={isNew ? 'e.g. Georgia2026!' : 'Enter new password if updating...'}
-                  value={editingUser.password || ''}
-                  onChange={(e) => setEditingUser({...editingUser, password: e.target.value})}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:bg-white transition rounded-xl text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-gray-555 block mb-1">Phone *</label>
-                <input 
-                  type="text"
-                  placeholder="e.g. 599112233"
-                  value={editingUser.phone}
-                  onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:bg-white transition rounded-xl text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-gray-555 block mb-1">Role / Designation *</label>
-                <select
-                  value={editingUser.role || ''}
-                  onChange={(e) => setEditingUser({...editingUser, role: e.target.value as UserRole})}
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:bg-white transition rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans cursor-pointer"
-                >
-                  <option value="" disabled>--- CHOOSE ROLE ---</option>
-                  <option value="admin">Administrator (Admin)</option>
-                  <option value="manager">Manager</option>
-                  <option value="driver">Driver</option>
-                  <option value="vendor">Supplier (Vendor)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* iOS Toggles Privileges card section */}
-            <div className="bg-slate-50 rounded-2xl p-4.5 border border-slate-100 flex flex-col justify-between">
-              <div>
-                <div className="pb-2 border-b border-slate-200 mb-3">
-                  <span className="text-[11px] font-black tracking-wider text-slate-550 uppercase block">Operation Privileges</span>
-                  <p className="text-[10px] text-gray-400 mt-0.5 font-sans">Toggle permission states. Toggling "All" automatically selects every standard privilege.</p>
-                </div>
-                
-                <div className="space-y-2.5 select-none">
-                  {availablePrivileges.map((p) => {
-                    const checked = editingUser.privileges.includes(p);
-                    return (
-                      <div key={p} className="flex items-center justify-between py-0.5">
-                        <span className="text-xs font-bold text-slate-700 font-sans">{p}</span>
-                        
-                        {/* iOS style rounded slider switch toggler */}
-                        <button
-                          type="button"
-                          onClick={() => togglePrivilege(p)}
-                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            checked ? 'bg-emerald-800' : 'bg-gray-200'
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                              checked ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-200 mt-4 flex items-center justify-end gap-3">
-                <button 
-                  onClick={() => setEditingUser(null)}
-                  className="px-4.5 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 hover:text-gray-800 rounded-xl text-xs font-bold leading-none cursor-pointer transition select-none"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleSaveAll}
-                  className="px-5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-black shadow-xs hover:bg-emerald-900 transition leading-none cursor-pointer select-none"
-                >
-                  Save User
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
       {/* Filter box */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4.5 shadow-xs flex items-center relative">
         <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center text-gray-400">
@@ -338,7 +374,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
         />
       </div>
 
-      {/* List */}
+      {/* List Grid view */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((usr) => (
           <div 
@@ -384,7 +420,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               <div className="text-[11px] text-gray-500 space-y-1 pt-1 font-sans">
                 <p><strong>Personal ID:</strong> <span className="font-mono">{usr.personal_id}</span></p>
                 <p><strong>Email:</strong> <span className="font-mono">{usr.email}</span></p>
-                <p><strong>Phone:</strong> <span className="font-mono text-emerald-900 font-bold">{usr.phone}</span></p>
+                <p><strong>Phone:</strong> <span className="font-mono text-emerald-950 font-bold">{usr.phone}</span></p>
               </div>
             </div>
 

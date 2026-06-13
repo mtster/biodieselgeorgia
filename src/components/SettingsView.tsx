@@ -1,6 +1,4 @@
 import React from 'react';
-import { isSupabaseConfigured } from '../lib/db';
-import { Database } from 'lucide-react';
 
 interface Props {
   onResetDatabase: () => void;
@@ -13,34 +11,30 @@ export default function SettingsView({ onResetDatabase }: Props) {
       {/* Header */}
       <div>
         <h2 className="text-xl font-extrabold text-gray-800">Settings & System</h2>
-        <p className="text-xs text-gray-500 mt-1 font-sans">System core configuration and node status monitoring.</p>
+        <p className="text-xs text-gray-500 mt-1 font-sans">System core configuration options.</p>
       </div>
 
-      <div className="max-w-xl">
-        
-        {/* Status indicator database */}
-        <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4">
-          <h3 className="text-sm font-black text-gray-850 flex items-center gap-1.5 border-b pb-2">
-            <Database size={16} className="text-emerald-700" />
-            Core Node Status
+      <div className="max-w-xl pb-10">
+        <div className="bg-white border p-6 rounded-2xl shadow-xs space-y-4">
+          <h3 className="text-sm font-bold text-gray-800 border-b pb-2">
+            Reset System Database
           </h3>
-
-          <div className="space-y-3.5 text-xs text-gray-650">
-            <div className="flex items-center justify-between">
-              <span>Connection Status:</span>
-              <span className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
-                isSupabaseConfigured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-              }`}>
-                {isSupabaseConfigured ? 'Connected (Supabase Realtime)' : 'Local Storage Mode'}
-              </span>
-            </div>
-
-            <div className="pt-2 border-t text-[11px] text-gray-400 font-sans leading-relaxed">
-              Closed enterprise environment routing is online and fully secured. Database integrity handles rollback logging via audit logs change history.
-            </div>
-          </div>
+          <p className="text-xs text-gray-500 leading-relaxed font-sans">
+            Warning: Resetting the database will delete all local storage records (users, suppliers, orders, history, and lookups) and reset them to system defaults. This action cannot be undone.
+          </p>
+          <button
+            onClick={() => {
+              if (confirm("Are you absolutely sure you want to reset the system database? All local mock modifications will be lost.")) {
+                onResetDatabase();
+                alert("Database reset successfully! Reloading...");
+                window.location.reload();
+              }
+            }}
+            className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-xs rounded-xl border border-rose-200 transition cursor-pointer"
+          >
+            Reset Database & Recalibrate
+          </button>
         </div>
-
       </div>
 
     </div>

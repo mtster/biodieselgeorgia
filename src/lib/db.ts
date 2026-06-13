@@ -871,6 +871,20 @@ export async function revertChange(log: ChangeHistory, loggerName: string): Prom
         }
       }
     }
+
+    // ✅ Mark the log as reverted in local storage
+    const historyList = getLocal<ChangeHistory[]>(KEY_CHANGE_HISTORY, []);
+    const updatedHistory = historyList.map(item => item.id === log.id ? { ...item, is_reverted: true } : item);
+    setLocal(KEY_CHANGE_HISTORY, updatedHistory);
+
+    // ✅ Sync to Supabase if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('change_history').update({ is_reverted: true }).eq('id', log.id);
+      } catch (err) {
+        console.warn('Could not update change_history column is_reverted, fallback ok:', err);
+      }
+    }
   } catch (e) {
     console.error('Failed to revert change:', e);
     return false;

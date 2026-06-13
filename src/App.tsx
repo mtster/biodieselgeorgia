@@ -169,38 +169,68 @@ export default function App() {
 
   // Operations
   const handleUserSave = async (user: User) => {
-    await saveUser(user, currentUser?.name || 'System');
-    await refreshAllData();
+    try {
+      await saveUser(user, currentUser?.name || 'System');
+      await refreshAllData();
+    } catch (e: any) {
+      console.error('Error saving user:', e);
+      alert(`⚠️ Authentication / Sync Error: ${e.message || 'Check your permissions.'}\nCould not add or update this user in the Auth database.`);
+    }
   };
 
   const handleUserDelete = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete user: ${name}?`)) {
-      await deleteUser(id, name, currentUser?.name || 'System');
-      await refreshAllData();
+      try {
+        await deleteUser(id, name, currentUser?.name || 'System');
+        await refreshAllData();
+      } catch (e: any) {
+        console.error('Error deleting user:', e);
+        alert(`⚠️ Delete Error: ${e.message || 'Permissions denied.'}`);
+      }
     }
   };
 
   const handleVendorSave = async (vnd: Vendor) => {
-    await saveVendor(vnd, currentUser?.name || 'System');
-    await refreshAllData();
+    try {
+      await saveVendor(vnd, currentUser?.name || 'System');
+      await refreshAllData();
+    } catch (e: any) {
+      console.error('Error saving supplier:', e);
+      alert(`⚠️ Supplier Save Error: ${e.message || 'Check connection / permissions.'}`);
+    }
   };
 
   const handleVendorDelete = async (id: string, tradeName: string) => {
     if (confirm(`Are you sure you want to delete supplier (${tradeName})?`)) {
-      await deleteVendor(id, tradeName, currentUser?.name || 'System');
-      await refreshAllData();
+      try {
+        await deleteVendor(id, tradeName, currentUser?.name || 'System');
+        await refreshAllData();
+      } catch (e: any) {
+        console.error('Error deleting supplier:', e);
+        alert(`⚠️ Supplier Delete Error: ${e.message || 'Check permissions.'}`);
+      }
     }
   };
 
   const handleOrderSave = async (ord: Order) => {
-    await saveOrder(ord, currentUser?.name || 'System');
-    await refreshAllData();
+    try {
+      await saveOrder(ord, currentUser?.name || 'System');
+      await refreshAllData();
+    } catch (e: any) {
+      console.error('Error saving order:', e);
+      alert(`⚠️ Order Save Error: ${e.message || 'Check connection / permissions.'}`);
+    }
   };
 
   const handleOrderDelete = async (id: string, docNum: string) => {
     if (confirm(`Are you sure you want to delete order #${docNum}?`)) {
-      await deleteOrder(id, docNum, currentUser?.name || 'System');
-      await refreshAllData();
+      try {
+        await deleteOrder(id, docNum, currentUser?.name || 'System');
+        await refreshAllData();
+      } catch (e: any) {
+        console.error('Error deleting order:', e);
+        alert(`⚠️ Order Delete Error: ${e.message || 'Check permissions.'}`);
+      }
     }
   };
 

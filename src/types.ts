@@ -120,6 +120,7 @@ export interface ChangeHistory {
   field_name?: string;        // ველი
   old_value?: string;         // ძველი მნიშვნელობა
   new_value?: string;         // ახალი მნიშვნელობა
+  is_reverted?: boolean;      // ✅ Reverted status state
 }
 
 export interface Warehouse {

@@ -69,9 +69,9 @@ export default function HistoryView({ history, onRevert }: Props) {
                     {log.new_value || '-'}
                   </td>
                   <td className="py-2 px-4 text-right">
-                    {successId === log.id ? (
+                    {successId === log.id || log.is_reverted ? (
                       <span className="inline-flex items-center gap-1.5 text-emerald-700 font-sans font-bold py-1">
-                        <CheckCircle2 size={13} className="text-emerald-600 animate-bounce" /> Reverted
+                        <CheckCircle2 size={13} className="text-emerald-600" /> Reverted
                       </span>
                     ) : (
                       <button
