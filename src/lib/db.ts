@@ -129,13 +129,13 @@ export async function trackChange(
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('profiles').select('*').order('name');
+      const { data, error } = await supabase.from('profiles').select('*').eq('is_deleted', false).order('name');
       if (!error && data) return data;
     } catch (e) {
       console.warn('Supabase getUsers failed', e);
     }
   }
-  return getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
+  return getLocal<User[]>(KEY_USERS, DEFAULT_USERS).filter(item => !item.is_deleted);
 }
 
 export async function saveUser(user: User, loggerName: string): Promise<User> {
@@ -248,7 +248,7 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
   }
 
   const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
-  setLocal(KEY_USERS, list.filter(item => item.id !== id));
+  setLocal(KEY_USERS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'User deleted', 'Name', name, '');
   return true;
 }
@@ -257,13 +257,13 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
 export async function getVendors(): Promise<Vendor[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('vendors').select('*').order('trade_name');
+      const { data, error } = await supabase.from('vendors').select('*').eq('is_deleted', false).order('trade_name');
       if (!error && data) return data;
     } catch (e) {
       console.warn('Supabase getVendors failed', e);
     }
   }
-  return getLocal<Vendor[]>(KEY_VENDORS, []);
+  return getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted);
 }
 
 export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
@@ -300,14 +300,14 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
 export async function deleteVendor(id: string, tradeName: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('vendors').delete().eq('id', id);
+      await supabase.from('vendors').update({ is_deleted: true }).eq('id', id);
     } catch (e) {
       console.error('Supabase deleteVendor failed', e);
     }
   }
 
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
-  setLocal(KEY_VENDORS, list.filter(item => item.id !== id));
+  setLocal(KEY_VENDORS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Vendor deleted', 'Trade Name', tradeName, '');
   return true;
 }
@@ -316,13 +316,13 @@ export async function deleteVendor(id: string, tradeName: string, loggerName: st
 export async function getOrders(): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('orders').select('*').order('order_date', { ascending: false });
+      const { data, error } = await supabase.from('orders').select('*').eq('is_deleted', false).order('order_date', { ascending: false });
       if (!error && data) return data;
     } catch (e) {
       console.warn('Supabase getOrders failed', e);
     }
   }
-  return getLocal<Order[]>(KEY_ORDERS, []);
+  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted);
 }
 
 export async function saveOrder(order: Order, loggerName: string): Promise<Order> {
@@ -393,14 +393,14 @@ export async function getSMSLogs(): Promise<any[]> {
 export async function deleteOrder(id: string, docNum: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('orders').delete().eq('id', id);
+      await supabase.from('orders').update({ is_deleted: true }).eq('id', id);
     } catch (e) {
       console.error('Supabase deleteOrder failed', e);
     }
   }
 
   const list = getLocal<Order[]>(KEY_ORDERS, []);
-  setLocal(KEY_ORDERS, list.filter(item => item.id !== id));
+  setLocal(KEY_ORDERS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Order deleted', 'Document #', docNum, '');
   return true;
 }
@@ -409,13 +409,13 @@ export async function deleteOrder(id: string, docNum: string, loggerName: string
 export async function getCommunications(): Promise<Communication[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('communications').select('*').order('date_time', { ascending: false });
+      const { data, error } = await supabase.from('communications').select('*').eq('is_deleted', false).order('date_time', { ascending: false });
       if (!error && data) return data;
     } catch (e) {
       console.warn('Supabase getCommunications failed', e);
     }
   }
-  return getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
+  return getLocal<Communication[]>(KEY_COMMUNICATIONS, []).filter(item => !item.is_deleted);
 }
 
 export async function saveCommunication(comm: Communication, loggerName: string): Promise<Communication> {
@@ -459,14 +459,14 @@ export async function saveCommunication(comm: Communication, loggerName: string)
 export async function deleteCommunication(id: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('communications').delete().eq('id', id);
+      await supabase.from('communications').update({ is_deleted: true }).eq('id', id);
     } catch (e) {
       console.error('Supabase deleteCommunication failed', e);
     }
   }
 
   const list = getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
-  setLocal(KEY_COMMUNICATIONS, list.filter(item => item.id !== id));
+  setLocal(KEY_COMMUNICATIONS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Communication deleted', 'ID', id, '');
   return true;
 }
@@ -475,13 +475,13 @@ export async function deleteCommunication(id: string, loggerName: string): Promi
 export async function getTrucks(): Promise<Truck[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('trucks').select('*').order('plate_number');
+      const { data, error } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
       if (!error && data) return data;
     } catch (e) {
       console.warn('Supabase getTrucks failed', e);
     }
   }
-  return getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
+  return getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS).filter(item => !item.is_deleted);
 }
 
 export async function saveTruck(truck: Truck, loggerName: string): Promise<Truck> {
@@ -513,14 +513,14 @@ export async function saveTruck(truck: Truck, loggerName: string): Promise<Truck
 export async function deleteTruck(plate: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('trucks').delete().eq('plate_number', plate);
+      await supabase.from('trucks').update({ is_deleted: true }).eq('plate_number', plate);
     } catch (e) {
       console.error('Supabase deleteTruck failed', e);
     }
   }
 
   const list = getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
-  setLocal(KEY_TRUCKS, list.filter(item => item.plate_number !== plate));
+  setLocal(KEY_TRUCKS, list.map(item => item.plate_number === plate ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Truck deleted', 'Plate Number', plate, '');
   return true;
 }
@@ -712,7 +712,173 @@ export async function deleteDistrict(id: string, name: string, loggerName: strin
   return true;
 }
 
-// 10. SYSTEM RESET
+// 10. REVERT/ROLLBACK UTILITY
+export async function revertChange(log: ChangeHistory, loggerName: string): Promise<boolean> {
+  const op = log.operation.toLowerCase();
+  
+  try {
+    // 1. USER REVERTS
+    if (op.includes('user')) {
+      const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
+      if (op.includes('added') || op.includes('created')) {
+        const user = list.find(u => u.name === log.new_value && !u.is_deleted);
+        if (user) {
+          await deleteUser(user.id, user.name, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const user = list.find(u => u.name === log.old_value && u.is_deleted);
+        if (user) {
+          user.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('profiles').update({ is_deleted: false }).eq('id', user.id);
+          }
+          setLocal(KEY_USERS, list.map(u => u.id === user.id ? user : u));
+          await trackChange(loggerName, 'User restored', 'Name', '', user.name);
+        }
+      } else if (op.includes('updated')) {
+        const user = list.find(u => u.name === log.new_value && !u.is_deleted) || list.find(u => u.name === log.old_value && !u.is_deleted);
+        if (user) {
+          const field = log.field_name || 'Name';
+          if (field === 'Name') user.name = log.old_value || user.name;
+          if (field === 'Role') user.role = (log.old_value as any) || user.role;
+          if (field === 'Phone') user.phone = log.old_value || user.phone;
+          
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('profiles').update({
+              name: user.name,
+              role: user.role,
+              phone: user.phone
+            }).eq('id', user.id);
+          }
+          setLocal(KEY_USERS, list.map(u => u.id === user.id ? user : u));
+          await trackChange(loggerName, 'User update reverted', field, log.new_value, log.old_value);
+        }
+      }
+    }
+    
+    // 2. VENDOR REVERTS
+    else if (op.includes('vendor') || op.includes('supplier')) {
+      const list = getLocal<Vendor[]>(KEY_VENDORS, []);
+      if (op.includes('added') || op.includes('created')) {
+        const vendor = list.find(v => v.trade_name === log.new_value && !v.is_deleted);
+        if (vendor) {
+          await deleteVendor(vendor.id, vendor.trade_name, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const vendor = list.find(v => v.trade_name === log.old_value && v.is_deleted);
+        if (vendor) {
+          vendor.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('vendors').update({ is_deleted: false }).eq('id', vendor.id);
+          }
+          setLocal(KEY_VENDORS, list.map(v => v.id === vendor.id ? vendor : v));
+          await trackChange(loggerName, 'Vendor restored', 'Trade Name', '', vendor.trade_name);
+        }
+      } else if (op.includes('updated')) {
+        const vendor = list.find(v => v.trade_name === log.new_value && !v.is_deleted) || list.find(v => v.trade_name === log.old_value && !v.is_deleted);
+        if (vendor) {
+          const field = log.field_name || 'Trade Name';
+          if (field === 'Trade Name') vendor.trade_name = log.old_value || vendor.trade_name;
+          if (field === 'Price' || field === 'Price per Liter' || field === 'Price Per Liter') vendor.price_per_liter = Number(log.old_value) || vendor.price_per_liter;
+          if (field === 'Bank Account') vendor.bank_account = log.old_value || vendor.bank_account;
+          
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('vendors').update(vendor).eq('id', vendor.id);
+          }
+          setLocal(KEY_VENDORS, list.map(v => v.id === vendor.id ? vendor : v));
+          await trackChange(loggerName, 'Vendor update reverted', field, log.new_value, log.old_value);
+        }
+      }
+    }
+    
+    // 3. ORDER REVERTS
+    else if (op.includes('order')) {
+      const list = getLocal<Order[]>(KEY_ORDERS, []);
+      if (op.includes('added') || op.includes('created')) {
+        const order = list.find(o => o.doc_number === log.new_value && !o.is_deleted);
+        if (order) {
+          await deleteOrder(order.id, order.doc_number, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const order = list.find(o => o.doc_number === log.old_value && o.is_deleted);
+        if (order) {
+          order.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('orders').update({ is_deleted: false }).eq('id', order.id);
+          }
+          setLocal(KEY_ORDERS, list.map(o => o.id === order.id ? order : o));
+          await trackChange(loggerName, 'Order restored', 'Document #', '', order.doc_number);
+        }
+      } else if (op.includes('updated')) {
+        const order = list.find(o => o.doc_number === log.new_value && !o.is_deleted) || list.find(o => o.doc_number === log.old_value && !o.is_deleted);
+        if (order) {
+          const field = log.field_name || 'Status';
+          if (field === 'Status') order.status = (log.old_value as any) || order.status;
+          
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('orders').update({ status: order.status }).eq('id', order.id);
+          }
+          setLocal(KEY_ORDERS, list.map(o => o.id === order.id ? order : o));
+          await trackChange(loggerName, 'Order update reverted', field, log.new_value, log.old_value);
+        }
+      }
+    }
+  
+    // 4. TRUCK REVERTS
+    else if (op.includes('truck')) {
+      const list = getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
+      if (op.includes('added') || op.includes('created')) {
+        const truck = list.find(t => t.plate_number === log.new_value && !t.is_deleted);
+        if (truck) {
+          await deleteTruck(truck.plate_number, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const truck = list.find(t => t.plate_number === log.old_value && t.is_deleted);
+        if (truck) {
+          truck.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('trucks').update({ is_deleted: false }).eq('plate_number', truck.plate_number);
+          }
+          setLocal(KEY_TRUCKS, list.map(t => t.plate_number === truck.plate_number ? truck : t));
+          await trackChange(loggerName, 'Truck restored', 'Plate Number', '', truck.plate_number);
+        }
+      }
+    }
+  
+    // 5. OTHER UTILITIES (Warehouses, Cities, Districts)
+    else if (op.includes('warehouse')) {
+      const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
+      if (op.includes('added') || op.includes('created')) {
+        const entry = list.find(w => w.name === log.new_value);
+        if (entry) {
+          await deleteWarehouse(entry.id, entry.name, loggerName);
+        }
+      }
+    } else if (op.includes('city')) {
+      const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
+      if (op.includes('added') || op.includes('created')) {
+        const entry = list.find(c => c.name === log.new_value);
+        if (entry) {
+          await deleteCity(entry.id, entry.name, loggerName);
+        }
+      }
+    } else if (op.includes('district')) {
+      const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
+      if (op.includes('added') || op.includes('created')) {
+        const entry = list.find(d => d.name === log.new_value);
+        if (entry) {
+          await deleteDistrict(entry.id, entry.name, loggerName);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Failed to revert change:', e);
+    return false;
+  }
+  return true;
+}
+
+// 11. SYSTEM RESET
 export function resetSystemDatabase() {
   localStorage.removeItem(KEY_USERS);
   localStorage.removeItem(KEY_VENDORS);

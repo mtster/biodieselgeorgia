@@ -59,6 +59,7 @@ CREATE TABLE public.profiles (
     phone TEXT NOT NULL,
     role public.user_role NOT NULL,
     privileges TEXT[] DEFAULT '{}'::TEXT[],
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -68,6 +69,7 @@ CREATE TABLE public.trucks (
     model TEXT NOT NULL,
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -89,6 +91,7 @@ CREATE TABLE public.vendors (
     contacts JSONB DEFAULT '[]'::JSONB,     -- Contacts List
     comments JSONB DEFAULT '[]'::JSONB,     -- Comments History
     working_hours TEXT,                     -- Working Hours
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_pickup_date TIMESTAMPTZ,
     average_interval_days INT DEFAULT 0
@@ -115,6 +118,7 @@ CREATE TABLE public.orders (
     truck_plate TEXT REFERENCES public.trucks(plate_number) ON DELETE SET NULL, -- Assigned Vehicle Plate
     status TEXT NOT NULL DEFAULT 'registered' CHECK (status IN ('registered', 'scheduled', 'completed', 'cancelled')),
     sms_sent BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -128,6 +132,7 @@ CREATE TABLE public.communications (
     vendor_id TEXT REFERENCES public.vendors(id) ON DELETE CASCADE,  -- Connected Vendor
     vendor_contact_id TEXT,                   -- Specific contact person
     comment TEXT NOT NULL,                     -- Notes/Log details
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -201,7 +206,9 @@ CREATE POLICY "Authenticated full access on change_history" ON public.change_his
 CREATE POLICY "Users can read profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL TO authenticated USING (
-  COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin'
+  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+) WITH CHECK (
+  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
 );
 
 -- Indices for high-speed performance

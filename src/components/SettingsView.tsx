@@ -1,27 +1,19 @@
 import React from 'react';
 import { isSupabaseConfigured } from '../lib/db';
-import { Database, RefreshCw } from 'lucide-react';
+import { Database } from 'lucide-react';
 
 interface Props {
   onResetDatabase: () => void;
 }
 
 export default function SettingsView({ onResetDatabase }: Props) {
-  const handleReset = () => {
-    if (confirm('Are you sure you want to completely clear the database? All records will be deleted!')) {
-      onResetDatabase();
-      alert('Database cleared! The application will restart.');
-      window.location.reload();
-    }
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="settings-system-panel">
       
       {/* Header */}
       <div>
         <h2 className="text-xl font-extrabold text-gray-800">Settings & System</h2>
-        <p className="text-xs text-gray-500 mt-1 font-sans">Full database management and system settings.</p>
+        <p className="text-xs text-gray-500 mt-1 font-sans">System core configuration and node status monitoring.</p>
       </div>
 
       <div className="max-w-xl">
@@ -30,7 +22,7 @@ export default function SettingsView({ onResetDatabase }: Props) {
         <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4">
           <h3 className="text-sm font-black text-gray-850 flex items-center gap-1.5 border-b pb-2">
             <Database size={16} className="text-emerald-700" />
-            Database Status
+            Core Node Status
           </h3>
 
           <div className="space-y-3.5 text-xs text-gray-650">
@@ -43,15 +35,8 @@ export default function SettingsView({ onResetDatabase }: Props) {
               </span>
             </div>
 
-            <div className="pt-2 border-t space-y-2.5">
-              <p className="font-bold text-gray-800">Clear/Reset Database:</p>
-              <button 
-                onClick={handleReset}
-                className="w-full py-2 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <RefreshCw size={13} className="animate-spin" />
-                Completely Clear Database (Wipe DB)
-              </button>
+            <div className="pt-2 border-t text-[11px] text-gray-400 font-sans leading-relaxed">
+              Closed enterprise environment routing is online and fully secured. Database integrity handles rollback logging via audit logs change history.
             </div>
           </div>
         </div>

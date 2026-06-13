@@ -19,7 +19,7 @@ import {
   getWarehouses, saveWarehouse, deleteWarehouse,
   getCities, saveCity, deleteCity,
   getDistricts, saveDistrict, deleteDistrict,
-  resetSystemDatabase, isSupabaseConfigured, supabase
+  resetSystemDatabase, isSupabaseConfigured, supabase, revertChange
 } from './lib/db';
 
 // Modular view components
@@ -276,6 +276,19 @@ export default function App() {
     await refreshAllData();
   };
 
+  const handleRevertChange = async (log: ChangeHistory): Promise<boolean> => {
+    try {
+      const success = await revertChange(log, currentUser?.name || 'System');
+      if (success) {
+        await refreshAllData();
+      }
+      return success;
+    } catch (e) {
+      console.error('Rollback error:', e);
+      return false;
+    }
+  };
+
   const handleLogOut = async () => {
     if (isSupabaseConfigured && supabase) {
       try {
@@ -438,7 +451,7 @@ export default function App() {
 
         {/* Content viewport */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-16">
-          <div className="max-w-6xl mx-auto">
+          <div className="w-full">
             {activeTab === 'dashboard' && (
               <DashboardView 
                 suppliers={vendors}
@@ -546,6 +559,7 @@ export default function App() {
             {activeTab === 'history' && (
               <HistoryView 
                 history={changeHistory}
+                onRevert={handleRevertChange}
               />
             )}
 

@@ -136,7 +136,10 @@ async function startServer() {
         return res.status(400).json({ error: "User ID is required" });
       }
 
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(id);
+      const { error: deleteError } = await supabaseAdmin
+        .from("profiles")
+        .update({ is_deleted: true })
+        .eq("id", id);
       if (deleteError) {
         return res.status(500).json({ error: deleteError.message });
       }

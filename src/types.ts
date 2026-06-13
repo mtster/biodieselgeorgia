@@ -14,6 +14,7 @@ export interface User {
   phone: string;
   role: UserRole;
   privileges: string[]; // ოპერაციების პრივილეგიები
+  is_deleted?: boolean;
   created_at?: string;
 }
 
@@ -50,6 +51,7 @@ export interface Vendor {
   contacts: VendorContact[];  // კონტაქტები
   comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
+  is_deleted?: boolean;
   created_at: string;
   last_pickup_date?: string;
   average_interval_days?: number;
@@ -82,6 +84,7 @@ export interface Order {
   truck_plate?: string;       // მანქანა
   status: OrderStatus;        // სტატუსი
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
+  is_deleted?: boolean;
 }
 
 export interface Communication {
@@ -96,6 +99,7 @@ export interface Communication {
   vendor_contact_id: string;  // მომწოდებლის კონტაქტი
   vendor_contact_name?: string;
   comment: string;            // კომენტარი
+  is_deleted?: boolean;
 }
 
 export interface Truck {
@@ -105,6 +109,7 @@ export interface Truck {
   driver_name?: string;
   companion_id?: string;      // (optional profile companion reference)
   companion_name?: string;
+  is_deleted?: boolean;
 }
 
 export interface ChangeHistory {
