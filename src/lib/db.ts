@@ -176,6 +176,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           console.warn('Express /api/create-user failed, trying Supabase Edge function fallback...');
           const { data, error } = await supabase.functions.invoke('create-user', {
             body: {
+              action: 'create',
               email: user.email,
               password: user.password || 'Georgia2026!',
               name: user.name,
@@ -187,7 +188,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           });
 
           if (error) {
-            throw new Error(`Edge Function failed: ${error.message}. Please configure SUPABASE_SERVICE_ROLE_KEY in the AI Studio Settings menu so that our integrated server proxy can route your requests safely.`);
+            throw new Error(`Edge Function failed: ${error.message}. Please configure SERVICE_ROLE_KEY in the AI Studio Settings menu so that our integrated server proxy can route your requests safely.`);
           }
           if (data && (data.user || data.profile)) {
             resData = data;
@@ -212,19 +213,49 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           throw new Error('No user or profile data returned from user creation engines.');
         }
       } else {
-        // Perform direct update in profiles table
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            name: user.name,
-            personal_id: user.personal_id,
-            phone: user.phone,
-            role: user.role,
-            privileges: user.privileges
-          })
-          .eq('id', user.id);
+        // Perform direct update in profiles table AND update auth via Edge function if possible
+        let updatedOnEdge = false;
+        try {
+          const { data, error } = await supabase.functions.invoke('create-user', {
+            body: {
+              action: 'update',
+              id: user.id,
+              email: user.email,
+              password: user.password || '', // update password if provided
+              name: user.name,
+              personal_id: user.personal_id,
+              phone: user.phone,
+              role: user.role,
+              privileges: user.privileges
+            }
+          });
+          if (!error && data) {
+            updatedOnEdge = true;
+            if (data.user) {
+              finalUser = data.user;
+            }
+          } else if (error) {
+            console.warn('Edge Function update failed, trying direct profiles table update:', error.message);
+          }
+        } catch (edgeErr: any) {
+          console.warn('Edge Function invoke error, trying direct profiles update:', edgeErr);
+        }
 
-        if (error) throw error;
+        if (!updatedOnEdge) {
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              name: user.name,
+              personal_id: user.personal_id,
+              phone: user.phone,
+              role: user.role,
+              privileges: user.privileges
+            })
+            .eq('id', user.id);
+
+          if (error) throw error;
+          finalUser = { ...user } as User;
+        }
       }
     } catch (e: any) {
       console.error('Supabase saveUser failed', e);
@@ -259,18 +290,39 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
         throw new Error('Not authenticated on client');
       }
 
-      const res = await fetch('/api/delete-user', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ id })
-      });
+      let deletedOnExpress = false;
+      try {
+        const res = await fetch('/api/delete-user', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ id })
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Secure API failed to delete user');
+        if (res.ok) {
+          deletedOnExpress = true;
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          console.warn('Express delete-user failed:', errData.error || 'Unknown error');
+        }
+      } catch (err) {
+        console.warn('Express /api/delete-user endpoint is missing/failed, invoking Edge function...', err);
+      }
+
+      if (!deletedOnExpress) {
+        // Fallback to Edge function user deletion
+        const { error } = await supabase.functions.invoke('create-user', {
+          body: {
+            action: 'delete',
+            id
+          }
+        });
+
+        if (error) {
+          throw new Error(`Edge Function failed: ${error.message}. Please configure SERVICE_ROLE_KEY in the AI Studio Settings menu so that our integrated server proxy can route your requests safely.`);
+        }
       }
     } catch (e: any) {
       console.error('Supabase deleteUser failed', e);

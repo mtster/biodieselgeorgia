@@ -222,55 +222,57 @@ export default function OrdersView({
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md pb-5 pt-3 -mt-4 -mx-4 px-4 md:-mt-6 md:-mx-6 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left mb-6 shadow-xs">
-        <div>
-          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Collection Orders</h2>
-          <p className="text-xs text-gray-550 mt-1 font-sans">
-            {editingOrder 
-              ? (isNew ? 'Creating order' : `Editing: Order #${editingOrder.doc_number}`)
-              : 'Oil collection progress, driver assignments, and warehouses routing.'
-            }
-          </p>
-        </div>
+      <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
+        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Orders</h2>
+            <p className="text-xs text-gray-550 mt-1 font-sans">
+              {editingOrder 
+                ? (isNew ? 'Creating order' : `Editing: Order #${editingOrder.doc_number}`)
+                : 'Oil collection progress, driver assignments, and warehouses routing.'
+              }
+            </p>
+          </div>
 
-        <div className="flex items-center gap-3">
-          {editingOrder ? (
-            <>
-              <button 
-                onClick={() => setEditingOrder(null)}
-                className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveAll}
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-              >
-                Save
-              </button>
-            </>
-          ) : (
-            <>
-              <button 
-                onClick={() => {
-                  loadSMSLogs();
-                  setShowSMSLogs(true);
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-55 bg-slate-100 hover:bg-slate-200 text-slate-705 border rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer select-none"
-              >
-                <MessageSquareCode size={15} className="text-emerald-700 animate-pulse" />
-                SMS Dispatch Logs ({smsLogs.length})
-              </button>
-              
-              <button 
-                onClick={startNew}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none"
-              >
-                <Plus size={15} />
-                New Order
-              </button>
-            </>
-          )}
+          <div className="flex items-center gap-3">
+            {editingOrder ? (
+              <>
+                <button 
+                  onClick={() => setEditingOrder(null)}
+                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveAll}
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+                >
+                  Save
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => {
+                    loadSMSLogs();
+                    setShowSMSLogs(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-55 bg-slate-100 hover:bg-slate-200 text-slate-755 border rounded-xl text-xs font-bold text-gray-700 transition cursor-pointer select-none"
+                >
+                  <MessageSquareCode size={15} className="text-emerald-700 animate-pulse" />
+                  SMS Dispatch Logs ({smsLogs.length})
+                </button>
+                
+                <button 
+                  onClick={startNew}
+                  className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none"
+                >
+                  <Plus size={15} />
+                  New Order
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -639,7 +641,7 @@ export default function OrdersView({
       ) : (
         <div className="space-y-6 text-left">
           {/* SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-4.5 shadow-xs flex flex-col md:flex-row gap-3 select-none">
+          <div className="bg-white rounded-2xl border border-gray-100 p-3 shadow-xs flex flex-col md:flex-row md:items-center gap-3 select-none">
             <div className="flex-1 relative">
               <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400">
                 <Search size={15} />
@@ -650,14 +652,14 @@ export default function OrdersView({
                 placeholder="Search dispatches by supplier trade name, legal entity, or document coordinate..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-800 font-sans transition"
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-800 font-sans text-xs transition"
               />
             </div>
 
-            <div className="w-full md:w-56 flex gap-2 font-sans">
+            <div className="w-full md:w-64 flex gap-2 font-sans shrink-0">
               <button 
                 onClick={() => setSelectedStatus('')}
-                className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
                   selectedStatus === '' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                 }`}
               >
@@ -665,16 +667,16 @@ export default function OrdersView({
               </button>
               <button 
                 onClick={() => setSelectedStatus('registered')}
-                className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                  selectedStatus === 'registered' ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-650 border-gray-200 hover:bg-gray-100'
+                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                  selectedStatus === 'registered' ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                 }`}
               >
                 Registered
               </button>
               <button 
                 onClick={() => setSelectedStatus('completed')}
-                className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                  selectedStatus === 'completed' ? 'bg-emerald-650 text-white border-emerald-650' : 'bg-gray-50 text-gray-655 border-gray-200 hover:bg-gray-100'
+                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                  selectedStatus === 'completed' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                 }`}
               >
                 Completed

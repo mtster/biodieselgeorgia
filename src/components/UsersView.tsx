@@ -52,7 +52,24 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
 
   const startEdit = (usr: User) => {
     setErrorMessage(null);
-    setEditingUser(JSON.parse(JSON.stringify(usr)));
+    let privileges = [...(usr.privileges || [])];
+    
+    // Normalize any old legacy privileges values
+    privileges = privileges.map(p => {
+      if (p === 'Manage') return 'Management';
+      if (p === 'Order') return 'Orders';
+      return p;
+    });
+
+    // If 'All' is present, explicitly expand it to all availablePrivileges for UX clarity and seamless handling
+    if (privileges.includes('All')) {
+      privileges = Array.from(new Set([...privileges, ...availablePrivileges]));
+    }
+
+    setEditingUser({
+      ...usr,
+      privileges
+    });
     setIsNew(false);
   };
 
@@ -165,45 +182,47 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md pb-5 pt-3 -mt-4 -mx-4 px-4 md:-mt-6 md:-mx-6 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left mb-6 shadow-xs">
-        <div>
-          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
-          <p className="text-xs text-gray-550 mt-1 font-sans">
-            {editingUser 
-              ? (isNew ? 'Creating a new user' : `Editing: ${editingUser.name}`)
-              : 'Biodiesel Georgia staff, managers, drivers, suppliers, and their operations privileges.'
-            }
-          </p>
-        </div>
+      <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
+        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
+            <p className="text-xs text-gray-550 mt-1 font-sans">
+              {editingUser 
+                ? (isNew ? 'Creating a new user' : `Editing: ${editingUser.name}`)
+                : 'Biodiesel Georgia staff, managers, drivers, suppliers, and their operations privileges.'
+              }
+            </p>
+          </div>
 
-        <div className="flex items-center gap-3">
-          {editingUser ? (
-            <>
-              <button 
-                onClick={() => setEditingUser(null)}
-                className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveAll}
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-              >
-                Save
-              </button>
-            </>
-          ) : (
-            currentUser.role === 'admin' && (
-              <button 
-                id="btn-add-new-user"
-                onClick={startNew}
-                className="flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition-all cursor-pointer shadow-sm select-none"
-              >
-                <Plus size={15} />
-                New User
-              </button>
-            )
-          )}
+          <div className="flex items-center gap-3">
+            {editingUser ? (
+              <>
+                <button 
+                  onClick={() => setEditingUser(null)}
+                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveAll}
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+                >
+                  Save
+                </button>
+              </>
+            ) : (
+              currentUser.role === 'admin' && (
+                <button 
+                  id="btn-add-new-user"
+                  onClick={startNew}
+                  className="flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition-all cursor-pointer shadow-sm select-none"
+                >
+                  <Plus size={15} />
+                  New User
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
 
