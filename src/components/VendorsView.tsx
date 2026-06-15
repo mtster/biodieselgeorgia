@@ -479,19 +479,16 @@ export default function VendorsView({
             left: `${Math.max(16, hoveredComments.rect.left + (hoveredComments.rect.width / 2) - 160)}px`,
             ...(hoveredComments.rect.top >= 220 ? { transform: 'translateY(-100%)' } : {})
           }}
-          className="w-80 bg-slate-850 bg-slate-800 text-slate-100 rounded-xl p-3.5 shadow-2xl text-[11px] leading-relaxed z-50 space-y-2 border border-slate-700 pointer-events-none select-none transition-all duration-150"
+          className="w-80 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-3.5 shadow-xl text-[11px] leading-relaxed z-50 space-y-2 pointer-events-none select-none transition-all duration-150"
         >
-          <p className="font-extrabold font-sans border-b border-slate-705 border-slate-700 pb-1 text-[10px] text-emerald-400 uppercase tracking-wider">
-            Full Comments Ledger ({hoveredComments.comments.length})
-          </p>
           <div className="space-y-2 max-h-40 overflow-y-auto pr-1 select-text">
             {hoveredComments.comments.map(c => (
-              <div key={c.id} className="border-b border-slate-700/50 last:border-0 pb-1.5 last:pb-0">
-                <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold mb-0.5 font-sans">
-                  <span className="text-emerald-300 font-sans">{c.user_name}</span>
+              <div key={c.id} className="border-b border-slate-200 last:border-0 pb-1.5 last:pb-0 font-sans">
+                <div className="flex justify-between items-center text-[9px] text-slate-500 font-bold mb-0.5 font-sans">
+                  <span className="text-emerald-800 font-sans">{c.user_name}</span>
                   <span>{new Date(c.date).toLocaleString()}</span>
                 </div>
-                <p className="font-sans text-slate-200 break-words">{c.comment}</p>
+                <p className="font-sans text-slate-700 break-words">{c.comment}</p>
               </div>
             ))}
           </div>

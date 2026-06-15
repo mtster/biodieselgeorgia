@@ -211,7 +211,7 @@ serve(async (req) => {
 
       if (deleteProfileErr) {
         return new Response(JSON.stringify({ error: `Failed to delete profile: ${deleteProfileErr.message}` }), {
-          status: 500,
+          status: 505,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         })
       }
@@ -230,7 +230,7 @@ serve(async (req) => {
 
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message || "Internal execution failure" }), {
-      status: 500,
+      status: 505,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     })
   }

@@ -125,7 +125,7 @@ export default function OrderForm({
       ...finalOrder,
       vendor_name: supplierObj?.trade_name || '',
       warehouse_name: warehouseObj?.name || '',
-      user_name: operatorObj?.name || currentEmployee.name,
+      operator_name: operatorObj?.name || currentEmployee.name,
       driver_name: driverObj?.name || '',
       companion_name: companionObj?.name || ''
     };

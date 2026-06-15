@@ -27,10 +27,18 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
 
   if (isSupabaseConfigured && supabase) {
     try {
+      const dbPayload = {
+        ...finalVendor,
+        warehouse_id: finalVendor.warehouse_id || null,
+        manager_id: finalVendor.manager_id || null,
+        operator_id: finalVendor.operator_id || null
+      };
       if (isNew) {
-        await supabase.from('vendors').insert([finalVendor]);
+        const { error } = await supabase.from('vendors').insert([dbPayload]);
+        if (error) console.error('Supabase insert error details:', error);
       } else {
-        await supabase.from('vendors').update(finalVendor).eq('id', finalVendor.id);
+        const { error } = await supabase.from('vendors').update(dbPayload).eq('id', dbPayload.id);
+        if (error) console.error('Supabase update error details:', error);
       }
     } catch (e) {
       console.error('Supabase saveVendor failed', e);
