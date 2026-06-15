@@ -219,6 +219,30 @@ export default function VendorForm({
     onSave(payload);
   };
 
+  const fillDummyData = () => {
+    setEditingVendor({
+      ...editingVendor,
+      trade_name: 'Dummy Vendor ' + Math.floor(Math.random() * 1000),
+      company_name: 'Dummy Co. ' + Math.floor(Math.random() * 1000),
+      id_code: '123' + Math.floor(Math.random() * 100000000),
+      city: cities[0]?.name || '',
+      district: districts[0]?.name || '',
+      address: 'Dummy St. 1',
+      price_per_liter: 1.5,
+      warehouse_id: warehouses[0]?.id || '',
+      manager_id: users[0]?.id || '',
+      operator_id: users[0]?.id || '',
+      working_hours: '09:00 - 18:00',
+    });
+    setTempContacts([{
+        id: 'dummy-contact',
+        name: 'John Doe',
+        phone: '555-0100',
+        position: 'director',
+        is_default: true
+    }]);
+  };
+
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl" id="vendors-form-panel">
       {errorMessage && (
@@ -230,6 +254,12 @@ export default function VendorForm({
 
       {/* Floating Save/Cancel bar for small displays */}
       <div className="mb-4 flex items-center justify-end gap-2 md:hidden">
+        <button 
+          onClick={fillDummyData}
+          className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
+        >
+          Fill Dummy
+        </button>
         <button 
           onClick={onCancel}
           className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-gray-700 transition"
@@ -587,6 +617,13 @@ export default function VendorForm({
 
         {/* Action Button Strip for large displays */}
         <div className="hidden md:flex items-center justify-end gap-3 pt-4 border-t border-gray-100 pb-12 select-none">
+          <button 
+            type="button"
+            onClick={fillDummyData}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+          >
+            Fill Dummy
+          </button>
           <button 
             type="button"
             onClick={onCancel}

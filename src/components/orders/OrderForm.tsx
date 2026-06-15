@@ -133,6 +133,19 @@ export default function OrderForm({
     onSave(final);
   };
 
+  const fillDummyOrder = () => {
+    setEditingOrder({
+        ...editingOrder,
+        vendor_id: suppliers[0]?.id || '',
+        warehouse_id: warehouses[0]?.id || '',
+        qty_requested: Math.floor(Math.random() * 1000),
+        driver_id: employees.find(e => e.role === 'driver')?.id || '',
+        truck_plate: trucks[0]?.plate_number || '',
+        note: 'Dummy note',
+    });
+    setVendorSearch(suppliers[0]?.trade_name || '');
+  };
+
   const daysList = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
   const monthsList = [
     { value: '1', name: 'January' },
@@ -160,6 +173,12 @@ export default function OrderForm({
 
       {/* Save & Cancel Quick Action Bar (Floating UX Style inside view) */}
       <div className="mb-4 flex items-center justify-end gap-2 sm:hidden">
+        <button 
+          onClick={fillDummyOrder}
+          className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
+        >
+          Fill Dummy
+        </button>
         <button 
           onClick={onCancel}
           className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-gray-750 transition"
@@ -552,6 +571,13 @@ export default function OrderForm({
 
         {/* Floating Actions for desktop/large screens */}
         <div className="hidden sm:flex items-center justify-end gap-3 pt-4 border-t border-gray-100 pb-12 select-none">
+          <button 
+            type="button"
+            onClick={fillDummyOrder}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+          >
+            Fill Dummy
+          </button>
           <button 
             type="button"
             onClick={onCancel}
