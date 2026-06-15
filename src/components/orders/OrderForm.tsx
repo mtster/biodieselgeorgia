@@ -165,37 +165,26 @@ export default function OrderForm({
 
   return (
     <div className="animate-in fade-in duration-200 max-w-2xl text-left" id="orders-form-panel">
-      {/* Sticky Action Header */}
-      <div className="-mt-4 md:-mt-6 mb-6">
-        <div className="sticky -top-4 md:-top-6 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
-          <div>
-            <h2 className="text-lg font-extrabold text-gray-800 font-sans tracking-tight">Order Details</h2>
-            <p className="text-[10px] text-gray-400 mt-0.5 font-sans">Edit or register new supply chain transaction.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              type="button"
-              onClick={fillDummyOrder}
-              className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
-            >
-              Fill Dummy
-            </button>
-            <button 
-              type="button"
-              onClick={onCancel}
-              className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-gray-750 transition"
-            >
-              Cancel
-            </button>
-            <button 
-              type="button"
-              onClick={handleSaveAll}
-              className="px-4 py-1.5 bg-emerald-808 bg-emerald-800 text-white rounded-xl text-xs font-black transition"
-            >
-              Save
-            </button>
-          </div>
-        </div>
+      {/* Save & Cancel Quick Action Bar (Floating UX Style inside view) */}
+      <div className="mb-4 flex items-center justify-end gap-2 sm:hidden">
+        <button 
+          onClick={fillDummyOrder}
+          className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
+        >
+          Fill Dummy
+        </button>
+        <button 
+          onClick={onCancel}
+          className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-gray-750 transition"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={handleSaveAll}
+          className="px-4 py-1.5 bg-emerald-808 bg-emerald-800 text-white rounded-xl text-xs font-black transition"
+        >
+          Save
+        </button>
       </div>
 
       <div className="space-y-6">
@@ -642,6 +631,31 @@ export default function OrderForm({
               </p>
             )}
           </div>
+        </div>
+
+        {/* Floating Actions for desktop/large screens */}
+        <div className="hidden sm:flex items-center justify-end gap-3 pt-4 border-t border-gray-100 pb-12 select-none">
+          <button 
+            type="button"
+            onClick={fillDummyOrder}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
+          >
+            Fill Dummy
+          </button>
+          <button 
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition"
+          >
+            Cancel
+          </button>
+          <button 
+            type="button"
+            onClick={handleSaveAll}
+            className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs transition-all"
+          >
+            Save Order
+          </button>
         </div>
       </div>
     </div>

@@ -210,16 +210,16 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
             {editingUser ? (
               <>
                 <button 
-                  onClick={fillDummyUser}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
-                >
-                  Fill Dummy
-                </button>
-                <button 
                   onClick={() => setEditingUser(null)}
                   className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
                 >
                   Cancel
+                </button>
+                <button 
+                  onClick={fillDummyUser}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+                >
+                  Fill Dummy
                 </button>
                 <button 
                   onClick={handleSaveAll}
