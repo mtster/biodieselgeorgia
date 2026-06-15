@@ -9,9 +9,9 @@ import {
 } from 'lucide-react';
 
 // Modular child components
-import VendorForm from './vendors/VendorForm';
-import VendorDeleteModal from './vendors/VendorDeleteModal';
-import VendorImportModal from './vendors/VendorImportModal';
+import VendorForm from './menu/VendorForm';
+import VendorDeleteModal from './menu/VendorDeleteModal';
+import VendorImportModal from './menu/VendorImportModal';
 
 interface Props {
   vendors: Vendor[];
