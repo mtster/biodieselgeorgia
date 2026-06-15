@@ -30,7 +30,7 @@ export default function VendorForm({
   onSave,
   onCancel
 }: Props) {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Contacts helper states
   const [tempContacts, setTempContacts] = useState<VendorContact[]>([]);
@@ -179,36 +179,36 @@ export default function VendorForm({
   };
 
   const handleSaveAll = () => {
-    setErrorMessage(null);
+    const errs: Record<string, string> = {};
 
     if (!editingVendor.trade_name.trim()) {
-      setErrorMessage('Trade / Commercial Name is required.');
-      return;
+      errs.trade_name = 'Trade / Commercial Name is required.';
     }
     if (!editingVendor.id_code.trim()) {
-      setErrorMessage('Identification Code is required.');
-      return;
+      errs.id_code = 'Identification Code is required.';
     }
     if (!editingVendor.city) {
-      setErrorMessage('Please select a City.');
-      return;
+      errs.city = 'Please select a City.';
     }
     if (!editingVendor.district) {
-      setErrorMessage('Please select a District.');
-      return;
+      errs.district = 'Please select a District.';
     }
     if (!editingVendor.warehouse_id) {
-      setErrorMessage('Please select an Assigned Base Warehouse.');
-      return;
+      errs.warehouse_id = 'Please select an Assigned Base Warehouse.';
     }
     if (!editingVendor.manager_id) {
-      setErrorMessage('Please select an Acquisition Manager.');
-      return;
+      errs.manager_id = 'Please select an Acquisition Manager.';
     }
     if (!editingVendor.operator_id) {
-      setErrorMessage('Please select a Systems Dispatcher.');
+      errs.operator_id = 'Please select a Systems Dispatcher.';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
+
+    setFieldErrors({});
 
     const payload: Vendor = {
       ...editingVendor,
@@ -220,11 +220,20 @@ export default function VendorForm({
   };
 
   const fillDummyData = () => {
+    const generateGeorgianIban = () => {
+      const banks = ['TB', 'BG', 'LB', 'NV'];
+      const randomBank = banks[Math.floor(Math.random() * banks.length)] + '77';
+      const digits = Array.from({ length: 16 }, () => Math.floor(Math.random() * 10)).join('');
+      const check = String(Math.floor(10 + Math.random() * 89));
+      return `GE${check}${randomBank}${digits}`;
+    };
+
     setEditingVendor({
       ...editingVendor,
       trade_name: 'Dummy Vendor ' + Math.floor(Math.random() * 1000),
       company_name: 'Dummy Co. ' + Math.floor(Math.random() * 1000),
       id_code: '123' + Math.floor(Math.random() * 100000000),
+      bank_account: generateGeorgianIban(),
       city: cities[0]?.name || '',
       district: districts[0]?.name || '',
       address: 'Dummy St. 1',
@@ -245,13 +254,6 @@ export default function VendorForm({
 
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl" id="vendors-form-panel">
-      {errorMessage && (
-        <div className="mb-5 p-3 bg-red-50 border border-red-105 text-red-700 text-xs rounded-xl flex items-center gap-2 font-sans font-medium text-left">
-          <ShieldAlert size={14} className="text-red-650" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
       {/* Floating Save/Cancel bar for small displays */}
       <div className="mb-4 flex items-center justify-end gap-2 md:hidden">
         <button 
@@ -279,15 +281,27 @@ export default function VendorForm({
           <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Supplier Parameters</span>
           
           <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+            <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.trade_name ? 'text-red-500' : 'text-gray-400'}`}>
               Trade/Commercial Name *
             </span>
             <input 
               type="text"
               value={editingVendor.trade_name}
-              onChange={(e) => setEditingVendor({...editingVendor, trade_name: e.target.value})}
-              className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+              onChange={(e) => {
+                setEditingVendor({...editingVendor, trade_name: e.target.value});
+                if (fieldErrors.trade_name) setFieldErrors(prev => ({ ...prev, trade_name: '' }));
+              }}
+              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
+                fieldErrors.trade_name 
+                  ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                  : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+              }`}
             />
+            {fieldErrors.trade_name && (
+              <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                {fieldErrors.trade_name}
+              </p>
+            )}
           </div>
 
           <div className="relative">
@@ -304,15 +318,27 @@ export default function VendorForm({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.id_code ? 'text-red-500' : 'text-gray-400'}`}>
                 Identification Code *
               </span>
               <input 
                 type="text"
                 value={editingVendor.id_code}
-                onChange={(e) => setEditingVendor({...editingVendor, id_code: e.target.value})}
-                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
+                onChange={(e) => {
+                  setEditingVendor({...editingVendor, id_code: e.target.value});
+                  if (fieldErrors.id_code) setFieldErrors(prev => ({ ...prev, id_code: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
+                  fieldErrors.id_code 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
               />
+              {fieldErrors.id_code && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.id_code}
+                </p>
+              )}
             </div>
 
             <div className="relative">
@@ -382,7 +408,7 @@ export default function VendorForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.city ? 'text-red-500' : 'text-gray-400'}`}>
                 City *
               </span>
               <select
@@ -396,22 +422,39 @@ export default function VendorForm({
                     city: val,
                     district: filtered[0]?.name || ''
                   });
+                  if (fieldErrors.city) setFieldErrors(prev => ({ ...prev, city: '' }));
                 }}
-                className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                  fieldErrors.city 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
               >
                 <option value="" disabled></option>
                 {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
+              {fieldErrors.city && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.city}
+                </p>
+              )}
             </div>
 
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.district ? 'text-red-500' : 'text-gray-400'}`}>
                 District *
               </span>
               <select
                 value={editingVendor.district}
-                onChange={(e) => setEditingVendor({...editingVendor, district: e.target.value})}
-                className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+                onChange={(e) => {
+                  setEditingVendor({...editingVendor, district: e.target.value});
+                  if (fieldErrors.district) setFieldErrors(prev => ({ ...prev, district: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                  fieldErrors.district 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
               >
                 <option value="" disabled></option>
                 {districts
@@ -422,6 +465,11 @@ export default function VendorForm({
                   .map(d => <option key={d.id} value={d.name}>{d.name}</option>)
                 }
               </select>
+              {fieldErrors.district && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.district}
+                </p>
+              )}
             </div>
           </div>
 
@@ -439,27 +487,46 @@ export default function VendorForm({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.warehouse_id ? 'text-red-500' : 'text-gray-400'}`}>
                 Assigned Base Warehouse *
               </span>
               <select
                 value={editingVendor.warehouse_id}
-                onChange={(e) => setEditingVendor({...editingVendor, warehouse_id: e.target.value})}
-                className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+                onChange={(e) => {
+                  setEditingVendor({...editingVendor, warehouse_id: e.target.value});
+                  if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                  fieldErrors.warehouse_id 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
               >
                 <option value="" disabled></option>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
+              {fieldErrors.warehouse_id && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.warehouse_id}
+                </p>
+              )}
             </div>
 
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.manager_id ? 'text-red-500' : 'text-gray-400'}`}>
                 Acquisition Manager *
               </span>
               <select
                 value={editingVendor.manager_id}
-                onChange={(e) => setEditingVendor({...editingVendor, manager_id: e.target.value})}
-                className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+                onChange={(e) => {
+                  setEditingVendor({...editingVendor, manager_id: e.target.value});
+                  if (fieldErrors.manager_id) setFieldErrors(prev => ({ ...prev, manager_id: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                  fieldErrors.manager_id 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
               >
                 <option value="" disabled></option>
                 {users.filter(u => u.role === 'manager').map(e => (
@@ -469,22 +536,39 @@ export default function VendorForm({
                   <option value={currentUser.id}>{currentUser.name} (Ad hoc)</option>
                 )}
               </select>
+              {fieldErrors.manager_id && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.manager_id}
+                </p>
+              )}
             </div>
 
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.operator_id ? 'text-red-500' : 'text-gray-400'}`}>
                 Systems Dispatcher *
               </span>
               <select
                 value={editingVendor.operator_id}
-                onChange={(e) => setEditingVendor({...editingVendor, operator_id: e.target.value})}
-                className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+                onChange={(e) => {
+                  setEditingVendor({...editingVendor, operator_id: e.target.value});
+                  if (fieldErrors.operator_id) setFieldErrors(prev => ({ ...prev, operator_id: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                  fieldErrors.operator_id 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
               >
                 <option value="" disabled></option>
                 {users.map(e => (
                   <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
                 ))}
               </select>
+              {fieldErrors.operator_id && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.operator_id}
+                </p>
+              )}
             </div>
           </div>
         </div>

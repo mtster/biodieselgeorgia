@@ -25,7 +25,7 @@ export default function OrderForm({
   onSave,
   onCancel
 }: Props) {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Time & Date states for Priority UX
   const [pickupHour, setPickupHour] = useState('12');
@@ -75,27 +75,22 @@ export default function OrderForm({
   }, [editingOrder.vendor_id, suppliers]);
 
   const handleSaveAll = () => {
-    setErrorMessage(null);
+    const errs: Record<string, string> = {};
 
     if (!editingOrder.vendor_id) {
-      setErrorMessage('Please select a Supplier / Vendor.');
-      return;
+      errs.vendor_id = 'Please select a Supplier / Vendor.';
     }
     if (!editingOrder.warehouse_id) {
-      setErrorMessage('Please select a Base Destination Warehouse.');
-      return;
+      errs.warehouse_id = 'Please select a Base Destination Warehouse.';
     }
     if (!editingOrder.doc_number.trim()) {
-      setErrorMessage('Document dispatch number is required.');
-      return;
+      errs.doc_number = 'Document dispatch number is required.';
     }
     if (!editingOrder.driver_id) {
-      setErrorMessage('Please select an Assigned Fleet Driver.');
-      return;
+      errs.driver_id = 'Please select an Assigned Fleet Driver.';
     }
     if (!editingOrder.truck_plate) {
-      setErrorMessage('Please select an Assigned Vehicle Plate Asset.');
-      return;
+      errs.truck_plate = 'Please select an Assigned Vehicle.';
     }
 
     // Build pickup date/time ISO values if completed
@@ -110,10 +105,16 @@ export default function OrderForm({
       finalOrder.pickup_date_time = finalDate.toISOString();
 
       if (finalOrder.qty_actual === undefined || finalOrder.qty_actual <= 0) {
-        setErrorMessage('Please specify Actual Volume Received (Liters) for completed orders.');
-        return;
+        errs.qty_actual = 'Please specify Actual Volume Received (Liters) for completed orders.';
       }
     }
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+
+    setFieldErrors({});
 
     const supplierObj = suppliers.find(s => s.id === finalOrder.vendor_id);
     const warehouseObj = warehouses.find(w => w.id === finalOrder.warehouse_id);
@@ -164,13 +165,6 @@ export default function OrderForm({
 
   return (
     <div className="animate-in fade-in duration-200 max-w-2xl text-left" id="orders-form-panel">
-      {errorMessage && (
-        <div className="mb-5 p-3 bg-red-50 border border-red-100 text-red-700 text-xs rounded-xl flex items-center gap-2 font-sans font-medium">
-          <ShieldAlert size={14} className="text-red-650" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
       {/* Save & Cancel Quick Action Bar (Floating UX Style inside view) */}
       <div className="mb-4 flex items-center justify-end gap-2 sm:hidden">
         <button 
@@ -199,7 +193,7 @@ export default function OrderForm({
           
           {/* Supplier Autocomplete Input - Notch styling */}
           <div className="relative" id="vendor-autocomplete-container">
-            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+            <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.vendor_id ? 'text-red-500' : 'text-gray-400'}`}>
               Supplier / Vendor Restaurant *
             </span>
             <input
@@ -212,10 +206,20 @@ export default function OrderForm({
                 if (e.target.value === '') {
                   setEditingOrder(prev => prev ? { ...prev, vendor_id: '' } : null);
                 }
+                if (fieldErrors.vendor_id) setFieldErrors(prev => ({ ...prev, vendor_id: '' }));
               }}
               onFocus={() => setShowVendorSuggestions(true)}
-              className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans relative"
+              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans relative ${
+                fieldErrors.vendor_id 
+                  ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                  : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+              }`}
             />
+            {fieldErrors.vendor_id && (
+              <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                {fieldErrors.vendor_id}
+              </p>
+            )}
             
             {showVendorSuggestions && (
               <>
@@ -261,33 +265,57 @@ export default function OrderForm({
 
           {/* Destination storage dropdown */}
           <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+            <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.warehouse_id ? 'text-red-500' : 'text-gray-400'}`}>
               Base Destination Warehouse *
             </span>
             <select
               value={editingOrder.warehouse_id}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, warehouse_id: e.target.value } : null)}
-              className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+              onChange={(e) => {
+                setEditingOrder(prev => prev ? { ...prev, warehouse_id: e.target.value } : null);
+                if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
+              }}
+              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                fieldErrors.warehouse_id 
+                  ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                  : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+              }`}
             >
               <option value="" disabled></option>
               {warehouses.map(w => (
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}
             </select>
+            {fieldErrors.warehouse_id && (
+              <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                {fieldErrors.warehouse_id}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Document ID */}
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.doc_number ? 'text-red-500' : 'text-gray-400'}`}>
                 Document Dispatch ID *
               </span>
               <input 
                 type="text"
                 value={editingOrder.doc_number}
-                onChange={(e) => setEditingOrder(prev => prev ? { ...prev, doc_number: e.target.value } : null)}
-                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono font-bold transition-all"
+                onChange={(e) => {
+                  setEditingOrder(prev => prev ? { ...prev, doc_number: e.target.value } : null);
+                  if (fieldErrors.doc_number) setFieldErrors(prev => ({ ...prev, doc_number: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono font-bold transition-all ${
+                  fieldErrors.doc_number 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
               />
+              {fieldErrors.doc_number && (
+                <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.doc_number}
+                </p>
+              )}
             </div>
 
             {/* Dispatch Date */}
@@ -474,16 +502,28 @@ export default function OrderForm({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-3 border-t">
               <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.qty_actual ? 'text-red-500' : 'text-gray-400'}`}>
                   Actual Received (L) *
                 </span>
                 <input 
                   type="number"
                   required
                   value={editingOrder.qty_actual || ''}
-                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, qty_actual: parseFloat(e.target.value) || 0 } : null)}
-                  className="block w-full px-3.5 py-3 text-xs text-gray-955 bg-white border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl focus:outline-none font-mono"
+                  onChange={(e) => {
+                    setEditingOrder(prev => prev ? { ...prev, qty_actual: parseFloat(e.target.value) || 0 } : null);
+                    if (fieldErrors.qty_actual) setFieldErrors(prev => ({ ...prev, qty_actual: '' }));
+                  }}
+                  className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none font-mono ${
+                    fieldErrors.qty_actual 
+                      ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
+                      : 'border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 bg-white text-gray-955'
+                  }`}
                 />
+                {fieldErrors.qty_actual && (
+                  <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                    {fieldErrors.qty_actual}
+                  </p>
+                )}
               </div>
 
               <div className="relative">
@@ -519,19 +559,31 @@ export default function OrderForm({
           
           {/* Driver select */}
           <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+            <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.driver_id ? 'text-red-500' : 'text-gray-400'}`}>
               Assigned Fleet Driver *
             </span>
             <select
               value={editingOrder.driver_id}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null)}
-              className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+              onChange={(e) => {
+                setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null);
+                if (fieldErrors.driver_id) setFieldErrors(prev => ({ ...prev, driver_id: '' }));
+              }}
+              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                fieldErrors.driver_id 
+                  ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                  : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+              }`}
             >
               <option value="" disabled></option>
               {employees.filter(e => e.role === 'driver').map(e => (
                 <option key={e.id} value={e.id}>{e.name}</option>
               ))}
             </select>
+            {fieldErrors.driver_id && (
+              <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                {fieldErrors.driver_id}
+              </p>
+            )}
           </div>
 
           {/* Co-Driver helper select */}
@@ -553,19 +605,31 @@ export default function OrderForm({
 
           {/* Truck asset */}
           <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 font-sans">
+            <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.truck_plate ? 'text-red-500' : 'text-gray-400'}`}>
               Assigned Vehicle Plate Asset *
             </span>
             <select
               value={editingOrder.truck_plate}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, truck_plate: e.target.value } : null)}
-              className="block w-full px-3.5 py-3 text-xs bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans cursor-pointer relative"
+              onChange={(e) => {
+                setEditingOrder(prev => prev ? { ...prev, truck_plate: e.target.value } : null);
+                if (fieldErrors.truck_plate) setFieldErrors(prev => ({ ...prev, truck_plate: '' }));
+              }}
+              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                fieldErrors.truck_plate 
+                  ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                  : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+              }`}
             >
               <option value="" disabled></option>
               {trucks.map(t => (
                 <option key={t.plate_number} value={t.plate_number}>{t.plate_number} ({t.model})</option>
               ))}
             </select>
+            {fieldErrors.truck_plate && (
+              <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                {fieldErrors.truck_plate}
+              </p>
+            )}
           </div>
         </div>
 

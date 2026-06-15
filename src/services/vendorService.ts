@@ -27,19 +27,34 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const dbPayload = {
-        ...finalVendor,
-        warehouse_id: finalVendor.warehouse_id || null,
-        manager_id: finalVendor.manager_id || null,
-        operator_id: finalVendor.operator_id || null
+      const isValidUuid = (val: string | null | undefined): boolean => {
+        if (!val) return false;
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       };
-      if (isNew) {
-        const { error } = await supabase.from('vendors').insert([dbPayload]);
-        if (error) console.error('Supabase insert error details:', error);
-      } else {
-        const { error } = await supabase.from('vendors').update(dbPayload).eq('id', dbPayload.id);
-        if (error) console.error('Supabase update error details:', error);
-      }
+
+      const dbPayload = {
+        id: finalVendor.id,
+        id_code: finalVendor.id_code || '',
+        company_name: finalVendor.company_name || finalVendor.trade_name || '',
+        trade_name: finalVendor.trade_name || '',
+        company_code: finalVendor.company_code || finalVendor.id_code || '',
+        bank_account: finalVendor.bank_account || '',
+        city: finalVendor.city || '',
+        district: finalVendor.district || '',
+        address: finalVendor.address || '',
+        price_per_liter: Number(finalVendor.price_per_liter) || 0,
+        warehouse_id: finalVendor.warehouse_id || null,
+        manager_id: isValidUuid(finalVendor.manager_id) ? finalVendor.manager_id : null,
+        operator_id: isValidUuid(finalVendor.operator_id) ? finalVendor.operator_id : null,
+        working_hours: finalVendor.working_hours || '',
+        contacts: Array.isArray(finalVendor.contacts) ? finalVendor.contacts : [],
+        comments: Array.isArray(finalVendor.comments) ? finalVendor.comments : [],
+        is_deleted: !!finalVendor.is_deleted,
+        created_at: finalVendor.created_at
+      };
+
+      const { error } = await supabase.from('vendors').upsert([dbPayload], { onConflict: 'id' });
+      if (error) console.error('Supabase upsert error details:', error);
     } catch (e) {
       console.error('Supabase saveVendor failed', e);
     }

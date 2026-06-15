@@ -112,6 +112,8 @@ export interface Truck {
   is_deleted?: boolean;
 }
 
+export type Vehicle = Truck;
+
 export interface ChangeHistory {
   id: string;
   date_time: string;          // თარიღი და დრო

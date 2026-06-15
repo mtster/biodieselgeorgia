@@ -479,7 +479,7 @@ export default function VendorsView({
             left: `${Math.max(16, hoveredComments.rect.left + (hoveredComments.rect.width / 2) - 160)}px`,
             ...(hoveredComments.rect.top >= 220 ? { transform: 'translateY(-100%)' } : {})
           }}
-          className="w-80 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-3.5 shadow-xl text-[11px] leading-relaxed z-50 space-y-2 pointer-events-none select-none transition-all duration-150"
+          className="w-80 bg-slate-100/95 backdrop-blur-md border border-slate-200 text-slate-800 rounded-xl p-3.5 shadow-xl text-[11.5px] leading-relaxed z-50 space-y-2 pointer-events-none select-none transition-all duration-150"
         >
           <div className="space-y-2 max-h-40 overflow-y-auto pr-1 select-text">
             {hoveredComments.comments.map(c => (

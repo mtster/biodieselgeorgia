@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Vendor, Order, Communication, Truck, 
+  User, Vendor, Order, Communication, Vehicle as Truck, 
   ChangeHistory, Warehouse, City, District 
 } from './types';
 
@@ -14,7 +14,7 @@ import {
   getVendors, saveVendor, deleteVendor,
   getOrders, saveOrder, deleteOrder,
   getCommunications, saveCommunication, deleteCommunication,
-  getTrucks, saveTruck, deleteTruck,
+  getVehicles as getTrucks, saveVehicle as saveTruck, deleteVehicle as deleteTruck,
   getChangeHistory,
   getWarehouses, saveWarehouse, deleteWarehouse,
   getCities, saveCity, deleteCity,

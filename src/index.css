@@ -9,9 +9,11 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.015em;
+  @apply text-slate-800 antialiased bg-slate-50/50;
 }
 
 input, select, textarea, button {
   font-family: var(--font-sans) !important;
 }
-

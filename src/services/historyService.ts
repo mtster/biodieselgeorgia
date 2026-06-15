@@ -1,12 +1,12 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { ChangeHistory, User, Vendor, Order, Truck, Warehouse, City, District } from '../types';
+import { ChangeHistory, User, Vendor, Order, Vehicle, Warehouse, City, District } from '../types';
 import { KEY_CHANGE_HISTORY, getLocal, setLocal } from './localStorage';
 
 // We import services for revert operations
 import { deleteUser } from './userService';
 import { deleteVendor } from './vendorService';
 import { deleteOrder } from './orderService';
-import { deleteTruck } from './truckService';
+import { deleteVehicle } from './vehicleService';
 import { deleteWarehouse, deleteCity, deleteDistrict } from './lookupService';
 
 export async function trackChange(
@@ -164,24 +164,28 @@ export async function revertChange(log: ChangeHistory, loggerName: string): Prom
       }
     }
   
-    // 4. TRUCK REVERTS
-    else if (op.includes('truck')) {
-      const { KEY_TRUCKS, DEFAULT_TRUCKS } = await import('./truckService');
-      const list = getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
-      if (op.includes('added') || op.includes('created')) {
-        const truck = list.find(t => t.plate_number === log.new_value && !t.is_deleted);
-        if (truck) {
-          await deleteTruck(truck.plate_number, loggerName);
+    // 4. VEHICLE REVERTS
+    else if (op.includes('truck') || op.includes('vehicle')) {
+      const { KEY_VEHICLES, deleteVehicle } = await import('./vehicleService');
+      const list = getLocal<Vehicle[]>(KEY_VEHICLES, []);
+      if (op.includes('added') || op.includes('created') || op.includes('Vehicle added')) {
+        const vehicle = list.find(v => v.plate_number === log.new_value && !v.is_deleted);
+        if (vehicle) {
+          await deleteVehicle(vehicle.plate_number, loggerName);
         }
       } else if (op.includes('deleted')) {
-        const truck = list.find(t => t.plate_number === log.old_value && t.is_deleted);
-        if (truck) {
-          truck.is_deleted = false;
+        const vehicle = list.find(v => v.plate_number === log.old_value && v.is_deleted);
+        if (vehicle) {
+          vehicle.is_deleted = false;
           if (isSupabaseConfigured && supabase) {
-            await supabase.from('trucks').update({ is_deleted: false }).eq('plate_number', truck.plate_number);
+            try {
+              await supabase.from('vehicles').update({ is_deleted: true }).eq('plate_number', vehicle.plate_number);
+            } catch (err) {
+              await supabase.from('trucks').update({ is_deleted: true }).eq('plate_number', vehicle.plate_number);
+            }
           }
-          setLocal(KEY_TRUCKS, list.map(t => t.plate_number === truck.plate_number ? truck : t));
-          await trackChange(loggerName, 'Truck restored', 'Plate Number', '', truck.plate_number);
+          setLocal(KEY_VEHICLES, list.map(v => v.plate_number === vehicle.plate_number ? vehicle : v));
+          await trackChange(loggerName, 'Vehicle restored', 'Plate Number', '', vehicle.plate_number);
         }
       }
     }
