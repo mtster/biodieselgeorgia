@@ -183,7 +183,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       
       {/* 1. STANDARDIZED PAGE HEADER */}
       <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
-        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+        <div className="sticky -top-4 md:-top-6 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
             <p className="text-xs text-gray-550 mt-1 font-sans">
@@ -205,7 +205,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 </button>
                 <button 
                   onClick={handleSaveAll}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
                 >
                   Save
                 </button>
@@ -215,7 +215,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 <button 
                   id="btn-add-new-user"
                   onClick={startNew}
-                  className="flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition-all cursor-pointer shadow-sm select-none"
+                  className="flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
                 >
                   <Plus size={15} />
                   New User
@@ -367,22 +367,24 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Active search filter */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-4.5 shadow-xs flex items-center relative text-left">
-            <span className="absolute inset-y-0 left-0 pl-4.5 flex items-center text-gray-400">
-              <Search size={15} />
-            </span>
-            <input 
-              type="text"
-              placeholder="Search by name, ID, or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white"
-            />
+          {/* SEARCH & FILTERS CONTROLS */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col md:flex-row md:items-center gap-4 select-none text-left">
+            <div className="flex-1 relative">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
+                <Search size={15} />
+              </span>
+              <input 
+                type="text"
+                placeholder="Search by name, ID, or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all font-sans"
+              />
+            </div>
           </div>
 
           {/* List display */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left max-w-5xl">
             {filtered.map((usr) => (
               <div 
                 key={usr.id}
@@ -435,11 +437,17 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 <div className="pt-2.5 border-t border-gray-100 space-y-1">
                   <span className="text-[9px] font-black text-gray-400 uppercase block tracking-wider">Privileges</span>
                   <div className="flex flex-wrap gap-1">
-                    {usr.privileges?.map((p) => (
-                      <span key={p} className="text-[9px] bg-slate-50 text-gray-650 px-1.5 py-0.5 rounded-md font-mono border font-medium">
-                        {p}
+                    {usr.privileges?.includes('All') ? (
+                      <span className="text-[9px] bg-slate-50 text-emerald-800 border-emerald-100 px-1.5 py-0.5 rounded-md font-mono border font-bold">
+                        All
                       </span>
-                    ))}
+                    ) : (
+                      usr.privileges?.map((p) => (
+                        <span key={p} className="text-[9px] bg-slate-50 text-gray-650 px-1.5 py-0.5 rounded-md font-mono border font-medium">
+                          {p}
+                        </span>
+                      ))
+                    )}
                     {(!usr.privileges || usr.privileges.length === 0) && (
                       <span className="text-[9px] text-gray-400 italic">No custom privileges</span>
                     )}

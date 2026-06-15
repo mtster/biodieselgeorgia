@@ -1,0 +1,237 @@
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { ChangeHistory, User, Vendor, Order, Truck, Warehouse, City, District } from '../types';
+import { KEY_CHANGE_HISTORY, getLocal, setLocal } from './localStorage';
+
+// We import services for revert operations
+import { deleteUser } from './userService';
+import { deleteVendor } from './vendorService';
+import { deleteOrder } from './orderService';
+import { deleteTruck } from './truckService';
+import { deleteWarehouse, deleteCity, deleteDistrict } from './lookupService';
+
+export async function trackChange(
+  employeeName: string, 
+  operation: string, 
+  fieldName?: string, 
+  oldValue?: string, 
+  newValue?: string
+) {
+  const newLog: ChangeHistory = {
+    id: 'ch-' + Math.random().toString(36).substring(2, 9),
+    date_time: new Date().toISOString(),
+    employee_name: employeeName,
+    operation,
+    field_name: fieldName,
+    old_value: oldValue,
+    new_value: newValue
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('change_history').insert([newLog]);
+    } catch (e) {
+      console.error('Supabase trackChange failed, fallback:', e);
+    }
+  }
+
+  const logs = getLocal<ChangeHistory[]>(KEY_CHANGE_HISTORY, []);
+  setLocal(KEY_CHANGE_HISTORY, [newLog, ...logs]);
+}
+
+export async function getChangeHistory(): Promise<ChangeHistory[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('change_history').select('*').order('date_time', { ascending: false });
+      if (!error && data) return data;
+    } catch (e) {
+      console.warn('Supabase getChangeHistory failed', e);
+    }
+  }
+  return getLocal<ChangeHistory[]>(KEY_CHANGE_HISTORY, []);
+}
+
+export async function revertChange(log: ChangeHistory, loggerName: string): Promise<boolean> {
+  const op = log.operation.toLowerCase();
+  
+  try {
+    // 1. USER REVERTS
+    if (op.includes('user')) {
+      const { KEY_USERS, DEFAULT_USERS } = await import('./userService');
+      const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
+      if (op.includes('added') || op.includes('created')) {
+        const user = list.find(u => u.name === log.new_value && !u.is_deleted);
+        if (user) {
+          await deleteUser(user.id, user.name, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const user = list.find(u => u.name === log.old_value && u.is_deleted);
+        if (user) {
+          user.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('profiles').update({ is_deleted: false }).eq('id', user.id);
+          }
+          setLocal(KEY_USERS, list.map(u => u.id === user.id ? user : u));
+          await trackChange(loggerName, 'User restored', 'Name', '', user.name);
+        }
+      } else if (op.includes('updated')) {
+        const user = list.find(u => u.name === log.new_value && !u.is_deleted) || list.find(u => u.name === log.old_value && !u.is_deleted);
+        if (user) {
+          const field = log.field_name || 'Name';
+          if (field === 'Name') user.name = log.old_value || user.name;
+          if (field === 'Role') user.role = (log.old_value as any) || user.role;
+          if (field === 'Phone') user.phone = log.old_value || user.phone;
+          
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('profiles').update({
+              name: user.name,
+              role: user.role,
+              phone: user.phone
+            }).eq('id', user.id);
+          }
+          setLocal(KEY_USERS, list.map(u => u.id === user.id ? user : u));
+          await trackChange(loggerName, 'User update reverted', field, log.new_value, log.old_value);
+        }
+      }
+    }
+    
+    // 2. VENDOR REVERTS
+    else if (op.includes('vendor') || op.includes('supplier')) {
+      const { KEY_VENDORS } = await import('./vendorService');
+      const list = getLocal<Vendor[]>(KEY_VENDORS, []);
+      if (op.includes('added') || op.includes('created')) {
+        const vendor = list.find(v => v.trade_name === log.new_value && !v.is_deleted);
+        if (vendor) {
+          await deleteVendor(vendor.id, vendor.trade_name, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const vendor = list.find(v => v.trade_name === log.old_value && v.is_deleted);
+        if (vendor) {
+          vendor.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('vendors').update({ is_deleted: false }).eq('id', vendor.id);
+          }
+          setLocal(KEY_VENDORS, list.map(v => v.id === vendor.id ? vendor : v));
+          await trackChange(loggerName, 'Vendor restored', 'Trade Name', '', vendor.trade_name);
+        }
+      } else if (op.includes('updated')) {
+        const vendor = list.find(v => v.trade_name === log.new_value && !v.is_deleted) || list.find(v => v.trade_name === log.old_value && !v.is_deleted);
+        if (vendor) {
+          const field = log.field_name || 'Trade Name';
+          if (field === 'Trade Name') vendor.trade_name = log.old_value || vendor.trade_name;
+          if (field === 'Price' || field === 'Price per Liter' || field === 'Price Per Liter') vendor.price_per_liter = Number(log.old_value) || vendor.price_per_liter;
+          if (field === 'Bank Account') vendor.bank_account = log.old_value || vendor.bank_account;
+          
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('vendors').update(vendor).eq('id', vendor.id);
+          }
+          setLocal(KEY_VENDORS, list.map(v => v.id === vendor.id ? vendor : v));
+          await trackChange(loggerName, 'Vendor update reverted', field, log.new_value, log.old_value);
+        }
+      }
+    }
+    
+    // 3. ORDER REVERTS
+    else if (op.includes('order')) {
+      const { KEY_ORDERS } = await import('./orderService');
+      const list = getLocal<Order[]>(KEY_ORDERS, []);
+      if (op.includes('added') || op.includes('created')) {
+        const order = list.find(o => o.doc_number === log.new_value && !o.is_deleted);
+        if (order) {
+          await deleteOrder(order.id, order.doc_number, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const order = list.find(o => o.doc_number === log.old_value && o.is_deleted);
+        if (order) {
+          order.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('orders').update({ is_deleted: false }).eq('id', order.id);
+          }
+          setLocal(KEY_ORDERS, list.map(o => o.id === order.id ? order : o));
+          await trackChange(loggerName, 'Order restored', 'Document #', '', order.doc_number);
+        }
+      } else if (op.includes('updated')) {
+        const order = list.find(o => o.doc_number === log.new_value && !o.is_deleted) || list.find(o => o.doc_number === log.old_value && !o.is_deleted);
+        if (order) {
+          const field = log.field_name || 'Status';
+          if (field === 'Status') order.status = (log.old_value as any) || order.status;
+          
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('orders').update({ status: order.status }).eq('id', order.id);
+          }
+          setLocal(KEY_ORDERS, list.map(o => o.id === order.id ? order : o));
+          await trackChange(loggerName, 'Order update reverted', field, log.new_value, log.old_value);
+        }
+      }
+    }
+  
+    // 4. TRUCK REVERTS
+    else if (op.includes('truck')) {
+      const { KEY_TRUCKS, DEFAULT_TRUCKS } = await import('./truckService');
+      const list = getLocal<Truck[]>(KEY_TRUCKS, DEFAULT_TRUCKS);
+      if (op.includes('added') || op.includes('created')) {
+        const truck = list.find(t => t.plate_number === log.new_value && !t.is_deleted);
+        if (truck) {
+          await deleteTruck(truck.plate_number, loggerName);
+        }
+      } else if (op.includes('deleted')) {
+        const truck = list.find(t => t.plate_number === log.old_value && t.is_deleted);
+        if (truck) {
+          truck.is_deleted = false;
+          if (isSupabaseConfigured && supabase) {
+            await supabase.from('trucks').update({ is_deleted: false }).eq('plate_number', truck.plate_number);
+          }
+          setLocal(KEY_TRUCKS, list.map(t => t.plate_number === truck.plate_number ? truck : t));
+          await trackChange(loggerName, 'Truck restored', 'Plate Number', '', truck.plate_number);
+        }
+      }
+    }
+  
+    // 5. OTHER UTILITIES (Warehouses, Cities, Districts)
+    else if (op.includes('warehouse')) {
+      const { KEY_WAREHOUSES, DEFAULT_WAREHOUSES } = await import('./lookupService');
+      const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
+      if (op.includes('added') || op.includes('created')) {
+        const entry = list.find(w => w.name === log.new_value);
+        if (entry) {
+          await deleteWarehouse(entry.id, entry.name, loggerName);
+        }
+      }
+    } else if (op.includes('city')) {
+      const { KEY_CITIES, DEFAULT_CITIES } = await import('./lookupService');
+      const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
+      if (op.includes('added') || op.includes('created')) {
+        const entry = list.find(c => c.name === log.new_value);
+        if (entry) {
+          await deleteCity(entry.id, entry.name, loggerName);
+        }
+      }
+    } else if (op.includes('district')) {
+      const { KEY_DISTRICTS, DEFAULT_DISTRICTS } = await import('./lookupService');
+      const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
+      if (op.includes('added') || op.includes('created')) {
+        const entry = list.find(d => d.name === log.new_value);
+        if (entry) {
+          await deleteDistrict(entry.id, entry.name, loggerName);
+        }
+      }
+    }
+
+    // Mark the log as reverted in local storage
+    const historyList = getLocal<ChangeHistory[]>(KEY_CHANGE_HISTORY, []);
+    const updatedHistory = historyList.map(item => item.id === log.id ? { ...item, is_reverted: true } : item);
+    setLocal(KEY_CHANGE_HISTORY, updatedHistory);
+
+    // Sync to Supabase if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('change_history').update({ is_reverted: true }).eq('id', log.id);
+      } catch (err) {
+        console.warn('Could not update change_history column is_reverted, fallback ok:', err);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to revert change:', e);
+    return false;
+  }
+  return true;
+}

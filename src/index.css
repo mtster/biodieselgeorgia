@@ -11,3 +11,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+input, select, textarea, button {
+  font-family: var(--font-sans) !important;
+}
+
