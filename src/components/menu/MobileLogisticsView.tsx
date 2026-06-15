@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Order, Vendor, Warehouse, Truck } from '../types';
+import { User, Order, Vendor, Warehouse, Truck } from '../../types';
 import { 
   LogOut, Leaf, Phone, MapPin, Navigation, 
   CheckCircle2, ClipboardList, Fuel, Package, TruckIcon, AlertCircle 

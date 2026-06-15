@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Vendor, Order } from '../types';
+import { Vendor, Order } from '../../types';
 import { FileSpreadsheet, Percent, BarChart3, HelpCircle, FileText } from 'lucide-react';
 
 interface Props {
@@ -49,7 +49,7 @@ export default function ReportsView({ suppliers, orders }: Props) {
   const totalVolume = completedOrders.reduce((sum, curr) => sum + (curr.qty_actual || 0), 0);
 
   return (
-    <div className="space-y-6" id="reports-view-panel">
+    <div className="space-y-6 pt-4 md:pt-6" id="reports-view-panel">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-sans">

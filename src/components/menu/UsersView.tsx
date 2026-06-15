@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { User, UserRole } from '../types';
+import { User, UserRole } from '../../types';
 import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
-import UserDeleteModal from './users/UserDeleteModal';
+import UserDeleteModal from '../users/UserDeleteModal';
 
 interface Props {
   users: User[];
@@ -195,8 +195,8 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
-        <div className="sticky -top-4 md:-top-6 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+      <div className="-mx-4 md:-mx-6 mb-6">
+        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
             <p className="text-xs text-gray-550 mt-1 font-sans">
@@ -264,7 +264,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   setEditingUser({...editingUser, name: e.target.value});
                   if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
                   fieldErrors.name 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -291,7 +291,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   setEditingUser({...editingUser, personal_id: e.target.value.replace(/\D/g, '')});
                   if (fieldErrors.personal_id) setFieldErrors(prev => ({ ...prev, personal_id: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
                   fieldErrors.personal_id 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -318,7 +318,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   setEditingUser({...editingUser, email: e.target.value});
                   if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono transition-all disabled:opacity-65 ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all disabled:opacity-65 ${
                   fieldErrors.email 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -344,7 +344,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   setEditingUser({...editingUser, password: e.target.value});
                   if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
                   fieldErrors.password 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -370,7 +370,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   setEditingUser({...editingUser, phone: e.target.value});
                   if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
                   fieldErrors.phone 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -394,7 +394,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   setEditingUser({...editingUser, role: e.target.value as UserRole});
                   if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                   fieldErrors.role 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -468,7 +468,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
           </div>
 
           {/* List display */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left max-w-5xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 text-left w-full">
             {filtered.map((usr) => (
               <div 
                 key={usr.id}

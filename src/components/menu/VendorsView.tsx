@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { 
   Vendor, VendorContact, VendorComment, 
   Warehouse, User, City, District 
-} from '../types';
+} from '../../types';
 import { 
   Search, Plus, Edit3, Trash2, FileSpreadsheet, 
   MessageSquare
 } from 'lucide-react';
 
 // Modular child components
-import VendorForm from './menu/VendorForm';
-import VendorDeleteModal from './menu/VendorDeleteModal';
-import VendorImportModal from './menu/VendorImportModal';
+import VendorForm from '../vendors/VendorForm';
+import VendorDeleteModal from '../vendors/VendorDeleteModal';
+import VendorImportModal from '../vendors/VendorImportModal';
 
 interface Props {
   vendors: Vendor[];
@@ -169,8 +169,8 @@ export default function VendorsView({
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
-      <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
-        <div className="sticky -top-4 md:-top-6 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+      <div className="-mx-4 md:-mx-6 mb-6">
+        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
             <p className="text-xs text-gray-550 mt-1 font-sans">

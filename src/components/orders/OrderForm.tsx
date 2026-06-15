@@ -202,7 +202,7 @@ export default function OrderForm({
                 if (fieldErrors.vendor_id) setFieldErrors(prev => ({ ...prev, vendor_id: '' }));
               }}
               onFocus={() => setShowVendorSuggestions(true)}
-              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans relative ${
+              className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans relative ${
                 fieldErrors.vendor_id 
                   ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                   : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -267,7 +267,7 @@ export default function OrderForm({
                 setEditingOrder(prev => prev ? { ...prev, warehouse_id: e.target.value } : null);
                 if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
               }}
-              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+              className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                 fieldErrors.warehouse_id 
                   ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                   : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -298,7 +298,7 @@ export default function OrderForm({
                   setEditingOrder(prev => prev ? { ...prev, doc_number: e.target.value } : null);
                   if (fieldErrors.doc_number) setFieldErrors(prev => ({ ...prev, doc_number: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono font-bold transition-all ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono font-bold transition-all ${
                   fieldErrors.doc_number 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -506,7 +506,7 @@ export default function OrderForm({
                     setEditingOrder(prev => prev ? { ...prev, qty_actual: parseFloat(e.target.value) || 0 } : null);
                     if (fieldErrors.qty_actual) setFieldErrors(prev => ({ ...prev, qty_actual: '' }));
                   }}
-                  className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none font-mono ${
+                  className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none font-mono ${
                     fieldErrors.qty_actual 
                       ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
                       : 'border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 bg-white text-gray-955'
@@ -561,7 +561,7 @@ export default function OrderForm({
                 setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null);
                 if (fieldErrors.driver_id) setFieldErrors(prev => ({ ...prev, driver_id: '' }));
               }}
-              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+              className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                 fieldErrors.driver_id 
                   ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                   : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -607,7 +607,7 @@ export default function OrderForm({
                 setEditingOrder(prev => prev ? { ...prev, truck_plate: e.target.value } : null);
                 if (fieldErrors.truck_plate) setFieldErrors(prev => ({ ...prev, truck_plate: '' }));
               }}
-              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+              className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                 fieldErrors.truck_plate 
                   ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                   : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'

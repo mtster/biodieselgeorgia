@@ -23,19 +23,19 @@ import {
 } from './lib/db';
 
 // Modular view components
-import LoginView from './components/LoginView';
-import DashboardView from './components/DashboardView';
-import AnalyticsView from './components/AnalyticsView';
-import VendorsView from './components/VendorsView';
-import CommunicationsView from './components/CommunicationsView';
-import OrdersView from './components/OrdersView';
-import UsersView from './components/UsersView';
-import ReportsView from './components/ReportsView';
-import LookupsView from './components/LookupsView';
-import SettingsView from './components/SettingsView';
-import HistoryView from './components/HistoryView';
-import MobileLogisticsView from './components/MobileLogisticsView';
-import Sidebar from './components/Sidebar';
+import LoginView from './components/menu/LoginView';
+import DashboardView from './components/menu/DashboardView';
+import AnalyticsView from './components/menu/AnalyticsView';
+import VendorsView from './components/menu/VendorsView';
+import CommunicationsView from './components/menu/CommunicationsView';
+import OrdersView from './components/menu/OrdersView';
+import UsersView from './components/menu/UsersView';
+import ReportsView from './components/menu/ReportsView';
+import LookupsView from './components/menu/LookupsView';
+import SettingsView from './components/menu/SettingsView';
+import HistoryView from './components/menu/HistoryView';
+import MobileLogisticsView from './components/menu/MobileLogisticsView';
+import Sidebar from './components/menu/Sidebar';
 
 // Icons for Left Sidebar pairing
 import { 
@@ -401,7 +401,7 @@ export default function App() {
         </header>
 
         {/* Content viewport */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-16">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pb-16 pt-0 md:pt-0">
           <div className="w-full">
             {activeTab === 'dashboard' && (
               <DashboardView 

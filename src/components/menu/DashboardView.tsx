@@ -1,5 +1,5 @@
 import React from 'react';
-import { Vendor, Order, User, Truck } from '../types';
+import { Vendor, Order, User, Truck } from '../../types';
 import { 
   Building2, ShoppingBag, Truck as TruckIcon, 
   Users, Fuel, Calendar, HelpCircle 
@@ -21,7 +21,7 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
   return (
-    <div className="space-y-6" id="dashboard-view-panel">
+    <div className="space-y-6 pt-4 md:pt-6" id="dashboard-view-panel">
       {/* Dynamic Header */}
       <div className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white rounded-2xl p-6 shadow-sm border border-emerald-800/20 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-700/10 rounded-full blur-3xl -mr-16 -mt-16"></div>

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../types';
-import { getSMSLogs } from '../lib/db';
+import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../../types';
+import { getSMSLogs } from '../../lib/db';
 import { 
   Plus, Search, Edit2, MessageSquareCode, 
   Trash2
 } from 'lucide-react';
 
 // Modular child components
-import OrderForm from './orders/OrderForm';
-import SMSLogsModal from './orders/SMSLogsModal';
-import OrderDeleteModal from './orders/OrderDeleteModal';
+import OrderForm from '../orders/OrderForm';
+import SMSLogsModal from '../orders/SMSLogsModal';
+import OrderDeleteModal from '../orders/OrderDeleteModal';
 
 interface Props {
   orders: Order[];
@@ -115,8 +115,8 @@ export default function OrdersView({
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
-        <div className="sticky -top-4 md:-top-6 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+      <div className="-mx-4 md:-mx-6 mb-6">
+        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Orders</h2>
             <p className="text-xs text-gray-550 mt-1 font-sans">
@@ -298,8 +298,8 @@ export default function OrdersView({
                         </td>
 
                         <td className="py-3.5 px-4 text-gray-655 font-sans">
-                          <span className="block font-extrabold text-[11px] text-slate-800 leading-none">🚗 Driver: {ord.driver_name || 'None Assigned'}</span>
-                          <span className="text-[10px] block text-gray-400 mt-1 leading-none">👥 Co-Driver: {ord.companion_name || 'None Assigned'}</span>
+                          <span className="block font-extrabold text-[11px] text-slate-800 leading-none">Driver: {ord.driver_name || 'None Assigned'}</span>
+                          <span className="text-[10px] block text-gray-400 mt-1 leading-none">Co-Driver: {ord.companion_name || 'None Assigned'}</span>
                         </td>
 
                         <td className="py-3.5 px-4">

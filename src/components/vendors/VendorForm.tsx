@@ -224,7 +224,7 @@ export default function VendorForm({
 
     const payload: Vendor = {
       ...editingVendor,
-      company_code: editingVendor.id_code, // Sync company_code with id_code
+      company_code: editingVendor.company_code || editingVendor.id_code, // Maintain separate editable Assigned Code, fallback to id_code if empty
       contacts: tempContacts
     };
 
@@ -281,7 +281,7 @@ export default function VendorForm({
                 setEditingVendor({...editingVendor, trade_name: e.target.value});
                 if (fieldErrors.trade_name) setFieldErrors(prev => ({ ...prev, trade_name: '' }));
               }}
-              className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
+              className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
                 fieldErrors.trade_name 
                   ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                   : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -318,7 +318,7 @@ export default function VendorForm({
                   setEditingVendor({...editingVendor, id_code: e.target.value});
                   if (fieldErrors.id_code) setFieldErrors(prev => ({ ...prev, id_code: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
                   fieldErrors.id_code 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -414,7 +414,7 @@ export default function VendorForm({
                   });
                   if (fieldErrors.city) setFieldErrors(prev => ({ ...prev, city: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                   fieldErrors.city 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -440,7 +440,7 @@ export default function VendorForm({
                   setEditingVendor({...editingVendor, district: e.target.value});
                   if (fieldErrors.district) setFieldErrors(prev => ({ ...prev, district: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                   fieldErrors.district 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -486,7 +486,7 @@ export default function VendorForm({
                   setEditingVendor({...editingVendor, warehouse_id: e.target.value});
                   if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                   fieldErrors.warehouse_id 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -512,7 +512,7 @@ export default function VendorForm({
                   setEditingVendor({...editingVendor, manager_id: e.target.value});
                   if (fieldErrors.manager_id) setFieldErrors(prev => ({ ...prev, manager_id: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                   fieldErrors.manager_id 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -522,7 +522,13 @@ export default function VendorForm({
                 {users.filter(u => u.role === 'manager').map(e => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
-                {users.filter(u => u.role === 'manager').length === 0 && (
+                {editingVendor.manager_id && !users.filter(u => u.role === 'manager').some(u => u.id === editingVendor.manager_id) && (() => {
+                  const assignedUser = users.find(u => u.id === editingVendor.manager_id);
+                  return assignedUser ? (
+                    <option key={assignedUser.id} value={assignedUser.id}>{assignedUser.name} ({assignedUser.role || 'Ad hoc'})</option>
+                  ) : null;
+                })()}
+                {users.filter(u => u.role === 'manager').length === 0 && !editingVendor.manager_id && (
                   <option value={currentUser.id}>{currentUser.name} (Ad hoc)</option>
                 )}
               </select>
@@ -543,7 +549,7 @@ export default function VendorForm({
                   setEditingVendor({...editingVendor, operator_id: e.target.value});
                   if (fieldErrors.operator_id) setFieldErrors(prev => ({ ...prev, operator_id: '' }));
                 }}
-                className={`block w-full px-3.5 py-3 text-xs rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
                   fieldErrors.operator_id 
                     ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -553,6 +559,12 @@ export default function VendorForm({
                 {users.map(e => (
                   <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
                 ))}
+                {editingVendor.operator_id && !users.some(u => u.id === editingVendor.operator_id) && (() => {
+                  const assignedUser = users.find(u => u.id === editingVendor.operator_id);
+                  return assignedUser ? (
+                    <option key={assignedUser.id} value={assignedUser.id}>{assignedUser.name} ({assignedUser.role || 'Ad hoc'})</option>
+                  ) : null;
+                })()}
               </select>
               {fieldErrors.operator_id && (
                 <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">

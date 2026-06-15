@@ -1,5 +1,5 @@
 import React from 'react';
-import { Vendor, Order, City, District } from '../types';
+import { Vendor, Order, City, District } from '../../types';
 import { Bell, ShieldAlert, Award, TrendingUp, Compass } from 'lucide-react';
 
 interface Props {
@@ -46,7 +46,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
   });
 
   return (
-    <div className="space-y-6" id="analytics-view-panel">
+    <div className="space-y-6 pt-4 md:pt-6" id="analytics-view-panel">
       
       {/* Overview Head */}
       <div>

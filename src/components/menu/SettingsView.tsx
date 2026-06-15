@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function SettingsView() {
   return (
-    <div className="space-y-6" id="settings-system-panel">
+    <div className="space-y-6 pt-4 md:pt-6" id="settings-system-panel">
       {/* Header */}
       <div>
         <h2 className="text-xl font-extrabold text-gray-800">Settings</h2>

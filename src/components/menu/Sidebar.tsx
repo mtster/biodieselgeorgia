@@ -3,7 +3,7 @@ import {
   Leaf, LayoutDashboard, BarChart3, Building2, MessageSquare, 
   ShoppingBag, Users, FileText, Globe, History, Settings, LogOut, X, Menu 
 } from 'lucide-react';
-import { User } from '../types';
+import { User } from '../../types';
 
 interface SidebarProps {
   currentUser: User;

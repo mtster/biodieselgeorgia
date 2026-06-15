@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { User } from '../types';
+import { User } from '../../types';
 import { LogIn, Leaf } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../lib/db';
+import { supabase, isSupabaseConfigured } from '../../lib/db';
 
 interface Props {
   users: User[];

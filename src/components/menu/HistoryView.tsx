@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChangeHistory } from '../types';
+import { ChangeHistory } from '../../types';
 import { History, ShieldAlert, BadgeInfo, RotateCcw, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -23,7 +23,7 @@ export default function HistoryView({ history, onRevert }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-4 md:pt-6">
       
       {/* Header */}
       <div>

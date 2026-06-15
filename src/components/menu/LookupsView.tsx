@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { City, District, Truck, User } from '../types';
+import { City, District, Truck, User } from '../../types';
 import { 
   Plus, Trash2, Check, X, Truck as TruckIcon, 
   MapPin, Landmark, Settings 
@@ -78,7 +78,7 @@ export default function LookupsView({
   };
 
   return (
-    <div className="space-y-6" id="lookups-view-panel">
+    <div className="space-y-6 pt-4 md:pt-6" id="lookups-view-panel">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

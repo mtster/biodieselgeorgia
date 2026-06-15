@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Communication, Vendor, User } from '../types';
+import { Communication, Vendor, User } from '../../types';
 import { Plus, Search, HelpCircle, Calendar, MessageSquare, Trash2, X, Check } from 'lucide-react';
-import { LANG } from '../utils/lang';
+import { LANG } from '../../utils/lang';
 
 // Integrated Premium iOS-Style Wheel/Grid DateTime Selector
 function IosDateTimePicker({ 
@@ -248,7 +248,7 @@ export default function CommunicationsView({
   });
 
   return (
-    <div className="space-y-6" id="communications-view-panel">
+    <div className="space-y-6 pt-4 md:pt-6" id="communications-view-panel">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
