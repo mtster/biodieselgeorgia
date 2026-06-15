@@ -38,6 +38,22 @@ export default function LookupsView({
   const [tDriver, setTDriver] = useState('');
   const [tCompanion, setTCompanion] = useState('');
 
+  const ge2en: Record<string, string> = { 'ა':'A', 'ბ':'B', 'გ':'G', 'დ':'D', 'ე':'E', 'ვ':'V', 'ზ':'Z', 'თ':'T', 'ი':'I', 'კ':'K', 'ლ':'L', 'მ':'M', 'ნ':'N', 'ო':'O', 'პ':'P', 'ჟ':'J', 'რ':'R', 'ს':'S', 'ტ':'T', 'უ':'U', 'ფ':'F', 'ქ':'Q', 'ღ':'R', 'ყ':'Y', 'შ':'S', 'ჩ':'C', 'ც':'C', 'ძ':'Z', 'წ':'W', 'ჭ':'C', 'ხ':'X', 'ჯ':'J', 'ჰ':'H' };
+
+  const formatLicensePlate = (val: string) => {
+    let mapped = val.toUpperCase().split('').map(c => ge2en[c] || c).join('');
+    let clean = mapped.replace(/[^A-Z0-9]/g, '');
+    let res = '';
+    let let1 = clean.substring(0, 2).replace(/[^A-Z]/g, '');
+    let num = clean.substring(let1.length, let1.length + 3).replace(/[^0-9]/g, '');
+    let let2 = clean.substring(let1.length + num.length, let1.length + num.length + 2).replace(/[^A-Z]/g, '');
+    
+    if (let1) res += let1;
+    if (let1.length === 2 && num) res += '-' + num;
+    if (num.length === 3 && let2) res += '-' + let2;
+    return res;
+  };
+
   const handleAddCity = () => {
     if (!newCityName.trim()) return;
     onSaveCity({ id: '', name: newCityName });
@@ -119,18 +135,22 @@ export default function LookupsView({
             </h3>
 
             {/* Save City inline form */}
-            <div className="flex gap-2">
-              <input 
-                id="input-new-city"
-                type="text" 
-                placeholder="New city name..."
-                value={newCityName}
-                onChange={(e) => setNewCityName(e.target.value)}
-                className="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
+            <div className="flex gap-2 items-end">
+              <div className="relative flex-1">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                  New City Name
+                </span>
+                <input 
+                  id="input-new-city"
+                  type="text" 
+                  value={newCityName}
+                  onChange={(e) => setNewCityName(e.target.value)}
+                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
+                />
+              </div>
               <button 
                 onClick={handleAddCity}
-                className="px-3 py-1.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
+                className="px-4 py-3 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer shrink-0"
               >
                 Add
               </button>
@@ -159,26 +179,35 @@ export default function LookupsView({
             </h3>
 
             {/* Save District inline form */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <select
-                value={selectedCityId}
-                onChange={(e) => setSelectedCityId(e.target.value)}
-                className="px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
-              >
-                <option value="">-- Select City --</option>
-                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <input 
-                id="input-new-district"
-                type="text" 
-                placeholder="New district..."
-                value={newDistName}
-                onChange={(e) => setNewDistName(e.target.value)}
-                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                  City Select
+                </span>
+                <select
+                  value={selectedCityId}
+                  onChange={(e) => setSelectedCityId(e.target.value)}
+                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
+                >
+                  <option value="">-- Select City --</option>
+                  {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                  New District Name
+                </span>
+                <input 
+                  id="input-new-district"
+                  type="text" 
+                  value={newDistName}
+                  onChange={(e) => setNewDistName(e.target.value)}
+                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
+                />
+              </div>
               <button 
                 onClick={handleAddDistrict}
-                className="bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
+                className="bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer py-3"
               >
                 Add District
               </button>
@@ -217,35 +246,39 @@ export default function LookupsView({
               Register Vehicle Asset
             </h3>
 
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-[10px] text-gray-450 font-semibold block mb-0.5">License Plate *</label>
+            <div className="space-y-4 pt-1">
+              <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                  License Plate *
+                </span>
                 <input 
                   type="text" 
-                  placeholder="e.g. BB-777-GG"
                   value={tPlate}
-                  onChange={(e) => setTPlate(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  onChange={(e) => setTPlate(formatLicensePlate(e.target.value))}
+                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-mono transition-all bg-white text-gray-900"
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] text-gray-455 font-semibold block mb-0.5">Brand / Model *</label>
+              <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                  Brand / Model *
+                </span>
                 <input 
                   type="text" 
-                  placeholder="e.g. Mercedes-Benz Sprinter"
                   value={tModel}
                   onChange={(e) => setTModel(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
+                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] text-gray-455 font-semibold block mb-0.5 font-sans">Driver</label>
+              <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                  Driver
+                </span>
                 <select
                   value={tDriver}
                   onChange={(e) => setTDriver(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
+                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
                 >
                   <option value="">-- Select Driver --</option>
                   {employees.filter(e => e.role === 'driver').map(e => (
@@ -254,12 +287,14 @@ export default function LookupsView({
                 </select>
               </div>
 
-              <div>
-                <label className="text-[10px] text-gray-455 font-semibold block mb-0.5 font-sans">Co-Driver / Companion</label>
+              <div className="relative">
+                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                  Co-Driver / Companion
+                </span>
                 <select
                   value={tCompanion}
                   onChange={(e) => setTCompanion(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none"
+                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
                 >
                   <option value="">-- Select Companion --</option>
                   {employees.filter(e => e.role !== 'driver').map(e => (
@@ -290,7 +325,7 @@ export default function LookupsView({
                     </span>
                     <span className="font-semibold text-gray-800 ml-2">{truck.model}</span>
                     <p className="text-[10px] text-gray-400 font-sans mt-1">
-                      Assigned Driver: <strong className="text-gray-650">{truck.driver_name || 'None'}</strong> • Companion: {truck.companion_name || 'None'}
+                      Assigned Driver: <strong className="text-gray-650">{employees.find(e => e.id === truck.driver_id)?.name || 'None'}</strong> • Companion: {employees.find(e => e.id === truck.companion_id)?.name || 'None'}
                     </p>
                   </div>
                   <button 

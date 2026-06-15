@@ -3,6 +3,28 @@
  * Centralized Georgian terms and common phrases to maintain clean and consistent translations.
  */
 
+export const formatPhone = (val: string) => {
+  let cleaned = val.replace(/[^0-9+]/g, '');
+  if (!cleaned || cleaned === '+') return '+995 ';
+  if (cleaned[0] !== '+') cleaned = '+' + cleaned;
+  
+  if (cleaned.startsWith('+995')) {
+    let right = cleaned.slice(4);
+    let chunks = [];
+    if (right.length > 0) chunks.push(right.slice(0, 3));
+    if (right.length > 3) chunks.push(right.slice(3, 6));
+    if (right.length > 6) chunks.push(right.slice(6, 9));
+    let tail = chunks.join(' ');
+    if (right.length > 9) tail += right.slice(9);
+    return '+995' + (tail ? ' ' + tail : '');
+  }
+  
+  let right = cleaned.slice(1);
+  if (right.length < 4) return '+' + right;
+  let chunks = right.match(/.{1,3}/g) || [];
+  return '+' + chunks.join(' ');
+};
+
 export const LANG = {
   // Navigation & Sections
   brand: 'Biodiesel Georgia',

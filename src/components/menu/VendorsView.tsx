@@ -169,11 +169,10 @@ export default function VendorsView({
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
-      <div className="-mx-4 md:-mx-6 mb-6">
-        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
-            <p className="text-xs text-gray-550 mt-1 font-sans">
+      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
+        <div>
+          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
+          <p className="text-xs text-gray-550 mt-1 font-sans">
               {editingVendor 
                 ? (isNew ? 'Creating Supplier' : `Editing: ${editingVendor.trade_name}`)
                 : 'Manage commercial biodiesel suppliers, purchase pricing rates, bank account targets, and contact lists.'
@@ -230,7 +229,6 @@ export default function VendorsView({
             )}
           </div>
         </div>
-      </div>
 
       {/* 2. FORM OR LIST SPREADSHEET CANVAS */}
       {editingVendor ? (

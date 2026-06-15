@@ -7,6 +7,8 @@ import {
   Plus, Trash2, X, Phone, ShieldAlert, MessageSquare 
 } from 'lucide-react';
 
+import { formatPhone } from '../../utils/lang';
+
 interface Props {
   editingVendor: Vendor;
   setEditingVendor: React.Dispatch<React.SetStateAction<Vendor | null>>;
@@ -199,21 +201,6 @@ export default function VendorForm({
     if (!editingVendor.id_code.trim()) {
       errs.id_code = 'Identification Code is required.';
     }
-    if (!editingVendor.city) {
-      errs.city = 'Please select a City.';
-    }
-    if (!editingVendor.district) {
-      errs.district = 'Please select a District.';
-    }
-    if (!editingVendor.warehouse_id) {
-      errs.warehouse_id = 'Please select an Assigned Base Warehouse.';
-    }
-    if (!editingVendor.manager_id) {
-      errs.manager_id = 'Please select an Acquisition Manager.';
-    }
-    if (!editingVendor.operator_id) {
-      errs.operator_id = 'Please select a Systems Dispatcher.';
-    }
 
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
@@ -365,7 +352,24 @@ export default function VendorForm({
               <input 
                 type="text"
                 value={editingVendor.bank_account}
-                onChange={(e) => setEditingVendor({...editingVendor, bank_account: e.target.value})}
+                onChange={(e) => {
+                  let clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                  let res = '';
+                  for(let i=0; i<clean.length && i<22; i++) {
+                    const c = clean[i];
+                    if (i < 2) {
+                      if (/[A-Z]/.test(c)) res += c;
+                    } else if (i < 4) {
+                      if (/[0-9]/.test(c)) res += c;
+                    } else if (i < 6) {
+                      if (/[A-Z]/.test(c)) res += c;
+                    } else {
+                      if (/[0-9]/.test(c)) res += c;
+                    }
+                  }
+                  setEditingVendor({...editingVendor, bank_account: res});
+                }}
+                maxLength={22}
                 className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
             </div>
@@ -379,17 +383,21 @@ export default function VendorForm({
                 placeholder="e.g. 10:00 - 16:00"
                 value={editingVendor.working_hours}
                 onChange={(e) => {
+                  const clean = e.target.value.replace(/[^0-9:\-\s]/g, '');
+                  setEditingVendor({...editingVendor, working_hours: clean});
+                }}
+                onBlur={(e) => {
                   const val = e.target.value;
                   const digits = val.replace(/\D/g, '').slice(0, 8);
-                  let formatted = digits;
-                  if (digits.length > 6) {
-                    formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)} - ${digits.slice(4, 6)}:${digits.slice(6)}`;
-                  } else if (digits.length > 4) {
-                    formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)} - ${digits.slice(4)}`;
-                  } else if (digits.length > 2) {
-                    formatted = `${digits.slice(0, 2)}:${digits.slice(2)}`;
+                  if (digits.length >= 4) {
+                    let formatted = digits;
+                    if (digits.length >= 8) {
+                      formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)} - ${digits.slice(4, 6)}:${digits.slice(6)}`;
+                    } else {
+                      formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)}${digits.length > 4 ? ' - ' + digits.slice(4) : ''}`;
+                    }
+                    setEditingVendor({...editingVendor, working_hours: formatted});
                   }
-                  setEditingVendor({...editingVendor, working_hours: formatted});
                 }}
                 className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
               />
@@ -597,7 +605,10 @@ export default function VendorForm({
               <input 
                 type="text"
                 value={tempContacts.find(c => c.is_default)?.phone || ''}
-                onChange={(e) => updateMainContact('phone', e.target.value)}
+                onFocus={(e) => { 
+                  if (!tempContacts.find(c => c.is_default)?.phone) updateMainContact('phone', '+995 '); 
+                }}
+                onChange={(e) => updateMainContact('phone', formatPhone(e.target.value))}
                 className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
             </div>
@@ -738,7 +749,8 @@ export default function VendorForm({
                 <input 
                   type="text" 
                   value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
+                  onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
+                  onChange={(e) => setContactPhone(formatPhone(e.target.value))}
                   className="block w-full px-3 py-3 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none font-mono"
                 />
               </div>

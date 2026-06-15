@@ -115,11 +115,10 @@ export default function OrdersView({
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="-mx-4 md:-mx-6 mb-6">
-        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Orders</h2>
-            <p className="text-xs text-gray-550 mt-1 font-sans">
+      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
+        <div>
+          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Orders</h2>
+          <p className="text-xs text-gray-550 mt-1 font-sans">
               {editingOrder 
                 ? (isNew ? 'Creating order' : `Editing: Order #${editingOrder.doc_number}`)
                 : 'Oil collection progress, driver assignments, and warehouses routing.'
@@ -177,7 +176,6 @@ export default function OrdersView({
             )}
           </div>
         </div>
-      </div>
 
       {/* 2. FORM OR LIST SPREADSHEET */}
       {editingOrder ? (

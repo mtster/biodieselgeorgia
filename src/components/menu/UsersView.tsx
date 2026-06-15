@@ -25,13 +25,11 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
   // Privileges choices
   const availablePrivileges = [
     'All', 
-    'Management', 
+    'User Management', 
     'Orders', 
-    'Reports', 
-    'Logistics',
-    'My Tasks Only',
+    'Assigned Tasks Only', 
     'Analytics',
-    'Lookups'
+    'Reports'
   ];
 
   const startNew = () => {
@@ -195,11 +193,10 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="-mx-4 md:-mx-6 mb-6">
-        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
-            <p className="text-xs text-gray-550 mt-1 font-sans">
+      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
+        <div>
+          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
+          <p className="text-xs text-gray-550 mt-1 font-sans">
               {editingUser 
                 ? (isNew ? 'Creating a new user' : `Editing: ${editingUser.name}`)
                 : 'Biodiesel Georgia staff, managers, drivers, suppliers, and their operations privileges.'
@@ -243,7 +240,6 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
             )}
           </div>
         </div>
-      </div>
 
       {/* 2. FORM OR GRID VIEW */}
       {editingUser ? (
@@ -366,8 +362,11 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 type="text"
                 id="user-phone-number"
                 value={editingUser.phone}
+                onFocus={(e) => { 
+                  if (!editingUser.phone) setEditingUser({...editingUser, phone: '+995 '});
+                }}
                 onChange={(e) => {
-                  setEditingUser({...editingUser, phone: e.target.value});
+                  setEditingUser({...editingUser, phone: formatPhone(e.target.value)});
                   if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
                 }}
                 className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
@@ -377,7 +376,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 }`}
               />
               {fieldErrors.phone && (
-                <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
                   {fieldErrors.phone}
                 </p>
               )}
@@ -391,7 +390,19 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               <select
                 value={editingUser.role || 'manager'}
                 onChange={(e) => {
-                  setEditingUser({...editingUser, role: e.target.value as UserRole});
+                  const role = e.target.value as any;
+                  let autoPrivileges = editingUser.privileges || [];
+                  
+                  if (role === 'admin') autoPrivileges = [...availablePrivileges];
+                  else if (role === 'manager') autoPrivileges = ['Orders'];
+                  else if (role === 'driver') autoPrivileges = ['Assigned Tasks Only'];
+                  else if (role === 'vendor') autoPrivileges = ['Assigned Tasks Only'];
+
+                  setEditingUser({
+                    ...editingUser, 
+                    role: role,
+                    privileges: autoPrivileges
+                  });
                   if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }));
                 }}
                 className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
@@ -424,23 +435,14 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   const hasAll = editingUser.privileges.includes('All');
                   const isChecked = privilege === 'All' ? hasAll : (hasAll || editingUser.privileges.includes(privilege));
                   return (
-                    <div key={privilege} className="flex items-center justify-between py-1 border-b border-gray-200/50 last:border-0">
-                      <span className="text-xs font-bold text-slate-700 font-sans">{privilege}</span>
-                      
-                      {/* Vibrant Green iOS Style Toggle */}
-                      <button
-                        type="button"
-                        onClick={() => togglePrivilege(privilege)}
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150 ease-in-out focus:outline-none ${
-                          isChecked ? 'bg-emerald-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-150 ease-in-out ${
-                            isChecked ? 'translate-x-4' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
+                    <div key={privilege} className="flex items-center gap-3 py-1.5 last:border-0">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => togglePrivilege(privilege)}
+                        className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-700 font-sans cursor-pointer select-none" onClick={() => togglePrivilege(privilege)}>{privilege}</span>
                     </div>
                   );
                 })}
