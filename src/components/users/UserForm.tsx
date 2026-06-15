@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useImperativeHandle } from 'react';
 import { User, UserRole } from '../../types';
 import { formatPhone } from '../../utils/lang';
 
@@ -9,7 +9,7 @@ interface Props {
   currentUser: User;
   onSave: (user: User) => void;
   onCancel: () => void;
-  onRegisterTriggers?: (triggers: { save: () => void; fillDummy: () => void }) => void;
+  formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
 }
 
 export const availablePrivileges = [
@@ -28,18 +28,14 @@ export default function UserForm({
   currentUser,
   onSave,
   onCancel,
-  onRegisterTriggers
+  formRef
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (onRegisterTriggers) {
-      onRegisterTriggers({
-        save: handleSaveAll,
-        fillDummy: fillDummyUser
-      });
-    }
-  }, [editingUser, isNew, onRegisterTriggers]);
+  useImperativeHandle(formRef, () => ({
+    save: handleSaveAll,
+    fillDummy: fillDummyUser
+  }));
 
   const togglePrivilege = (priv: string) => {
     if (!editingUser) return;
@@ -112,13 +108,13 @@ export default function UserForm({
     let finalPrivileges = editingUser.privileges;
     if (finalPrivileges.length === 0) {
       if (editingUser.role === 'admin') {
-        finalPrivileges = ['All', 'Management', 'Orders', 'Reports', 'Analytics', 'Lookups'];
+        finalPrivileges = ['All', 'User Management', 'Orders', 'Reports', 'Analytics'];
       } else if (editingUser.role === 'manager') {
-        finalPrivileges = ['Management', 'Orders', 'Reports', 'Analytics'];
+        finalPrivileges = ['User Management', 'Orders', 'Reports', 'Analytics'];
       } else if (editingUser.role === 'driver') {
-        finalPrivileges = ['Logistics', 'My Tasks Only'];
+        finalPrivileges = ['Assigned Tasks Only'];
       } else if (editingUser.role === 'vendor') {
-        finalPrivileges = ['My Tasks Only'];
+        finalPrivileges = ['Assigned Tasks Only'];
       }
     }
 
@@ -294,7 +290,7 @@ export default function UserForm({
               let autoPrivileges = editingUser.privileges || [];
               
               if (role === 'admin') autoPrivileges = [...availablePrivileges];
-              else if (role === 'manager') autoPrivileges = ['Orders'];
+              else if (role === 'manager') autoPrivileges = ['Orders', 'User Management', 'Reports', 'Analytics'];
               else if (role === 'driver') autoPrivileges = ['Assigned Tasks Only'];
               else if (role === 'vendor') autoPrivileges = ['Assigned Tasks Only'];
 
@@ -335,14 +331,22 @@ export default function UserForm({
               const hasAll = editingUser.privileges.includes('All');
               const isChecked = privilege === 'All' ? hasAll : (hasAll || editingUser.privileges.includes(privilege));
               return (
-                <div key={privilege} className="flex items-center gap-3 py-1.5 last:border-0">
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => togglePrivilege(privilege)}
-                    className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2 cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-slate-700 font-sans cursor-pointer select-none" onClick={() => togglePrivilege(privilege)}>{privilege}</span>
+                <div key={privilege} className="flex items-center justify-between py-1 border-b border-gray-200/50 last:border-0">
+                  <span className="text-xs font-bold text-slate-700 font-sans">{privilege}</span>
+                  
+                  <button
+                    type="button"
+                    onClick={() => togglePrivilege(privilege)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150 ease-in-out focus:outline-none ${
+                      isChecked ? 'bg-emerald-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-150 ease-in-out ${
+                        isChecked ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
               );
             })}

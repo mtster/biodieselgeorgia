@@ -5,7 +5,7 @@
 
 export const formatPhone = (val: string) => {
   let cleaned = val.replace(/[^0-9+]/g, '');
-  if (!cleaned || cleaned === '+') return '+995 ';
+  if (!cleaned || cleaned === '+') return '+';
   if (cleaned[0] !== '+') cleaned = '+' + cleaned;
   
   if (cleaned.startsWith('+995')) {
@@ -23,6 +23,16 @@ export const formatPhone = (val: string) => {
   if (right.length < 4) return '+' + right;
   let chunks = right.match(/.{1,3}/g) || [];
   return '+' + chunks.join(' ');
+};
+
+export const formatWorkingHours = (val: string) => {
+  let cleaned = val.replace(/[^0-9]/g, '').slice(0, 8);
+  if (cleaned.length === 0) return '';
+  let res = cleaned.slice(0, 2);
+  if (cleaned.length >= 3) res += ':' + cleaned.slice(2, 4);
+  if (cleaned.length >= 5) res += ' - ' + cleaned.slice(4, 6);
+  if (cleaned.length >= 7) res += ':' + cleaned.slice(6, 8);
+  return res;
 };
 
 export const LANG = {

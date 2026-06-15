@@ -369,7 +369,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-gray-750 flex flex-col md:flex-row font-sans">
+    <div className="h-screen overflow-hidden bg-[#f8fafc] text-gray-750 flex flex-col md:flex-row font-sans">
       
       <Sidebar
         currentUser={currentUser}

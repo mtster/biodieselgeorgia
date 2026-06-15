@@ -13,7 +13,7 @@ interface Props {
   currentEmployee: User;
   onSave: (order: Order) => void;
   onCancel: () => void;
-  onRegisterTriggers?: (triggers: { save: () => void; fillDummy: () => void }) => void;
+  formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
 }
 
 export default function OrderForm({
@@ -26,7 +26,7 @@ export default function OrderForm({
   currentEmployee,
   onSave,
   onCancel,
-  onRegisterTriggers
+  formRef
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -40,6 +40,11 @@ export default function OrderForm({
   // Search state for autocomplete select
   const [vendorSearch, setVendorSearch] = useState('');
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+
+  React.useImperativeHandle(formRef, () => ({
+    save: handleSaveAll,
+    fillDummy: fillDummyOrder
+  }));
 
   // Sync custom time picker fields when editingOrder changes
   useEffect(() => {
@@ -76,19 +81,6 @@ export default function OrderForm({
     const vendorObj = suppliers.find(s => s.id === editingOrder.vendor_id);
     setVendorSearch(vendorObj ? vendorObj.trade_name : '');
   }, [editingOrder.vendor_id, suppliers]);
-
-  // Hook form save and dummy triggers into sticky top header
-  useEffect(() => {
-    if (onRegisterTriggers) {
-      onRegisterTriggers({
-        save: handleSaveAll,
-        fillDummy: fillDummyOrder
-      });
-    }
-  }, [
-    onRegisterTriggers, editingOrder, useCustomDate, selectedDay, selectedMonth,
-    pickupHour, pickupMin, vendorSearch
-  ]);
 
   const handleSaveAll = () => {
     const errs: Record<string, string> = {};

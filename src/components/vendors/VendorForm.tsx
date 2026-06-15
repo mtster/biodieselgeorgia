@@ -7,7 +7,10 @@ import {
   Plus, Trash2, X, Phone, ShieldAlert, MessageSquare 
 } from 'lucide-react';
 
-import { formatPhone } from '../../utils/lang';
+import { formatPhone, formatWorkingHours } from '../../utils/lang';
+
+import VendorContactModal from './VendorContactModal';
+import VendorCommentModal from './VendorCommentModal';
 
 interface Props {
   editingVendor: Vendor;
@@ -19,7 +22,7 @@ interface Props {
   currentUser: User;
   onSave: (vendor: Vendor) => void;
   onCancel: () => void;
-  onRegisterTriggers?: (triggers: { save: () => void; fillDummy: () => void }) => void;
+  formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
 }
 
 export default function VendorForm({
@@ -32,7 +35,7 @@ export default function VendorForm({
   currentUser,
   onSave,
   onCancel,
-  onRegisterTriggers
+  formRef
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -40,78 +43,42 @@ export default function VendorForm({
   const [tempContacts, setTempContacts] = useState<VendorContact[]>([]);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [activeContact, setActiveContact] = useState<VendorContact | null>(null);
-  
-  // Contact field temporary states
-  const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [contactPos, setContactPos] = useState<'accountant' | 'director' | 'operator' | 'other'>('accountant');
-  const [contactNote, setContactNote] = useState('');
 
   // Comment helper states
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activeComment, setActiveComment] = useState<VendorComment | null>(null);
-  const [commentText, setCommentText] = useState('');
 
   // Initialize contacts list
   useEffect(() => {
     setTempContacts(editingVendor.contacts || []);
   }, [editingVendor.id]);
 
-  // Hook form save and dummy triggers into sticky top header
-  useEffect(() => {
-    if (onRegisterTriggers) {
-      onRegisterTriggers({
-        save: handleSaveAll,
-        fillDummy: fillDummyData
-      });
-    }
-  }, [onRegisterTriggers, editingVendor, tempContacts]);
+  React.useImperativeHandle(formRef, () => ({
+    save: handleSaveAll,
+    fillDummy: fillDummyData
+  }));
 
   // Contacts Actions
   const openContactModal = (contact?: VendorContact) => {
-    if (contact) {
-      setActiveContact(contact);
-      setContactName(contact.name);
-      setContactPhone(contact.phone);
-      setContactPos(contact.position);
-      setContactNote(contact.note || '');
-    } else {
-      setActiveContact(null);
-      setContactName('');
-      setContactPhone('');
-      setContactPos('accountant');
-      setContactNote('');
-    }
+    setActiveContact(contact || null);
     setIsContactModalOpen(true);
   };
 
-  const handleSaveContactModal = () => {
-    if (!contactName.trim() || !contactPhone.trim()) {
-      alert("Please fill in contact name and phone number");
-      return;
-    }
-
+  const handleSaveContact = (contactData: Partial<VendorContact>) => {
     if (activeContact) {
-      setTempContacts(tempContacts.map(c => c.id === activeContact.id ? {
-        ...c,
-        name: contactName,
-        phone: contactPhone,
-        position: contactPos,
-        note: contactNote
-      } : c));
+      setTempContacts(tempContacts.map(c => c.id === activeContact.id ? { ...c, ...contactData } : c));
     } else {
       const isFirst = tempContacts.length === 0;
       const newContact: VendorContact = {
         id: 'cont-' + Math.random().toString(36).substring(2, 9),
-        name: contactName,
-        phone: contactPhone,
-        position: contactPos,
-        note: contactNote,
+        name: contactData.name || '',
+        phone: contactData.phone || '',
+        position: contactData.position as any,
+        note: contactData.note,
         is_default: isFirst
       };
       setTempContacts([...tempContacts, newContact]);
     }
-
     setIsContactModalOpen(false);
   };
 
@@ -122,31 +89,20 @@ export default function VendorForm({
 
   // Comments Actions
   const openCommentModal = (comment?: VendorComment) => {
-    if (comment) {
-      setActiveComment(comment);
-      setCommentText(comment.comment);
-    } else {
-      setActiveComment(null);
-      setCommentText('');
-    }
+    setActiveComment(comment || null);
     setIsCommentModalOpen(true);
   };
 
-  const handleSaveCommentModal = () => {
-    if (!commentText.trim()) return;
-
+  const handleSaveComment = (text: string) => {
     if (activeComment) {
       const updatedComments = (editingVendor.comments || []).map(c => 
-        c.id === activeComment.id ? { ...c, comment: commentText } : c
+        c.id === activeComment.id ? { ...c, comment: text } : c
       );
-      setEditingVendor(prev => prev ? {
-        ...prev,
-        comments: updatedComments
-      } : null);
+      setEditingVendor(prev => prev ? { ...prev, comments: updatedComments } : null);
     } else {
       const newComment: VendorComment = {
         id: 'comm-' + Math.random().toString(36).substring(2, 9),
-        comment: commentText,
+        comment: text,
         date: new Date().toISOString(),
         user_name: currentUser.name
       };
@@ -383,21 +339,8 @@ export default function VendorForm({
                 placeholder="e.g. 10:00 - 16:00"
                 value={editingVendor.working_hours}
                 onChange={(e) => {
-                  const clean = e.target.value.replace(/[^0-9:\-\s]/g, '');
-                  setEditingVendor({...editingVendor, working_hours: clean});
-                }}
-                onBlur={(e) => {
-                  const val = e.target.value;
-                  const digits = val.replace(/\D/g, '').slice(0, 8);
-                  if (digits.length >= 4) {
-                    let formatted = digits;
-                    if (digits.length >= 8) {
-                      formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)} - ${digits.slice(4, 6)}:${digits.slice(6)}`;
-                    } else {
-                      formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)}${digits.length > 4 ? ' - ' + digits.slice(4) : ''}`;
-                    }
-                    setEditingVendor({...editingVendor, working_hours: formatted});
-                  }
+                  const cleaned = formatWorkingHours(e.target.value);
+                  setEditingVendor({...editingVendor, working_hours: cleaned});
                 }}
                 className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
               />
@@ -714,156 +657,21 @@ export default function VendorForm({
 
       </div>
 
-      {/* ADDITIONAL SMALL OVERLAY CONTROLLERS */}
+      <VendorContactModal
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+        activeContact={activeContact}
+        onSave={handleSaveContact}
+        onDelete={handleRemoveContact}
+      />
 
-      {/* 4. EXPLICIT CONTACT MODAL (SMALL OVERLAY) */}
-      {isContactModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-gray-100 animate-in zoom-in-95">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h4 className="font-extrabold text-gray-800 text-xs uppercase tracking-wide">
-                {activeContact ? 'Edit Contact Person' : 'Add Contact Person'}
-              </h4>
-              <button onClick={() => setIsContactModalOpen(false)} className="p-1 hover:bg-slate-50 rounded text-gray-400">
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="space-y-3.5 text-left">
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10">
-                  Contact Name *
-                </span>
-                <input 
-                  type="text" 
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  className="block w-full px-3 py-3 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none"
-                />
-              </div>
-
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 font-mono">
-                  Mobile Phone Number *
-                </span>
-                <input 
-                  type="text" 
-                  value={contactPhone}
-                  onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
-                  onChange={(e) => setContactPhone(formatPhone(e.target.value))}
-                  className="block w-full px-3 py-3 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none font-mono"
-                />
-              </div>
-
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10">
-                  Position / Role
-                </span>
-                <select
-                  value={contactPos}
-                  onChange={(e) => setContactPos(e.target.value as any)}
-                  className="block w-full px-3 py-2 bg-white border border-gray-205 rounded-xl text-xs font-sans cursor-pointer focus:outline-none"
-                >
-                  <option value="accountant">Accountant</option>
-                  <option value="director">Director/Owner</option>
-                  <option value="operator">Operations Mgr</option>
-                  <option value="other">Other Position</option>
-                </select>
-              </div>
-
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10">
-                  Short Note (e.g. call instructions)
-                </span>
-                <input 
-                  type="text" 
-                  value={contactNote}
-                  onChange={(e) => setContactNote(e.target.value)}
-                  className="block w-full px-3 py-3 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 justify-end pt-2 font-sans select-none">
-              {activeContact && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveContact(activeContact.id)}
-                  className="mr-auto px-3 py-1.5 border border-rose-250 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition flex items-center gap-1 select-none cursor-pointer"
-                >
-                  <Trash2 size={12} /> Delete
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setIsContactModalOpen(false)}
-                className="px-3 py-1.5 bg-gray-100 text-gray-650 rounded-lg text-xs font-bold transition select-none cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveContactModal}
-                className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white rounded-lg text-xs font-extrabold transition select-none cursor-pointer"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. EXPLICIT COMMENT MODAL (SMALL OVERLAY) */}
-      {isCommentModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-gray-100 animate-in zoom-in-95">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h4 className="font-extrabold text-gray-800 text-xs uppercase tracking-wide">
-                Comment
-              </h4>
-              <button onClick={() => setIsCommentModalOpen(false)} className="p-1 hover:bg-slate-50 rounded text-gray-400">
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="text-left space-y-1.5">
-              <textarea 
-                rows={4}
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write specific supplier memo here..."
-                className="w-full p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-              ></textarea>
-            </div>
-
-            <div className="flex gap-2.5 justify-end pt-1 font-sans select-none">
-              {activeComment && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveComment(activeComment.id)}
-                  className="mr-auto px-3 py-1.5 border border-rose-250 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition flex items-center gap-1 select-none cursor-pointer"
-                >
-                  <Trash2 size={12} /> Delete
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setIsCommentModalOpen(false)}
-                className="px-3 py-1.5 bg-gray-100 text-gray-650 rounded-lg text-xs font-bold transition select-none cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveCommentModal}
-                className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white rounded-lg text-xs font-extrabold transition select-none cursor-pointer"
-              >
-                Submit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VendorCommentModal
+        isOpen={isCommentModalOpen}
+        onClose={() => setIsCommentModalOpen(false)}
+        activeComment={activeComment}
+        onSave={handleSaveComment}
+        onDelete={handleRemoveComment}
+      />
     </div>
   );
 }

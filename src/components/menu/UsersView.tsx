@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { User, UserRole } from '../../types';
 import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
 import UserDeleteModal from '../users/UserDeleteModal';
@@ -20,8 +20,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
   const [isNew, setIsNew] = useState(false);
   
   // Action triggers for child forms
-  const [formSubmitTrigger, setFormSubmitTrigger] = useState<(() => void) | null>(null);
-  const [formDummyTrigger, setFormDummyTrigger] = useState<(() => void) | null>(null);
+  const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
 
   // Delete confirmation modal states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -119,7 +118,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
               <>
                 <button 
                   onClick={() => {
-                    if (formDummyTrigger) formDummyTrigger();
+                    formRef.current?.fillDummy();
                   }}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
                 >
@@ -133,7 +132,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                 </button>
                 <button 
                   onClick={() => {
-                    if (formSubmitTrigger) formSubmitTrigger();
+                    formRef.current?.save();
                   }}
                   className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
                 >
@@ -164,10 +163,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
           currentUser={currentUser}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingUser(null)}
-          onRegisterTriggers={(triggers) => {
-            setFormSubmitTrigger(() => triggers.save);
-            setFormDummyTrigger(() => triggers.fillDummy);
-          }}
+          formRef={formRef}
         />
       ) : (
         <div className="space-y-6">

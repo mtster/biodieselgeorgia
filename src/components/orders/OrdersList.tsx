@@ -1,10 +1,11 @@
 import React from 'react';
-import { Order, Vendor } from '../../types';
+import { Order, Vendor, User } from '../../types';
 import { Edit2, Trash2 } from 'lucide-react';
 
 interface Props {
   filteredOrders: Order[];
   suppliers: Vendor[];
+  employees: User[];
   startEdit: (ord: Order) => void;
   askDelete: (id: string, docNum: string) => void;
 }
@@ -12,6 +13,7 @@ interface Props {
 export default function OrdersList({
   filteredOrders,
   suppliers,
+  employees,
   startEdit,
   askDelete
 }: Props) {
@@ -34,6 +36,8 @@ export default function OrdersList({
           <tbody className="divide-y divide-gray-200">
             {filteredOrders.map((ord) => {
               const supplierObj = suppliers.find(s => s.id === ord.vendor_id);
+              const actualDriver = employees.find(e => e.id === ord.driver_id)?.name || ord.driver_name;
+              const actualCompanion = employees.find(e => e.id === ord.companion_id)?.name || ord.companion_name;
               return (
                 <tr key={ord.id} className="hover:bg-slate-50/50">
                   <td className="py-3.5 px-4 font-mono font-bold text-gray-955">
@@ -71,8 +75,8 @@ export default function OrdersList({
                   </td>
 
                   <td className="py-3.5 px-4 text-gray-655 font-sans">
-                    <span className="block font-extrabold text-[11px] text-slate-800 leading-none">Driver: {ord.driver_name || 'None Assigned'}</span>
-                    <span className="text-[10px] block text-gray-400 mt-1 leading-none">Co-Driver: {ord.companion_name || 'None Assigned'}</span>
+                    <span className="block font-extrabold text-[11px] text-slate-800 leading-none">Driver: {actualDriver || 'None Assigned'}</span>
+                    <span className="text-[10px] block text-gray-400 mt-1 leading-none">Co-Driver: {actualCompanion || 'None Assigned'}</span>
                   </td>
 
                   <td className="py-3.5 px-4">

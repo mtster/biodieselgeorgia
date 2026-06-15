@@ -49,8 +49,10 @@ export default function LookupsView({
     let let2 = clean.substring(let1.length + num.length, let1.length + num.length + 2).replace(/[^A-Z]/g, '');
     
     if (let1) res += let1;
-    if (let1.length === 2 && num) res += '-' + num;
-    if (num.length === 3 && let2) res += '-' + let2;
+    if (let1.length === 2 && (num || val.endsWith('-'))) res += '-';
+    if (num) res += num;
+    if (num.length === 3 && (let2 || (val.endsWith('-') && clean.length === 5))) res += '-';
+    if (let2) res += let2;
     return res;
   };
 

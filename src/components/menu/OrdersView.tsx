@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../../types';
 import { getSMSLogs } from '../../lib/db';
 import { 
@@ -41,8 +41,7 @@ export default function OrdersView({
   const [deleteConfirmDocNum, setDeleteConfirmDocNum] = useState<string | null>(null);
 
   // Action triggers for child forms
-  const [formSubmitTrigger, setFormSubmitTrigger] = useState<(() => void) | null>(null);
-  const [formDummyTrigger, setFormDummyTrigger] = useState<(() => void) | null>(null);
+  const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
 
   const loadSMSLogs = async () => {
     const data = await getSMSLogs();
@@ -132,7 +131,7 @@ export default function OrdersView({
               <>
                 <button 
                   onClick={() => {
-                    if (formDummyTrigger) formDummyTrigger();
+                    formRef.current?.fillDummy();
                   }}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
                 >
@@ -146,7 +145,7 @@ export default function OrdersView({
                 </button>
                 <button 
                   onClick={() => {
-                    if (formSubmitTrigger) formSubmitTrigger();
+                    formRef.current?.save();
                   }}
                   className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
                 >
@@ -190,10 +189,7 @@ export default function OrdersView({
           currentEmployee={currentEmployee}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingOrder(null)}
-          onRegisterTriggers={(triggers) => {
-            setFormSubmitTrigger(() => triggers.save);
-            setFormDummyTrigger(() => triggers.fillDummy);
-          }}
+          formRef={formRef}
         />
       ) : (
         <div className="space-y-6 text-left">
@@ -244,6 +240,7 @@ export default function OrdersView({
           <OrdersList 
             filteredOrders={filteredOrders} 
             suppliers={suppliers} 
+            employees={employees}
             startEdit={startEdit} 
             askDelete={askDelete} 
           />
