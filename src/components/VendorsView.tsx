@@ -9,9 +9,9 @@ import {
 } from 'lucide-react';
 
 // Modular child components
-import VendorForm from './vendors/VendorForm';
-import VendorDeleteModal from './vendors/VendorDeleteModal';
-import VendorImportModal from './vendors/VendorImportModal';
+import VendorForm from './menu/VendorForm';
+import VendorDeleteModal from './menu/VendorDeleteModal';
+import VendorImportModal from './menu/VendorImportModal';
 
 interface Props {
   vendors: Vendor[];
@@ -45,6 +45,10 @@ export default function VendorsView({
   // Delete confirmation modal states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState<string | null>(null);
+
+  // Action triggers for child forms
+  const [formSubmitTrigger, setFormSubmitTrigger] = useState<(() => void) | null>(null);
+  const [formDummyTrigger, setFormDummyTrigger] = useState<(() => void) | null>(null);
 
   // Hover state for comment tooltip to render nicely outside overflow boundaries
   const [hoveredComments, setHoveredComments] = useState<{
@@ -166,7 +170,7 @@ export default function VendorsView({
       
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
       <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
-        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+        <div className="sticky -top-4 md:-top-6 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
             <p className="text-xs text-gray-550 mt-1 font-sans">
@@ -178,11 +182,36 @@ export default function VendorsView({
           </div>
 
           <div className="flex items-center gap-3">
-            {!editingVendor && (
+            {editingVendor ? (
+              <>
+                <button 
+                  onClick={() => {
+                    if (formDummyTrigger) formDummyTrigger();
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+                >
+                  Fill Dummy
+                </button>
+                <button 
+                  onClick={() => setEditingVendor(null)}
+                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    if (formSubmitTrigger) formSubmitTrigger();
+                  }}
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+                >
+                  Save
+                </button>
+              </>
+            ) : (
               <>
                 <button 
                   onClick={() => setIsImporting(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer select-none"
                   title="Import suppliers from spreadsheet files"
                 >
                   <FileSpreadsheet size={15} />
@@ -215,6 +244,10 @@ export default function VendorsView({
           currentUser={currentUser}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingVendor(null)}
+          onRegisterTriggers={(triggers) => {
+            setFormSubmitTrigger(() => triggers.save);
+            setFormDummyTrigger(() => triggers.fillDummy);
+          }}
         />
       ) : (
         <div className="space-y-6 text-left">

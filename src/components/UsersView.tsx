@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
+import UserDeleteModal from './users/UserDeleteModal';
 
 interface Props {
   users: User[];
@@ -210,16 +211,16 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
             {editingUser ? (
               <>
                 <button 
-                  onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
-                >
-                  Cancel
-                </button>
-                <button 
                   onClick={fillDummyUser}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
                 >
                   Fill Dummy
+                </button>
+                <button 
+                  onClick={() => setEditingUser(null)}
+                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
+                >
+                  Cancel
                 </button>
                 <button 
                   onClick={handleSaveAll}
@@ -544,40 +545,15 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       )}
 
       {/* SYSTEM CUSTOM DELETE CONFIRMATION MODAL */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-xl border border-gray-100 animate-in zoom-in-95 duration-150">
-            <div className="mx-auto w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center">
-              <Trash2 size={24} />
-            </div>
-            
-            <div className="space-y-1.5 text-center">
-              <h3 className="font-extrabold text-sm text-gray-950">Remove System Profile?</h3>
-              <p className="text-xs text-gray-450 leading-relaxed font-sans">
-                Are you sure you want to delete user <strong>"{deleteConfirmName}"</strong>? This user profile credentials will be terminated from Biodiesel Georgia server databases.
-              </p>
-            </div>
-
-            <div className="flex gap-2.5 pt-2 select-none">
-              <button 
-                onClick={() => {
-                  setDeleteConfirmId(null);
-                  setDeleteConfirmName(null);
-                }} 
-                className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmDelete} 
-                className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl text-xs transition cursor-pointer shadow-sm"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <UserDeleteModal
+        isOpen={!!deleteConfirmId}
+        userName={deleteConfirmName}
+        onCancel={() => {
+          setDeleteConfirmId(null);
+          setDeleteConfirmName(null);
+        }}
+        onConfirm={confirmDelete}
+      />
 
     </div>
   );

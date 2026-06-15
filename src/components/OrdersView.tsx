@@ -39,6 +39,10 @@ export default function OrdersView({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmDocNum, setDeleteConfirmDocNum] = useState<string | null>(null);
 
+  // Action triggers for child forms
+  const [formSubmitTrigger, setFormSubmitTrigger] = useState<(() => void) | null>(null);
+  const [formDummyTrigger, setFormDummyTrigger] = useState<(() => void) | null>(null);
+
   const loadSMSLogs = async () => {
     const data = await getSMSLogs();
     setSmsLogs(data);
@@ -112,7 +116,7 @@ export default function OrdersView({
       
       {/* 1. STANDARDIZED PAGE HEADER */}
       <div className="-mt-4 -mx-4 md:-mt-6 md:-mx-6 mb-6">
-        <div className="sticky top-0 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
+        <div className="sticky -top-4 md:-top-6 z-20 bg-[#f8fafc]/95 backdrop-blur-md py-4 px-4 md:px-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs">
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Orders</h2>
             <p className="text-xs text-gray-550 mt-1 font-sans">
@@ -124,7 +128,32 @@ export default function OrdersView({
           </div>
 
           <div className="flex items-center gap-3">
-            {!editingOrder && (
+            {editingOrder ? (
+              <>
+                <button 
+                  onClick={() => {
+                    if (formDummyTrigger) formDummyTrigger();
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+                >
+                  Fill Dummy
+                </button>
+                <button 
+                  onClick={() => setEditingOrder(null)}
+                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    if (formSubmitTrigger) formSubmitTrigger();
+                  }}
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+                >
+                  Save
+                </button>
+              </>
+            ) : (
               <>
                 <button 
                   onClick={() => {
@@ -162,6 +191,10 @@ export default function OrdersView({
           currentEmployee={currentEmployee}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingOrder(null)}
+          onRegisterTriggers={(triggers) => {
+            setFormSubmitTrigger(() => triggers.save);
+            setFormDummyTrigger(() => triggers.fillDummy);
+          }}
         />
       ) : (
         <div className="space-y-6 text-left">

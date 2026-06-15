@@ -17,6 +17,7 @@ interface Props {
   currentUser: User;
   onSave: (vendor: Vendor) => void;
   onCancel: () => void;
+  onRegisterTriggers?: (triggers: { save: () => void; fillDummy: () => void }) => void;
 }
 
 export default function VendorForm({
@@ -28,7 +29,8 @@ export default function VendorForm({
   districts,
   currentUser,
   onSave,
-  onCancel
+  onCancel,
+  onRegisterTriggers
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -52,6 +54,16 @@ export default function VendorForm({
   useEffect(() => {
     setTempContacts(editingVendor.contacts || []);
   }, [editingVendor.id]);
+
+  // Hook form save and dummy triggers into sticky top header
+  useEffect(() => {
+    if (onRegisterTriggers) {
+      onRegisterTriggers({
+        save: handleSaveAll,
+        fillDummy: fillDummyData
+      });
+    }
+  }, [onRegisterTriggers, editingVendor, tempContacts]);
 
   // Contacts Actions
   const openContactModal = (contact?: VendorContact) => {
@@ -254,28 +266,6 @@ export default function VendorForm({
 
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl" id="vendors-form-panel">
-      {/* Floating Save/Cancel bar for small displays */}
-      <div className="mb-4 flex items-center justify-end gap-2 md:hidden">
-        <button 
-          onClick={fillDummyData}
-          className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
-        >
-          Fill Dummy
-        </button>
-        <button 
-          onClick={onCancel}
-          className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-gray-700 transition"
-        >
-          Cancel
-        </button>
-        <button 
-          onClick={handleSaveAll}
-          className="px-4 py-1.5 bg-emerald-800 text-white rounded-xl text-xs font-black transition"
-        >
-          Save
-        </button>
-      </div>
-
       <div className="space-y-6 pt-2 text-left">
         <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
           <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Supplier Parameters</span>
@@ -699,30 +689,6 @@ export default function VendorForm({
           </div>
         </div>
 
-        {/* Action Button Strip for large displays */}
-        <div className="hidden md:flex items-center justify-end gap-3 pt-4 border-t border-gray-100 pb-12 select-none">
-          <button 
-            type="button"
-            onClick={fillDummyData}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
-          >
-            Fill Dummy
-          </button>
-          <button 
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition"
-          >
-            Cancel
-          </button>
-          <button 
-            type="button"
-            onClick={handleSaveAll}
-            className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs transition-all"
-          >
-            Save Supplier
-          </button>
-        </div>
       </div>
 
       {/* ADDITIONAL SMALL OVERLAY CONTROLLERS */}
