@@ -287,7 +287,7 @@ export default function VendorsView({
         <div className="space-y-6 text-left">
           
           {/* ADVANCED MULTI-PROPERTY SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white rounded-2xl border border-gray-150 p-4 shadow-sm select-none font-sans">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm select-none font-sans">
             
             {/* Search + City + District in a single compact row */}
             <div className="flex flex-col md:flex-row items-center gap-4">
@@ -303,7 +303,7 @@ export default function VendorsView({
                   placeholder="Search suppliers by trade name, legal entity, or registered taxation ID coordinates..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all text-gray-900 font-sans"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-100 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all text-gray-900 font-sans"
                 />
               </div>
 

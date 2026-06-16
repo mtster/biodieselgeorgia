@@ -102,24 +102,13 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
+      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
         <div className="flex items-center">
-          {editingUser && (
-            <button
-              onClick={() => setEditingUser(null)}
-              className="p-2 mr-3 hover:bg-slate-100 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-transparent hover:border-gray-200"
-              title="Go Back"
-              id="user-form-back-arrow"
-            >
-              <ArrowLeft size={18} />
-            </button>
-          )}
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
           </div>
         </div>
-
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
             {editingUser ? (
               <>
                 <button 
@@ -139,20 +128,9 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   Save
                 </button>
               </>
-            ) : (
-              currentUser.role === 'admin' && (
-                <button 
-                  id="btn-add-new-user"
-                  onClick={startNew}
-                  className="flex items-center gap-1.5 px-4.5 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
-                >
-                  <Plus size={15} />
-                  New User
-                </button>
-              )
-            )}
-          </div>
+            ) : null}
         </div>
+      </div>
 
       {/* 2. FORM OR GRID VIEW */}
       {editingUser ? (
@@ -167,21 +145,6 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
         />
       ) : (
         <div className="space-y-6">
-          {/* SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col md:flex-row md:items-center gap-4 select-none text-left">
-            <div className="flex-1 relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
-                <Search size={15} />
-              </span>
-              <input 
-                type="text"
-                placeholder="Search by name, ID, or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all font-sans"
-              />
-            </div>
-          </div>
 
           {/* List display */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 text-left w-full select-none">
@@ -257,6 +220,23 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
 
               </div>
             ))}
+
+            {/* Plus-Signed Add New User Window Card */}
+            {currentUser.role === 'admin' && (
+              <button
+                onClick={startNew}
+                type="button"
+                className="bg-amber-50/10 border-2 border-dashed border-amber-500/20 hover:border-emerald-600/50 hover:bg-emerald-50/5 p-5 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer group transition-all duration-200"
+              >
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-800 group-hover:text-white transition-all">
+                  <Plus size={20} />
+                </div>
+                <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
+                  Add New User
+                </span>
+              </button>
+            )}
+            
           </div>
         </div>
       )}

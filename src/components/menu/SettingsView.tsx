@@ -144,7 +144,7 @@ export default function SettingsView({
         <button
           onClick={() => setActiveSubTab('users')}
           type="button"
-          className="bg-white p-6 rounded-2xl border border-gray-150/80 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
+          className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
         >
           <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl shrink-0 group-hover:bg-emerald-800 group-hover:text-white transition-all duration-200">
             <Users size={24} />
@@ -158,7 +158,7 @@ export default function SettingsView({
         <button
           onClick={() => setActiveSubTab('cities')}
           type="button"
-          className="bg-white p-6 rounded-2xl border border-gray-150/80 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
+          className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
         >
           <div className="bg-amber-50 text-amber-700 p-3.5 rounded-2xl shrink-0 group-hover:bg-amber-600 group-hover:text-white transition-all duration-200">
             <MapPin size={24} />
@@ -172,7 +172,7 @@ export default function SettingsView({
         <button
           onClick={() => setActiveSubTab('vehicles')}
           type="button"
-          className="bg-white p-6 rounded-2xl border border-gray-150/80 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
+          className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
         >
           <div className="bg-indigo-50 text-indigo-700 p-3.5 rounded-2xl shrink-0 group-hover:bg-indigo-650 group-hover:text-white transition-all duration-200">
             <Truck size={24} />
@@ -186,7 +186,7 @@ export default function SettingsView({
         <button
           onClick={() => setActiveSubTab('history')}
           type="button"
-          className="bg-white p-6 rounded-2xl border border-gray-150/80 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
+          className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-250 text-left flex gap-5 items-start cursor-pointer group"
         >
           <div className="bg-rose-50 text-rose-600 p-3.5 rounded-2xl shrink-0 group-hover:bg-rose-600 group-hover:text-white transition-all duration-200">
             <History size={24} />

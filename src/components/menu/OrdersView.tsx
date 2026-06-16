@@ -235,7 +235,7 @@ export default function OrdersView({
       ) : (
         <div className="space-y-6 text-left">
           {/* SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white rounded-2xl border border-gray-150 p-4 shadow-sm select-none font-sans">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm select-none font-sans">
             
             {/* Search + Status inside a single unified compact block */}
             <div className="flex flex-col md:flex-row items-center gap-4">
@@ -251,7 +251,7 @@ export default function OrdersView({
                   placeholder="Search dispatches by supplier trade name, legal entity, or document coordinate..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all font-sans text-gray-900"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-100 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all font-sans text-gray-900"
                 />
               </div>
 

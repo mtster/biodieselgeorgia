@@ -109,19 +109,14 @@ export default function VehiclesSettingView({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
-      {/* Back button header bar */}
-      <div className="flex items-center gap-3 border-b pb-4 select-none">
-        <button
-          onClick={onBack}
-          className="p-2 hover:bg-slate-100 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-gray-150"
-          title="Return to Settings"
-        >
-          <ArrowLeft size={16} />
-        </button>
-        <div>
-          <h2 className="text-lg font-black text-gray-800">Transport Fleet</h2>
-          <p className="text-xs text-gray-450">Manage logistics truck assets, active plate numbers, and default driver assignments.</p>
+      {/* 1. STANDARDIZED PAGE HEADER */}
+      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
+        <div className="flex items-center">
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Vehicles</h2>
+          </div>
         </div>
+        <div />
       </div>
 
       {/* Cards Grid */}
@@ -135,7 +130,7 @@ export default function VehiclesSettingView({
               key={truck.plate_number}
               onClick={() => handleOpenTruck(truck)}
               type="button"
-              className="group bg-white p-5 rounded-2xl border border-gray-150/85 hover:border-emerald-600 hover:shadow-md transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[150px]"
+              className="group bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[150px]"
             >
               <div className="space-y-2.5 w-full">
                 {/* Styled License Plate */}

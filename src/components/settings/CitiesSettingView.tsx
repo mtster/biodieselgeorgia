@@ -81,19 +81,14 @@ export default function CitiesSettingView({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
-      {/* Small Header Menu bar */}
-      <div className="flex items-center gap-3 border-b pb-4 select-none">
-        <button
-          onClick={onBack}
-          className="p-2 hover:bg-slate-100 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-gray-150"
-          title="Return to Settings"
-        >
-          <ArrowLeft size={16} />
-        </button>
-        <div>
-          <h2 className="text-lg font-black text-gray-800">Geographic Directory</h2>
-          <p className="text-xs text-gray-450">Configure distribution cities and associated localized districts.</p>
+      {/* 1. STANDARDIZED PAGE HEADER */}
+      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
+        <div className="flex items-center">
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Cities</h2>
+          </div>
         </div>
+        <div />
       </div>
 
       {/* Grid of Cities including the "+ Add New Window" */}
@@ -105,7 +100,7 @@ export default function CitiesSettingView({
               key={city.id}
               onClick={() => handleOpenCity(city)}
               type="button"
-              className="group bg-white p-5 rounded-2xl border border-gray-150/80 hover:border-emerald-600 hover:shadow-md transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[140px]"
+              className="group bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[140px]"
             >
               <div className="space-y-2">
                 <div className="w-9 h-9 rounded-xl bg-slate-50 text-emerald-800 flex items-center justify-center group-hover:bg-emerald-50 transition-colors">
