@@ -150,7 +150,7 @@ export default function OrdersView({
             <p className="text-xs text-gray-550 mt-1 font-sans">
               {editingOrder 
                 ? (isNew ? 'Creating order' : `Editing: Order #${editingOrder.doc_number}`)
-                : 'Oil collection progress, driver assignments, and warehouses routing.'
+                : ''
               }
             </p>
           </div>

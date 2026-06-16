@@ -201,7 +201,7 @@ export default function VendorsView({
                     ? `Viewing: ${editingVendor.trade_name} (Read-Only Mode)` 
                     : (isNew ? 'Creating Supplier' : `Editing: ${editingVendor.trade_name}`)
                   )
-                : 'Manage commercial biodiesel suppliers, purchase pricing rates, bank account targets, and contact lists.'
+                : ''
               }
             </p>
           </div>

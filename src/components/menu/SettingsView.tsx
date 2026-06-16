@@ -136,7 +136,6 @@ export default function SettingsView({
       {/* Settings Section Header */}
       <div>
         <h2 className="text-xl font-extrabold text-gray-800 tracking-tight">Control Panel & System Settings</h2>
-        <p className="text-xs text-gray-450 mt-1">Manage personnel, lookup territories, logistics assets, and database integrity.</p>
       </div>
 
       {/* 4 Windows Grid */}
@@ -152,9 +151,6 @@ export default function SettingsView({
           </div>
           <div className="space-y-1">
             <h3 className="font-extrabold text-sm text-gray-800 tracking-tight">Users Management</h3>
-            <p className="text-xs text-gray-455 font-normal leading-relaxed">
-              Manage Biodiesel Georgia staff metadata, designated roles, credentials, and custom operations privileges.
-            </p>
           </div>
         </button>
 
@@ -169,9 +165,6 @@ export default function SettingsView({
           </div>
           <div className="space-y-1">
             <h3 className="font-extrabold text-sm text-gray-800 tracking-tight">Cities & Territories</h3>
-            <p className="text-xs text-gray-455 font-normal leading-relaxed">
-              Configure distribution target cities, nested neighborhood directories, and logistics coverage limits.
-            </p>
           </div>
         </button>
 
@@ -186,9 +179,6 @@ export default function SettingsView({
           </div>
           <div className="space-y-1">
             <h3 className="font-extrabold text-sm text-gray-800 tracking-tight">Vehicles Fleet</h3>
-            <p className="text-xs text-gray-455 font-normal leading-relaxed">
-              Register corporate vehicle plates, track transport brand models, and set default assignment teams.
-            </p>
           </div>
         </button>
 
@@ -203,9 +193,6 @@ export default function SettingsView({
           </div>
           <div className="space-y-1">
             <h3 className="font-extrabold text-sm text-gray-800 tracking-tight">Change Audit History</h3>
-            <p className="text-xs text-gray-455 font-normal leading-relaxed">
-              Inspect fine-grained timeline records of database entries modifications and process rollback recoveries.
-            </p>
           </div>
         </button>
       </div>
@@ -218,9 +205,6 @@ export default function SettingsView({
           </div>
           <div className="space-y-0.5 text-left">
             <h4 className="text-xs font-black uppercase text-gray-650 tracking-wider">Database recovery operations</h4>
-            <p className="text-xs text-gray-450 font-normal leading-snug">
-              Clear local schema overrides and reload reference test records. This restores perfect system consistency.
-            </p>
           </div>
         </div>
         <button

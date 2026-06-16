@@ -119,7 +119,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
             <p className="text-xs text-gray-550 mt-1 font-sans">
               {editingUser 
                 ? (isNew ? 'Creating a new user' : `Editing: ${editingUser.name}`)
-                : 'Biodiesel Georgia staff, managers, drivers, suppliers, and their operations privileges.'
+                : ''
               }
             </p>
           </div>
