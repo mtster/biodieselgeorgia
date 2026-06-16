@@ -204,10 +204,18 @@ export default function VendorsView({
           <div className="flex items-center gap-3">
             {editingVendor ? (
               <>
+                {isNew && (
+                  <button 
+                    onClick={() => formRef.current?.fillDummy()}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer select-none"
+                  >
+                    Fill Dummy
+                  </button>
+                )}
                 {!isNew && (
                   <button 
                     onClick={() => askDelete(editingVendor.id, editingVendor.trade_name)}
-                    className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 font-extrabold rounded-xl text-xs transition border border-red-250 cursor-pointer select-none"
+                    className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold rounded-xl text-xs transition cursor-pointer select-none"
                   >
                     Delete
                   </button>
@@ -223,14 +231,30 @@ export default function VendorsView({
               </>
             ) : (
               <>
-                <button 
-                  onClick={() => setIsImporting(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer select-none"
-                  title="Import suppliers from spreadsheet files"
-                >
-                  <FileSpreadsheet size={15} />
-                  Bulk Import
-                </button>
+                <div className="relative">
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'import') {
+                        setIsImporting(true);
+                      } else if (val === 'delete' && selectedVendors.length > 0) {
+                        setShowBulkDeleteConfirm(true);
+                      }
+                      e.target.value = ''; // Reset select trigger
+                    }}
+                    className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
+                  >
+                    <option value="" disabled hidden>Actions</option>
+                    <option value="import">Import</option>
+                    <option value="delete" disabled={selectedVendors.length === 0}>
+                      Delete {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
+                    </option>
+                  </select>
+                  <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+                    ▼
+                  </span>
+                </div>
                 
                 <button 
                   id="btn-add-new-vendor"
@@ -263,11 +287,13 @@ export default function VendorsView({
         <div className="space-y-6 text-left">
           
           {/* ADVANCED MULTI-PROPERTY SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3.5 select-none font-sans">
+          <div className="bg-white rounded-2xl border border-gray-150 p-4 shadow-sm select-none font-sans">
             
-            {/* Custom Flex layout for Actions dropdown to sit beautifully on the right of Search bar */}
-            <div className="flex gap-3">
-              <div className="relative flex-1">
+            {/* Search + City + District in a single compact row */}
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              
+              {/* Search input (flex-1) */}
+              <div className="relative flex-1 w-full">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
                   <Search size={15} />
                 </span>
@@ -277,82 +303,40 @@ export default function VendorsView({
                   placeholder="Search suppliers by trade name, legal entity, or registered taxation ID coordinates..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all text-gray-900"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all text-gray-900 font-sans"
                 />
               </div>
 
-              {/* Action Dropdown on the right */}
-              <div className="relative">
-                <select
-                  disabled={selectedVendors.length === 0}
-                  value=""
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'delete' && selectedVendors.length > 0) {
-                      setShowBulkDeleteConfirm(true);
-                    }
-                  }}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold border h-full transition-colors flex items-center select-none ${
-                    selectedVendors.length > 0
-                      ? 'bg-slate-150 border-gray-300 text-slate-800 hover:bg-slate-250 cursor-pointer'
-                      : 'bg-slate-50 border-gray-200 text-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  <option value="" disabled hidden>Actions</option>
-                  <option value="delete">Delete</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Selection Status Banner */}
-            {selectedVendors.length > 0 && (
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-150 select-none">
-                <div className="font-semibold text-emerald-800">
-                  Selected suppliers count: <strong className="font-black text-emerald-950 font-mono">{selectedVendors.length} Selected</strong>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedVendors([]);
-                    }}
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg font-bold text-gray-700 hover:bg-slate-55 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowBulkDeleteConfirm(true);
-                    }}
-                    className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black cursor-pointer"
-                  >
-                    Delete Selected ({selectedVendors.length})
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex gap-2.5 items-center">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0 w-12 text-right">City:</span>
+              {/* City Dropdown with relative label sitting on outline */}
+              <div className="relative min-w-[140px] w-full md:w-auto">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  City
+                </span>
                 <select
                   value={selectedCity}
                   onChange={(e) => {
                     setSelectedCity(e.target.value);
                     setSelectedDistrict('');
                   }}
-                  className="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer"
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">All Cities</option>
                   {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
               </div>
 
-              <div className="flex gap-2.5 items-center">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0 w-16 text-right">District:</span>
+              {/* District Dropdown with relative label sitting on outline */}
+              <div className="relative min-w-[145px] w-full md:w-auto">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  District
+                </span>
                 <select
                   value={selectedDistrict}
                   onChange={(e) => setSelectedDistrict(e.target.value)}
-                  className="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer"
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">All Districts</option>
                   {districts
@@ -363,7 +347,11 @@ export default function VendorsView({
                     .map(d => <option key={d.id} value={d.name}>{d.name}</option>)
                   }
                 </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
               </div>
+
             </div>
           </div>
 
@@ -421,7 +409,7 @@ export default function VendorsView({
               <button
                 type="button"
                 onClick={handleBulkDeleteExecute}
-                className="flex-1 py-2 bg-red-650 hover:bg-red-750 text-xs font-black text-white rounded-xl"
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-black text-white rounded-xl cursor-pointer"
               >
                 Yes, Delete
               </button>

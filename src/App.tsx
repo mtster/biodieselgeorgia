@@ -31,7 +31,8 @@ import CommunicationsView from './components/menu/CommunicationsView';
 import OrdersView from './components/menu/OrdersView';
 import UsersView from './components/menu/UsersView';
 import ReportsView from './components/menu/ReportsView';
-import LookupsView from './components/menu/LookupsView';
+import CitiesSettingView from './components/settings/CitiesSettingView';
+import VehiclesSettingView from './components/settings/VehiclesSettingView';
 import SettingsView from './components/menu/SettingsView';
 import HistoryView from './components/menu/HistoryView';
 import MobileLogisticsView from './components/menu/MobileLogisticsView';
@@ -488,36 +489,24 @@ export default function App() {
             )}
 
             {(activeTab === 'lookups' || activeTab === 'cities') && (
-              <LookupsView 
+              <CitiesSettingView 
                 cities={cities}
                 districts={districts}
-                trucks={trucks}
-                employees={users}
-                currentEmployee={currentUser}
                 onSaveCity={handleSaveCity}
                 onDeleteCity={handleDeleteCity}
                 onSaveDistrict={handleSaveDistrict}
                 onDeleteDistrict={handleDeleteDistrict}
-                onSaveTruck={handleSaveTruck}
-                onDeleteTruck={handleDeleteTruck}
-                forcedTab="cities"
+                onBack={() => setActiveTab('dashboard')}
               />
             )}
 
             {activeTab === 'vehicles' && (
-              <LookupsView 
-                cities={cities}
-                districts={districts}
+              <VehiclesSettingView 
                 trucks={trucks}
                 employees={users}
-                currentEmployee={currentUser}
-                onSaveCity={handleSaveCity}
-                onDeleteCity={handleDeleteCity}
-                onSaveDistrict={handleSaveDistrict}
-                onDeleteDistrict={handleDeleteDistrict}
                 onSaveTruck={handleSaveTruck}
                 onDeleteTruck={handleDeleteTruck}
-                forcedTab="trucks"
+                onBack={() => setActiveTab('dashboard')}
               />
             )}
 

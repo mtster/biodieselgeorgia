@@ -180,19 +180,35 @@ export default function OrdersView({
             </>
           ) : (
             <>
-              <button 
-                onClick={() => {
-                  loadSMSLogs();
-                  setShowSMSLogs(true);
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-755 border rounded-xl text-xs font-bold text-gray-705 transition cursor-pointer select-none"
-              >
-                SMS Dispatch Logs ({smsLogs.length})
-              </button>
+              <div className="relative">
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'sms_logs') {
+                      loadSMSLogs();
+                      setShowSMSLogs(true);
+                    } else if (val === 'delete' && selectedOrders.length > 0) {
+                      setShowBulkDeleteConfirm(true);
+                    }
+                    e.target.value = ''; // Reset select trigger
+                  }}
+                  className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
+                >
+                  <option value="" disabled hidden>Actions</option>
+                  <option value="sms_logs">SMS Logs ({smsLogs.length})</option>
+                  <option value="delete" disabled={selectedOrders.length === 0}>
+                    Delete {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
+                  </option>
+                </select>
+                <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+                  ▼
+                </span>
+              </div>
               
               <button 
                 onClick={startNew}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none"
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none font-sans"
               >
                 <Plus size={15} />
                 New Order
@@ -219,10 +235,13 @@ export default function OrdersView({
       ) : (
         <div className="space-y-6 text-left">
           {/* SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3.5 select-none">
+          <div className="bg-white rounded-2xl border border-gray-150 p-4 shadow-sm select-none font-sans">
             
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
+            {/* Search + Status inside a single unified compact block */}
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              
+              {/* Search input (flex-1) */}
+              <div className="relative flex-1 w-full">
                 <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
                   <Search size={15} />
                 </span>
@@ -236,80 +255,25 @@ export default function OrdersView({
                 />
               </div>
 
-              {/* Action Dropdown on the right */}
-              <div className="relative shrink-0">
+              {/* Status dropdown on the right with outline label */}
+              <div className="relative min-w-[145px] w-full md:w-auto">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  Status
+                </span>
                 <select
-                  disabled={selectedOrders.length === 0}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'delete') {
-                      setShowBulkDeleteConfirm(true);
-                    }
-                    e.target.value = ''; // Reset select trigger
-                  }}
-                  className="px-4 py-2.5 bg-slate-100 disabled:opacity-50 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-gray-200 cursor-pointer disabled:cursor-not-allowed focus:outline-none h-full transition-colors flex items-center"
-                  value=""
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
-                  <option value="" disabled hidden>Actions</option>
-                  <option value="delete">Delete</option>
+                  <option value="">All Statuses</option>
+                  <option value="registered">Registered</option>
+                  <option value="completed">Completed</option>
                 </select>
-              </div>
-            </div>
-
-            {/* Selection Status Banner */}
-            {selectedOrders.length > 0 && (
-              <div className="bg-emerald-50 border border-emerald-150 rounded-xl p-3.5 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-150">
-                <div className="font-semibold text-emerald-800">
-                  <strong className="font-extrabold text-emerald-900 font-mono">{selectedOrders.length}</strong> dispatches selected
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedOrders([]);
-                    }}
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg font-semibold text-gray-750 hover:bg-slate-50 transition cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowBulkDeleteConfirm(true);
-                    }}
-                    className="px-3.5 py-1.5 bg-red-655 hover:bg-red-755 text-white rounded-lg font-bold transition cursor-pointer shadow-xs"
-                  >
-                    Delete Selected
-                  </button>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
                 </div>
               </div>
-            )}
 
-            <div className="flex flex-col md:flex-row md:items-center gap-4 pt-1">
-              <div className="w-full md:w-64 flex gap-2 font-sans shrink-0">
-                <button 
-                  onClick={() => setSelectedStatus('')}
-                  className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                    selectedStatus === '' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-650 border-gray-205 hover:bg-gray-100'
-                  }`}
-                >
-                  All
-                </button>
-                <button 
-                  onClick={() => setSelectedStatus('registered')}
-                  className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                    selectedStatus === 'registered' ? 'bg-amber-600 text-white border-amber-600' : 'bg-gray-50 text-gray-655 border-gray-205 hover:bg-gray-100'
-                  }`}
-                >
-                  Registered
-                </button>
-                <button 
-                  onClick={() => setSelectedStatus('completed')}
-                  className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                    selectedStatus === 'completed' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-655 border-gray-205 hover:bg-gray-100'
-                  }`}
-                >
-                  Completed
-                </button>
-              </div>
             </div>
           </div>
 
@@ -366,7 +330,7 @@ export default function OrdersView({
               <button
                 type="button"
                 onClick={handleBulkDeleteExecute}
-                className="flex-1 py-2 bg-red-650 hover:bg-red-750 text-xs font-black text-white rounded-xl cursor-pointer"
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-black text-white rounded-xl cursor-pointer"
               >
                 Yes, Delete
               </button>

@@ -75,13 +75,13 @@ export default function OrdersList({
                     <button
                       type="button"
                       onClick={() => toggleSelect(ord.id)}
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all mx-auto cursor-pointer ${
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
                         isChecked 
                           ? 'border-emerald-650 bg-emerald-600 text-white' 
                           : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                     >
-                      {isChecked && <Check size={12} strokeWidth={3} />}
+                      {isChecked && <Check size={11} strokeWidth={3.5} />}
                     </button>
                   </td>
 

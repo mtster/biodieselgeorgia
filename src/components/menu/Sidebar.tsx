@@ -101,7 +101,7 @@ export default function Sidebar({
         })}
 
         {/* Settings Collapsible Dropdown */}
-        <div className="pt-2">
+        <div>
           <button
             type="button"
             onClick={() => setSettingsOpen(!settingsOpen)}

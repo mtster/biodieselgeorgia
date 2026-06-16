@@ -35,23 +35,9 @@ export default function VendorContactsSection({
           {contacts.map((c) => (
             <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs text-left group">
               <div className="flex gap-2.5 items-start">
-                {/* Star design toggle */}
-                <button
-                  type="button"
-                  onClick={() => onTogglePrimaryContact(c.id)}
-                  title={c.is_default ? "Primary Contact" : "Mark as Primary"}
-                  className="mt-0.5 cursor-pointer text-amber-500 hover:text-amber-600 transition"
-                >
-                  <Star size={16} fill={c.is_default ? "#fbbf24" : "none"} strokeWidth={1.5} />
-                </button>
                 <div>
                   <span className="font-extrabold text-gray-800 flex items-center gap-1.5 leading-none">
                     {c.name}
-                    {c.is_default && (
-                      <span className="text-[8px] bg-amber-100 text-amber-800 font-black px-1 py-0.2 rounded font-mono uppercase tracking-widest scale-95 origin-left">
-                        PRIMARY
-                      </span>
-                    )}
                   </span>
                   <span className="text-[10px] text-gray-400 font-sans uppercase tracking-wider block font-semibold mt-1">{c.position}</span>
                   <span className="text-[10.5px] text-emerald-800 font-mono font-bold mt-1 block select-all inline-flex items-center gap-1">
@@ -59,14 +45,27 @@ export default function VendorContactsSection({
                   </span>
                 </div>
               </div>
-              <div className="flex gap-1 select-none">
+              <div className="flex items-center gap-1 select-none text-right">
+                {/* Star design toggle next to edit button */}
+                <button
+                  type="button"
+                  onClick={() => onTogglePrimaryContact(c.id)}
+                  title={c.is_default ? "Primary Contact" : "Mark as Primary"}
+                  className={`p-1.5 transition cursor-pointer rounded-lg hover:bg-slate-100 ${
+                    c.is_default ? 'text-amber-500 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'
+                  }`}
+                >
+                  <Star size={13} fill={c.is_default ? "#fbbf24" : "none"} strokeWidth={2} />
+                </button>
+
+                {/* Sleek borderless pencil edit button */}
                 <button
                   type="button"
                   onClick={() => onModifyContact(c)}
-                  className="p-1 px-2.5 bg-white hover:bg-slate-100 border border-gray-150 rounded-lg text-gray-650 cursor-pointer transition flex items-center"
+                  className="p-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
                   title="Modify"
                 >
-                  <Pencil size={11} className="text-gray-500" />
+                  <Pencil size={13} />
                 </button>
               </div>
             </div>

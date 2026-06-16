@@ -7,7 +7,7 @@ export { KEY_USERS };
 
 export const DEFAULT_USERS: User[] = [
   {
-    id: 'user-admin',
+    id: '00000000-0000-4000-a000-000000000000',
     name: 'Administrator',
     personal_id: '12345678901',
     email: 'admin@biodiesel.ge',
@@ -190,9 +190,13 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
     }
   } else {
     // Local storage mock mode
+    const generateCompliantUuid = () => {
+      const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+      return `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`;
+    };
     finalUser = {
       ...user,
-      id: isNew ? 'user-' + Math.random().toString(36).substring(2, 9) : user.id,
+      id: isNew ? generateCompliantUuid() : user.id,
       created_at: user.created_at || new Date().toISOString()
     };
   }

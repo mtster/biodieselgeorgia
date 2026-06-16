@@ -19,9 +19,22 @@ export async function getVendors(): Promise<Vendor[]> {
 
 export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
   const isNew = !vendor.id;
+
+  const cleanUserUuid = (val: string | null | undefined): string | null => {
+    if (!val) return null;
+    if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
+    if (val.startsWith('user-')) {
+      const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
+      return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
+    }
+    return val;
+  };
+
   const finalVendor = {
     ...vendor,
     id: isNew ? 'vendor-' + Math.random().toString(36).substring(2, 9) : vendor.id,
+    manager_id: cleanUserUuid(vendor.manager_id),
+    operator_id: cleanUserUuid(vendor.operator_id),
     created_at: vendor.created_at || new Date().toISOString()
   };
 
