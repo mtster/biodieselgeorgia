@@ -17,15 +17,18 @@ interface Props {
   onDeleteDistrict: (id: string, name: string) => void;
   onSaveTruck: (t: Truck) => void;
   onDeleteTruck: (plate: string) => void;
+  forcedTab?: string;
 }
 
 export default function LookupsView({
   cities, districts, trucks, employees, currentEmployee,
   onSaveCity, onDeleteCity, onSaveDistrict, onDeleteDistrict,
-  onSaveTruck, onDeleteTruck
+  onSaveTruck, onDeleteTruck, forcedTab
 }: Props) {
   // Tabs locally within lookups
   const [activeTab, setActiveTab] = useState<'cities' | 'trucks'>('cities');
+
+  const currentTab = forcedTab || activeTab;
 
   // Input helpers
   const [newCityName, setNewCityName] = useState('');
@@ -101,32 +104,35 @@ export default function LookupsView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800 font-sans">Lookups & Configuration</h2>
-          <p className="text-xs text-gray-400 mt-1 pb-1 font-sans">Manage cities, districts, special locations, and transport fleet.</p>
+          <h2 className="text-xl font-extrabold text-gray-800 font-sans">
+            {currentTab === 'cities' ? 'Cities & Districts' : 'Vehicles Fleet'}
+          </h2>
         </div>
 
         {/* Tab switchers */}
-        <div className="flex bg-gray-100 p-1 rounded-xl border font-sans">
-          <button 
-            onClick={() => setActiveTab('cities')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              activeTab === 'cities' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550'
-            }`}
-          >
-            Geographic Directory
-          </button>
-          <button 
-            onClick={() => setActiveTab('trucks')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-              activeTab === 'trucks' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550'
-            }`}
-          >
-            Vehicles
-          </button>
-        </div>
+        {!forcedTab && (
+          <div className="flex bg-gray-100 p-1 rounded-xl border font-sans">
+            <button 
+              onClick={() => setActiveTab('cities')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeTab === 'cities' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550'
+              }`}
+            >
+              Geographic Directory
+            </button>
+            <button 
+              onClick={() => setActiveTab('trucks')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                activeTab === 'trucks' ? 'bg-white text-gray-800 shadow-xs' : 'text-gray-550'
+              }`}
+            >
+              Vehicles
+            </button>
+          </div>
+        )}
       </div>
 
-      {activeTab === 'cities' ? (
+      {currentTab === 'cities' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 font-sans">
           
           {/* Cities Card */}

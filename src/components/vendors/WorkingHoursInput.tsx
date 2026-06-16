@@ -11,49 +11,63 @@ export function WorkingHoursInput({ value, onChange }: WorkingHoursInputProps) {
   const prevValueRef = useRef(value);
 
   useEffect(() => {
+    prevValueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
     if (inputRef.current && cursorPos !== null) {
       inputRef.current.setSelectionRange(cursorPos, cursorPos);
       setCursorPos(null);
     }
-  }, [value, cursorPos]);
+  }, [cursorPos]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
     let rawVal = input.value;
-    const selectionStart = input.selectionStart || 0;
 
-    // Filter disallowed characters: only allow 0-9, :, -, space
-    let val = rawVal.replace(/[^0-9\s:-]/g, '');
+    // Filter disallowed characters: only allow 0-9, colon, hyphen, spaces
+    let cleanVal = rawVal.replace(/[^0-9\s:-]/g, '');
 
-    // Is deleting?
-    const isDeleting = val.length < prevValueRef.current.length;
+    const digitsOnly = cleanVal.replace(/[^0-9]/g, '');
+    const hasSpecialChars = /[:\-]/.test(cleanVal);
 
-    // Smart auto format as they type only numbers:
-    // If the input has only numbers or they pasted something like 09001800, format it!
-    const digitsOnly = val.replace(/[^0-9]/g, '');
-    const hasSpecialChars = /[:\-]/.test(val);
+    let formatted = cleanVal;
+    
+    // Check if user is typing only numbers sequentially at the end
+    const prevDigits = prevValueRef.current.replace(/[^0-9]/g, '');
+    const isDeleting = cleanVal.length < prevValueRef.current.length;
 
-    let newVal = val;
-    if (!isDeleting && (!hasSpecialChars || digitsOnly.length === val.length)) {
-      if (digitsOnly.length > 0) {
-        let res = digitsOnly.slice(0, 2);
-        if (digitsOnly.length >= 3) res += ':' + digitsOnly.slice(2, 4);
-        if (digitsOnly.length >= 5) res += ' - ' + digitsOnly.slice(4, 6);
-        if (digitsOnly.length >= 7) res += ':' + digitsOnly.slice(6, 8);
-        newVal = res;
+    if (!isDeleting) {
+      if (digitsOnly.length > 0 && !hasSpecialChars) {
+        // User pasted or typed pure number string (e.g., "09001800")
+        if (digitsOnly.length >= 8) {
+          formatted = `${digitsOnly.slice(0, 2)}:${digitsOnly.slice(2, 4)} - ${digitsOnly.slice(4, 6)}:${digitsOnly.slice(6, 8)}`;
+        } else if (digitsOnly.length >= 4) {
+          formatted = `${digitsOnly.slice(0, 2)}:${digitsOnly.slice(2, 4)}`;
+        }
+      } else if (digitsOnly.length > prevDigits.length && digitsOnly.length <= 8) {
+        // Incremental helper: user typing digits sequentially without manually adding separators
+        const curDigits = digitsOnly;
+        if (curDigits.length === 3) {
+          formatted = `${curDigits.slice(0, 2)}:${curDigits.slice(2)}`;
+        } else if (curDigits.length === 5) {
+          formatted = `${curDigits.slice(0, 2)}:${curDigits.slice(2, 4)} - ${curDigits.slice(4)}`;
+        } else if (curDigits.length === 7) {
+          formatted = `${curDigits.slice(0, 2)}:${curDigits.slice(2, 4)} - ${curDigits.slice(4, 6)}:${curDigits.slice(6)}`;
+        }
       }
     }
 
-    // Determine new cursor position
-    let diff = newVal.length - rawVal.length;
-    let newCursor = selectionStart + diff;
+    // Determine if we need to set the cursor position explicitly
+    if (formatted !== rawVal) {
+      const selectionStart = input.selectionStart || 0;
+      const diff = formatted.length - rawVal.length;
+      setCursorPos(selectionStart + diff);
+    } else {
+      setCursorPos(null); // Let the browser place the cursor naturally
+    }
 
-    // boundary check
-    newCursor = Math.max(0, Math.min(newCursor, newVal.length));
-
-    prevValueRef.current = newVal;
-    setCursorPos(newCursor);
-    onChange(newVal);
+    onChange(formatted);
   };
 
   return (

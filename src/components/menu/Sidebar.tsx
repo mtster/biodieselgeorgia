@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Leaf, LayoutDashboard, BarChart3, Building2, MessageSquare, 
-  ShoppingBag, Users, FileText, Globe, History, Settings, LogOut, X, Menu 
+  ShoppingBag, Users, FileText, Globe, History, Settings, LogOut, X, Menu,
+  ChevronDown, ChevronRight, Truck
 } from 'lucide-react';
 import { User } from '../../types';
 
@@ -23,6 +24,16 @@ export default function Sidebar({
   onLogOut
 }: SidebarProps) {
   
+  const [settingsOpen, setSettingsOpen] = useState(
+    ['users', 'cities', 'vehicles', 'history'].includes(activeTab)
+  );
+
+  useEffect(() => {
+    if (['users', 'cities', 'vehicles', 'history'].includes(activeTab)) {
+      setSettingsOpen(true);
+    }
+  }, [activeTab]);
+  
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { id: 'analytics', name: 'Analytics', icon: <BarChart3 size={18} /> },
@@ -30,7 +41,13 @@ export default function Sidebar({
     { id: 'communications', name: 'Communications', icon: <MessageSquare size={18} /> },
     { id: 'orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
     { id: 'reports', name: 'Reports', icon: <FileText size={18} /> },
-    { id: 'settings', name: 'Settings', icon: <Settings size={18} /> }
+  ];
+
+  const settingsSubItems = [
+    { id: 'users', name: 'Users', icon: <Users size={16} /> },
+    { id: 'cities', name: 'Cities', icon: <Globe size={16} /> },
+    { id: 'vehicles', name: 'Vehicles', icon: <Truck size={16} /> },
+    { id: 'history', name: 'Change History', icon: <History size={16} /> },
   ];
 
   return (
@@ -82,6 +99,51 @@ export default function Sidebar({
             </button>
           );
         })}
+
+        {/* Settings Collapsible Dropdown */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
+              ['users', 'cities', 'vehicles', 'history'].includes(activeTab)
+                ? 'text-white font-extrabold bg-slate-800/40' 
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Settings size={18} />
+              <span>Settings</span>
+            </div>
+            {settingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+
+          {settingsOpen && (
+            <div className="pl-4 space-y-1 mt-1 border-l border-slate-800 ml-5">
+              {settingsSubItems.map((subItem) => {
+                const isSubActive = activeTab === subItem.id;
+                return (
+                  <button
+                    key={subItem.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(subItem.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition text-left cursor-pointer ${
+                      isSubActive
+                        ? 'bg-emerald-800 text-white shadow-xs font-extrabold'
+                        : 'text-slate-405 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    {subItem.icon}
+                    <span>{subItem.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Profile and signout */}

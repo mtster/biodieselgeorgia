@@ -8,7 +8,6 @@ interface Props {
   employees: User[];
   startEdit: (ord: Order, readOnly?: boolean) => void;
   askDelete: (id: string, docNum: string) => void;
-  isSelectionMode?: boolean;
   selectedOrders?: string[];
   setSelectedOrders?: React.Dispatch<React.SetStateAction<string[]>>;
 }
@@ -19,31 +18,31 @@ export default function OrdersList({
   employees,
   startEdit,
   askDelete,
-  isSelectionMode = false,
   selectedOrders = [],
   setSelectedOrders
 }: Props) {
 
   const handleRowClick = (ord: Order) => {
-    if (isSelectionMode && setSelectedOrders) {
-      if (selectedOrders.includes(ord.id)) {
-        setSelectedOrders(selectedOrders.filter(id => id !== ord.id));
-      } else {
-        setSelectedOrders([...selectedOrders, ord.id]);
-      }
+    // Open form in edit/write mode directly when row is tapped
+    startEdit(ord, false);
+  };
+
+  const toggleSelect = (ordId: string) => {
+    if (!setSelectedOrders) return;
+    if (selectedOrders.includes(ordId)) {
+      setSelectedOrders(selectedOrders.filter(id => id !== ordId));
     } else {
-      // Open form in full-view read-only mode
-      startEdit(ord, true);
+      setSelectedOrders([...selectedOrders, ordId]);
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-700">
+        <table className="w-full text-sm text-left text-gray-705">
           <thead>
-            <tr className="border-b border-gray-200 text-[11px] text-gray-400 uppercase font-mono bg-slate-50 select-none">
-              {isSelectionMode && <th className="py-3 px-4 w-12 text-center">Sel</th>}
+            <tr className="border-b border-gray-100 text-[11px] text-gray-400 uppercase font-mono bg-slate-50 select-none">
+              <th className="py-3 px-4 w-12 text-center"></th>
               <th className="py-3 px-4">Document #</th>
               <th className="py-3 px-4">Supplier / Vendor</th>
               <th className="py-3 px-4">Base Destination</th>
@@ -54,11 +53,11 @@ export default function OrdersList({
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-250">
+          <tbody className="divide-y divide-gray-100">
             {filteredOrders.map((ord) => {
               const supplierObj = suppliers.find(s => s.id === ord.vendor_id);
-              const actualDriver = employees.find(e => e.id === ord.driver_id)?.name || ord.driver_name;
-              const actualCompanion = employees.find(e => e.id === ord.companion_id)?.name || ord.companion_name;
+              const actualDriver = employees.find(e => e.id === ord.driver_id)?.name || ord.driver_name || ord.driver_id;
+              const actualCompanion = employees.find(e => e.id === ord.companion_id)?.name || ord.companion_name || ord.companion_id;
               const isChecked = selectedOrders.includes(ord.id);
 
               return (
@@ -67,30 +66,30 @@ export default function OrdersList({
                   onClick={() => handleRowClick(ord)}
                   className={`transition-colors cursor-pointer select-none ${
                     isChecked 
-                      ? 'bg-amber-50/45 hover:bg-amber-100/45' 
+                      ? 'bg-[#10b981]/5 hover:bg-[#10b981]/10' 
                       : 'hover:bg-slate-50/80'
                   }`}
                 >
                   {/* Selection Checkbox */}
-                  {isSelectionMode && (
-                    <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => handleRowClick(ord)}
-                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all mx-auto cursor-pointer ${
-                          isChecked 
-                            ? 'border-amber-600 bg-amber-600 text-white' 
-                            : 'border-gray-300 bg-white hover:border-gray-400'
-                        }`}
-                      >
-                        {isChecked && <Check size={12} strokeWidth={3} />}
-                      </button>
-                    </td>
-                  )}
+                  <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSelect(ord.id)}
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all mx-auto cursor-pointer ${
+                        isChecked 
+                          ? 'border-emerald-650 bg-emerald-600 text-white' 
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      {isChecked && <Check size={12} strokeWidth={3} />}
+                    </button>
+                  </td>
 
                   <td className="py-4 px-4 font-mono font-black text-gray-955 text-[13px]">
                     {ord.doc_number}
-                    <span className="text-[10px] text-gray-400 block font-normal mt-0.5">{new Date(ord.order_date).toLocaleDateString('en-US')}</span>
+                    <span className="text-[10px] text-gray-400 block font-normal mt-0.5">
+                      {new Date(ord.order_date).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                    </span>
                   </td>
                   
                   <td className="py-4 px-4">
@@ -124,7 +123,7 @@ export default function OrdersList({
 
                   <td className="py-4 px-4 text-gray-655 font-sans">
                     <span className="block font-extrabold text-[12px] text-slate-800 leading-none">Driver: {actualDriver || 'Unassigned'}</span>
-                    <span className="text-[10.5px] block text-gray-450 mt-1 leading-none">Co-Driver: {actualCompanion || 'Unassigned'}</span>
+                    <span className="text-[10.5px] block text-gray-450 mt-1.5 leading-none">Co-Driver: {actualCompanion || 'Unassigned'}</span>
                   </td>
 
                   <td className="py-4 px-4">
@@ -145,14 +144,14 @@ export default function OrdersList({
                     <div className="flex items-center justify-end gap-1.5 select-none font-sans font-bold">
                       <button 
                         onClick={() => startEdit(ord, false)}
-                        className="p-2 text-gray-400 hover:text-emerald-800 hover:bg-slate-55 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200"
+                        className="p-2 text-gray-400 hover:text-emerald-800 hover:bg-slate-50 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200"
                         title="Modify details / crew"
                       >
                         <Edit2 size={14} />
                       </button>
                       <button 
                         onClick={() => askDelete(ord.id, ord.doc_number)}
-                        className="p-2 text-gray-400 hover:text-red-700 hover:bg-slate-55 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200"
+                        className="p-2 text-gray-400 hover:text-red-700 hover:bg-slate-50 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200"
                         title="Delete dispatch log"
                       >
                         <Trash2 size={14} />

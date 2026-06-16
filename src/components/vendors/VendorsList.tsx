@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { Vendor, User, VendorComment } from '../../types';
-import { Edit3, Trash2, MessageSquare, Check, HelpCircle } from 'lucide-react';
+import { Edit3, MessageSquare, Check } from 'lucide-react';
 
 interface Props {
   filteredVendors: Vendor[];
   users: User[];
   startEdit: (vendor: Vendor, readOnly?: boolean) => void;
   askDelete: (id: string, name: string) => void;
-  isSelectionMode?: boolean;
-  selectedVendors?: string[];
-  setSelectedVendors?: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedVendors: string[];
+  setSelectedVendors: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 export default function VendorsList({
@@ -17,7 +16,6 @@ export default function VendorsList({
   users,
   startEdit,
   askDelete,
-  isSelectionMode = false,
   selectedVendors = [],
   setSelectedVendors
 }: Props) {
@@ -27,17 +25,18 @@ export default function VendorsList({
     rect: { top: number; left: number; width: number; height: number } | null;
   } | null>(null);
 
-  const handleRowClick = (vendor: Vendor) => {
-    if (isSelectionMode && setSelectedVendors) {
-      if (selectedVendors.includes(vendor.id)) {
-        setSelectedVendors(selectedVendors.filter(id => id !== vendor.id));
-      } else {
-        setSelectedVendors([...selectedVendors, vendor.id]);
-      }
+  const toggleSelect = (vendorId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (selectedVendors.includes(vendorId)) {
+      setSelectedVendors(selectedVendors.filter(id => id !== vendorId));
     } else {
-      // Direct full view mode
-      startEdit(vendor, true);
+      setSelectedVendors([...selectedVendors, vendorId]);
     }
+  };
+
+  const handleRowClick = (vendor: Vendor) => {
+    // Row click opens edit mode directly with Save & Delete buttons available
+    startEdit(vendor, false);
   };
 
   return (
@@ -47,7 +46,7 @@ export default function VendorsList({
           <table className="w-full text-sm text-left text-gray-700">
             <thead>
               <tr className="border-b border-gray-200 text-[11px] text-gray-400 uppercase font-mono bg-slate-50 select-none">
-                {isSelectionMode && <th className="py-3 px-4 w-12 text-center">Sel</th>}
+                <th className="py-3 px-4 w-12 text-center">Sel</th>
                 <th className="py-3 px-4">Trade Name</th>
                 <th className="py-3 px-4">Taxation ID</th>
                 <th className="py-3 px-4">Rate (₾)</th>
@@ -62,7 +61,7 @@ export default function VendorsList({
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-250">
+            <tbody className="divide-y divide-gray-100">
               {filteredVendors.map((vendor) => {
                 const manager = users.find(u => u.id === vendor.manager_id);
                 const dispatcher = users.find(u => u.id === vendor.operator_id);
@@ -82,26 +81,24 @@ export default function VendorsList({
                     onClick={() => handleRowClick(vendor)}
                     className={`transition-colors cursor-pointer select-none ${
                       isChecked 
-                        ? 'bg-amber-50/40 hover:bg-amber-100/40' 
+                        ? 'bg-emerald-50/30 hover:bg-emerald-50/50' 
                         : 'hover:bg-slate-50/80'
                     }`}
                   >
-                    {/* Bulk Selection Checkbox */}
-                    {isSelectionMode && (
-                      <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => handleRowClick(vendor)}
-                          className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all mx-auto cursor-pointer ${
-                            isChecked 
-                              ? 'border-amber-600 bg-amber-600 text-white' 
-                              : 'border-gray-300 bg-white hover:border-gray-400'
-                          }`}
-                        >
-                          {isChecked && <Check size={12} strokeWidth={3} />}
-                        </button>
-                      </td>
-                    )}
+                    {/* Biodiesel Green Styled Checkbox */}
+                    <td className="py-4 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => toggleSelect(vendor.id, e)}
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
+                          isChecked 
+                            ? 'border-emerald-650 bg-emerald-600 text-white' 
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        {isChecked && <Check size={11} strokeWidth={3.5} />}
+                      </button>
+                    </td>
 
                     {/* Trade Name */}
                     <td className="py-4 px-4">
@@ -140,10 +137,10 @@ export default function VendorsList({
                       {defaultContact ? (
                         <div>
                           <span className="font-extrabold text-gray-800 block">{defaultContact.name}</span>
-                          <span className="text-emerald-800 font-mono font-bold block bg-emerald-50 px-1.5 py-0.5 rounded w-fit mt-1 select-all">{defaultContact.phone}</span>
+                          <span className="text-emerald-800 font-mono font-bold block bg-emerald-50 px-1.5 py-0.5 rounded w-fit mt-1 select-all text-[11px]">{defaultContact.phone}</span>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-gray-400 font-bold bg-gray-50 px-1.5 py-0.5 rounded">No Contact</span>
+                        <span className="text-[10px] text-gray-405 font-bold bg-gray-50 px-1.5 py-0.5 rounded">No Contact</span>
                       )}
                     </td>
 
@@ -154,7 +151,7 @@ export default function VendorsList({
                           {additionalContacts.map(c => (
                             <div key={c.id} className="leading-tight">
                               <span className="font-bold text-gray-600 block">{c.name} ({c.position}):</span>
-                              <span className="text-emerald-800 font-mono font-bold select-all">{c.phone}</span>
+                              <span className="text-emerald-850 font-mono font-bold select-all text-[10.5px]">{c.phone}</span>
                             </div>
                           ))}
                         </div>
@@ -175,10 +172,10 @@ export default function VendorsList({
 
                     {/* Memos / Comments */}
                     <td 
-                      className="py-4 px-4 text-left relative select-none min-w-[160px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (latestComment && vendor.comments && vendor.comments.length > 0) {
+                      className="py-4 px-4 text-left relative select-none min-w-[150px] max-w-[170px]"
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseEnter={(e) => {
+                        if (vendor.comments && vendor.comments.length > 0) {
                           const rect = e.currentTarget.getBoundingClientRect();
                           setHoveredComments({
                             comments: vendor.comments,
@@ -194,33 +191,26 @@ export default function VendorsList({
                       onMouseLeave={() => setHoveredComments(null)}
                     >
                       {latestComment ? (
-                        <div className="max-w-[150px]">
-                          <p className="truncate font-sans text-gray-600 inline-flex items-center gap-1">
+                        <div className="truncate">
+                          <p className="font-sans text-gray-600 inline-flex items-center gap-1">
                             <MessageSquare size={12} className="text-emerald-500 shrink-0" />
                             {latestComment.comment}
                           </p>
                         </div>
                       ) : (
-                        <span className="text-[10.5px] text-gray-400 italic font-sans animate-pulse">No comments</span>
+                        <span className="text-[10.5px] text-gray-350 italic font-sans">No comments</span>
                       )}
                     </td>
 
-                    {/* Regular Actions block */}
+                    {/* Actions */}
                     <td className="py-4 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-1.5 select-none">
+                      <div className="flex justify-end gap-1.5 select-none animate-fade-in">
                         <button 
                           onClick={() => startEdit(vendor, false)}
-                          className="p-2 text-gray-400 hover:text-emerald-800 hover:bg-slate-55 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200"
+                          className="p-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-50 rounded-lg transition cursor-pointer border border-transparent hover:border-gray-200"
                           title="Edit supplier properties"
                         >
-                          <Edit3 size={14} />
-                        </button>
-                        <button 
-                          onClick={() => askDelete(vendor.id, vendor.trade_name)}
-                          className="p-2 text-gray-400 hover:text-red-700 hover:bg-slate-55 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200"
-                          title="Soft delete supplier"
-                        >
-                          <Trash2 size={14} />
+                          <Edit3 size={13} />
                         </button>
                       </div>
                     </td>
@@ -248,16 +238,16 @@ export default function VendorsList({
             left: `${Math.max(16, hoveredComments.rect.left + (hoveredComments.rect.width / 2) - 160)}px`,
             ...(hoveredComments.rect.top >= 220 ? { transform: 'translateY(-100%)' } : {})
           }}
-          className="w-80 bg-slate-100/95 backdrop-blur-md border border-slate-200 text-slate-800 rounded-xl p-3.5 shadow-xl text-[12px] leading-relaxed z-50 space-y-2 pointer-events-none select-none transition-all duration-150"
+          className="w-80 bg-white border border-slate-200 text-slate-800 rounded-xl p-3.5 shadow-xl text-[12px] leading-relaxed z-50 space-y-2 pointer-events-none select-none transition-all duration-150"
         >
           <div className="space-y-2 max-h-40 overflow-y-auto pr-1 select-text">
             {hoveredComments.comments.map(c => (
-              <div key={c.id} className="border-b border-slate-200 last:border-0 pb-1.5 last:pb-0 font-sans">
-                <div className="flex justify-between items-center text-[9px] text-slate-500 font-bold mb-0.5 font-sans">
+              <div key={c.id} className="border-b border-gray-100 last:border-0 pb-1.5 last:pb-0 font-sans">
+                <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold mb-0.5 font-sans">
                   <span className="text-emerald-800 font-sans">{c.user_name}</span>
                   <span>{new Date(c.date).toLocaleString()}</span>
                 </div>
-                <p className="font-sans text-slate-705 break-words">{c.comment}</p>
+                <p className="font-sans text-gray-700 break-words">{c.comment}</p>
               </div>
             ))}
           </div>

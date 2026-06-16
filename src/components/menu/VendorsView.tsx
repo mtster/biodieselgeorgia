@@ -172,6 +172,9 @@ export default function VendorsView({
   const confirmDelete = () => {
     if (deleteConfirmId) {
       onDelete(deleteConfirmId, deleteConfirmName || '');
+      if (editingVendor?.id === deleteConfirmId) {
+        setEditingVendor(null);
+      }
     }
     setDeleteConfirmId(null);
     setDeleteConfirmName(null);
@@ -195,48 +198,28 @@ export default function VendorsView({
           )}
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
-            <p className="text-xs text-gray-550 mt-1 font-sans">
-              {editingVendor 
-                ? (isReadOnly 
-                    ? `Viewing: ${editingVendor.trade_name} (Read-Only Mode)` 
-                    : (isNew ? 'Creating Supplier' : `Editing: ${editingVendor.trade_name}`)
-                  )
-                : ''
-              }
-            </p>
           </div>
         </div>
 
           <div className="flex items-center gap-3">
             {editingVendor ? (
               <>
-                {!isReadOnly && (
+                {!isNew && (
                   <button 
-                    onClick={() => {
-                      formRef.current?.fillDummy();
-                    }}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+                    onClick={() => askDelete(editingVendor.id, editingVendor.trade_name)}
+                    className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 font-extrabold rounded-xl text-xs transition border border-red-250 cursor-pointer select-none"
                   >
-                    Fill Dummy
+                    Delete
                   </button>
                 )}
-                {!isReadOnly ? (
-                  <button 
-                    onClick={() => {
-                      formRef.current?.save();
-                    }}
-                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-                  >
-                    Save
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => setEditingVendor(null)}
-                    className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold rounded-xl text-xs transition cursor-pointer select-none animate-pulse"
-                  >
-                    Viewing Mode
-                  </button>
-                )}
+                <button 
+                  onClick={() => {
+                    formRef.current?.save();
+                  }}
+                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+                >
+                  Save
+                </button>
               </>
             ) : (
               <>
@@ -301,47 +284,46 @@ export default function VendorsView({
               {/* Action Dropdown on the right */}
               <div className="relative">
                 <select
+                  disabled={selectedVendors.length === 0}
+                  value=""
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val === 'delete') {
-                      setIsSelectionMode(true);
+                    if (val === 'delete' && selectedVendors.length > 0) {
+                      setShowBulkDeleteConfirm(true);
                     }
-                    e.target.value = ''; // reset value trigger
                   }}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-gray-200 cursor-pointer focus:outline-none h-full transition-colors flex items-center"
-                  defaultValue=""
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold border h-full transition-colors flex items-center select-none ${
+                    selectedVendors.length > 0
+                      ? 'bg-slate-150 border-gray-300 text-slate-800 hover:bg-slate-250 cursor-pointer'
+                      : 'bg-slate-50 border-gray-200 text-gray-300 cursor-not-allowed'
+                  }`}
                 >
                   <option value="" disabled hidden>Actions</option>
-                  <option value="delete">🗑️ Bulk Select & Delete</option>
+                  <option value="delete">Delete</option>
                 </select>
               </div>
             </div>
 
             {/* Selection Status Banner */}
-            {isSelectionMode && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-150">
-                <div className="font-semibold text-amber-800">
-                  Bulk Delete Mode active: <strong className="font-black text-amber-950 font-mono">{selectedVendors.length} Suppliers Selected</strong>
+            {selectedVendors.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-150 select-none">
+                <div className="font-semibold text-emerald-800">
+                  Selected suppliers count: <strong className="font-black text-emerald-950 font-mono">{selectedVendors.length} Selected</strong>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      setIsSelectionMode(false);
                       setSelectedVendors([]);
                     }}
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg font-bold text-gray-700 hover:bg-slate-50"
+                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg font-bold text-gray-700 hover:bg-slate-55 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => {
-                      if (selectedVendors.length === 0) {
-                        alert('Please select at least one supplier row.');
-                        return;
-                      }
                       setShowBulkDeleteConfirm(true);
                     }}
-                    className="px-3.5 py-1.5 bg-red-650 hover:bg-red-750 text-white rounded-lg font-black"
+                    className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black cursor-pointer"
                   >
                     Delete Selected ({selectedVendors.length})
                   </button>
@@ -390,7 +372,6 @@ export default function VendorsView({
             users={users} 
             startEdit={startEdit} 
             askDelete={askDelete}
-            isSelectionMode={isSelectionMode}
             selectedVendors={selectedVendors}
             setSelectedVendors={setSelectedVendors} 
           />

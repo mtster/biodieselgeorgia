@@ -18,20 +18,20 @@ export default function VendorCommentsSection({
   return (
     <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between" id="vendor-internal-comments">
       <div>
-        <div className="flex items-center justify-between border-b pb-2 mb-4">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
           <span className="text-xs font-black uppercase text-gray-500 tracking-wider font-sans">
-            Part 3: Memos / Internal Comments
+            Comments
           </span>
           <button
             type="button"
             onClick={onAddComment}
-            className="px-2.5 py-1 text-[11px] bg-slate-50 hover:bg-slate-100 border text-slate-700 font-black rounded-lg transition inline-flex items-center gap-1 select-none cursor-pointer"
+            className="px-2.5 py-1 text-[11px] bg-slate-50 hover:bg-slate-100 border border-gray-200 text-slate-700 font-black rounded-lg transition inline-flex items-center gap-1 select-none cursor-pointer"
           >
-            <Plus size={12} /> Add Memo
+            <Plus size={12} /> Add Comment
           </button>
         </div>
 
-        <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+        <div className="space-y-2.5 max-h-[224px] overflow-y-auto pr-1">
           {comments.map((c) => (
             <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5 text-xs text-left">
               <div className="flex justify-between text-[10px] text-gray-400 font-sans font-bold">
@@ -61,7 +61,7 @@ export default function VendorCommentsSection({
 
           {comments.length === 0 && (
             <div className="text-center py-10 text-gray-400 text-xs italic font-sans">
-              No supplier memo entered.
+              No comments.
             </div>
           )}
         </div>

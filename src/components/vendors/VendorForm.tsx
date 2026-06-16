@@ -221,43 +221,45 @@ export default function VendorForm({
         <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
           <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Supplier Parameters</span>
           
-          <div className="relative">
-            <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.trade_name ? 'text-red-500' : 'text-gray-400'}`}>
-              Trade/Commercial Name *
-            </span>
-            <input 
-              type="text"
-              value={editingVendor.trade_name}
-              onChange={(e) => {
-                setEditingVendor({...editingVendor, trade_name: e.target.value});
-                if (fieldErrors.trade_name) setFieldErrors(prev => ({ ...prev, trade_name: '' }));
-              }}
-              className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
-                fieldErrors.trade_name 
-                  ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
-                  : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-              }`}
-            />
-            {fieldErrors.trade_name && (
-              <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-                {fieldErrors.trade_name}
-              </p>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.trade_name ? 'text-red-500' : 'text-gray-400'}`}>
+                Trade/Commercial Name *
+              </span>
+              <input 
+                type="text"
+                value={editingVendor.trade_name}
+                onChange={(e) => {
+                  setEditingVendor({...editingVendor, trade_name: e.target.value});
+                  if (fieldErrors.trade_name) setFieldErrors(prev => ({ ...prev, trade_name: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
+                  fieldErrors.trade_name 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
+              />
+              {fieldErrors.trade_name && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.trade_name}
+                </p>
+              )}
+            </div>
+
+            <div className="relative">
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
+                Legal/Registered Name (Company Name)
+              </span>
+              <input 
+                type="text"
+                value={editingVendor.company_name}
+                onChange={(e) => setEditingVendor({...editingVendor, company_name: e.target.value})}
+                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+              />
+            </div>
           </div>
 
-          <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
-              Legal/Registered Name (Company Name)
-            </span>
-            <input 
-              type="text"
-              value={editingVendor.company_name}
-              onChange={(e) => setEditingVendor({...editingVendor, company_name: e.target.value})}
-              className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.id_code ? 'text-red-500' : 'text-gray-400'}`}>
                 Identification Code *
@@ -293,7 +295,9 @@ export default function VendorForm({
                 className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
                 Base Price per Liter (₾) *
@@ -305,6 +309,32 @@ export default function VendorForm({
                 onChange={(e) => setEditingVendor({...editingVendor, price_per_liter: parseFloat(e.target.value) || 0})}
                 className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
+            </div>
+
+            <div className="relative">
+              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.warehouse_id ? 'text-red-500' : 'text-gray-400'}`}>
+                Assigned Base Warehouse *
+              </span>
+              <select
+                value={editingVendor.warehouse_id || ''}
+                onChange={(e) => {
+                  setEditingVendor({...editingVendor, warehouse_id: e.target.value});
+                  if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
+                }}
+                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
+                  fieldErrors.warehouse_id 
+                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+                }`}
+              >
+                <option value="" hidden></option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+              {fieldErrors.warehouse_id && (
+                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+                  {fieldErrors.warehouse_id}
+                </p>
+              )}
             </div>
           </div>
 
@@ -428,33 +458,7 @@ export default function VendorForm({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.warehouse_id ? 'text-red-500' : 'text-gray-400'}`}>
-                Assigned Base Warehouse *
-              </span>
-              <select
-                value={editingVendor.warehouse_id || ''}
-                onChange={(e) => {
-                  setEditingVendor({...editingVendor, warehouse_id: e.target.value});
-                  if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
-                }}
-                className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
-                  fieldErrors.warehouse_id 
-                    ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
-                    : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-                }`}
-              >
-                <option value="" hidden></option>
-                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-              {fieldErrors.warehouse_id && (
-                <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-                  {fieldErrors.warehouse_id}
-                </p>
-              )}
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.manager_id ? 'text-red-500' : 'text-gray-400'}`}>
                 Acquisition Manager *
@@ -528,47 +532,18 @@ export default function VendorForm({
           </div>
         </div>
 
-        {/* Part 1: Main Contact Person */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5 text-left">
-          <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Part 1: Main Contact Person</span>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
-                Main Contact Name *
-              </span>
-              <input 
-                type="text"
-                value={tempContacts.find(c => c.is_default)?.name || ''}
-                onChange={(e) => updateMainContact('name', e.target.value)}
-                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
-              />
-            </div>
-            <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
-                Main Contact Phone *
-              </span>
-              <input 
-                type="text"
-                value={tempContacts.find(c => c.is_default)?.phone || ''}
-                onFocus={(e) => { 
-                  if (!tempContacts.find(c => c.is_default)?.phone) updateMainContact('phone', '+995 '); 
-                }}
-                onChange={(e) => {
-                  const cleanPhone = e.target.value.replace(/[^0-9+]/g, '');
-                  updateMainContact('phone', cleanPhone);
-                }}
-                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Contacts & Comments Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
           <VendorContactsSection
             contacts={tempContacts}
             onAddContact={() => openContactModal()}
             onModifyContact={(c) => openContactModal(c)}
+            onTogglePrimaryContact={(id) => {
+              setTempContacts(tempContacts.map(c => ({
+                ...c,
+                is_default: c.id === id
+              })));
+            }}
           />
 
           <VendorCommentsSection

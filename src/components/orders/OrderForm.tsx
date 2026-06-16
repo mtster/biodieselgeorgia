@@ -96,11 +96,13 @@ export default function OrderForm({
     if (!editingOrder.doc_number.trim()) {
       errs.doc_number = 'Document dispatch number is required.';
     }
-    if (!editingOrder.driver_id) {
-      errs.driver_id = 'Please select an Assigned Fleet Driver.';
-    }
-    if (!editingOrder.truck_plate) {
-      errs.truck_plate = 'Please select an Assigned Vehicle.';
+    if (editingOrder.status !== 'registered' && editingOrder.status !== 'cancelled') {
+      if (!editingOrder.driver_id) {
+        errs.driver_id = 'Please select an Assigned Fleet Driver.';
+      }
+      if (!editingOrder.truck_plate) {
+        errs.truck_plate = 'Please select an Assigned Vehicle.';
+      }
     }
 
     // Build pickup date/time ISO values if completed

@@ -202,14 +202,12 @@ export default function App() {
   };
 
   const handleVendorDelete = async (id: string, tradeName: string) => {
-    if (confirm(`Are you sure you want to delete supplier (${tradeName})?`)) {
-      try {
-        await deleteVendor(id, tradeName, currentUser?.name || 'System');
-        await refreshAllData();
-      } catch (e: any) {
-        console.error('Error deleting supplier:', e);
-        alert(`⚠️ Supplier Delete Error: ${e.message || 'Check permissions.'}`);
-      }
+    try {
+      await deleteVendor(id, tradeName, currentUser?.name || 'System');
+      await refreshAllData();
+    } catch (e: any) {
+      console.error('Error deleting supplier:', e);
+      alert(`⚠️ Supplier Delete Error: ${e.message || 'Check permissions.'}`);
     }
   };
 
@@ -224,14 +222,12 @@ export default function App() {
   };
 
   const handleOrderDelete = async (id: string, docNum: string) => {
-    if (confirm(`Are you sure you want to delete order #${docNum}?`)) {
-      try {
-        await deleteOrder(id, docNum, currentUser?.name || 'System');
-        await refreshAllData();
-      } catch (e: any) {
-        console.error('Error deleting order:', e);
-        alert(`⚠️ Order Delete Error: ${e.message || 'Check permissions.'}`);
-      }
+    try {
+      await deleteOrder(id, docNum, currentUser?.name || 'System');
+      await refreshAllData();
+    } catch (e: any) {
+      console.error('Error deleting order:', e);
+      alert(`⚠️ Order Delete Error: ${e.message || 'Check permissions.'}`);
     }
   };
 
@@ -491,7 +487,7 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'lookups' && (
+            {(activeTab === 'lookups' || activeTab === 'cities') && (
               <LookupsView 
                 cities={cities}
                 districts={districts}
@@ -504,6 +500,24 @@ export default function App() {
                 onDeleteDistrict={handleDeleteDistrict}
                 onSaveTruck={handleSaveTruck}
                 onDeleteTruck={handleDeleteTruck}
+                forcedTab="cities"
+              />
+            )}
+
+            {activeTab === 'vehicles' && (
+              <LookupsView 
+                cities={cities}
+                districts={districts}
+                trucks={trucks}
+                employees={users}
+                currentEmployee={currentUser}
+                onSaveCity={handleSaveCity}
+                onDeleteCity={handleDeleteCity}
+                onSaveDistrict={handleSaveDistrict}
+                onDeleteDistrict={handleDeleteDistrict}
+                onSaveTruck={handleSaveTruck}
+                onDeleteTruck={handleDeleteTruck}
+                forcedTab="trucks"
               />
             )}
 
@@ -511,27 +525,6 @@ export default function App() {
               <HistoryView 
                 history={changeHistory}
                 onRevert={handleRevertChange}
-              />
-            )}
-
-            {activeTab === 'settings' && (
-              <SettingsView 
-                onResetDatabase={resetSystemDatabase}
-                users={users}
-                currentUser={currentUser}
-                onSaveUser={handleUserSave}
-                onDeleteUser={handleUserDelete}
-                cities={cities}
-                districts={districts}
-                onSaveCity={handleSaveCity}
-                onDeleteCity={handleDeleteCity}
-                onSaveDistrict={handleSaveDistrict}
-                onDeleteDistrict={handleDeleteDistrict}
-                trucks={trucks}
-                onSaveTruck={handleSaveTruck}
-                onDeleteTruck={handleDeleteTruck}
-                changeHistory={changeHistory}
-                onRevertChange={handleRevertChange}
               />
             )}
           </div>

@@ -28,7 +28,6 @@ export default function HistoryView({ history, onRevert }: Props) {
       {/* Header */}
       <div>
         <h2 className="text-xl font-extrabold text-gray-800">Change History</h2>
-        <p className="text-xs text-gray-500 mt-1">System audit logs - Full history of record additions, modifications, and deletions. Use the Revert action to roll back changes.</p>
       </div>
 
       <div className="bg-white border rounded-2xl shadow-xs overflow-hidden">

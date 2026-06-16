@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../../types';
+import { Order, Vendor, Warehouse, User, Truck } from '../../types';
 import { getSMSLogs } from '../../lib/db';
 import { 
-  Plus, Search, Edit2, MessageSquareCode, 
-  Trash2, ArrowLeft
+  Plus, Search, Trash2, ArrowLeft
 } from 'lucide-react';
 
 // Modular child components
@@ -36,9 +35,7 @@ export default function OrdersView({
   const [showSMSLogs, setShowSMSLogs] = useState(false);
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
 
-  // Read-only and bulk-delete selection states
-  const [isReadOnly, setIsReadOnly] = useState(false);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  // Bulk-delete selection states
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
@@ -81,13 +78,11 @@ export default function OrdersView({
     };
     setEditingOrder(defaultOrder);
     setIsNew(true);
-    setIsReadOnly(false);
   };
 
-  const startEdit = (ord: Order, readOnly = false) => {
+  const startEdit = (ord: Order) => {
     setEditingOrder(JSON.parse(JSON.stringify(ord)));
     setIsNew(false);
-    setIsReadOnly(readOnly);
   };
 
   const handleBulkDeleteExecute = () => {
@@ -96,7 +91,6 @@ export default function OrdersView({
       onDelete(id, ord?.doc_number || '');
     });
     setSelectedOrders([]);
-    setIsSelectionMode(false);
     setShowBulkDeleteConfirm(false);
   };
 
@@ -124,6 +118,9 @@ export default function OrdersView({
   const confirmDelete = () => {
     if (deleteConfirmId) {
       onDelete(deleteConfirmId, deleteConfirmDocNum || '');
+      if (editingOrder && editingOrder.id === deleteConfirmId) {
+        setEditingOrder(null);
+      }
     }
     setDeleteConfirmId(null);
     setDeleteConfirmDocNum(null);
@@ -138,7 +135,7 @@ export default function OrdersView({
           {editingOrder && (
             <button
               onClick={() => setEditingOrder(null)}
-              className="p-2 mr-3 hover:bg-slate-100 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-transparent hover:border-gray-200"
+              className="p-2 mr-3 hover:bg-slate-105 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-transparent hover:border-gray-200"
               title="Go Back"
               id="order-form-back-arrow"
             >
@@ -147,70 +144,63 @@ export default function OrdersView({
           )}
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Orders</h2>
-            <p className="text-xs text-gray-550 mt-1 font-sans">
-              {editingOrder 
-                ? (isNew ? 'Creating order' : `Editing: Order #${editingOrder.doc_number}`)
-                : ''
-              }
-            </p>
           </div>
         </div>
 
-          <div className="flex items-center gap-3">
-            {editingOrder ? (
-              <>
-                {!isReadOnly && (
-                  <button 
-                    onClick={() => {
-                      formRef.current?.fillDummy();
-                    }}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
-                  >
-                    Fill Dummy
-                  </button>
-                )}
-                {!isReadOnly ? (
-                  <button 
-                    onClick={() => {
-                      formRef.current?.save();
-                    }}
-                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-                  >
-                    Save
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => setEditingOrder(null)}
-                    className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold rounded-xl text-xs transition cursor-pointer select-none animate-pulse"
-                  >
-                    Viewing Mode
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
+        <div className="flex items-center gap-3">
+          {editingOrder ? (
+            <>
+              {editingOrder.id && (
                 <button 
                   onClick={() => {
-                    loadSMSLogs();
-                    setShowSMSLogs(true);
+                    askDelete(editingOrder.id, editingOrder.doc_number);
                   }}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-755 border rounded-xl text-xs font-bold text-gray-705 transition cursor-pointer select-none"
+                  className="px-4 py-2 hover:bg-red-50 text-red-650 border border-transparent hover:border-red-200 font-bold rounded-xl text-xs transition cursor-pointer select-none flex items-center gap-1.5"
                 >
-                  <MessageSquareCode size={15} className="text-emerald-700 animate-pulse" />
-                  SMS Dispatch Logs ({smsLogs.length})
+                  <Trash2 size={13} />
+                  Delete
                 </button>
-                
-                <button 
-                  onClick={startNew}
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none"
-                >
-                  <Plus size={15} />
-                  New Order
-                </button>
-              </>
-            )}
-          </div>
+              )}
+              <button 
+                onClick={() => {
+                  formRef.current?.fillDummy();
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-705 transition cursor-pointer select-none"
+              >
+                Fill Dummy
+              </button>
+              <button 
+                onClick={() => {
+                  formRef.current?.save();
+                }}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+              >
+                Save
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => {
+                  loadSMSLogs();
+                  setShowSMSLogs(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-755 border rounded-xl text-xs font-bold text-gray-705 transition cursor-pointer select-none"
+              >
+                SMS Dispatch Logs ({smsLogs.length})
+              </button>
+              
+              <button 
+                onClick={startNew}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none"
+              >
+                <Plus size={15} />
+                New Order
+              </button>
+            </>
+          )}
         </div>
+      </div>
 
       {/* 2. FORM OR LIST SPREADSHEET */}
       {editingOrder ? (
@@ -249,91 +239,86 @@ export default function OrdersView({
               {/* Action Dropdown on the right */}
               <div className="relative shrink-0">
                 <select
+                  disabled={selectedOrders.length === 0}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === 'delete') {
-                      setIsSelectionMode(true);
+                      setShowBulkDeleteConfirm(true);
                     }
                     e.target.value = ''; // Reset select trigger
                   }}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-gray-200 cursor-pointer focus:outline-none h-full transition-colors flex items-center"
-                  defaultValue=""
+                  className="px-4 py-2.5 bg-slate-100 disabled:opacity-50 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-gray-200 cursor-pointer disabled:cursor-not-allowed focus:outline-none h-full transition-colors flex items-center"
+                  value=""
                 >
                   <option value="" disabled hidden>Actions</option>
-                  <option value="delete">🗑️ Bulk Select & Delete</option>
+                  <option value="delete">Delete</option>
                 </select>
               </div>
             </div>
 
             {/* Selection Status Banner */}
-            {isSelectionMode && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-150">
-                <div className="font-semibold text-amber-800">
-                  Bulk Delete Mode active: <strong className="font-black text-amber-955 font-mono">{selectedOrders.length} Orders Selected</strong>
+            {selectedOrders.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-150 rounded-xl p-3.5 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-150">
+                <div className="font-semibold text-emerald-800">
+                  <strong className="font-extrabold text-emerald-900 font-mono">{selectedOrders.length}</strong> dispatches selected
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      setIsSelectionMode(false);
                       setSelectedOrders([]);
                     }}
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg font-bold text-gray-700 hover:bg-slate-50"
+                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg font-semibold text-gray-750 hover:bg-slate-50 transition cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => {
-                      if (selectedOrders.length === 0) {
-                        alert('Please select at least one order row.');
-                        return;
-                      }
                       setShowBulkDeleteConfirm(true);
                     }}
-                    className="px-3.5 py-1.5 bg-red-650 hover:bg-red-750 text-white rounded-lg font-black"
+                    className="px-3.5 py-1.5 bg-red-655 hover:bg-red-755 text-white rounded-lg font-bold transition cursor-pointer shadow-xs"
                   >
-                    Delete Selected ({selectedOrders.length})
+                    Delete Selected
                   </button>
                 </div>
               </div>
             )}
 
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 pt-1">
               <div className="w-full md:w-64 flex gap-2 font-sans shrink-0">
-              <button 
-                onClick={() => setSelectedStatus('')}
-                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                  selectedStatus === '' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-650 border-gray-205 hover:bg-gray-100'
-                }`}
-              >
-                All
-              </button>
-              <button 
-                onClick={() => setSelectedStatus('registered')}
-                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                  selectedStatus === 'registered' ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-650 border-gray-205 hover:bg-gray-100'
-                }`}
-              >
-                Registered
-              </button>
-              <button 
-                onClick={() => setSelectedStatus('completed')}
-                className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                  selectedStatus === 'completed' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-655 border-gray-205 hover:bg-gray-100'
-                }`}
-              >
-                Completed
-              </button>
+                <button 
+                  onClick={() => setSelectedStatus('')}
+                  className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                    selectedStatus === '' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-650 border-gray-205 hover:bg-gray-100'
+                  }`}
+                >
+                  All
+                </button>
+                <button 
+                  onClick={() => setSelectedStatus('registered')}
+                  className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                    selectedStatus === 'registered' ? 'bg-amber-600 text-white border-amber-600' : 'bg-gray-50 text-gray-655 border-gray-205 hover:bg-gray-100'
+                  }`}
+                >
+                  Registered
+                </button>
+                <button 
+                  onClick={() => setSelectedStatus('completed')}
+                  className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                    selectedStatus === 'completed' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-gray-50 text-gray-655 border-gray-205 hover:bg-gray-100'
+                  }`}
+                >
+                  Completed
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <OrdersList 
+          <OrdersList 
             filteredOrders={filteredOrders} 
             suppliers={suppliers} 
             employees={employees}
             startEdit={startEdit} 
             askDelete={askDelete}
-            isSelectionMode={isSelectionMode}
             selectedOrders={selectedOrders}
             setSelectedOrders={setSelectedOrders} 
           />
@@ -361,7 +346,7 @@ export default function OrdersView({
       {showBulkDeleteConfirm && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm border shadow-lg p-6 space-y-4 text-center">
-            <div className="w-12 h-12 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto animate-bounce">
+            <div className="w-12 h-12 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto">
               <Trash2 size={24} />
             </div>
             <div>
@@ -374,14 +359,14 @@ export default function OrdersView({
               <button
                 type="button"
                 onClick={() => setShowBulkDeleteConfirm(false)}
-                className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl"
+                className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl cursor-pointer"
               >
                 No, Keep Them
               </button>
               <button
                 type="button"
                 onClick={handleBulkDeleteExecute}
-                className="flex-1 py-2 bg-red-650 hover:bg-red-750 text-xs font-black text-white rounded-xl"
+                className="flex-1 py-2 bg-red-650 hover:bg-red-750 text-xs font-black text-white rounded-xl cursor-pointer"
               >
                 Yes, Delete
               </button>

@@ -116,12 +116,6 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
           )}
           <div>
             <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
-            <p className="text-xs text-gray-550 mt-1 font-sans">
-              {editingUser 
-                ? (isNew ? 'Creating a new user' : `Editing: ${editingUser.name}`)
-                : ''
-              }
-            </p>
           </div>
         </div>
 

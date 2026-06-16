@@ -36,13 +36,23 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
         ...dbOrder 
       } = finalOrder as any;
 
+      // Sanitize UUID fields so empty or non-valid UUID strings are saved as null in Supabase
+      const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+      
+      dbOrder.operator_id = isValidUuid(dbOrder.operator_id) ? dbOrder.operator_id : null;
+      dbOrder.driver_id = isValidUuid(dbOrder.driver_id) ? dbOrder.driver_id : null;
+      dbOrder.companion_id = isValidUuid(dbOrder.companion_id) ? dbOrder.companion_id : null;
+
       if (isNew) {
-        await supabase.from('orders').insert([dbOrder]);
+        const { error } = await supabase.from('orders').insert([dbOrder]);
+        if (error) throw error;
       } else {
-        await supabase.from('orders').update(dbOrder).eq('id', dbOrder.id);
+        const { error } = await supabase.from('orders').update(dbOrder).eq('id', dbOrder.id);
+        if (error) throw error;
       }
     } catch (e) {
       console.error('Supabase saveOrder failed', e);
+      throw e; // Propagate the error to show in UI
     }
   }
 
