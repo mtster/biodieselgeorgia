@@ -284,7 +284,7 @@ export default function UserForm({
             Role / Designation *
           </span>
           <select
-            value={editingUser.role || 'manager'}
+            value={editingUser.role || ''}
             onChange={(e) => {
               const role = e.target.value as any;
               let autoPrivileges = editingUser.privileges || [];
@@ -307,6 +307,7 @@ export default function UserForm({
                 : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
             }`}
           >
+            <option value="" hidden></option>
             <option value="admin">Administrator (Admin)</option>
             <option value="manager">Manager</option>
             <option value="driver">Driver</option>

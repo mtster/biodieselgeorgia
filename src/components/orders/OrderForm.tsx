@@ -14,6 +14,7 @@ interface Props {
   onSave: (order: Order) => void;
   onCancel: () => void;
   formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
+  isReadOnly?: boolean;
 }
 
 export default function OrderForm({
@@ -26,7 +27,8 @@ export default function OrderForm({
   currentEmployee,
   onSave,
   onCancel,
-  formRef
+  formRef,
+  isReadOnly = false
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -173,7 +175,8 @@ export default function OrderForm({
 
   return (
     <div className="animate-in fade-in duration-200 max-w-2xl text-left" id="orders-form-panel">
-      <div className="space-y-6">
+      <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
+        <div className="space-y-6">
         <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
           <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Transaction Details</span>
           
@@ -559,6 +562,7 @@ export default function OrderForm({
           </div>
         </div>
       </div>
+      </fieldset>
     </div>
   );
 }

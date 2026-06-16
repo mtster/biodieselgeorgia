@@ -29,10 +29,7 @@ export default function Sidebar({
     { id: 'vendors', name: 'Suppliers', icon: <Building2 size={18} /> },
     { id: 'communications', name: 'Communications', icon: <MessageSquare size={18} /> },
     { id: 'orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
-    { id: 'users', name: 'Users', icon: <Users size={18} /> },
     { id: 'reports', name: 'Reports', icon: <FileText size={18} /> },
-    { id: 'lookups', name: 'Lookups', icon: <Globe size={18} /> },
-    { id: 'history', name: 'Change History', icon: <History size={18} /> },
     { id: 'settings', name: 'Settings', icon: <Settings size={18} /> }
   ];
 

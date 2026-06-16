@@ -3,12 +3,10 @@ import {
   Vendor, VendorContact, VendorComment, 
   Warehouse, User, City, District 
 } from '../../types';
-import { 
-  Plus, Trash2, X, Phone, ShieldAlert, MessageSquare 
-} from 'lucide-react';
 
-import { formatPhone, formatWorkingHours } from '../../utils/lang';
-
+import { WorkingHoursInput } from './WorkingHoursInput';
+import VendorContactsSection from './VendorContactsSection';
+import VendorCommentsSection from './VendorCommentsSection';
 import VendorContactModal from './VendorContactModal';
 import VendorCommentModal from './VendorCommentModal';
 
@@ -23,6 +21,7 @@ interface Props {
   onSave: (vendor: Vendor) => void;
   onCancel: () => void;
   formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
+  isReadOnly?: boolean;
 }
 
 export default function VendorForm({
@@ -35,7 +34,8 @@ export default function VendorForm({
   currentUser,
   onSave,
   onCancel,
-  formRef
+  formRef,
+  isReadOnly = false
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -111,7 +111,6 @@ export default function VendorForm({
         comments: [newComment, ...(prev.comments || [])]
       } : null);
     }
-
     setIsCommentModalOpen(false);
   };
 
@@ -141,13 +140,6 @@ export default function VendorForm({
     }
   };
 
-  const handleSetDefaultContact = (id: string) => {
-    setTempContacts(tempContacts.map(c => ({
-      ...c,
-      is_default: c.id === id
-    })));
-  };
-
   const handleSaveAll = () => {
     const errs: Record<string, string> = {};
 
@@ -156,6 +148,21 @@ export default function VendorForm({
     }
     if (!editingVendor.id_code.trim()) {
       errs.id_code = 'Identification Code is required.';
+    }
+    if (!editingVendor.city) {
+      errs.city = 'City is required.';
+    }
+    if (!editingVendor.district) {
+      errs.district = 'District is required.';
+    }
+    if (!editingVendor.warehouse_id) {
+      errs.warehouse_id = 'Base warehouse is required.';
+    }
+    if (!editingVendor.manager_id) {
+      errs.manager_id = 'Manager is required.';
+    }
+    if (!editingVendor.operator_id) {
+      errs.operator_id = 'Systems Dispatcher is required.';
     }
 
     if (Object.keys(errs).length > 0) {
@@ -167,7 +174,7 @@ export default function VendorForm({
 
     const payload: Vendor = {
       ...editingVendor,
-      company_code: editingVendor.company_code || editingVendor.id_code, // Maintain separate editable Assigned Code, fallback to id_code if empty
+      company_code: editingVendor.company_code || editingVendor.id_code,
       contacts: tempContacts
     };
 
@@ -194,7 +201,7 @@ export default function VendorForm({
       address: 'Dummy St. 1',
       price_per_liter: 1.5,
       warehouse_id: warehouses[0]?.id || '',
-      manager_id: users[0]?.id || '',
+      manager_id: users.find(u => u.role === 'manager')?.id || users[0]?.id || '',
       operator_id: users[0]?.id || '',
       working_hours: '09:00 - 18:00',
     });
@@ -209,7 +216,8 @@ export default function VendorForm({
 
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl" id="vendors-form-panel">
-      <div className="space-y-6 pt-2 text-left">
+      <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
+        <div className="space-y-6 pt-2 text-left">
         <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
           <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Supplier Parameters</span>
           
@@ -334,15 +342,9 @@ export default function VendorForm({
               <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
                 Working Hours *
               </span>
-              <input 
-                type="text"
-                placeholder="e.g. 10:00 - 16:00"
-                value={editingVendor.working_hours}
-                onChange={(e) => {
-                  const cleaned = formatWorkingHours(e.target.value);
-                  setEditingVendor({...editingVendor, working_hours: cleaned});
-                }}
-                className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"
+              <WorkingHoursInput
+                value={editingVendor.working_hours || ''}
+                onChange={(val) => setEditingVendor({ ...editingVendor, working_hours: val })}
               />
             </div>
           </div>
@@ -353,7 +355,7 @@ export default function VendorForm({
                 City *
               </span>
               <select
-                value={editingVendor.city}
+                value={editingVendor.city || ''}
                 onChange={(e) => {
                   const val = e.target.value;
                   const cObj = cities.find(x => x.name === val);
@@ -371,7 +373,7 @@ export default function VendorForm({
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
                 }`}
               >
-                <option value="" disabled></option>
+                <option value="" hidden></option>
                 {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
               {fieldErrors.city && (
@@ -386,7 +388,7 @@ export default function VendorForm({
                 District *
               </span>
               <select
-                value={editingVendor.district}
+                value={editingVendor.district || ''}
                 onChange={(e) => {
                   setEditingVendor({...editingVendor, district: e.target.value});
                   if (fieldErrors.district) setFieldErrors(prev => ({ ...prev, district: '' }));
@@ -397,7 +399,7 @@ export default function VendorForm({
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
                 }`}
               >
-                <option value="" disabled></option>
+                <option value="" hidden></option>
                 {districts
                   .filter(d => {
                     const cObj = cities.find(x => x.name === editingVendor.city);
@@ -432,7 +434,7 @@ export default function VendorForm({
                 Assigned Base Warehouse *
               </span>
               <select
-                value={editingVendor.warehouse_id}
+                value={editingVendor.warehouse_id || ''}
                 onChange={(e) => {
                   setEditingVendor({...editingVendor, warehouse_id: e.target.value});
                   if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
@@ -443,7 +445,7 @@ export default function VendorForm({
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
                 }`}
               >
-                <option value="" disabled></option>
+                <option value="" hidden></option>
                 {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
               {fieldErrors.warehouse_id && (
@@ -458,7 +460,7 @@ export default function VendorForm({
                 Acquisition Manager *
               </span>
               <select
-                value={editingVendor.manager_id}
+                value={editingVendor.manager_id || ''}
                 onChange={(e) => {
                   setEditingVendor({...editingVendor, manager_id: e.target.value});
                   if (fieldErrors.manager_id) setFieldErrors(prev => ({ ...prev, manager_id: '' }));
@@ -469,7 +471,7 @@ export default function VendorForm({
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
                 }`}
               >
-                <option value="" disabled></option>
+                <option value="" hidden></option>
                 {users.filter(u => u.role === 'manager').map(e => (
                   <option key={e.id} value={e.id}>{e.name}</option>
                 ))}
@@ -495,7 +497,7 @@ export default function VendorForm({
                 Systems Dispatcher *
               </span>
               <select
-                value={editingVendor.operator_id}
+                value={editingVendor.operator_id || ''}
                 onChange={(e) => {
                   setEditingVendor({...editingVendor, operator_id: e.target.value});
                   if (fieldErrors.operator_id) setFieldErrors(prev => ({ ...prev, operator_id: '' }));
@@ -506,7 +508,7 @@ export default function VendorForm({
                     : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
                 }`}
               >
-                <option value="" disabled></option>
+                <option value="" hidden></option>
                 {users.map(e => (
                   <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
                 ))}
@@ -551,7 +553,10 @@ export default function VendorForm({
                 onFocus={(e) => { 
                   if (!tempContacts.find(c => c.is_default)?.phone) updateMainContact('phone', '+995 '); 
                 }}
-                onChange={(e) => updateMainContact('phone', formatPhone(e.target.value))}
+                onChange={(e) => {
+                  const cleanPhone = e.target.value.replace(/[^0-9+]/g, '');
+                  updateMainContact('phone', cleanPhone);
+                }}
                 className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-mono transition-all"
               />
             </div>
@@ -560,102 +565,22 @@ export default function VendorForm({
 
         {/* Contacts & Comments Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
-          <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b pb-2 mb-4">
-                <span className="text-xs font-black uppercase text-gray-500 tracking-wider font-sans">Part 2: Additional Contact Persons</span>
-                <button
-                  type="button"
-                  onClick={() => openContactModal()}
-                  className="px-2.5 py-1 text-[11px] bg-slate-50 hover:bg-slate-100 border text-slate-700 font-black rounded-lg transition inline-flex items-center gap-1 select-none cursor-pointer"
-                >
-                  <Plus size={12} /> Add Contact
-                </button>
-              </div>
+          <VendorContactsSection
+            contacts={tempContacts}
+            onAddContact={() => openContactModal()}
+            onModifyContact={(c) => openContactModal(c)}
+          />
 
-              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                {tempContacts.filter(c => !c.is_default).map((c) => (
-                  <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs text-left group">
-                    <div>
-                      <span className="font-extrabold text-gray-800 block text-xs">{c.name}</span>
-                      <span className="text-[10px] text-gray-400 font-sans uppercase tracking-wider block font-medium mt-0.5">{c.position}</span>
-                      <span className="text-[10.5px] text-emerald-800 font-mono font-bold mt-1 block select-all inline-flex items-center gap-1">
-                        <Phone size={10} /> {c.phone}
-                      </span>
-                    </div>
-                    <div className="flex gap-1 select-none">
-                      <button
-                        type="button"
-                        onClick={() => openContactModal(c)}
-                        className="px-2 py-1 bg-white hover:bg-slate-100 border text-gray-650 rounded-lg text-[10px] font-bold cursor-pointer transition"
-                      >
-                        Modify
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {tempContacts.filter(c => !c.is_default).length === 0 && (
-                  <div className="text-center py-10 text-gray-400 text-xs italic font-sans">
-                    No alternative/additional contact recorded.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b pb-2 mb-4">
-                <span className="text-xs font-black uppercase text-gray-500 tracking-wider font-sans">Part 3: Memos / Internal Comments</span>
-                <button
-                  type="button"
-                  onClick={() => openCommentModal()}
-                  className="px-2.5 py-1 text-[11px] bg-slate-50 hover:bg-slate-100 border text-slate-700 font-black rounded-lg transition inline-flex items-center gap-1 select-none cursor-pointer"
-                >
-                  <Plus size={12} /> Add Memo
-                </button>
-              </div>
-
-              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                {(editingVendor.comments || []).map((c) => (
-                  <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5 text-xs text-left">
-                    <div className="flex justify-between text-[10px] text-gray-400 font-sans font-bold">
-                      <span className="text-emerald-700 font-extrabold">{c.user_name}</span>
-                      <span>{new Date(c.date).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-gray-700 font-medium leading-relaxed font-sans select-all">{c.comment}</p>
-                    <div className="flex justify-end gap-1 select-none font-sans pt-1">
-                      <button
-                        type="button"
-                        onClick={() => openCommentModal(c)}
-                        className="text-[10px] font-bold text-gray-450 hover:text-emerald-700 cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <span className="text-gray-300">|</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveComment(c.id)}
-                        className="text-[10px] font-bold text-gray-450 hover:text-red-700 cursor-pointer"
-                      >
-                        Discard
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {(!editingVendor.comments || editingVendor.comments.length === 0) && (
-                  <div className="text-center py-10 text-gray-400 text-xs italic font-sans">
-                    No supplier memo entered.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <VendorCommentsSection
+            comments={editingVendor.comments || []}
+            onAddComment={() => openCommentModal()}
+            onModifyComment={(c) => openCommentModal(c)}
+            onRemoveComment={handleRemoveComment}
+          />
         </div>
 
       </div>
+      </fieldset>
 
       <VendorContactModal
         isOpen={isContactModalOpen}

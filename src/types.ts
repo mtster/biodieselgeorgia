@@ -133,6 +133,7 @@ export interface Warehouse {
 export interface City {
   id: string;
   name: string;               // დასახელება
+  is_deleted?: boolean;
 }
 
 export interface District {

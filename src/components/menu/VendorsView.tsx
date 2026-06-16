@@ -5,7 +5,7 @@ import {
 } from '../../types';
 import { 
   Search, Plus, Edit3, Trash2, FileSpreadsheet, 
-  MessageSquare
+  MessageSquare, ArrowLeft
 } from 'lucide-react';
 
 // Modular child components
@@ -43,6 +43,12 @@ export default function VendorsView({
   const [isImporting, setIsImporting] = useState(false);
   const [importText, setImportText] = useState('');
 
+  // Read-only and bulk-delete selection states
+  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
   // Delete confirmation modal states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState<string | null>(null);
@@ -50,9 +56,10 @@ export default function VendorsView({
   // Action triggers for child forms
   const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
 
-  const startEdit = (vendor: Vendor) => {
+  const startEdit = (vendor: Vendor, readOnly = false) => {
     setEditingVendor(JSON.parse(JSON.stringify(vendor)));
     setIsNew(false);
+    setIsReadOnly(readOnly);
   };
 
   const startNew = () => {
@@ -77,6 +84,17 @@ export default function VendorsView({
     };
     setEditingVendor(defaultVendor);
     setIsNew(true);
+    setIsReadOnly(false);
+  };
+
+  const handleBulkDeleteExecute = () => {
+    selectedVendors.forEach(id => {
+      const vend = vendors.find(v => v.id === id);
+      onDelete(id, vend?.trade_name || '');
+    });
+    setSelectedVendors([]);
+    setIsSelectionMode(false);
+    setShowBulkDeleteConfirm(false);
   };
 
   const handleSaveFromForm = (payload: Vendor) => {
@@ -164,41 +182,61 @@ export default function VendorsView({
       
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
       <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
-        <div>
-          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
-          <p className="text-xs text-gray-550 mt-1 font-sans">
+        <div className="flex items-center">
+          {editingVendor && (
+            <button
+              onClick={() => setEditingVendor(null)}
+              className="p-2 mr-3 hover:bg-slate-100 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-transparent hover:border-gray-200"
+              title="Go Back"
+              id="vendor-form-back-arrow"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
+            <p className="text-xs text-gray-550 mt-1 font-sans">
               {editingVendor 
-                ? (isNew ? 'Creating Supplier' : `Editing: ${editingVendor.trade_name}`)
+                ? (isReadOnly 
+                    ? `Viewing: ${editingVendor.trade_name} (Read-Only Mode)` 
+                    : (isNew ? 'Creating Supplier' : `Editing: ${editingVendor.trade_name}`)
+                  )
                 : 'Manage commercial biodiesel suppliers, purchase pricing rates, bank account targets, and contact lists.'
               }
             </p>
           </div>
+        </div>
 
           <div className="flex items-center gap-3">
             {editingVendor ? (
               <>
-                <button 
-                  onClick={() => {
-                    formRef.current?.fillDummy();
-                  }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
-                >
-                  Fill Dummy
-                </button>
-                <button 
-                  onClick={() => setEditingVendor(null)}
-                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => {
-                    formRef.current?.save();
-                  }}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-                >
-                  Save
-                </button>
+                {!isReadOnly && (
+                  <button 
+                    onClick={() => {
+                      formRef.current?.fillDummy();
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+                  >
+                    Fill Dummy
+                  </button>
+                )}
+                {!isReadOnly ? (
+                  <button 
+                    onClick={() => {
+                      formRef.current?.save();
+                    }}
+                    className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+                  >
+                    Save
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => setEditingVendor(null)}
+                    className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold rounded-xl text-xs transition cursor-pointer select-none animate-pulse"
+                  >
+                    Viewing Mode
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -243,19 +281,73 @@ export default function VendorsView({
           
           {/* ADVANCED MULTI-PROPERTY SEARCH & FILTERS CONTROLS */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3.5 select-none font-sans">
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
-                <Search size={15} />
-              </span>
-              <input 
-                id="vendors-search"
-                type="text"
-                placeholder="Search suppliers by trade name, legal entity, or registered taxation ID coordinates..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all"
-              />
+            
+            {/* Custom Flex layout for Actions dropdown to sit beautifully on the right of Search bar */}
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
+                  <Search size={15} />
+                </span>
+                <input 
+                  id="vendors-search"
+                  type="text"
+                  placeholder="Search suppliers by trade name, legal entity, or registered taxation ID coordinates..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-none transition-all text-gray-900"
+                />
+              </div>
+
+              {/* Action Dropdown on the right */}
+              <div className="relative">
+                <select
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'delete') {
+                      setIsSelectionMode(true);
+                    }
+                    e.target.value = ''; // reset value trigger
+                  }}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-gray-200 cursor-pointer focus:outline-none h-full transition-colors flex items-center"
+                  defaultValue=""
+                >
+                  <option value="" disabled hidden>Actions</option>
+                  <option value="delete">🗑️ Bulk Select & Delete</option>
+                </select>
+              </div>
             </div>
+
+            {/* Selection Status Banner */}
+            {isSelectionMode && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between text-xs animate-in slide-in-from-top-2 duration-150">
+                <div className="font-semibold text-amber-800">
+                  Bulk Delete Mode active: <strong className="font-black text-amber-950 font-mono">{selectedVendors.length} Suppliers Selected</strong>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setIsSelectionMode(false);
+                      setSelectedVendors([]);
+                    }}
+                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg font-bold text-gray-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (selectedVendors.length === 0) {
+                        alert('Please select at least one supplier row.');
+                        return;
+                      }
+                      setShowBulkDeleteConfirm(true);
+                    }}
+                    className="px-3.5 py-1.5 bg-red-650 hover:bg-red-750 text-white rounded-lg font-black"
+                  >
+                    Delete Selected ({selectedVendors.length})
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex gap-2.5 items-center">
@@ -297,7 +389,10 @@ export default function VendorsView({
             filteredVendors={filteredVendors} 
             users={users} 
             startEdit={startEdit} 
-            askDelete={askDelete} 
+            askDelete={askDelete}
+            isSelectionMode={isSelectionMode}
+            selectedVendors={selectedVendors}
+            setSelectedVendors={setSelectedVendors} 
           />
         </div>
       )}
@@ -320,6 +415,39 @@ export default function VendorsView({
         }}
         onConfirm={confirmDelete}
       />
+
+      {/* BULK DELETE CONFIRMATION MODAL */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm border shadow-lg p-6 space-y-4 text-center">
+            <div className="w-12 h-12 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto animate-bounce">
+              <Trash2 size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">Confirm Bulk Deletion</h4>
+              <p className="text-[11.5px] text-gray-450 mt-2 font-sans leading-normal">
+                Are you sure you want to soft delete <strong>{selectedVendors.length} selected suppliers</strong>? They will hide from the UI immediately.
+              </p>
+            </div>
+            <div className="flex gap-2 font-sans pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl"
+              >
+                No, Go Back
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDeleteExecute}
+                className="flex-1 py-2 bg-red-650 hover:bg-red-750 text-xs font-black text-white rounded-xl"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

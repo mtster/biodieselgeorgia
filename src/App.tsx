@@ -517,6 +517,21 @@ export default function App() {
             {activeTab === 'settings' && (
               <SettingsView 
                 onResetDatabase={resetSystemDatabase}
+                users={users}
+                currentUser={currentUser}
+                onSaveUser={handleUserSave}
+                onDeleteUser={handleUserDelete}
+                cities={cities}
+                districts={districts}
+                onSaveCity={handleSaveCity}
+                onDeleteCity={handleDeleteCity}
+                onSaveDistrict={handleSaveDistrict}
+                onDeleteDistrict={handleDeleteDistrict}
+                trucks={trucks}
+                onSaveTruck={handleSaveTruck}
+                onDeleteTruck={handleDeleteTruck}
+                changeHistory={changeHistory}
+                onRevertChange={handleRevertChange}
               />
             )}
           </div>

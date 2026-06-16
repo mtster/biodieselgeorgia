@@ -75,12 +75,14 @@ export async function getCities(): Promise<City[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('cities').select('*').order('name');
-      if (!error && data) return data;
+      if (!error && data) {
+        return data.filter((c: any) => !c.is_deleted);
+      }
     } catch (e) {
       console.warn('Supabase getCities failed', e);
     }
   }
-  return getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
+  return getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES).filter(item => !item.is_deleted);
 }
 
 export async function saveCity(city: City, loggerName: string): Promise<City> {
@@ -116,14 +118,14 @@ export async function saveCity(city: City, loggerName: string): Promise<City> {
 export async function deleteCity(id: string, name: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('cities').delete().eq('id', id);
+      await supabase.from('cities').update({ is_deleted: true }).eq('id', id);
     } catch (e) {
       console.error('Supabase deleteCity failed', e);
     }
   }
 
   const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
-  setLocal(KEY_CITIES, list.filter(item => item.id !== id));
+  setLocal(KEY_CITIES, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'City deleted', 'Name', name, '');
   return true;
 }

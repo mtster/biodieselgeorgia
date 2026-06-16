@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { User, UserRole } from '../../types';
-import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, ShieldAlert, X, ArrowLeft } from 'lucide-react';
 import UserDeleteModal from '../users/UserDeleteModal';
 
 import UserForm from '../users/UserForm';
@@ -44,7 +44,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       email: '',
       password: '',
       phone: '',
-      role: 'manager', // Default to manager
+      role: '' as any, // Default to empty
       privileges: [],
       created_at: new Date().toISOString()
     };
@@ -103,15 +103,27 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       
       {/* 1. STANDARDIZED PAGE HEADER */}
       <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
-        <div>
-          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
-          <p className="text-xs text-gray-550 mt-1 font-sans">
+        <div className="flex items-center">
+          {editingUser && (
+            <button
+              onClick={() => setEditingUser(null)}
+              className="p-2 mr-3 hover:bg-slate-100 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-transparent hover:border-gray-200"
+              title="Go Back"
+              id="user-form-back-arrow"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
+            <p className="text-xs text-gray-550 mt-1 font-sans">
               {editingUser 
                 ? (isNew ? 'Creating a new user' : `Editing: ${editingUser.name}`)
                 : 'Biodiesel Georgia staff, managers, drivers, suppliers, and their operations privileges.'
               }
             </p>
           </div>
+        </div>
 
           <div className="flex items-center gap-3">
             {editingUser ? (
@@ -123,12 +135,6 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
                 >
                   Fill Dummy
-                </button>
-                <button 
-                  onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
-                >
-                  Cancel
                 </button>
                 <button 
                   onClick={() => {
@@ -184,16 +190,17 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
           </div>
 
           {/* List display */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 text-left w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 text-left w-full select-none">
             {filtered.map((usr) => (
               <div 
                 key={usr.id}
-                className="bg-white border border-gray-155 border-gray-100 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-emerald-250 transition"
+                onClick={() => startEdit(usr)}
+                className="bg-white border border-gray-200 hover:border-emerald-500 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4 transition cursor-pointer"
               >
                 <div className="space-y-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="text-sm font-black text-gray-805 text-gray-800">{usr.name}</h3>
+                      <h3 className="text-sm font-black text-gray-800">{usr.name}</h3>
                       <span className={`text-[9px] font-bold tracking-widest uppercase font-mono px-2 py-0.5 mt-1 inline-block rounded ${
                         usr.role === 'admin' ? 'bg-red-50 text-red-700' :
                         usr.role === 'manager' ? 'bg-indigo-50 text-indigo-700' :
@@ -207,7 +214,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
                       </span>
                     </div>
                     {currentUser.role === 'admin' && (
-                      <div className="flex gap-1 select-none">
+                      <div className="flex gap-1 select-none" onClick={(e) => e.stopPropagation()}>
                         <button 
                           onClick={() => startEdit(usr)}
                           className="p-1.5 text-gray-400 hover:text-emerald-750 hover:bg-gray-50 rounded-lg transition cursor-pointer"
