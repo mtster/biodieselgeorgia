@@ -7,16 +7,18 @@ interface VendorContactsSectionProps {
   onAddContact: () => void;
   onModifyContact: (c: VendorContact) => void;
   onTogglePrimaryContact: (id: string) => void;
+  error?: string;
 }
 
 export default function VendorContactsSection({
   contacts,
   onAddContact,
   onModifyContact,
-  onTogglePrimaryContact
+  onTogglePrimaryContact,
+  error
 }: VendorContactsSectionProps) {
   return (
-    <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between" id="vendor-extra-contacts">
+    <div className={`bg-white p-5 border ${error ? 'border-red-500' : 'border-gray-100'} rounded-2xl flex flex-col justify-between`} id="vendor-extra-contacts">
       <div>
         <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
           <span className="text-xs font-black uppercase text-gray-500 tracking-wider font-sans">
@@ -34,16 +36,16 @@ export default function VendorContactsSection({
         <div className="space-y-2.5 max-h-[224px] overflow-y-auto pr-1">
           {contacts.map((c) => (
             <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs text-left group">
-              <div className="flex gap-2.5 items-start">
-                <div>
-                  <span className="font-extrabold text-gray-800 flex items-center gap-1.5 leading-none">
-                    {c.name}
-                  </span>
-                  <span className="text-[10px] text-gray-400 font-sans uppercase tracking-wider block font-semibold mt-1">{c.position}</span>
-                  <span className="text-[10.5px] text-emerald-800 font-mono font-bold mt-1 block select-all inline-flex items-center gap-1">
-                    <Phone size={10} /> {c.phone}
-                  </span>
-                </div>
+              <div className="flex gap-3 items-center">
+                <span className="font-extrabold text-gray-800">
+                  {c.name}
+                </span>
+                <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold">
+                  {c.position}
+                </span>
+                <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-2">
+                  <Phone size={10} /> {c.phone}
+                </span>
               </div>
               <div className="flex items-center gap-1 select-none text-right">
                 {/* Star design toggle next to edit button */}

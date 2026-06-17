@@ -43,10 +43,14 @@ export default function VendorFormFields({
         />
 
         <FormInput
-          label="Legal/Registered Name (Company Name)"
+          label="Legal/Registered Name (Company Name) *"
           type="text"
           value={editingVendor.company_name}
-          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, company_name: e.target.value } : null)}
+          onChange={(e) => {
+            setEditingVendor(prev => prev ? { ...prev, company_name: e.target.value } : null);
+            if (fieldErrors.company_name) setFieldErrors(prev => ({ ...prev, company_name: '' }));
+          }}
+          error={fieldErrors.company_name}
         />
       </div>
 
@@ -64,7 +68,7 @@ export default function VendorFormFields({
         />
 
         <FormInput
-          label="Code Assigned by Us *"
+          label="Code *"
           type="text"
           fontClass="font-mono"
           value={editingVendor.company_code || ''}
@@ -79,7 +83,11 @@ export default function VendorFormFields({
           step="0.01"
           fontClass="font-mono"
           value={editingVendor.price_per_liter || ''}
-          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, price_per_liter: parseFloat(e.target.value) || 0 } : null)}
+          onChange={(e) => {
+            setEditingVendor(prev => prev ? { ...prev, price_per_liter: parseFloat(e.target.value) || 0 } : null);
+            if (fieldErrors.price_per_liter) setFieldErrors(prev => ({ ...prev, price_per_liter: '' }));
+          }}
+          error={fieldErrors.price_per_liter}
         />
 
         <FormSelect
@@ -98,7 +106,7 @@ export default function VendorFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label="IBAN / Bank Account"
+          label="IBAN / Bank Account *"
           type="text"
           fontClass="font-mono"
           value={editingVendor.bank_account}
@@ -119,7 +127,9 @@ export default function VendorFormFields({
               }
             }
             setEditingVendor(prev => prev ? { ...prev, bank_account: res } : null);
+            if (fieldErrors.bank_account) setFieldErrors(prev => ({ ...prev, bank_account: '' }));
           }}
+          error={fieldErrors.bank_account}
         />
 
         <div className="relative">
@@ -128,8 +138,12 @@ export default function VendorFormFields({
           </span>
           <WorkingHoursInput
             value={editingVendor.working_hours || ''}
-            onChange={(val) => setEditingVendor(prev => prev ? { ...prev, working_hours: val } : null)}
+            onChange={(val) => {
+              setEditingVendor(prev => prev ? { ...prev, working_hours: val } : null);
+              if (fieldErrors.working_hours) setFieldErrors(prev => ({ ...prev, working_hours: '' }));
+            }}
           />
+          {fieldErrors.working_hours && <p className="text-[10px] text-red-600 mt-1">{fieldErrors.working_hours}</p>}
         </div>
       </div>
 
@@ -175,10 +189,14 @@ export default function VendorFormFields({
       </div>
 
       <FormInput
-        label="Exact Address (Details, Floor, Entry)"
+        label="Exact Address (Details, Floor, Entry) *"
         type="text"
         value={editingVendor.address}
-        onChange={(e) => setEditingVendor(prev => prev ? { ...prev, address: e.target.value } : null)}
+        onChange={(e) => {
+          setEditingVendor(prev => prev ? { ...prev, address: e.target.value } : null);
+          if (fieldErrors.address) setFieldErrors(prev => ({ ...prev, address: '' }));
+        }}
+        error={fieldErrors.address}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -192,16 +210,16 @@ export default function VendorFormFields({
           error={fieldErrors.manager_id}
         >
           <option value="" hidden></option>
-          {users.filter(u => u.role === 'manager').map(e => (
+          {users.filter(u => u.role === 'manager' || u.role === 'admin').map(e => (
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
-          {editingVendor.manager_id && !users.filter(u => u.role === 'manager').some(u => u.id === editingVendor.manager_id) && (() => {
+          {editingVendor.manager_id && !users.filter(u => u.role === 'manager' || u.role === 'admin').some(u => u.id === editingVendor.manager_id) && (() => {
             const assignedUser = users.find(u => u.id === editingVendor.manager_id);
             return assignedUser ? (
               <option key={assignedUser.id} value={assignedUser.id}>{assignedUser.name} ({assignedUser.role || 'Ad hoc'})</option>
             ) : null;
           })()}
-          {users.filter(u => u.role === 'manager').length === 0 && !editingVendor.manager_id && (
+          {users.filter(u => u.role === 'manager' || u.role === 'admin').length === 0 && !editingVendor.manager_id && (
             <option value={currentUser.id}>{currentUser.name} (Ad hoc)</option>
           )}
         </FormSelect>

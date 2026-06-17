@@ -9,6 +9,7 @@ import VendorContactsSection from './VendorContactsSection';
 import VendorCommentsSection from './VendorCommentsSection';
 import VendorContactModal from './VendorContactModal';
 import VendorCommentModal from './VendorCommentModal';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
 interface Props {
   editingVendor: Vendor;
@@ -47,6 +48,7 @@ export default function VendorForm({
   // Comment helper states
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activeComment, setActiveComment] = useState<VendorComment | null>(null);
+  const [commentDeleteId, setCommentDeleteId] = useState<string | null>(null);
 
   // Initialize contacts list
   useEffect(() => {
@@ -83,7 +85,12 @@ export default function VendorForm({
   };
 
   const handleRemoveContact = (id: string) => {
-    setTempContacts(tempContacts.filter(c => c.id !== id));
+    let updated = tempContacts.filter(c => c.id !== id);
+    // If we removed the primary contact, make the first one primary
+    if (updated.length > 0 && !updated.some(c => c.is_default)) {
+      updated[0].is_default = true;
+    }
+    setTempContacts(updated);
     setIsContactModalOpen(false);
   };
 
@@ -119,7 +126,7 @@ export default function VendorForm({
       ...prev,
       comments: (prev.comments || []).filter(c => c.id !== id)
     } : null);
-    setIsCommentModalOpen(false);
+    setCommentDeleteId(null);
   };
 
   const updateMainContact = (field: 'name' | 'phone', value: string) => {
@@ -146,14 +153,32 @@ export default function VendorForm({
     if (!editingVendor.trade_name.trim()) {
       errs.trade_name = 'Trade / Commercial Name is required.';
     }
+    if (!editingVendor.company_name.trim()) {
+      errs.company_name = 'Legal Name is required.';
+    }
     if (!editingVendor.id_code.trim()) {
       errs.id_code = 'Identification Code is required.';
+    }
+    if (!editingVendor.company_code?.trim()) {
+      errs.company_code = 'Code is required.';
+    }
+    if (!editingVendor.price_per_liter) {
+      errs.price_per_liter = 'Base Price is required.';
+    }
+    if (!editingVendor.working_hours.trim()) {
+      errs.working_hours = 'Working Hours is required.';
+    }
+    if (!editingVendor.bank_account.trim()) {
+      errs.bank_account = 'Bank Account is required.';
     }
     if (!editingVendor.city) {
       errs.city = 'City is required.';
     }
     if (!editingVendor.district) {
       errs.district = 'District is required.';
+    }
+    if (!editingVendor.address.trim()) {
+      errs.address = 'Address is required.';
     }
     if (!editingVendor.warehouse_id) {
       errs.warehouse_id = 'Base warehouse is required.';
@@ -163,6 +188,9 @@ export default function VendorForm({
     }
     if (!editingVendor.operator_id) {
       errs.operator_id = 'Systems Dispatcher is required.';
+    }
+    if (tempContacts.length === 0) {
+      errs.contacts = 'At least one contact must be added.';
     }
 
     if (Object.keys(errs).length > 0) {
@@ -291,23 +319,38 @@ export default function VendorForm({
             onAddContact={() => openContactModal()}
             onModifyContact={(c) => openContactModal(c)}
             onTogglePrimaryContact={(id) => {
-              setTempContacts(tempContacts.map(c => ({
+              const updated = tempContacts.map(c => ({
                 ...c,
                 is_default: c.id === id
-              })));
+              }));
+              // Reorder: sort by is_default desc
+              updated.sort((a,b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
+              setTempContacts(updated);
             }}
+            error={fieldErrors.contacts}
           />
 
           <VendorCommentsSection
             comments={editingVendor.comments || []}
             onAddComment={() => openCommentModal()}
             onModifyComment={(c) => openCommentModal(c)}
-            onRemoveComment={handleRemoveComment}
+            onRemoveComment={(id) => setCommentDeleteId(id)}
           />
         </div>
+        {fieldErrors.contacts && (
+          <p className="text-xs text-red-600 font-bold -mt-16 mb-16 px-2">{fieldErrors.contacts}</p>
+        )}
 
       </div>
       </fieldset>
+
+      <ConfirmDeleteModal
+        isOpen={!!commentDeleteId}
+        onClose={() => setCommentDeleteId(null)}
+        onConfirm={() => commentDeleteId && handleRemoveComment(commentDeleteId)}
+        title="Discard Comment?"
+        message="Are you sure you want to discard this comment?"
+      />
 
       <VendorContactModal
         isOpen={isContactModalOpen}

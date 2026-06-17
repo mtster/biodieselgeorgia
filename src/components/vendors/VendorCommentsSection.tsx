@@ -1,6 +1,6 @@
 import React from 'react';
 import { VendorComment } from '../../types';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 interface VendorCommentsSectionProps {
   comments: VendorComment[];
@@ -38,23 +38,26 @@ export default function VendorCommentsSection({
                 <span className="text-emerald-700 font-extrabold">{c.user_name}</span>
                 <span>{new Date(c.date).toLocaleDateString()}</span>
               </div>
-              <p className="text-gray-700 font-medium leading-relaxed font-sans select-all">{c.comment}</p>
-              <div className="flex justify-end gap-1 select-none font-sans pt-1">
-                <button
-                  type="button"
-                  onClick={() => onModifyComment(c)}
-                  className="text-[10px] font-bold text-gray-450 hover:text-emerald-700 cursor-pointer"
-                >
-                  Edit
-                </button>
-                <span className="text-gray-300">|</span>
-                <button
-                  type="button"
-                  onClick={() => onRemoveComment(c.id)}
-                  className="text-[10px] font-bold text-gray-450 hover:text-red-700 cursor-pointer"
-                >
-                  Discard
-                </button>
+              <div className="flex justify-between items-start gap-4">
+                <p className="text-gray-700 font-medium leading-relaxed font-sans select-all flex-grow">{c.comment}</p>
+                <div className="flex gap-1 select-none font-sans pt-1">
+                  <button
+                    type="button"
+                    onClick={() => onModifyComment(c)}
+                    className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+                    title="Edit"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveComment(c.id)}
+                    className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+                    title="Discard"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}

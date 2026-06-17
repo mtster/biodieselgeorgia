@@ -21,41 +21,36 @@ export function WorkingHoursInput({ value, onChange }: WorkingHoursInputProps) {
     }
   }, [cursorPos]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
     let rawVal = input.value;
 
-    // Filter disallowed characters: only allow 0-9, colon, hyphen, spaces
-    let cleanVal = rawVal.replace(/[^0-9\s:-]/g, '');
+    // Filter disallowed characters
+    let cleanVal = rawVal.replace(/[^0-9]/g, '');
 
-    const digitsOnly = cleanVal.replace(/[^0-9]/g, '');
-    const hasSpecialChars = /[:\-]/.test(cleanVal);
-
-    let formatted = cleanVal;
-    
-    // Check if user is typing only numbers sequentially at the end
-    const prevDigits = prevValueRef.current.replace(/[^0-9]/g, '');
-    const isDeleting = cleanVal.length < prevValueRef.current.length;
-
-    if (!isDeleting) {
-      if (digitsOnly.length > 0 && !hasSpecialChars) {
-        // User pasted or typed pure number string (e.g., "09001800")
-        if (digitsOnly.length >= 8) {
-          formatted = `${digitsOnly.slice(0, 2)}:${digitsOnly.slice(2, 4)} - ${digitsOnly.slice(4, 6)}:${digitsOnly.slice(6, 8)}`;
-        } else if (digitsOnly.length >= 4) {
-          formatted = `${digitsOnly.slice(0, 2)}:${digitsOnly.slice(2, 4)}`;
-        }
-      } else if (digitsOnly.length > prevDigits.length && digitsOnly.length <= 8) {
-        // Incremental helper: user typing digits sequentially without manually adding separators
-        const curDigits = digitsOnly;
-        if (curDigits.length === 3) {
-          formatted = `${curDigits.slice(0, 2)}:${curDigits.slice(2)}`;
-        } else if (curDigits.length === 5) {
-          formatted = `${curDigits.slice(0, 2)}:${curDigits.slice(2, 4)} - ${curDigits.slice(4)}`;
-        } else if (curDigits.length === 7) {
-          formatted = `${curDigits.slice(0, 2)}:${curDigits.slice(2, 4)} - ${curDigits.slice(4, 6)}:${curDigits.slice(6)}`;
-        }
+    // Formatter which fills separators as digits are typed
+    let formatted = '';
+    if (cleanVal.length > 0) {
+      if (cleanVal.length <= 2) {
+        formatted = cleanVal;
+      } else if (cleanVal.length <= 4) {
+        formatted = `${cleanVal.slice(0, 2)}:${cleanVal.slice(2)}`;
+      } else if (cleanVal.length <= 6) {
+        formatted = `${cleanVal.slice(0, 2)}:${cleanVal.slice(2, 4)} - ${cleanVal.slice(4)}`;
+      } else {
+        formatted = `${cleanVal.slice(0, 2)}:${cleanVal.slice(2, 4)} - ${cleanVal.slice(4, 6)}:${cleanVal.slice(6, 8)}`;
       }
+    }
+
+    // Basic Time Validation
+    const parts = formatted.match(/(\d{2})(?::(\d{2}))?(?: - (\d{2})(?::(\d{2}))?)?/);
+    if (parts) {
+      let [_, h1, m1, h2, m2] = parts;
+      if (h1 && parseInt(h1) > 23) h1 = "23";
+      if (m1 && parseInt(m1) > 59) m1 = "59";
+      if (h2 && parseInt(h2) > 23) h2 = "23";
+      if (m2 && parseInt(m2) > 59) m2 = "59";
+      formatted = `${h1}${m1 ? ':' + m1 : ''}${h2 ? ` - ${h2}${m2 ? ':' + m2 : ''}` : ''}`;
     }
 
     // Determine if we need to set the cursor position explicitly

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { VendorContact } from '../../types';
 import { X, Trash2 } from 'lucide-react';
 import { formatPhone } from '../../utils/lang';
+import { FormInput, FormSelect } from '../FormInput';
 
 interface Props {
   isOpen: boolean;
@@ -61,59 +62,38 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
         </div>
 
         <div className="space-y-3.5 text-left">
-          <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10">
-              Contact Name *
-            </span>
-            <input 
-              type="text" 
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              className="block w-full px-3 py-3 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none"
-            />
-          </div>
-
-          <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 font-mono">
-              Mobile Phone Number *
-            </span>
-            <input 
-              type="text" 
-              value={contactPhone}
-              onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
-              onChange={(e) => setContactPhone(formatPhone(e.target.value))}
-              className="block w-full px-3 py-3 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none font-mono"
-            />
-          </div>
-
-          <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10">
-              Position / Role
-            </span>
-            <select
-              value={contactPos}
-              onChange={(e) => setContactPos(e.target.value as any)}
-              className="block w-full px-3 py-2 bg-white border border-gray-205 rounded-xl text-xs font-sans cursor-pointer focus:outline-none"
-            >
-              <option value="accountant">Accountant</option>
-              <option value="director">Director/Owner</option>
-              <option value="operator">Operations Mgr</option>
-              <option value="other">Other Position</option>
-            </select>
-          </div>
-
-          <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10">
-              Short Note (e.g. call instructions)
-            </span>
-            <input 
-              type="text" 
-              value={contactNote}
-              onChange={(e) => setContactNote(e.target.value)}
-              className="block w-full px-3 py-3 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl text-xs focus:ring-1 focus:ring-emerald-600 focus:outline-none"
-            />
-          </div>
+          <FormInput
+            label="Contact Name *"
+            type="text"
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+          />
+          <FormInput
+            label="Mobile Phone Number *"
+            type="text"
+            value={contactPhone}
+            fontClass="font-mono"
+            onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
+            onChange={(e) => setContactPhone(formatPhone(e.target.value))}
+          />
+          <FormSelect
+            label="Position / Role"
+            value={contactPos}
+            onChange={(e) => setContactPos(e.target.value as any)}
+          >
+            <option value="accountant">Accountant</option>
+            <option value="director">Director/Owner</option>
+            <option value="operator">Operations Mgr</option>
+            <option value="other">Other Position</option>
+          </FormSelect>
+          <FormInput
+            label="Short Note (e.g. call instructions)"
+            type="text"
+            value={contactNote}
+            onChange={(e) => setContactNote(e.target.value)}
+          />
         </div>
+
 
         <div className="flex gap-2.5 justify-end pt-2 font-sans select-none">
           {activeContact && (
