@@ -23,15 +23,14 @@ export function StandardTable<T>({
   emptyMessage = 'No records found.'
 }: StandardTableProps<T>) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden max-h-[600px] overflow-y-auto relative">
-      <div className="overflow-x-auto">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-xs max-h-[600px] overflow-auto relative">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="select-none">
               {columns.map((col, idx) => (
                 <th
                   key={col.key || idx}
-                  className={`py-3 px-4 text-[11px] text-gray-400 uppercase font-mono bg-slate-50 sticky top-0 z-10 border-b border-gray-200 whitespace-nowrap text-left ${
+                  className={`py-3 px-4 text-[11px] text-gray-400 uppercase font-mono bg-slate-50 sticky top-0 z-20 border-b border-gray-200 whitespace-nowrap text-left ${
                     col.className || ''
                   }`}
                 >
@@ -67,7 +66,6 @@ export function StandardTable<T>({
             })}
           </tbody>
         </table>
-      </div>
 
       {data.length === 0 && (
         <div className="text-center py-20 text-xs text-gray-400 italic select-none bg-white">
