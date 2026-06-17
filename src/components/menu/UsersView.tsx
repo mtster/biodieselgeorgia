@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { User, UserRole } from '../../types';
-import { Plus, Search, Trash2, Edit2, ShieldAlert, X, ArrowLeft } from 'lucide-react';
-import UserDeleteModal from '../users/UserDeleteModal';
+import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
+import PageHeader from '../PageHeader';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
 import UserForm from '../users/UserForm';
 
@@ -98,39 +99,37 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
     setDeleteConfirmName(null);
   };
 
+  const headerActions = editingUser ? (
+    <>
+      <button 
+        onClick={() => {
+          formRef.current?.fillDummy();
+        }}
+        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+      >
+        Fill Dummy
+      </button>
+      <button 
+        onClick={() => {
+          formRef.current?.save();
+        }}
+        className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+      >
+        Save
+      </button>
+    </>
+  ) : undefined;
+
   return (
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
-        <div className="flex items-center">
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Users</h2>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-            {editingUser ? (
-              <>
-                <button 
-                  onClick={() => {
-                    formRef.current?.fillDummy();
-                  }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
-                >
-                  Fill Dummy
-                </button>
-                <button 
-                  onClick={() => {
-                    formRef.current?.save();
-                  }}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-                >
-                  Save
-                </button>
-              </>
-            ) : null}
-        </div>
-      </div>
+      <PageHeader 
+        title="Users"
+        onBack={editingUser ? () => setEditingUser(null) : undefined}
+        backButtonId="user-form-back-arrow"
+        actions={headerActions}
+      />
 
       {/* 2. FORM OR GRID VIEW */}
       {editingUser ? (
@@ -242,14 +241,19 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
       )}
 
       {/* SYSTEM CUSTOM DELETE CONFIRMATION MODAL */}
-      <UserDeleteModal
+      <ConfirmDeleteModal
         isOpen={!!deleteConfirmId}
-        userName={deleteConfirmName}
-        onCancel={() => {
+        onClose={() => {
           setDeleteConfirmId(null);
           setDeleteConfirmName(null);
         }}
         onConfirm={confirmDelete}
+        title="Remove User?"
+        message={
+          <span>
+            Are you sure you want to completely delete user account profile for <strong>"{deleteConfirmName}"</strong>? This is a permanent administrative soft-deletion.
+          </span>
+        }
       />
 
     </div>

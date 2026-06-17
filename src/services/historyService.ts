@@ -38,10 +38,14 @@ export async function trackChange(
   setLocal(KEY_CHANGE_HISTORY, [newLog, ...logs]);
 }
 
-export async function getChangeHistory(): Promise<ChangeHistory[]> {
+export async function getChangeHistory(limit: number = 50, offset: number = 0): Promise<ChangeHistory[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('change_history').select('*').order('date_time', { ascending: false });
+      const { data, error } = await supabase
+        .from('change_history')
+        .select('*')
+        .order('date_time', { ascending: false })
+        .range(offset, offset + limit - 1);
       if (!error && data) return data;
     } catch (e) {
       console.warn('Supabase getChangeHistory failed', e);

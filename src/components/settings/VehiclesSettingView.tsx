@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Vehicle, User } from '../../types';
-import { Plus, Trash2, Truck as TruckIcon, X, ArrowLeft, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, Truck as TruckIcon, X } from 'lucide-react';
+import { FormInput, FormSelect } from '../FormInput';
+import PageHeader from '../PageHeader';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
 interface Props {
   trucks: Vehicle[];
@@ -110,17 +113,10 @@ export default function VehiclesSettingView({
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
-        <div className="flex items-center">
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Vehicles</h2>
-          </div>
-        </div>
-        <div />
-      </div>
+      <PageHeader title="Vehicles" />
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 max-w-6xl">
         {activeTrucks.map((truck) => {
           const assignedDriver = employees.find(e => e.id === truck.driver_id)?.name || 'None';
           const assignedCompanion = employees.find(e => e.id === truck.companion_id)?.name || 'None';
@@ -196,65 +192,47 @@ export default function VehiclesSettingView({
             </div>
 
             {/* Scrollable Fields */}
-            <div className="space-y-4 py-1 flex-1">
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  License Plate Number *
-                </span>
-                <input 
-                  type="text" 
-                  value={tPlate}
-                  onChange={(e) => setTPlate(formatLicensePlate(e.target.value))}
-                  disabled={!!selectedTruck}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-mono transition-all bg-white text-gray-900 disabled:bg-slate-50 disabled:text-gray-500"
-                  placeholder="e.g. AA-123-BB"
-                />
-              </div>
+            <div className="space-y-4 py-1 flex-1 text-left">
+              <FormInput
+                label="License Plate Number *"
+                type="text"
+                fontClass="font-mono"
+                value={tPlate}
+                onChange={(e) => setTPlate(formatLicensePlate(e.target.value))}
+                disabled={!!selectedTruck}
+                placeholder="e.g. AA-123-BB"
+                className="disabled:bg-slate-50 disabled:text-gray-500"
+              />
 
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  Vehicle Brand / Model *
-                </span>
-                <input 
-                  type="text" 
-                  value={tModel}
-                  onChange={(e) => setTModel(e.target.value)}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
-                  placeholder="e.g. Mercedes Sprinter"
-                />
-              </div>
+              <FormInput
+                label="Vehicle Brand / Model *"
+                type="text"
+                value={tModel}
+                onChange={(e) => setTModel(e.target.value)}
+                placeholder="e.g. Mercedes Sprinter"
+              />
 
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  Assigned Default Driver *
-                </span>
-                <select
-                  value={tDriver}
-                  onChange={(e) => setTDriver(e.target.value)}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
-                >
-                  <option value="" hidden></option>
-                  {employees.filter(e => e.role === 'driver').map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
-                  ))}
-                </select>
-              </div>
+              <FormSelect
+                label="Assigned Default Driver *"
+                value={tDriver}
+                onChange={(e) => setTDriver(e.target.value)}
+              >
+                <option value="" hidden></option>
+                {employees.filter(e => e.role === 'driver').map(e => (
+                  <option key={e.id} value={e.id}>{e.name}</option>
+                ))}
+              </FormSelect>
 
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  Assigned Co-Driver / Companion
-                </span>
-                <select
-                  value={tCompanion}
-                  onChange={(e) => setTCompanion(e.target.value)}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
-                >
-                  <option value="" hidden></option>
-                  {employees.filter(e => e.role !== 'driver').map(e => (
-                    <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
-                  ))}
-                </select>
-              </div>
+              <FormSelect
+                label="Assigned Co-Driver / Companion"
+                value={tCompanion}
+                onChange={(e) => setTCompanion(e.target.value)}
+              >
+                <option value="" hidden></option>
+                {employees.filter(e => e.role !== 'driver').map(e => (
+                  <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
+                ))}
+              </FormSelect>
             </div>
 
             {/* Footer row */}
@@ -288,38 +266,18 @@ export default function VehiclesSettingView({
               </div>
             </div>
 
-            {/* Confirmation Overlay popup */}
-            {showConfirmDelete && (
-              <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-6 animate-in fade-in duration-100 z-50">
-                <div className="bg-white rounded-xl shadow-lg border p-5 max-w-xs w-full text-center space-y-4">
-                  <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto">
-                    <HelpCircle size={20} />
-                  </div>
-                  <div>
-                    <h5 className="font-extrabold text-xs text-gray-900 uppercase tracking-wider">Decommission vehicle?</h5>
-                    <p className="text-[11px] text-gray-450 mt-1.5 leading-snug">
-                      Deleting truck <strong>{truckToDelete}</strong> will mark it as soft-deleted and prevent active log assignments.
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmDelete(false)}
-                      className="flex-1 py-1.5 border hover:bg-slate-50 text-xs font-bold text-gray-700 rounded-md transition"
-                    >
-                      No, Keep
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmDeleteTruck}
-                      className="flex-1 py-1.5 bg-red-650 hover:bg-red-750 text-xs font-bold text-white rounded-md transition"
-                    >
-                      Yes, Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Standardized Confirmation Overlay for Decommissioning Vehicles */}
+            <ConfirmDeleteModal
+              isOpen={showConfirmDelete}
+              onClose={() => setShowConfirmDelete(false)}
+              onConfirm={handleConfirmDeleteTruck}
+              title="Decommission vehicle?"
+              message={
+                <span>
+                  Are you sure you want to delete vehicle license plate <strong>"{truckToDelete}"</strong>? This will mark it as soft-deleted and prevent active log assignments.
+                </span>
+              }
+            />
 
           </div>
         </div>

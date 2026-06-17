@@ -10,9 +10,11 @@ import {
 
 // Modular child components
 import VendorForm from '../vendors/VendorForm';
-import VendorDeleteModal from '../vendors/VendorDeleteModal';
 import VendorImportModal from '../vendors/VendorImportModal';
 import VendorsList from '../vendors/VendorsList';
+import PageHeader from '../PageHeader';
+import CentralSearchBar from '../CentralSearchBar';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
 interface Props {
   vendors: Vendor[];
@@ -180,94 +182,83 @@ export default function VendorsView({
     setDeleteConfirmName(null);
   };
 
+  const headerActions = (
+    <>
+      {editingVendor ? (
+        <>
+          {isNew && (
+            <button 
+              onClick={() => formRef.current?.fillDummy()}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer select-none"
+            >
+              Fill Dummy
+            </button>
+          )}
+          {!isNew && (
+            <button 
+              onClick={() => askDelete(editingVendor.id, editingVendor.trade_name)}
+              className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold rounded-xl text-xs transition cursor-pointer select-none"
+            >
+              Delete
+            </button>
+          )}
+          <button 
+            onClick={() => formRef.current?.save()}
+            className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+          >
+            Save
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="relative">
+            <select
+              value=""
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'import') {
+                  setIsImporting(true);
+                } else if (val === 'delete' && selectedVendors.length > 0) {
+                  setShowBulkDeleteConfirm(true);
+                }
+                e.target.value = ''; // Reset select trigger
+              }}
+              className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
+            >
+              <option value="" disabled hidden>Actions</option>
+              <option value="import">Import</option>
+              <option value="delete" disabled={selectedVendors.length === 0}>
+                Delete {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
+              </option>
+            </select>
+            <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+              ▼
+            </span>
+          </div>
+          
+          <button 
+            id="btn-add-new-vendor"
+            onClick={startNew}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
+          >
+            <Plus size={15} />
+            Add Supplier
+          </button>
+        </>
+      )}
+    </>
+  );
+
   return (
     <div className="space-y-6">
       
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
-      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
-        <div className="flex items-center">
-          {editingVendor && (
-            <button
-              onClick={() => setEditingVendor(null)}
-              className="p-2 mr-3 hover:bg-slate-100 rounded-xl transition cursor-pointer text-gray-600 flex items-center justify-center border border-transparent hover:border-gray-200"
-              title="Go Back"
-              id="vendor-form-back-arrow"
-            >
-              <ArrowLeft size={18} />
-            </button>
-          )}
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Suppliers</h2>
-          </div>
-        </div>
-
-          <div className="flex items-center gap-3">
-            {editingVendor ? (
-              <>
-                {isNew && (
-                  <button 
-                    onClick={() => formRef.current?.fillDummy()}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer select-none"
-                  >
-                    Fill Dummy
-                  </button>
-                )}
-                {!isNew && (
-                  <button 
-                    onClick={() => askDelete(editingVendor.id, editingVendor.trade_name)}
-                    className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold rounded-xl text-xs transition cursor-pointer select-none"
-                  >
-                    Delete
-                  </button>
-                )}
-                <button 
-                  onClick={() => {
-                    formRef.current?.save();
-                  }}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-                >
-                  Save
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="relative">
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === 'import') {
-                        setIsImporting(true);
-                      } else if (val === 'delete' && selectedVendors.length > 0) {
-                        setShowBulkDeleteConfirm(true);
-                      }
-                      e.target.value = ''; // Reset select trigger
-                    }}
-                    className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
-                  >
-                    <option value="" disabled hidden>Actions</option>
-                    <option value="import">Import</option>
-                    <option value="delete" disabled={selectedVendors.length === 0}>
-                      Delete {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
-                    </option>
-                  </select>
-                  <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
-                    ▼
-                  </span>
-                </div>
-                
-                <button 
-                  id="btn-add-new-vendor"
-                  onClick={startNew}
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
-                >
-                  <Plus size={15} />
-                  Add Supplier
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+      <PageHeader 
+        title="Suppliers"
+        onBack={editingVendor ? () => setEditingVendor(null) : undefined}
+        backButtonId="vendor-form-back-arrow"
+        actions={headerActions}
+      />
 
       {/* 2. FORM OR LIST SPREADSHEET CANVAS */}
       {editingVendor ? (
@@ -287,73 +278,36 @@ export default function VendorsView({
         <div className="space-y-6 text-left">
           
           {/* ADVANCED MULTI-PROPERTY SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm select-none font-sans">
-            
-            {/* Search + City + District in a single compact row */}
-            <div className="flex flex-col md:flex-row items-center gap-4">
-              
-              {/* Search input (flex-1) */}
-              <div className="relative flex-1 w-full">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">
-                  <Search size={15} />
-                </span>
-                <input 
-                  id="vendors-search"
-                  type="text"
-                  placeholder="Search suppliers by trade name, legal entity, or registered taxation ID coordinates..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-gray-100 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all text-gray-900 font-sans"
-                />
-              </div>
-
-              {/* City Dropdown with relative label sitting on outline */}
-              <div className="relative min-w-[140px] w-full md:w-auto">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
-                  City
-                </span>
-                <select
-                  value={selectedCity}
-                  onChange={(e) => {
-                    setSelectedCity(e.target.value);
-                    setSelectedDistrict('');
-                  }}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">All Cities</option>
-                  {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-
-              {/* District Dropdown with relative label sitting on outline */}
-              <div className="relative min-w-[145px] w-full md:w-auto">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
-                  District
-                </span>
-                <select
-                  value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">All Districts</option>
-                  {districts
-                    .filter(d => {
-                      const cObj = cities.find(x => x.name === selectedCity);
-                      return !cObj || d.city_id === cObj.id;
-                    })
-                    .map(d => <option key={d.id} value={d.name}>{d.name}</option>)
-                  }
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-
-            </div>
-          </div>
+          <CentralSearchBar 
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            idPrefix="vendors-search"
+            searchPlaceholder="Search suppliers by trade name, legal entity, or registered taxation ID coordinates..."
+            filters={[
+              {
+                label: "City",
+                value: selectedCity,
+                onChange: (val) => {
+                  setSelectedCity(val);
+                  setSelectedDistrict('');
+                },
+                placeholder: "All Cities",
+                options: cities.map(c => ({ value: c.name, label: c.name }))
+              },
+              {
+                label: "District",
+                value: selectedDistrict,
+                onChange: setSelectedDistrict,
+                placeholder: "All Districts",
+                options: districts
+                  .filter(d => {
+                    const cObj = cities.find(x => x.name === selectedCity);
+                    return !cObj || d.city_id === cObj.id;
+                  })
+                  .map(d => ({ value: d.name, label: d.name }))
+              }
+            ]}
+          />
 
           <VendorsList 
             filteredVendors={filteredVendors} 
@@ -376,13 +330,19 @@ export default function VendorsView({
       />
 
       {/* DELETE CONFIRMATION SYSTEM MODAL */}
-      <VendorDeleteModal
-        vendorName={deleteConfirmName}
+      <ConfirmDeleteModal
+        isOpen={!!deleteConfirmId}
         onClose={() => {
           setDeleteConfirmId(null);
           setDeleteConfirmName(null);
         }}
         onConfirm={confirmDelete}
+        title="Remove Supplier?"
+        message={
+          <span>
+            Are you sure you want to delete supplier <strong>"{deleteConfirmName}"</strong>? This supplier profile coordinates will be soft deleted.
+          </span>
+        }
       />
 
       {/* BULK DELETE CONFIRMATION MODAL */}

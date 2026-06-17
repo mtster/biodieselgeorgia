@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { City, District } from '../../types';
-import { Plus, Trash2, MapPin, X, ArrowLeft, Building, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, MapPin, X, Building } from 'lucide-react';
+import { FormInput } from '../FormInput';
+import PageHeader from '../PageHeader';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
 interface Props {
   cities: City[];
@@ -82,17 +85,10 @@ export default function CitiesSettingView({
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-4 bg-[#f8fafc]/95 backdrop-blur-md border-b border-gray-100 flex items-center justify-between gap-4 select-none text-left shadow-xs mb-6">
-        <div className="flex items-center">
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">Cities</h2>
-          </div>
-        </div>
-        <div />
-      </div>
+      <PageHeader title="Cities" />
 
       {/* Grid of Cities including the "+ Add New Window" */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 max-w-6xl">
         {activeCities.map((city) => {
           const count = districts.filter(d => d.city_id === city.id).length;
           return (
@@ -158,18 +154,13 @@ export default function CitiesSettingView({
             {/* Modal Scrollable Body */}
             <div className="flex-1 overflow-y-auto space-y-5 pr-1 py-1">
               {/* City Name Form field */}
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  City Name *
-                </span>
-                <input 
-                  type="text" 
-                  value={cityNameInput}
-                  onChange={(e) => setCityNameInput(e.target.value)}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
-                  placeholder="e.g. Tbilisi"
-                />
-              </div>
+              <FormInput
+                label="City Name *"
+                type="text"
+                value={cityNameInput}
+                onChange={(e) => setCityNameInput(e.target.value)}
+                placeholder="e.g. Tbilisi"
+              />
 
               {/* Districts inline sub-management if City exists */}
               {selectedCity && (
@@ -249,38 +240,18 @@ export default function CitiesSettingView({
               </div>
             </div>
 
-            {/* Nested Confirmation Overlay Plate for Deleting Cities */}
-            {showConfirmDelete && (
-              <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-6 animate-in fade-in duration-100 z-50">
-                <div className="bg-white rounded-xl shadow-lg border p-5 max-w-xs w-full text-center space-y-4">
-                  <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto">
-                    <HelpCircle size={20} />
-                  </div>
-                  <div>
-                    <h5 className="font-extrabold text-xs text-gray-900 uppercase tracking-wider">Are you absolutely sure?</h5>
-                    <p className="text-[11px] text-gray-450 mt-1.5 leading-snug">
-                      Deleting <strong>{cityToDelete?.name}</strong> will hide it from the UI immediately. This action is soft-deleted in the database.
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmDelete(false)}
-                      className="flex-1 py-1.5 border hover:bg-slate-50 text-xs font-bold text-gray-700 rounded-md transition"
-                    >
-                      No, Keep
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmDeleteCity}
-                      className="flex-1 py-1.5 bg-red-650 hover:bg-red-750 text-xs font-bold text-white rounded-md transition"
-                    >
-                      Yes, Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Standardized Confirmation Overlay for Deleting Cities */}
+            <ConfirmDeleteModal
+              isOpen={showConfirmDelete}
+              onClose={() => setShowConfirmDelete(false)}
+              onConfirm={handleConfirmDeleteCity}
+              title="Delete City?"
+              message={
+                <span>
+                  Are you sure you want to delete city <strong>"{cityToDelete?.name}"</strong>? It will hide it from the UI immediately. This action is soft-deleted in the database.
+                </span>
+              }
+            />
 
           </div>
         </div>

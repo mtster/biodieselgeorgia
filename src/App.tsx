@@ -33,7 +33,6 @@ import UsersView from './components/menu/UsersView';
 import ReportsView from './components/menu/ReportsView';
 import CitiesSettingView from './components/settings/CitiesSettingView';
 import VehiclesSettingView from './components/settings/VehiclesSettingView';
-import SettingsView from './components/menu/SettingsView';
 import HistoryView from './components/menu/HistoryView';
 import MobileLogisticsView from './components/menu/MobileLogisticsView';
 import Sidebar from './components/menu/Sidebar';
@@ -55,6 +54,8 @@ export default function App() {
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [changeHistory, setChangeHistory] = useState<ChangeHistory[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -73,7 +74,8 @@ export default function App() {
       const ords = await getOrders();
       const comms = await getCommunications();
       const trks = await getTrucks();
-      const hist = await getChangeHistory();
+      const hist = await getChangeHistory(50, 0); // initial load
+      setHistoryOffset(0);
       const whs = await getWarehouses();
       const cts = await getCities();
       const dsts = await getDistricts();
@@ -91,6 +93,22 @@ export default function App() {
       console.error('Error synchronizing database:', e);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLoadMoreHistory = async () => {
+    setIsLoadingMore(true);
+    try {
+      const nextOffset = historyOffset + 50;
+      const moreHist = await getChangeHistory(50, nextOffset);
+      if (moreHist && moreHist.length > 0) {
+        setChangeHistory(prev => [...prev, ...moreHist]);
+        setHistoryOffset(nextOffset);
+      }
+    } catch (e) {
+      console.error('Error fetching more history:', e);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -514,6 +532,8 @@ export default function App() {
               <HistoryView 
                 history={changeHistory}
                 onRevert={handleRevertChange}
+                loadMore={handleLoadMoreHistory}
+                isLoadingMore={isLoadingMore}
               />
             )}
           </div>

@@ -31,13 +31,6 @@ export default function OrderForm({
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Time & Date states for Priority UX
-  const [pickupHour, setPickupHour] = useState('12');
-  const [pickupMin, setPickupMin] = useState('00');
-  const [useCustomDate, setUseCustomDate] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(new Date().getDate().toString());
-  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
-
   // Search state for autocomplete select
   const [vendorSearch, setVendorSearch] = useState('');
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
@@ -46,36 +39,6 @@ export default function OrderForm({
     save: handleSaveAll,
     fillDummy: fillDummyOrder
   }));
-
-  // Sync custom time picker fields when editingOrder changes
-  useEffect(() => {
-    if (editingOrder.pickup_date_time) {
-      try {
-        const d = new Date(editingOrder.pickup_date_time);
-        if (!isNaN(d.getTime())) {
-          setPickupHour(d.getHours().toString().padStart(2, '0'));
-          setPickupMin(d.getMinutes().toString().padStart(2, '0'));
-          setSelectedDay(d.getDate().toString());
-          setSelectedMonth((d.getMonth() + 1).toString());
-          
-          const today = new Date();
-          if (d.toDateString() !== today.toDateString()) {
-            setUseCustomDate(true);
-          } else {
-            setUseCustomDate(false);
-          }
-        }
-      } catch (e) {
-        // Fallback
-      }
-    } else {
-      setPickupHour('12');
-      setPickupMin('00');
-      setUseCustomDate(false);
-      setSelectedDay(new Date().getDate().toString());
-      setSelectedMonth((new Date().getMonth() + 1).toString());
-    }
-  }, [editingOrder.id, editingOrder.status]);
 
   // Pre-fill vendorSearch term
   useEffect(() => {
@@ -107,13 +70,9 @@ export default function OrderForm({
     // Build pickup date/time ISO values if completed
     let finalOrder = { ...editingOrder };
     if (finalOrder.status === 'completed') {
-      const year = new Date().getFullYear();
-      const finalDate = new Date();
-      if (useCustomDate) {
-        finalDate.setFullYear(year, parseInt(selectedMonth) - 1, parseInt(selectedDay));
+      if (!finalOrder.pickup_date_time) {
+        finalOrder.pickup_date_time = new Date().toISOString();
       }
-      finalDate.setHours(parseInt(pickupHour), parseInt(pickupMin), 0, 0);
-      finalOrder.pickup_date_time = finalDate.toISOString();
 
       if (finalOrder.qty_actual === undefined || finalOrder.qty_actual <= 0) {
         errs.qty_actual = 'Please specify Actual Volume Received (Liters) for completed orders.';
@@ -158,22 +117,6 @@ export default function OrderForm({
     setVendorSearch(suppliers[0]?.trade_name || '');
   };
 
-  const daysList = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
-  const monthsList = [
-    { value: '1', name: 'January' },
-    { value: '2', name: 'February' },
-    { value: '3', name: 'March' },
-    { value: '4', name: 'April' },
-    { value: '5', name: 'May' },
-    { value: '6', name: 'June' },
-    { value: '7', name: 'July' },
-    { value: '8', name: 'August' },
-    { value: '9', name: 'September' },
-    { value: '10', name: 'October' },
-    { value: '11', name: 'November' },
-    { value: '12', name: 'December' },
-  ];
-
   return (
     <div className="animate-in fade-in duration-200 max-w-2xl text-left" id="orders-form-panel">
       <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
@@ -190,18 +133,6 @@ export default function OrderForm({
           setVendorSearch={setVendorSearch}
           showVendorSuggestions={showVendorSuggestions}
           setShowVendorSuggestions={setShowVendorSuggestions}
-          pickupHour={pickupHour}
-          setPickupHour={setPickupHour}
-          pickupMin={pickupMin}
-          setPickupMin={setPickupMin}
-          useCustomDate={useCustomDate}
-          setUseCustomDate={setUseCustomDate}
-          selectedDay={selectedDay}
-          setSelectedDay={setSelectedDay}
-          selectedMonth={selectedMonth}
-          setSelectedMonth={setSelectedMonth}
-          daysList={daysList}
-          monthsList={monthsList}
         />
       </fieldset>
     </div>

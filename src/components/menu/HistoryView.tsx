@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { ChangeHistory } from '../../types';
 import { History, ShieldAlert, BadgeInfo, RotateCcw, CheckCircle2 } from 'lucide-react';
+import PageHeader from '../PageHeader';
 
 interface Props {
   history: ChangeHistory[];
   onRevert: (log: ChangeHistory) => Promise<boolean>;
+  loadMore: () => Promise<void>;
+  isLoadingMore: boolean;
 }
 
-export default function HistoryView({ history, onRevert }: Props) {
+export default function HistoryView({ history, onRevert, loadMore, isLoadingMore }: Props) {
   const [revertingId, setRevertingId] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
 
@@ -23,18 +26,16 @@ export default function HistoryView({ history, onRevert }: Props) {
   };
 
   return (
-    <div className="space-y-6 pt-4 md:pt-6">
+    <div className="space-y-6">
       
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-extrabold text-gray-800">Change History</h2>
-      </div>
+      <PageHeader title="Change History" />
 
-      <div className="bg-white border rounded-2xl shadow-xs overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left text-gray-700">
             <thead>
-              <tr className="border-b text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
+              <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
                 <th className="py-3 px-4">Date & Time</th>
                 <th className="py-3 px-4 font-sans">User</th>
                 <th className="py-3 px-4 font-sans">Operation</th>
@@ -88,7 +89,19 @@ export default function HistoryView({ history, onRevert }: Props) {
             </tbody>
           </table>
         </div>
-
+        
+        {history.length > 0 && (
+          <div className="flex justify-center py-6 border-t border-gray-100">
+            <button
+              onClick={loadMore}
+              disabled={isLoadingMore}
+              className="px-4 py-2 bg-white border border-gray-200 text-xs font-sans text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 cursor-pointer transition-all"
+            >
+              {isLoadingMore ? "Loading..." : "Load More"}
+            </button>
+          </div>
+        )}
+        
         {history.length === 0 && (
           <div className="text-center py-16 text-xs text-gray-400 font-sans">
             No change logs exist in the system at the moment.

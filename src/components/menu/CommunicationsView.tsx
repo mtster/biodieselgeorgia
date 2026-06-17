@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Communication, Vendor, User } from '../../types';
 import { Plus, Search, HelpCircle, Calendar, MessageSquare, Trash2, X, Check } from 'lucide-react';
 import { LANG } from '../../utils/lang';
+import PageHeader from '../PageHeader';
+import CentralSearchBar from '../CentralSearchBar';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
 // Integrated Premium iOS-Style Wheel/Grid DateTime Selector
 function IosDateTimePicker({ 
@@ -200,6 +203,7 @@ export default function CommunicationsView({
   // States
   const [editingComm, setEditingComm] = useState<Communication | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const startNew = () => {
     const defaultComm: Communication = {
@@ -248,16 +252,12 @@ export default function CommunicationsView({
   });
 
   return (
-    <div className="space-y-6 pt-4 md:pt-6" id="communications-view-panel">
+    <div className="space-y-6" id="communications-view-panel">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-gray-800">Communications Log</h2>
-          <p className="text-xs text-gray-500 mt-1 pb-1">Manage supplier interactions, comments, updates, and reminders.</p>
-        </div>
-
-        <div>
+      <PageHeader 
+        title="Communications Log" 
+        actions={
           <button 
             id="btn-add-comm"
             onClick={startNew}
@@ -266,23 +266,16 @@ export default function CommunicationsView({
             <Plus size={15} />
             New Log Entry
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filter box */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xs flex items-center relative">
-        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400">
-          <Search size={15} />
-        </span>
-        <input 
-          id="input-comm-search"
-          type="text"
-          placeholder="Search communications logs..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
-        />
-      </div>
+      <CentralSearchBar 
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        idPrefix="input-comm-search"
+        searchPlaceholder="Search communications logs..."
+      />
 
       {/* Grid of logs */}
       <div className="bg-white border border-gray-100 rounded-2xl shadow-xs overflow-hidden">
@@ -328,7 +321,7 @@ export default function CommunicationsView({
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button 
-                        onClick={() => onDelete(comm.id)}
+                        onClick={() => setDeleteConfirmId(comm.id)}
                         className="text-gray-450 hover:text-red-600 p-1.5 bg-gray-50 rounded select-none cursor-pointer"
                         title="Delete"
                       >
@@ -430,6 +423,20 @@ export default function CommunicationsView({
           </div>
         </div>
       )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <ConfirmDeleteModal 
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            onDelete(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+        title="Delete Log Entry"
+        message="Are you sure you want to delete this communication log entry? This operation is permanent."
+      />
 
     </div>
   );

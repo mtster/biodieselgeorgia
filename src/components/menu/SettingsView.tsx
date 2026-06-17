@@ -28,6 +28,8 @@ interface SettingsProps {
   onDeleteTruck: (plate: string) => void;
   changeHistory: ChangeHistory[];
   onRevertChange: (log: ChangeHistory) => Promise<boolean>;
+  loadMore: () => Promise<void>;
+  isLoadingMore: boolean;
 }
 
 export default function SettingsView({
@@ -46,7 +48,9 @@ export default function SettingsView({
   onSaveTruck,
   onDeleteTruck,
   changeHistory,
-  onRevertChange
+  onRevertChange,
+  loadMore,
+  isLoadingMore
 }: SettingsProps) {
   const [activeSubTab, setActiveSubTab] = useState<'users' | 'cities' | 'vehicles' | 'history' | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -100,6 +104,8 @@ export default function SettingsView({
         <HistoryView 
           history={changeHistory}
           onRevert={onRevertChange}
+          loadMore={loadMore}
+          isLoadingMore={isLoadingMore}
         />
       </div>
     );

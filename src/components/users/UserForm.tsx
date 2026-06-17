@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useImperativeHandle } from 'react';
 import { User, UserRole } from '../../types';
 import { formatPhone } from '../../utils/lang';
+import { FormInput, FormSelect } from '../FormInput';
 
 interface Props {
   editingUser: User;
@@ -143,188 +144,108 @@ export default function UserForm({
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
         <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Profile Information</span>
         
-        {/* Full Name notch input */}
-        <div className="relative">
-          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.name ? 'text-red-500' : 'text-gray-400'}`}>
-            Full Name *
-          </span>
-          <input 
-            type="text"
-            id="user-full-name"
-            value={editingUser.name}
-            onChange={(e) => {
-              setEditingUser({...editingUser, name: e.target.value});
-              if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: '' }));
-            }}
-            className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans transition-all ${
-              fieldErrors.name 
-                ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
-                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-            }`}
-          />
-          {fieldErrors.name && (
-            <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-              {fieldErrors.name}
-            </p>
-          )}
-        </div>
+        <FormInput
+          label="Full Name *"
+          type="text"
+          id="user-full-name"
+          value={editingUser.name}
+          onChange={(e) => {
+            setEditingUser({...editingUser, name: e.target.value});
+            if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: '' }));
+          }}
+          error={fieldErrors.name}
+        />
 
-        {/* Personal ID notch input */}
-        <div className="relative">
-          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.personal_id ? 'text-red-500' : 'text-gray-400'}`}>
-            Personal ID (11 digits) *
-          </span>
-          <input 
-            type="text"
-            id="user-personal-id"
-            maxLength={11}
-            value={editingUser.personal_id}
-            onChange={(e) => {
-              setEditingUser({...editingUser, personal_id: e.target.value.replace(/\\D/g, '')});
-              if (fieldErrors.personal_id) setFieldErrors(prev => ({ ...prev, personal_id: '' }));
-            }}
-            className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
-              fieldErrors.personal_id 
-                ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
-                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-            }`}
-          />
-          {fieldErrors.personal_id && (
-            <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-              {fieldErrors.personal_id}
-            </p>
-          )}
-        </div>
+        <FormInput
+          label="Personal ID (11 digits) *"
+          type="text"
+          id="user-personal-id"
+          maxLength={11}
+          fontClass="font-mono"
+          value={editingUser.personal_id}
+          onChange={(e) => {
+            setEditingUser({...editingUser, personal_id: e.target.value.replace(/\D/g, '')});
+            if (fieldErrors.personal_id) setFieldErrors(prev => ({ ...prev, personal_id: '' }));
+          }}
+          error={fieldErrors.personal_id}
+        />
 
-        {/* Email Address notch input */}
-        <div className="relative">
-          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.email ? 'text-red-500' : 'text-gray-400'}`}>
-            Email Address *
-          </span>
-          <input 
-            type="email"
-            id="user-email-address"
-            value={editingUser.email}
-            disabled={!isNew && currentUser.role !== 'admin'}
-            onChange={(e) => {
-              setEditingUser({...editingUser, email: e.target.value});
-              if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
-            }}
-            className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all disabled:opacity-65 ${
-              fieldErrors.email 
-                ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
-                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-            }`}
-          />
-          {fieldErrors.email && (
-            <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-              {fieldErrors.email}
-            </p>
-          )}
-        </div>
+        <FormInput
+          label="Email Address *"
+          type="email"
+          id="user-email-address"
+          fontClass="font-mono"
+          value={editingUser.email}
+          disabled={!isNew && currentUser.role !== 'admin'}
+          onChange={(e) => {
+            setEditingUser({...editingUser, email: e.target.value});
+            if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
+          }}
+          error={fieldErrors.email}
+        />
 
-        {/* Password notch input */}
-        <div className="relative">
-          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.password ? 'text-red-500' : 'text-gray-400'}`}>
-            {isNew ? 'Password *' : 'Change Password (Optional)'}
-          </span>
-          <input 
-            type="password"
-            id="user-password"
-            value={editingUser.password || ''}
-            onChange={(e) => {
-              setEditingUser({...editingUser, password: e.target.value});
-              if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
-            }}
-            className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
-              fieldErrors.password 
-                ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
-                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-            }`}
-          />
-          {fieldErrors.password && (
-            <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-              {fieldErrors.password}
-            </p>
-          )}
-        </div>
+        <FormInput
+          label={isNew ? 'Password *' : 'Change Password (Optional)'}
+          type="password"
+          id="user-password"
+          fontClass="font-mono"
+          value={editingUser.password || ''}
+          onChange={(e) => {
+            setEditingUser({...editingUser, password: e.target.value});
+            if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
+          }}
+          error={fieldErrors.password}
+        />
 
-        {/* Phone notch input */}
-        <div className="relative">
-          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.phone ? 'text-red-500' : 'text-gray-400'}`}>
-            Phone *
-          </span>
-          <input 
-            type="text"
-            id="user-phone-number"
-            value={editingUser.phone}
-            onFocus={(e) => { 
-              if (!editingUser.phone) setEditingUser({...editingUser, phone: '+995 '});
-            }}
-            onChange={(e) => {
-              setEditingUser({...editingUser, phone: formatPhone(e.target.value)});
-              if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
-            }}
-            className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-mono transition-all ${
-              fieldErrors.phone 
-                ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-950' 
-                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-            }`}
-          />
-          {fieldErrors.phone && (
-            <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-              {fieldErrors.phone}
-            </p>
-          )}
-        </div>
+        <FormInput
+          label="Phone *"
+          type="text"
+          id="user-phone-number"
+          fontClass="font-mono"
+          value={editingUser.phone}
+          onFocus={(e) => { 
+            if (!editingUser.phone) setEditingUser({...editingUser, phone: '+995 '});
+          }}
+          onChange={(e) => {
+            setEditingUser({...editingUser, phone: formatPhone(e.target.value)});
+            if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
+          }}
+          error={fieldErrors.phone}
+        />
 
-        {/* Designation dropdown styled like notch */}
-        <div className="relative">
-          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.role ? 'text-red-500' : 'text-gray-400'}`}>
-            Role / Designation *
-          </span>
-          <select
-            value={editingUser.role || ''}
-            onChange={(e) => {
-              const role = e.target.value as any;
-              let autoPrivileges = editingUser.privileges || [];
-              
-              if (role === 'admin') autoPrivileges = [...availablePrivileges];
-              else if (role === 'manager') autoPrivileges = ['Orders', 'User Management', 'Reports', 'Analytics'];
-              else if (role === 'driver') autoPrivileges = ['Assigned Tasks Only'];
-              else if (role === 'vendor') autoPrivileges = ['Assigned Tasks Only'];
+        <FormSelect
+          label="Role / Designation *"
+          value={editingUser.role || ''}
+          onChange={(e) => {
+            const role = e.target.value as any;
+            let autoPrivileges = editingUser.privileges || [];
+            
+            if (role === 'admin') autoPrivileges = [...availablePrivileges];
+            else if (role === 'manager') autoPrivileges = ['Orders', 'User Management', 'Reports', 'Analytics'];
+            else if (role === 'driver') autoPrivileges = ['Assigned Tasks Only'];
+            else if (role === 'vendor') autoPrivileges = ['Assigned Tasks Only'];
 
-              setEditingUser({
-                ...editingUser, 
-                role: role,
-                privileges: autoPrivileges
-              });
-              if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }));
-            }}
-            className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans cursor-pointer relative ${
-              fieldErrors.role 
-                ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
-                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-            }`}
-          >
-            <option value="" hidden></option>
-            <option value="admin">Administrator (Admin)</option>
-            <option value="manager">Manager</option>
-            <option value="driver">Driver</option>
-            <option value="vendor">Supplier (Vendor)</option>
-          </select>
-          {fieldErrors.role && (
-            <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-              {fieldErrors.role}
-            </p>
-          )}
-        </div>
+            setEditingUser({
+              ...editingUser, 
+              role: role,
+              privileges: autoPrivileges
+            });
+            if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }));
+          }}
+          error={fieldErrors.role}
+        >
+          <option value="" hidden></option>
+          <option value="admin">Administrator (Admin)</option>
+          <option value="manager">Manager</option>
+          <option value="driver">Driver</option>
+          <option value="vendor">Supplier (Vendor)</option>
+        </FormSelect>
 
         {/* Privileges card with beautiful iOS slider toggles using green color */}
         <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4">
           <div>
             <h4 className="text-xs font-black text-slate-700 uppercase tracking-wide">Operation Privileges</h4>
-            <p className="text-[10px] text-gray-450 mt-0.5 leading-tight font-sans">Toggle permission states. Toggle "All" to select every core standard functionality.</p>
+            <p className="text-[10px] text-gray-405 mt-0.5 leading-tight font-sans">Toggle permission states. Toggle "All" to select every core standard functionality.</p>
           </div>
           
           <div className="space-y-3 select-none">
@@ -343,7 +264,7 @@ export default function UserForm({
                     }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-150 ease-in-out ${
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-155 ease-in-out ${
                         isChecked ? 'translate-x-4' : 'translate-x-0'
                       }`}
                     />
