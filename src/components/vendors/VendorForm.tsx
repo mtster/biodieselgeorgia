@@ -55,6 +55,16 @@ export default function VendorForm({
     setTempContacts(editingVendor.contacts || []);
   }, [editingVendor.id]);
 
+  useEffect(() => {
+    if (tempContacts.length > 0 && fieldErrors.contacts) {
+      setFieldErrors(prev => {
+        const copy = { ...prev };
+        delete copy.contacts;
+        return copy;
+      });
+    }
+  }, [tempContacts]);
+
   React.useImperativeHandle(formRef, () => ({
     save: handleSaveAll,
     fillDummy: fillDummyData
@@ -337,9 +347,6 @@ export default function VendorForm({
             onRemoveComment={(id) => setCommentDeleteId(id)}
           />
         </div>
-        {fieldErrors.contacts && (
-          <p className="text-xs text-red-600 font-bold -mt-16 mb-16 px-2">{fieldErrors.contacts}</p>
-        )}
 
       </div>
       </fieldset>

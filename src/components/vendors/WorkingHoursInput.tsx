@@ -25,43 +25,36 @@ export function WorkingHoursInput({ value, onChange }: WorkingHoursInputProps) {
     const input = e.target;
     let rawVal = input.value;
 
+    const isValidTimePart = (part: string) => {
+      // Check digit 0: h1 (0-2)
+      if (part.length >= 1 && parseInt(part[0]) > 2) return false;
+      // Check digit 1: h2
+      if (part.length >= 2) {
+        const h1 = parseInt(part[0]);
+        const h2 = parseInt(part[1]);
+        if (h1 === 2 && h2 > 3) return false;
+      }
+      // Check digit 2: m1 (0-5)
+      if (part.length >= 3 && parseInt(part[2]) > 5) return false;
+      return true;
+    };
+
     // Filter disallowed characters
     let cleanVal = rawVal.replace(/[^0-9]/g, '');
+    if (cleanVal.length > 8) cleanVal = cleanVal.slice(0, 8);
+    
+    // Strict validation
+    if (!isValidTimePart(cleanVal.slice(0, 4)) || (cleanVal.length > 4 && !isValidTimePart(cleanVal.slice(4, 8)))) return;
 
     // Formatter which fills separators as digits are typed
     let formatted = '';
-    if (cleanVal.length > 0) {
-      if (cleanVal.length <= 2) {
-        formatted = cleanVal;
-      } else if (cleanVal.length <= 4) {
-        formatted = `${cleanVal.slice(0, 2)}:${cleanVal.slice(2)}`;
-      } else if (cleanVal.length <= 6) {
-        formatted = `${cleanVal.slice(0, 2)}:${cleanVal.slice(2, 4)} - ${cleanVal.slice(4)}`;
-      } else {
-        formatted = `${cleanVal.slice(0, 2)}:${cleanVal.slice(2, 4)} - ${cleanVal.slice(4, 6)}:${cleanVal.slice(6, 8)}`;
-      }
+    for (let i = 0; i < cleanVal.length; i++) {
+        formatted += cleanVal[i];
+        if (i === 1) formatted += ':';
+        if (i === 3) formatted += ' - ';
+        if (i === 5) formatted += ':';
     }
-
-    // Basic Time Validation
-    const parts = formatted.match(/(\d{2})(?::(\d{2}))?(?: - (\d{2})(?::(\d{2}))?)?/);
-    if (parts) {
-      let [_, h1, m1, h2, m2] = parts;
-      if (h1 && parseInt(h1) > 23) h1 = "23";
-      if (m1 && parseInt(m1) > 59) m1 = "59";
-      if (h2 && parseInt(h2) > 23) h2 = "23";
-      if (m2 && parseInt(m2) > 59) m2 = "59";
-      formatted = `${h1}${m1 ? ':' + m1 : ''}${h2 ? ` - ${h2}${m2 ? ':' + m2 : ''}` : ''}`;
-    }
-
-    // Determine if we need to set the cursor position explicitly
-    if (formatted !== rawVal) {
-      const selectionStart = input.selectionStart || 0;
-      const diff = formatted.length - rawVal.length;
-      setCursorPos(selectionStart + diff);
-    } else {
-      setCursorPos(null); // Let the browser place the cursor naturally
-    }
-
+    
     onChange(formatted);
   };
 

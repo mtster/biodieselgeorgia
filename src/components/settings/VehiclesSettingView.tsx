@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Vehicle, User } from '../../types';
+import { Vehicle, User, City } from '../../types';
 import { Plus, Trash2, Truck as TruckIcon, X } from 'lucide-react';
 import { FormInput, FormSelect } from '../FormInput';
 import PageHeader from '../PageHeader';
@@ -8,6 +8,7 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 interface Props {
   trucks: Vehicle[];
   employees: User[];
+  cities: City[];
   onSaveTruck: (t: Vehicle) => void;
   onDeleteTruck: (plate: string) => void;
   onBack: () => void;
@@ -16,6 +17,7 @@ interface Props {
 export default function VehiclesSettingView({
   trucks,
   employees,
+  cities = [],
   onSaveTruck,
   onDeleteTruck,
   onBack
@@ -28,6 +30,7 @@ export default function VehiclesSettingView({
   const [tModel, setTModel] = useState('');
   const [tDriver, setTDriver] = useState('');
   const [tCompanion, setTCompanion] = useState('');
+  const [tCity, setTCity] = useState('');
 
   // Confirmation state
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -66,6 +69,7 @@ export default function VehiclesSettingView({
     setTModel(truck ? truck.model : '');
     setTDriver(truck ? truck.driver_id || '' : '');
     setTCompanion(truck ? truck.companion_id || '' : '');
+    setTCity(truck ? truck.city || '' : '');
     setShowConfirmDelete(false);
     setIsModalOpen(true);
   };
@@ -86,6 +90,7 @@ export default function VehiclesSettingView({
       driver_name: driverObj?.name || '',
       companion_id: tCompanion,
       companion_name: companionObj?.name || '',
+      city: tCity,
       is_deleted: false
     });
 
@@ -126,7 +131,7 @@ export default function VehiclesSettingView({
               key={truck.plate_number}
               onClick={() => handleOpenTruck(truck)}
               type="button"
-              className="group bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[150px]"
+              className="group bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[160px]"
             >
               <div className="space-y-2.5 w-full">
                 {/* Styled License Plate */}
@@ -145,8 +150,9 @@ export default function VehiclesSettingView({
                     {truck.model}
                   </h4>
                   <div className="text-[10px] text-gray-405 font-sans mt-1.5 space-y-0.5">
+                    <p className="truncate">City: <strong className="text-gray-700">{truck.city || 'Unassigned'}</strong></p>
                     <p className="truncate">Driver: <strong className="text-gray-700">{assignedDriver}</strong></p>
-                    <p className="truncate">Companion: <strong className="text-gray-650">{assignedCompanion}</strong></p>
+                    <p className="truncate">Companion: <strong className="text-gray-655">{assignedCompanion}</strong></p>
                   </div>
                 </div>
               </div>
@@ -162,7 +168,7 @@ export default function VehiclesSettingView({
         <button
           onClick={() => handleOpenTruck(null)}
           type="button"
-          className="bg-amber-50/10 border-2 border-dashed border-amber-500/20 hover:border-emerald-600/50 hover:bg-emerald-50/5 p-5 rounded-2xl lg:min-h-[150px] flex flex-col items-center justify-center text-center cursor-pointer group transition-all duration-200"
+          className="bg-amber-50/10 border-2 border-dashed border-amber-500/20 hover:border-emerald-600/50 hover:bg-emerald-50/5 p-5 rounded-2xl lg:min-h-[160px] flex flex-col items-center justify-center text-center cursor-pointer group transition-all duration-200"
         >
           <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-800 group-hover:text-white transition-all">
             <Plus size={20} />
@@ -185,7 +191,7 @@ export default function VehiclesSettingView({
               </h3>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-450 hover:text-gray-700 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
+                className="text-gray-455 hover:text-gray-700 cursor-pointer p-1 rounded-lg hover:bg-slate-55"
               >
                 <X size={18} />
               </button>
@@ -211,6 +217,18 @@ export default function VehiclesSettingView({
                 onChange={(e) => setTModel(e.target.value)}
                 placeholder="e.g. Mercedes Sprinter"
               />
+
+              {/* City Dropdown Selection Filter */}
+              <FormSelect
+                label="City / Region"
+                value={tCity}
+                onChange={(e) => setTCity(e.target.value)}
+              >
+                <option value="">Select a City</option>
+                {cities.map(city => (
+                  <option key={city.id} value={city.name}>{city.name}</option>
+                ))}
+              </FormSelect>
 
               <FormSelect
                 label="Assigned Default Driver *"
@@ -241,7 +259,7 @@ export default function VehiclesSettingView({
                 <button
                   type="button"
                   onClick={triggerDeleteTruck}
-                  className="flex items-center gap-1 p-2 text-xs font-bold text-red-650 hover:bg-red-50 rounded-lg transition shrink-0 cursor-pointer"
+                  className="flex items-center gap-1 p-2 text-xs font-bold text-red-650 hover:bg-red-55 rounded-lg transition shrink-0 cursor-pointer"
                 >
                   <Trash2 size={14} />
                   Delete Asset
@@ -266,7 +284,7 @@ export default function VehiclesSettingView({
               </div>
             </div>
 
-            {/* Standardized Confirmation Overlay for Decommissioning Vehicles */}
+            {/* Decommission Modal confirmation overlays */}
             <ConfirmDeleteModal
               isOpen={showConfirmDelete}
               onClose={() => setShowConfirmDelete(false)}

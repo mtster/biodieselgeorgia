@@ -110,6 +110,7 @@ export interface Truck {
   companion_id?: string;      // (optional profile companion reference)
   companion_name?: string;
   is_deleted?: boolean;
+  city?: string;              // ქალაქი
 }
 
 export type Vehicle = Truck;

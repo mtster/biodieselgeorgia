@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Communication, Vendor, User } from '../../types';
-import { Plus, Search, HelpCircle, Calendar, MessageSquare, Trash2, X, Check } from 'lucide-react';
+import { Plus, Trash2, X, Calendar } from 'lucide-react';
 import { LANG } from '../../utils/lang';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { StandardTable, ColumnConfig } from '../StandardTable';
 
 // Integrated Premium iOS-Style Wheel/Grid DateTime Selector
 function IosDateTimePicker({ 
@@ -76,21 +77,21 @@ function IosDateTimePicker({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono text-gray-700 transition shadow-inner text-left cursor-pointer"
+        className="w-full flex items-center justify-between px-3 py-2 bg-gray-55 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-mono text-gray-700 transition shadow-inner text-left cursor-pointer"
       >
         <span className="flex items-center gap-2">
           <Calendar size={14} className="text-emerald-755" />
           {formattedDisplay}
         </span>
-        <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition">Select</span>
+        <span className="text-[10px] text-emerald-800 font-bold bg-emerald-55 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition">Select</span>
       </button>
 
       {/* iOS styled Bottom-Sheet dropdown */}
       {isOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center z-55 p-4 transition-opacity">
-          <div className="absolute inset-0" onClick={() => setIsOpen(false)}></div>
+          <div className="absolute inset-x-0 inset-y-0" onClick={() => setIsOpen(false)}></div>
 
-          <div className="bg-white rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl relative z-10 border border-gray-200 text-gray-800 transform scale-100 transition-all">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl relative z-10 border border-gray-200 text-gray-800 transform scale-100 transition-all text-left">
             
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
@@ -199,6 +200,8 @@ export default function CommunicationsView({
   communications, suppliers, employees, currentEmployee, onSave, onDelete 
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   // States
   const [editingComm, setEditingComm] = useState<Communication | null>(null);
@@ -247,12 +250,81 @@ export default function CommunicationsView({
   const filtered = communications.filter(comm => {
     const suppObj = suppliers.find(s => s.id === comm.vendor_id);
     const sName = suppObj ? suppObj.trade_name : '';
-    return sName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-           comm.comment.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = sName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          comm.comment.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const commDate = new Date(comm.date_time);
+      if (commDate < start) return false;
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      const commDate = new Date(comm.date_time);
+      if (commDate > end) return false;
+    }
+
+    return true;
   });
 
+  const columns: ColumnConfig<Communication>[] = [
+    {
+      header: 'Date & Time',
+      key: 'date_time',
+      render: (comm) => new Date(comm.date_time).toLocaleString('en-US')
+    },
+    {
+      header: 'Type',
+      key: 'type',
+      render: (comm) => comm.type === 'action' ? 'Action' : 'Reminder'
+    },
+    {
+      header: 'Supplier / Subject',
+      key: 'vendor_name',
+      render: (comm) => {
+        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
+        return suppObj ? suppObj.trade_name : (comm.vendor_name || 'Supplier');
+      }
+    },
+    {
+      header: 'Operator / User',
+      key: 'user_name',
+      render: (comm) => comm.user_name || 'Manager'
+    },
+    {
+      header: 'Interaction Comment',
+      key: 'comment',
+      render: (comm) => comm.comment
+    },
+    {
+      header: 'Reminder Time',
+      key: 'reminder_time',
+      render: (comm) => comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('en-US') : '-'
+    },
+    {
+      header: 'Actions',
+      key: 'actions',
+      className: 'text-right',
+      render: (comm) => (
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-end select-none">
+          <button 
+            onClick={() => setDeleteConfirmId(comm.id)}
+            className="text-gray-400 hover:text-red-650 p-1 bg-gray-50 hover:bg-slate-100 rounded cursor-pointer transition"
+            title="Delete"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      )
+    }
+  ];
+
   return (
-    <div className="space-y-6" id="communications-view-panel">
+    <div className="space-y-6 text-left" id="communications-view-panel">
       
       {/* Header */}
       <PageHeader 
@@ -269,83 +341,50 @@ export default function CommunicationsView({
         }
       />
 
-      {/* Filter box */}
-      <CentralSearchBar 
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        idPrefix="input-comm-search"
-        searchPlaceholder="Search communications logs..."
-      />
-
-      {/* Grid of logs */}
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left text-gray-700">
-            <thead>
-              <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
-                <th className="py-3 px-4">Date & Time</th>
-                <th className="py-3 px-4">Type</th>
-                <th className="py-3 px-4">Supplier / Subject</th>
-                <th className="py-3 px-4">Operator / User</th>
-                <th className="py-3 px-4">Interaction Comment</th>
-                <th className="py-3 px-4">Reminder Time</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map((comm) => {
-                const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-                return (
-                  <tr key={comm.id} className="hover:bg-slate-50/20">
-                    <td className="py-3.5 px-4 font-mono">
-                      {new Date(comm.date_time).toLocaleString('en-US')}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        comm.type === 'action' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-orange-50 text-orange-700 border border-orange-100'
-                      }`}>
-                        {comm.type === 'action' ? 'Action' : 'Reminder'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-gray-800">
-                      {suppObj ? suppObj.trade_name : (comm.vendor_name || 'Supplier')}
-                    </td>
-                    <td className="py-3.5 px-4 text-gray-500 font-sans">
-                      {comm.user_name || 'Manager'}
-                    </td>
-                    <td className="py-3.5 px-4 text-gray-700 font-medium">
-                      {comm.comment}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-gray-400">
-                      {comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('en-US') : '-'}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button 
-                        onClick={() => setDeleteConfirmId(comm.id)}
-                        className="text-gray-450 hover:text-red-600 p-1.5 bg-gray-50 rounded select-none cursor-pointer"
-                        title="Delete"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Filters Container */}
+      <div className="bg-white p-4 border border-gray-100 rounded-2xl shadow-xs flex flex-col md:flex-row gap-4 items-center">
+        {/* Period Filter */}
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full md:w-auto">
+          <span className="text-[11px] font-mono uppercase text-gray-400 select-none">Period:</span>
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-gray-50 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
+            />
+            <span className="text-gray-300 text-xs">-</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-gray-50 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
+            />
+          </div>
         </div>
 
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-gray-400 text-xs">
-            No communication records found.
-          </div>
-        )}
+        {/* Text Search */}
+        <div className="flex-1 w-full">
+          <CentralSearchBar 
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            idPrefix="input-comm-search"
+            searchPlaceholder="Search communications logs..."
+          />
+        </div>
       </div>
+
+      {/* Table of logs */}
+      <StandardTable
+        data={filtered}
+        columns={columns}
+        emptyMessage="No communication records found."
+      />
 
       {/* FORM DIALOG */}
       {editingComm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-200 text-left">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <h3 className="font-extrabold text-sm text-gray-800">New Communication Record</h3>
               <button onClick={() => setEditingComm(null)} className="text-gray-400 hover:text-gray-650 cursor-pointer">
@@ -366,7 +405,7 @@ export default function CommunicationsView({
                 <select
                   value={editingComm.type}
                   onChange={(e) => setEditingComm({...editingComm, type: e.target.value as any})}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer"
                 >
                   <option value="action">Action</option>
                   <option value="reminder">Reminder</option>
@@ -386,7 +425,7 @@ export default function CommunicationsView({
                 <select
                   value={editingComm.vendor_id}
                   onChange={(e) => setEditingComm({...editingComm, vendor_id: e.target.value})}
-                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer"
                 >
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.trade_name}</option>)}
                 </select>
@@ -399,7 +438,7 @@ export default function CommunicationsView({
                   placeholder="e.g. Phone call completed, promised dispatch on Monday..."
                   value={editingComm.comment}
                   onChange={(e) => setEditingComm({...editingComm, comment: e.target.value})}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full p-2.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600"
                 ></textarea>
               </div>
 
@@ -407,12 +446,14 @@ export default function CommunicationsView({
 
             <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2.5 font-sans">
               <button 
+                type="button"
                 onClick={() => setEditingComm(null)}
                 className="px-4 py-1.5 bg-gray-100 text-gray-750 hover:bg-gray-200 rounded-lg text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button 
+                type="button"
                 onClick={handleSaveAll}
                 className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
               >

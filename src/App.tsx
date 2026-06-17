@@ -522,6 +522,7 @@ export default function App() {
               <VehiclesSettingView 
                 trucks={trucks}
                 employees={users}
+                cities={cities}
                 onSaveTruck={handleSaveTruck}
                 onDeleteTruck={handleDeleteTruck}
                 onBack={() => setActiveTab('dashboard')}
@@ -531,7 +532,6 @@ export default function App() {
             {activeTab === 'history' && (
               <HistoryView 
                 history={changeHistory}
-                onRevert={handleRevertChange}
                 loadMore={handleLoadMoreHistory}
                 isLoadingMore={isLoadingMore}
               />

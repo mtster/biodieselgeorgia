@@ -103,7 +103,6 @@ export default function SettingsView({
         </button>
         <HistoryView 
           history={changeHistory}
-          onRevert={onRevertChange}
           loadMore={loadMore}
           isLoadingMore={isLoadingMore}
         />
@@ -130,6 +129,7 @@ export default function SettingsView({
       <VehiclesSettingView 
         trucks={trucks}
         employees={users}
+        cities={cities}
         onSaveTruck={onSaveTruck}
         onDeleteTruck={onDeleteTruck}
         onBack={() => setActiveSubTab(null)}

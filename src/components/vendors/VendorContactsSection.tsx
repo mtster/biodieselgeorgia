@@ -33,6 +33,10 @@ export default function VendorContactsSection({
           </button>
         </div>
 
+        {error && (
+          <p className="text-[10px] text-red-600 font-bold mb-3 px-1">{error}</p>
+        )}
+
         <div className="space-y-2.5 max-h-[224px] overflow-y-auto pr-1">
           {contacts.map((c) => (
             <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs text-left group">
@@ -73,7 +77,7 @@ export default function VendorContactsSection({
             </div>
           ))}
 
-          {contacts.length === 0 && (
+          {contacts.length === 0 && !error && (
             <div className="text-center py-10 text-gray-400 text-xs italic font-sans">
               No contacts recorded.
             </div>

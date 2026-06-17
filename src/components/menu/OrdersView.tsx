@@ -30,6 +30,8 @@ export default function OrdersView({
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Active form management
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -109,7 +111,23 @@ export default function OrdersView({
     const matchesSearch = supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           ord.doc_number.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === '' || ord.status === selectedStatus;
-    return matchesSearch && matchesStatus;
+    if (!matchesSearch || !matchesStatus) return false;
+
+    // Period Filter
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const ordDate = new Date(ord.order_date);
+      if (ordDate < start) return false;
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      const ordDate = new Date(ord.order_date);
+      if (ordDate > end) return false;
+    }
+
+    return true;
   });
 
   const askDelete = (id: string, docNum: string) => {
@@ -228,24 +246,49 @@ export default function OrdersView({
       ) : (
         <div className="space-y-6 text-left">
           {/* SEARCH & FILTERS CONTROLS */}
-          <CentralSearchBar 
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            idPrefix="orders-search"
-            searchPlaceholder="Search dispatches by supplier trade name, legal entity, or document coordinate..."
-            filters={[
-              {
-                label: "Status",
-                value: selectedStatus,
-                onChange: setSelectedStatus,
-                placeholder: "All Statuses",
-                options: [
-                  { value: "registered", label: "Registered" },
-                  { value: "completed", label: "Completed" }
-                ]
-              }
-            ]}
-          />
+          <div className="bg-white p-4 border border-gray-100 rounded-2xl shadow-xs flex flex-col md:flex-row gap-4 items-center">
+            {/* Period Filter */}
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full md:w-auto">
+              <span className="text-[11px] font-mono uppercase text-gray-400 select-none">Period:</span>
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-gray-55 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
+                />
+                <span className="text-gray-300 text-xs">-</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-gray-55 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+            </div>
+
+            {/* Text Search & Status Filter */}
+            <div className="flex-1 w-full">
+              <CentralSearchBar 
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                idPrefix="orders-search"
+                searchPlaceholder="Search dispatches by supplier trade name, legal entity, or document coordinate..."
+                filters={[
+                  {
+                    label: "Status",
+                    value: selectedStatus,
+                    onChange: setSelectedStatus,
+                    placeholder: "All Statuses",
+                    options: [
+                      { value: "registered", label: "Registered" },
+                      { value: "completed", label: "Completed" }
+                    ]
+                  }
+                ]}
+              />
+            </div>
+          </div>
 
           <OrdersList 
             filteredOrders={filteredOrders} 

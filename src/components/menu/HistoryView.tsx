@@ -1,97 +1,180 @@
 import React, { useState } from 'react';
 import { ChangeHistory } from '../../types';
-import { History, ShieldAlert, BadgeInfo, RotateCcw, CheckCircle2 } from 'lucide-react';
 import PageHeader from '../PageHeader';
+import { StandardTable, ColumnConfig } from '../StandardTable';
 
 interface Props {
   history: ChangeHistory[];
-  onRevert: (log: ChangeHistory) => Promise<boolean>;
   loadMore: () => Promise<void>;
   isLoadingMore: boolean;
 }
 
-export default function HistoryView({ history, onRevert, loadMore, isLoadingMore }: Props) {
-  const [revertingId, setRevertingId] = useState<string | null>(null);
-  const [successId, setSuccessId] = useState<string | null>(null);
+export default function HistoryView({ history, loadMore, isLoadingMore }: Props) {
+  // Filter States
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedOperation, setSelectedOperation] = useState('');
+  const [selectedField, setSelectedField] = useState('');
 
-  const handleRevertClick = async (log: ChangeHistory) => {
-    if (revertingId) return;
-    setRevertingId(log.id);
-    const success = await onRevert(log);
-    setRevertingId(null);
-    if (success) {
-      setSuccessId(log.id);
-      setTimeout(() => setSuccessId(null), 3000);
+  // Extract unique options from the change log data dynamically
+  const uniqueUsers = Array.from(new Set(history.map(h => h.employee_name).filter(Boolean))).sort();
+  const uniqueOperations = Array.from(new Set(history.map(h => h.operation).filter(Boolean))).sort();
+  const uniqueFields = Array.from(new Set(history.map(h => h.field_name).filter(Boolean))).sort();
+
+  const filteredHistory = history.filter(log => {
+    // 1. Period Filter
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const logDate = new Date(log.date_time);
+      if (logDate < start) return false;
     }
-  };
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      const logDate = new Date(log.date_time);
+      if (logDate > end) return false;
+    }
+
+    // 2. User Filter
+    if (selectedUser && log.employee_name !== selectedUser) {
+      return false;
+    }
+
+    // 3. Operation Filter
+    if (selectedOperation && log.operation !== selectedOperation) {
+      return false;
+    }
+
+    // 4. Field Filter
+    if (selectedField && log.field_name !== selectedField) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const columns: ColumnConfig<ChangeHistory>[] = [
+    {
+      header: 'Date & Time',
+      key: 'date_time',
+      render: (log) => new Date(log.date_time).toLocaleString('en-US')
+    },
+    {
+      header: 'User',
+      key: 'employee_name',
+      render: (log) => log.employee_name
+    },
+    {
+      header: 'Operation',
+      key: 'operation',
+      render: (log) => log.operation
+    },
+    {
+      header: 'Field',
+      key: 'field_name',
+      render: (log) => log.field_name || '-'
+    },
+    {
+      header: 'Old Value',
+      key: 'old_value',
+      render: (log) => log.old_value || '-'
+    },
+    {
+      header: 'New Value',
+      key: 'new_value',
+      render: (log) => log.new_value || '-'
+    }
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       
-      {/* Header */}
+      {/* 1. Header */}
       <PageHeader title="Change History" />
 
-      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left text-gray-700">
-            <thead>
-              <tr className="border-b border-gray-100 text-[10px] text-gray-400 uppercase font-mono bg-gray-50">
-                <th className="py-3 px-4">Date & Time</th>
-                <th className="py-3 px-4 font-sans">User</th>
-                <th className="py-3 px-4 font-sans">Operation</th>
-                <th className="py-3 px-4">Field</th>
-                <th className="py-3 px-4">Old Value</th>
-                <th className="py-3 px-4">New Value</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 font-mono">
-              {history.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50/20 text-xs">
-                  <td className="py-3 px-4 text-gray-550 font-mono">
-                    {new Date(log.date_time).toLocaleString('en-US')}
-                  </td>
-                  <td className="py-3 px-4 font-sans font-bold text-gray-800">
-                    {log.employee_name}
-                  </td>
-                  <td className="py-3 px-4 font-sans text-gray-650">
-                    <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-700 font-bold text-[10px]">
-                      {log.operation}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-450">
-                    {log.field_name || '-'}
-                  </td>
-                  <td className="py-3 px-4 text-gray-400 max-w-xs truncate">
-                    {log.old_value || '-'}
-                  </td>
-                  <td className="py-3 px-4 text-emerald-800 font-bold max-w-xs truncate">
-                    {log.new_value || '-'}
-                  </td>
-                  <td className="py-2 px-4 text-right">
-                    {successId === log.id || log.is_reverted ? (
-                      <span className="inline-flex items-center gap-1.5 text-emerald-700 font-sans font-bold py-1">
-                        <CheckCircle2 size={13} className="text-emerald-600" /> Reverted
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleRevertClick(log)}
-                        disabled={revertingId !== null}
-                        className={`inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold font-sans rounded-xl transition duration-150 border border-amber-200 select-none cursor-pointer disabled:opacity-50 text-[11px]`}
-                      >
-                        <RotateCcw size={11} className={revertingId === log.id ? "animate-spin" : ""} />
-                        {revertingId === log.id ? "Reverting" : "Revert"}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* 2. Premium Filters Bar */}
+      <div className="bg-white p-4 border border-gray-100 rounded-2xl shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
         
-        {history.length > 0 && (
-          <div className="flex justify-center py-6 border-t border-gray-100">
+        {/* Period */}
+        <div className="space-y-1.5 col-span-1 sm:col-span-2">
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block select-none">Period</label>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-gray-55 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
+            />
+            <span className="text-gray-300 text-xs select-none">-</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-gray-55 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
+            />
+          </div>
+        </div>
+
+        {/* User filter */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block select-none">User</label>
+          <select
+            value={selectedUser}
+            onChange={(e) => setSelectedUser(e.target.value)}
+            className="w-full bg-gray-55 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs text-gray-750 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+          >
+            <option value="">All Users</option>
+            {uniqueUsers.map(user => (
+              <option key={user} value={user}>{user}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Operation filter */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block select-none">Operation</label>
+          <select
+            value={selectedOperation}
+            onChange={(e) => setSelectedOperation(e.target.value)}
+            className="w-full bg-gray-55 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs text-gray-750 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+          >
+            <option value="">All Operations</option>
+            {uniqueOperations.map(op => (
+              <option key={op} value={op}>{op}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Field filter */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block select-none">Field</label>
+          <select
+            value={selectedField}
+            onChange={(e) => setSelectedField(e.target.value)}
+            className="w-full bg-gray-55 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs text-gray-750 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none cursor-pointer"
+          >
+            <option value="">All Fields</option>
+            {uniqueFields.map(fd => (
+              <option key={fd} value={fd}>{fd}</option>
+            ))}
+          </select>
+        </div>
+
+      </div>
+
+      {/* 3. Table element */}
+      <div className="space-y-4">
+        <StandardTable
+          data={filteredHistory}
+          columns={columns}
+          emptyMessage="No change history logs match current filters."
+        />
+
+        {/* Load More pagination button */}
+        {filteredHistory.length > 0 && (
+          <div className="flex justify-center py-2">
             <button
               onClick={loadMore}
               disabled={isLoadingMore}
@@ -99,12 +182,6 @@ export default function HistoryView({ history, onRevert, loadMore, isLoadingMore
             >
               {isLoadingMore ? "Loading..." : "Load More"}
             </button>
-          </div>
-        )}
-        
-        {history.length === 0 && (
-          <div className="text-center py-16 text-xs text-gray-400 font-sans">
-            No change logs exist in the system at the moment.
           </div>
         )}
       </div>
