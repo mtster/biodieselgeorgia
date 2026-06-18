@@ -38,6 +38,15 @@ import HistoryView from './components/menu/HistoryView';
 import MobileLogisticsView from './components/menu/MobileLogisticsView';
 import Sidebar from './components/menu/Sidebar';
 
+// Relational deletion validators
+import { 
+  checkSupplierDeletion, 
+  checkUserDeletion, 
+  checkCityDeletion, 
+  checkVehicleDeletion, 
+  checkWarehouseDeletion 
+} from './utils/deletionValidation';
+
 // Icons for Left Sidebar pairing
 import { 
   Leaf, LayoutDashboard, BarChart3, Building2, MessageSquare, 
@@ -47,6 +56,7 @@ import {
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [deleteAlertMessage, setDeleteAlertMessage] = useState<string | null>(null);
   
   // Database Live Models
   const [users, setUsers] = useState<User[]>([]);
@@ -204,6 +214,12 @@ export default function App() {
   };
 
   const handleUserDelete = async (id: string, name: string) => {
+    const errorMsg = checkUserDeletion(id, name, orders, vendors);
+    if (errorMsg) {
+      setDeleteAlertMessage(errorMsg);
+      return;
+    }
+
     if (confirm(`Are you sure you want to delete user: ${name}?`)) {
       try {
         await deleteUser(id, name, currentUser?.name || 'System');
@@ -226,6 +242,11 @@ export default function App() {
   };
 
   const handleVendorDelete = async (id: string, tradeName: string) => {
+    const errorMsg = checkSupplierDeletion(id, tradeName, orders);
+    if (errorMsg) {
+      setDeleteAlertMessage(errorMsg);
+      return;
+    }
     try {
       await deleteVendor(id, tradeName, currentUser?.name || 'System');
       await refreshAllData();
@@ -273,6 +294,11 @@ export default function App() {
     await refreshAllData();
   };
   const handleDeleteCity = async (id: string, name: string) => {
+    const errorMsg = checkCityDeletion(id, name, vendors);
+    if (errorMsg) {
+      setDeleteAlertMessage(errorMsg);
+      return;
+    }
     if (confirm(`Delete city ${name}?`)) {
       await deleteCity(id, name, currentUser?.name || 'System');
       await refreshAllData();
@@ -295,6 +321,11 @@ export default function App() {
     await refreshAllData();
   };
   const handleDeleteTruck = async (plate: string) => {
+    const errorMsg = checkVehicleDeletion(plate, orders);
+    if (errorMsg) {
+      setDeleteAlertMessage(errorMsg);
+      return;
+    }
     if (confirm(`Are you sure you want to delete vehicle (${plate})?`)) {
       await deleteTruck(plate, currentUser?.name || 'System');
       await refreshAllData();
@@ -333,8 +364,15 @@ export default function App() {
   };
 
   const handleDeleteWarehouse = async (id: string, name: string) => {
-    await deleteWarehouse(id, name, currentUser?.name || 'System');
-    await refreshAllData();
+    const errorMsg = checkWarehouseDeletion(id, name, vendors, orders);
+    if (errorMsg) {
+      setDeleteAlertMessage(errorMsg);
+      return;
+    }
+    if (confirm(`Are you sure you want to permanently delete warehouse "${name}"?`)) {
+      await deleteWarehouse(id, name, currentUser?.name || 'System');
+      await refreshAllData();
+    }
   };
 
   const handleRevertChange = async (log: ChangeHistory): Promise<boolean> => {
@@ -564,6 +602,30 @@ export default function App() {
         </main>
 
       </div>
+
+      {deleteAlertMessage && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl border border-gray-200 text-center animate-scale-up">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600 animate-bounce">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-gray-900">Deletion Blocked</h3>
+              <p className="mt-2 text-xs text-gray-600 leading-relaxed font-medium">
+                {deleteAlertMessage}
+              </p>
+            </div>
+            <button
+              onClick={() => setDeleteAlertMessage(null)}
+              className="w-full inline-flex justify-center rounded-xl bg-gray-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-gray-800 transition shadow-sm focus:outline-none cursor-pointer"
+            >
+              Understood
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

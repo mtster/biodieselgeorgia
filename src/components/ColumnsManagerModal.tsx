@@ -201,7 +201,7 @@ export default function ColumnsManagerModal({
             <button
               type="button"
               onClick={() => setIsAdding(true)}
-              className="w-full border-2 border-dashed border-gray-150 hover:border-emerald-500 hover:bg-slate-50/50 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer transition text-gray-500 hover:text-emerald-750"
+              className="w-full border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-slate-50/50 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer transition text-gray-500 hover:text-emerald-750"
             >
               <Plus size={16} />
               <span className="text-xs font-bold leading-none font-sans">Add New Column</span>
@@ -214,22 +214,22 @@ export default function ColumnsManagerModal({
           <button
             type="button"
             onClick={handleResetToDefault}
-            className="px-3.5 py-2 hover:bg-slate-50 hover:text-slate-700 hover:border-gray-300 text-slate-500 border border-gray-200 font-bold rounded-xl text-[10.5px] leading-tight transition cursor-pointer select-none font-sans"
+            className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer"
           >
-            Reset to Default
+            Default
           </button>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-2 border border-gray-150 hover:bg-slate-55 font-bold rounded-xl text-[10.5px] text-gray-655 transition cursor-pointer select-none font-sans"
+              className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold rounded-xl text-[10.5px] transition cursor-pointer shadow-xs select-none font-sans"
+              className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-black rounded-lg text-xs transition cursor-pointer"
             >
               Save Changes
             </button>

@@ -301,26 +301,23 @@ export default function CommunicationsView({
 
   const uniqueSuppliers = Array.from(
     new Map(
-      communications.map(c => {
-        const id = c.vendor_id || '';
-        const resolved = suppliers.find(s => s.id === id);
-        const name = resolved ? resolved.trade_name : (c.vendor_name || '');
-        return [id || name, { id: id || name, trade_name: name }];
-      })
+      communications
+        .map(c => {
+          const supp = suppliers.find(s => s.id === c.vendor_id);
+          if (!supp) return null;
+          return [supp.id, { id: supp.id, trade_name: supp.trade_name }];
+        })
+        .filter((item): item is [string, { id: string; trade_name: string }] => item !== null)
     ).values()
-  ).filter(s => s.trade_name);
+  );
 
   const uniqueUsers = Array.from(
     new Map(
-      communications
-        .filter(c => c.user_id)
-        .map(c => {
-          const id = c.user_id || '';
-          const employee = employees.find(e => e.id === id);
-          return [id, { id, name: employee ? employee.name : (c.user_name || 'Unknown') }];
-        })
+      employees
+        .filter(emp => emp && !emp.is_deleted && emp.name)
+        .map(emp => [emp.id, { id: emp.id, name: emp.name }])
     ).values()
-  ).filter(u => u.name);
+  ).sort((a, b) => a.name.localeCompare(b.name));
 
   const filtered = communications.filter(comm => {
     const suppObj = suppliers.find(s => s.id === comm.vendor_id);
@@ -333,15 +330,15 @@ export default function CommunicationsView({
     if (typeFilter && comm.type !== typeFilter) return false;
     
     if (supplierFilter) {
-      const matchDb = comm.vendor_id === supplierFilter || comm.vendor_name === supplierFilter;
-      const matchResolved = suppObj && (suppObj.id === supplierFilter || suppObj.trade_name === supplierFilter);
+      const matchDb = comm.vendor_id === supplierFilter;
+      const matchResolved = suppObj && suppObj.id === supplierFilter;
       if (!matchDb && !matchResolved) return false;
     }
 
     if (userFilter) {
-      const matchDb = comm.user_id === userFilter || comm.user_name === userFilter;
+      const matchDb = comm.user_id === userFilter;
       const empObj = employees.find(e => e.id === comm.user_id);
-      const matchResolved = empObj && (empObj.id === userFilter || empObj.name === userFilter);
+      const matchResolved = empObj && empObj.id === userFilter;
       if (!matchDb && !matchResolved) return false;
     }
 
@@ -383,7 +380,10 @@ export default function CommunicationsView({
     user_name: {
       header: 'Operator / User',
       key: 'user_name',
-      render: (comm) => comm.user_name || 'Manager'
+      render: (comm) => {
+        const empObj = employees.find(e => e.id === comm.user_id);
+        return empObj ? empObj.name : (comm.user_name || 'Manager');
+      }
     },
     comment: {
       header: 'Interaction Comment',
@@ -443,31 +443,6 @@ export default function CommunicationsView({
         });
       }
     }
-  });
-
-  // Append action button column at the end
-  columns.push({
-    header: 'Actions',
-    key: 'actions',
-    className: 'text-right',
-    render: (comm) => (
-      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1 select-none">
-        <button 
-          onClick={() => startEdit(comm)}
-          className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-          title="Edit"
-        >
-          <Edit3 size={13} />
-        </button>
-        <button 
-          onClick={() => setDeleteConfirmId(comm.id)}
-          className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-          title="Delete"
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
-    )
   });
 
   const headerActions = (
@@ -610,6 +585,7 @@ export default function CommunicationsView({
       <StandardTable
         data={filtered}
         columns={columns}
+        onRowClick={startEdit}
         emptyMessage="No communication records found."
       />
 
@@ -724,21 +700,39 @@ export default function CommunicationsView({
 
             </div>
 
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2.5 font-sans">
-              <button 
-                type="button"
-                onClick={() => setEditingComm(null)}
-                className="px-4 py-1.5 bg-gray-100 text-gray-750 hover:bg-gray-200 rounded-lg text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button 
-                type="button"
-                onClick={handleSaveAll}
-                className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
-              >
-                Save
-              </button>
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-between font-sans">
+              <div>
+                {!isNew && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingComm) {
+                        setDeleteConfirmId(editingComm.id);
+                        setEditingComm(null);
+                      }
+                    }}
+                    className="px-3.5 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold cursor-pointer transition shadow-2xs"
+                  >
+                    Delete Log
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2.5">
+                <button 
+                  type="button"
+                  onClick={() => setEditingComm(null)}
+                  className="px-4 py-1.5 bg-gray-100 text-gray-750 hover:bg-gray-200 rounded-lg text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleSaveAll}
+                  className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
+                >
+                  Save
+                </button>
+              </div>
             </div>
 
           </div>
