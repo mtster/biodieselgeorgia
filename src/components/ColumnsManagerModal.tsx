@@ -134,41 +134,8 @@ export default function ColumnsManagerModal({
           </button>
         </div>
 
-        {/* Scrollable list of columns */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1 select-text">
-          {tempColumns.map((col, idx) => {
-            const isDragging = draggedIndex === idx;
-            return (
-              <div
-                key={col.id}
-                draggable
-                onDragStart={() => handleDragStart(idx)}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDragEnd={handleDragEnd}
-                className={`flex items-center justify-between p-3 border rounded-xl bg-white transition ${
-                  isDragging ? 'border-dashed border-emerald-500 bg-emerald-50/10' : 'border-gray-100 hover:border-gray-200'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-650 p-0.5">
-                    <GripVertical size={16} />
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={col.visible}
-                    onChange={() => toggleVisibility(col.id)}
-                    className="w-4 h-4 text-emerald-600 border-gray-350 rounded focus:ring-emerald-500 cursor-pointer"
-                  />
-                  <span className={`text-xs font-semibold font-sans ${col.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>
-                    {col.label}
-                    {col.isCustom && <span className="ml-1.5 text-[8px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded font-mono uppercase">custom</span>}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Add New Column Component (Direct typing/clicking) */}
+        {/* Add New Column Component (Always visible at top) */}
+        <div className="mb-4 shrink-0">
           {isAdding ? (
             <div className="flex items-center gap-2 p-2 border-2 border-dashed border-emerald-300 rounded-xl bg-slate-50">
               <input
@@ -207,6 +174,41 @@ export default function ColumnsManagerModal({
               <span className="text-xs font-bold leading-none font-sans">Add New Column</span>
             </button>
           )}
+        </div>
+
+        {/* Scrollable list of columns */}
+        <div className="flex-1 overflow-y-auto space-y-2 pr-1 select-text">
+          {tempColumns.map((col, idx) => {
+            const isDragging = draggedIndex === idx;
+            return (
+              <div
+                key={col.id}
+                draggable
+                onDragStart={() => handleDragStart(idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center justify-between p-3 border rounded-xl bg-white transition ${
+                  isDragging ? 'border-dashed border-emerald-500 bg-emerald-50/10' : 'border-gray-100 hover:border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-650 p-0.5">
+                    <GripVertical size={16} />
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={col.visible}
+                    onChange={() => toggleVisibility(col.id)}
+                    className="w-4 h-4 text-emerald-600 border-gray-350 rounded focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <span className={`text-xs font-semibold font-sans ${col.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>
+                    {col.label}
+                    {col.isCustom && <span className="ml-1.5 text-[8px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded font-mono uppercase">custom</span>}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Footer with Reset to Defaults on left and action buttons on right */}

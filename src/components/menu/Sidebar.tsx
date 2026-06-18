@@ -180,7 +180,7 @@ export default function Sidebar({
           className="w-full py-2 bg-slate-800 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
         >
           <LogOut size={13} />
-          Sign Out
+          Log Out
         </button>
       </div>
 

@@ -260,6 +260,41 @@ export default function VendorFormFields({
           })()}
         </FormSelect>
       </div>
+
+      {/* Dynamic Custom Fields from Columns Manager */}
+      {(() => {
+        let customCols: { id: string; label: string }[] = [];
+        try {
+          const stored = localStorage.getItem('suppliers_columns_managed');
+          if (stored) {
+            const parsed = JSON.parse(stored) as any[];
+            customCols = parsed.filter(col => col && (col.isCustom || col.id?.startsWith('custom_')));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+
+        if (customCols.length === 0) return null;
+
+        return (
+          <div className="space-y-4 pt-4 border-t border-gray-150">
+            <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Custom Fields</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {customCols.map(col => (
+                <FormInput
+                  key={col.id}
+                  label={`${col.label}`}
+                  type="text"
+                  value={(editingVendor as any)[col.id] || ''}
+                  onChange={(e) => {
+                    setEditingVendor(prev => prev ? { ...prev, [col.id]: e.target.value } : null);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

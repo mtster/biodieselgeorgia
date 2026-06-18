@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   Vendor, VendorContact, VendorComment, 
-  Warehouse, User, City, District 
+  Warehouse, User, City, District, Communication 
 } from '../../types';
 import { 
   Search, Plus, Edit3, Trash2, FileSpreadsheet, 
@@ -45,11 +45,16 @@ interface Props {
   onAddCity?: (name: string) => void;
   onAddDistrict?: (cityId: string, name: string) => void;
   onAddWarehouse?: (name: string) => void;
+
+  communications?: Communication[];
+  onSaveCommunication?: (comm: Communication) => Promise<void> | void;
+  onDeleteCommunication?: (id: string) => Promise<void> | void;
 }
 
 export default function VendorsView({ 
   vendors, warehouses, users, cities, districts, 
-  currentUser, onSave, onDelete
+  currentUser, onSave, onDelete,
+  communications = [], onSaveCommunication, onDeleteCommunication
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
@@ -304,6 +309,9 @@ export default function VendorsView({
           onSave={handleSaveFromForm}
           onCancel={() => setEditingVendor(null)}
           formRef={formRef}
+          communications={communications}
+          onSaveCommunication={onSaveCommunication}
+          onDeleteCommunication={onDeleteCommunication}
         />
       ) : (
         <div className="space-y-6 text-left">

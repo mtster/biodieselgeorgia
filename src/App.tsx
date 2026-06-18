@@ -516,6 +516,9 @@ export default function App() {
                 onAddCity={handleAddCityDirect}
                 onAddDistrict={handleAddDistrictDirect}
                 onAddWarehouse={handleAddWarehouseDirect}
+                communications={communications}
+                onSaveCommunication={handleCommunicationSave}
+                onDeleteCommunication={handleCommunicationDelete}
               />
             )}
 
