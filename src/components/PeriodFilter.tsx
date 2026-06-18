@@ -22,9 +22,16 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleApplyPreset = (start: Date, end: Date) => {
-    setStartDate(start.toISOString().substring(0, 10));
-    setEndDate(end.toISOString().substring(0, 10));
+    setStartDate(formatDate(start));
+    setEndDate(formatDate(end));
     setShowPresets(false);
   };
 
@@ -35,8 +42,10 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
     
     // Week calculations
+    const day = today.getDay();
+    const diff = day === 0 ? 6 : day - 1;
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
+    startOfWeek.setDate(today.getDate() - diff);
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     
