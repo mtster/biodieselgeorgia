@@ -25,7 +25,7 @@ export function FormInput({
         {label}
       </span>
       <input
-        className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 transition-all ${fontClass} ${
+        className={`block w-full px-4 py-4 text-sm border rounded-xl focus:outline-none focus:ring-1 transition-all ${fontClass} ${
           error
             ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900'
             : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
@@ -67,7 +67,7 @@ export function FormSelect({
         {label}
       </span>
       <select
-        className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 transition-all cursor-pointer relative ${fontClass} ${
+        className={`block w-full px-4 py-4 text-sm border rounded-xl focus:outline-none focus:ring-1 transition-all cursor-pointer relative ${fontClass} ${
           error
             ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900'
             : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'

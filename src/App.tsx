@@ -437,22 +437,24 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[#f8fafc] text-gray-750 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-[#f8fafc] text-gray-750 flex flex-col md:flex-row font-sans">
       
-      <Sidebar
-        currentUser={currentUser}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        mobileMenuOpen={mobileMenuOpen}
-        setMobileMenuOpen={setMobileMenuOpen}
-        onLogOut={handleLogOut}
-      />
+      <div className={`${mobileMenuOpen ? 'block' : 'hidden md:block'} z-50`}>
+        <Sidebar
+          currentUser={currentUser}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={setMobileMenuOpen}
+          onLogOut={handleLogOut}
+        />
+      </div>
 
       {/* Main Viewport Panel */}
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* Mobile Navbar Top */}
-        <header className="md:hidden bg-white border-b border-gray-100 flex items-center justify-between p-4 flex-shrink-0 shadow-xs">
+        <header className="md:hidden bg-white border-b border-gray-100 flex items-center justify-between p-4 flex-shrink-0 shadow-xs relative z-40">
           <div className="flex items-center gap-2">
             <div className="bg-emerald-800 text-white p-1 rounded-lg">
               <Leaf size={16} />
@@ -469,7 +471,7 @@ export default function App() {
         </header>
 
         {/* Content viewport */}
-        <main className="flex-1 overflow-y-auto px-4 md:px-6 pb-16 pt-0 md:pt-0">
+        <main className="flex-1 px-4 md:px-6 pb-16 pt-0 md:pt-0">
           <div className="w-full">
             {activeTab === 'dashboard' && (
               <DashboardView 

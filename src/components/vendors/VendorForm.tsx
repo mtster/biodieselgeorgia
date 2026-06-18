@@ -417,16 +417,12 @@ export default function VendorForm({
         </div>
 
         {/* Communications Log Section */}
-        {editingVendor.id && (
           <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-6 mt-6">
-            <div className="border-b pb-3 flex items-center justify-between">
+            <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-black uppercase text-gray-800 tracking-wider">
-                  Communications History & Interaction Logs
+                  Communications
                 </h4>
-                <p className="text-[10px] text-gray-400 font-medium font-sans mt-0.5">
-                  Tied directly to general communications ledger for {editingVendor.trade_name}
-                </p>
               </div>
             </div>
 
@@ -603,7 +599,6 @@ export default function VendorForm({
               )}
             </div>
           </div>
-        )}
 
       </div>
       </fieldset>

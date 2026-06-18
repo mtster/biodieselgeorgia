@@ -28,7 +28,7 @@ export default function VendorFormFields({
 }: VendorFormFieldsProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5 text-left">
-      <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Supplier Parameters</span>
+      <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">Core Supplier Parameters</span>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
@@ -277,8 +277,7 @@ export default function VendorFormFields({
         if (customCols.length === 0) return null;
 
         return (
-          <div className="space-y-4 pt-4 border-t border-gray-150">
-            <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Custom Fields</span>
+          <div className="space-y-4 pt-4 border-t border-gray-100">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {customCols.map(col => (
                 <FormInput

@@ -104,7 +104,7 @@ export function StandardTable<T>({
 
       {/* Beautiful High-Contrast Pagination Footer */}
       {totalItems > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-150 bg-slate-50/60 px-4 py-3 select-none shrink-0 gap-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 bg-slate-50/60 px-4 py-3 select-none shrink-0 gap-3">
           <div className="text-xs text-gray-500 font-medium font-sans">
             Showing <span className="font-bold text-gray-800">{totalItems === 0 ? 0 : startIndex + 1}</span> to{' '}
             <span className="font-bold text-gray-800">{endIndex}</span> of{' '}
