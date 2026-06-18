@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Communication, Vendor, User } from '../../types';
 import { Plus, Trash2, X, Calendar, Check, Edit3 } from 'lucide-react';
 import { LANG } from '../../utils/lang';
+import PeriodFilter from '../PeriodFilter';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
@@ -494,31 +495,12 @@ export default function CommunicationsView({
 
       {/* Filters Container */}
       <div className="flex flex-col md:flex-row items-center gap-4 w-full">
-        {/* Start Date */}
-        <div className="relative w-full md:w-auto min-w-[140px]">
-          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-            Start Date
-          </span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
-          />
-        </div>
-
-        {/* End Date */}
-        <div className="relative w-full md:w-auto min-w-[140px]">
-          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-            End Date
-          </span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
-          />
-        </div>
+        <PeriodFilter 
+          startDate={startDate} 
+          setStartDate={setStartDate} 
+          endDate={endDate} 
+          setEndDate={setEndDate} 
+        />
 
         {/* Type Filter */}
         <div className="relative w-full md:w-auto min-w-[140px]">

@@ -83,29 +83,17 @@ export default function OrdersList({
     planned: {
       header: 'Planned',
       key: 'planned',
-      render: (ord) => {
-        const requested = `${ord.qty_requested} L`;
-        const actual = ord.qty_actual !== undefined ? ` (True: ${ord.qty_actual} L)` : '';
-        return `${requested}${actual}`;
-      }
+      render: (ord) => `${ord.qty_requested} L`
     },
     tanks_to_leave: {
       header: 'Dropoff',
       key: 'tanks_to_leave',
-      render: (ord) => {
-        const requested = ord.tanks_to_leave;
-        const actual = ord.tanks_left_actual !== undefined ? ` (True: ${ord.tanks_left_actual})` : '';
-        return `${requested}${actual}`;
-      }
+      render: (ord) => `${ord.tanks_to_leave}`
     },
     tanks_to_bring: {
       header: 'Pickup',
       key: 'tanks_to_bring',
-      render: (ord) => {
-        const requested = ord.tanks_to_bring;
-        const actual = ord.tanks_bring_actual !== undefined ? ` (True: ${ord.tanks_bring_actual})` : '';
-        return `${requested}${actual}`;
-      }
+      render: (ord) => `${ord.tanks_to_bring}`
     },
     note: {
       header: 'Comment',
@@ -157,29 +145,29 @@ export default function OrdersList({
   });
 
   // Append action button column at the end
-  columns.push({
-    header: 'Actions',
-    key: 'actions',
-    className: 'text-right',
-    render: (ord) => (
-      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1 select-none">
-        <button 
-          onClick={() => startEdit(ord, false)}
-          className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-          title="Modify details"
-        >
-          <Edit2 size={13} />
-        </button>
-        <button 
-          onClick={() => askDelete(ord.id, ord.doc_number)}
-          className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-          title="Delete coordinate"
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
-    )
-  });
+  // columns.push({
+  //   header: 'Actions',
+  //   key: 'actions',
+  //   className: 'text-right',
+  //   render: (ord) => (
+  //     <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1 select-none">
+  //       <button 
+  //         onClick={() => startEdit(ord, false)}
+  //         className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+  //         title="Modify details"
+  //       >
+  //         <Edit2 size={13} />
+  //       </button>
+  //       <button 
+  //         onClick={() => askDelete(ord.id, ord.doc_number)}
+  //         className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+  //         title="Delete coordinate"
+  //       >
+  //         <Trash2 size={13} />
+  //       </button>
+  //     </div>
+  //   )
+  // });
 
   const rowClassName = (ord: Order) => {
     const isChecked = selectedOrders.includes(ord.id);
