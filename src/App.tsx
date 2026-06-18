@@ -439,7 +439,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-gray-750 flex flex-col md:flex-row font-sans">
       
-      <div className={`${mobileMenuOpen ? 'block' : 'hidden md:block'} z-50`}>
+      <div className={`${mobileMenuOpen ? 'block' : 'hidden md:block'} z-[60] fixed inset-0 md:relative md:inset-auto`}>
         <Sidebar
           currentUser={currentUser}
           activeTab={activeTab}
@@ -451,7 +451,7 @@ export default function App() {
       </div>
 
       {/* Main Viewport Panel */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         
         {/* Mobile Navbar Top */}
         <header className="md:hidden bg-white border-b border-gray-100 flex items-center justify-between p-4 flex-shrink-0 shadow-xs relative z-40">
@@ -471,7 +471,7 @@ export default function App() {
         </header>
 
         {/* Content viewport */}
-        <main className="flex-1 px-4 md:px-6 pb-16 pt-0 md:pt-0">
+        <main className="flex-1 overflow-y-auto px-4 md:px-6 pb-16 pt-0 md:pt-0">
           <div className="w-full">
             {activeTab === 'dashboard' && (
               <DashboardView 
