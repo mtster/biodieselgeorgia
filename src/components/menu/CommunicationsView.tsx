@@ -217,10 +217,15 @@ export default function CommunicationsView({
   const [selectedComms, setSelectedComms] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
-  // States
+  // State
   const [editingComm, setEditingComm] = useState<Communication | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Filters State
+  const [typeFilter, setTypeFilter] = useState('');
+  const [supplierFilter, setSupplierFilter] = useState('');
+  const [userFilter, setUserFilter] = useState('');
 
   // Auto-complete suppliers state in communications form modal
   const [vendorSearch, setVendorSearch] = useState('');
@@ -294,13 +299,50 @@ export default function CommunicationsView({
     setEditingComm(null);
   };
 
+  const uniqueSuppliers = Array.from(
+    new Map(
+      communications.map(c => {
+        const id = c.vendor_id || '';
+        const resolved = suppliers.find(s => s.id === id);
+        const name = resolved ? resolved.trade_name : (c.vendor_name || '');
+        return [id || name, { id: id || name, trade_name: name }];
+      })
+    ).values()
+  ).filter(s => s.trade_name);
+
+  const uniqueUsers = Array.from(
+    new Map(
+      communications.map(c => {
+        const id = c.user_id || '';
+        const resolved = employees.find(e => e.id === id);
+        const name = resolved ? resolved.name : (c.user_name || '');
+        return [id || name, { id: id || name, name }];
+      })
+    ).values()
+  ).filter(u => u.name);
+
   const filtered = communications.filter(comm => {
     const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-    const sName = suppObj ? suppObj.trade_name : '';
+    const sName = suppObj ? suppObj.trade_name : (comm.vendor_name || '');
     const matchesSearch = sName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           comm.comment.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (!matchesSearch) return false;
+
+    if (typeFilter && comm.type !== typeFilter) return false;
+    
+    if (supplierFilter) {
+      const matchDb = comm.vendor_id === supplierFilter || comm.vendor_name === supplierFilter;
+      const matchResolved = suppObj && (suppObj.id === supplierFilter || suppObj.trade_name === supplierFilter);
+      if (!matchDb && !matchResolved) return false;
+    }
+
+    if (userFilter) {
+      const matchDb = comm.user_id === userFilter || comm.user_name === userFilter;
+      const empObj = employees.find(e => e.id === comm.user_id);
+      const matchResolved = empObj && (empObj.id === userFilter || empObj.name === userFilter);
+      if (!matchDb && !matchResolved) return false;
+    }
 
     if (startDate) {
       const start = new Date(startDate);
@@ -508,8 +550,8 @@ export default function CommunicationsView({
             Type
           </span>
           <select
-            value="" /* Needs state */
-            onChange={(e) => {}}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
             <option value="">All Types</option>
@@ -524,11 +566,14 @@ export default function CommunicationsView({
             Supplier
           </span>
           <select
-            value="" /* Needs state */
-            onChange={(e) => {}}
+            value={supplierFilter}
+            onChange={(e) => setSupplierFilter(e.target.value)}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
             <option value="">All Suppliers</option>
+            {uniqueSuppliers.map((s) => (
+              <option key={s.id} value={s.id}>{s.trade_name}</option>
+            ))}
           </select>
         </div>
 
@@ -538,11 +583,14 @@ export default function CommunicationsView({
             User
           </span>
           <select
-            value="" /* Needs state */
-            onChange={(e) => {}}
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
             <option value="">All Users</option>
+            {uniqueUsers.map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
           </select>
         </div>
 

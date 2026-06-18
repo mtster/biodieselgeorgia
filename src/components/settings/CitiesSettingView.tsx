@@ -88,7 +88,7 @@ export default function CitiesSettingView({
       <PageHeader title="Cities" />
 
       {/* Grid of Cities including the "+ Add New Window" */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 w-full">
         {activeCities.map((city) => {
           const count = districts.filter(d => d.city_id === city.id).length;
           return (
@@ -136,10 +136,10 @@ export default function CitiesSettingView({
       {/* Main detailed editor Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl border overflow-hidden p-6 relative flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl border border-slate-200 overflow-hidden p-6 relative flex flex-col max-h-[90vh]">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b pb-3 mb-4 shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4 shrink-0">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">
                 {selectedCity ? 'City Details' : 'Create New City'}
               </h3>
@@ -210,7 +210,7 @@ export default function CitiesSettingView({
             </div>
 
             {/* Modal Bottom row */}
-            <div className="border-t pt-4 mt-4 flex items-center justify-between shrink-0 select-none">
+            <div className="border-t border-slate-200 pt-4 mt-4 flex items-center justify-between shrink-0 select-none">
               {selectedCity ? (
                 <button
                   type="button"

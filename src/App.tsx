@@ -192,7 +192,11 @@ export default function App() {
   const handleUserSave = async (user: User) => {
     try {
       await saveUser(user, currentUser?.name || 'System');
-      await refreshAllData();
+      const updatedUsers = await getUsers();
+      setUsers(updatedUsers);
+      if (currentUser && user.id === currentUser.id) {
+        setCurrentUser(updatedUsers.find(u => u.id === user.id) || null);
+      }
     } catch (e: any) {
       console.error('Error saving user:', e);
       alert(`⚠️ Authentication / Sync Error: ${e.message || 'Check your permissions.'}\nCould not add or update this user in the Auth database.`);

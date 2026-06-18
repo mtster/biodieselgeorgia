@@ -74,7 +74,7 @@ export default function Sidebar({
             <Leaf size={18} />
           </div>
           <div>
-            <h1 className="text-sm font-black tracking-tight leading-none text-white">
+            <h1 className="text-base font-black tracking-tighter leading-none text-white">
               Biodiesel Georgia
             </h1>
           </div>
@@ -167,8 +167,8 @@ export default function Sidebar({
             {currentUser.name.slice(0, 2)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
-            <span className="text-[10px] text-emerald-400 font-mono capitalize block">
+            <p className="text-sm font-bold text-slate-200 truncate">{currentUser.name}</p>
+            <span className="text-xs text-emerald-400 font-mono capitalize block">
               {currentUser.role === 'admin' ? 'Administrator' : 'Staff'}
             </span>
           </div>

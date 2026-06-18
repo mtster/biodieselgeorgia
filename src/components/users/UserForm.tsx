@@ -167,7 +167,7 @@ export default function UserForm({
   return (
     <div className="animate-in fade-in duration-200 max-w-2xl text-left" id="users-form-panel">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Profile Information</span>
+        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block pb-2">Profile Information</span>
         
         <FormInput
           label="Full Name *"
@@ -359,7 +359,7 @@ export default function UserForm({
                         className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${
                           perms.delete
                             ? 'border-emerald-600 bg-emerald-600 text-white'
-                            : 'border-gray-205 bg-white hover:border-gray-300'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
                         }`}
                       >
                         {perms.delete && <Check size={11} strokeWidth={3.5} />}

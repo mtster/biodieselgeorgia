@@ -71,7 +71,7 @@ export default function WarehousesSettingView({
       <PageHeader title="Warehouses" />
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 w-full">
         {warehouses.map((warehouse) => (
           <button
             key={warehouse.id}
@@ -116,10 +116,10 @@ export default function WarehousesSettingView({
       {/* Main editor Popup Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border overflow-hidden p-6 relative flex flex-col">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-slate-200 overflow-hidden p-6 relative flex flex-col">
             
             {/* Header */}
-            <div className="flex items-center justify-between border-b pb-3 mb-4 shrink-0">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4 shrink-0">
               <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">
                 {selectedWarehouse ? 'Warehouse Specifications' : 'Add Warehouse'}
               </h3>
@@ -143,7 +143,7 @@ export default function WarehousesSettingView({
             </div>
 
             {/* Footer buttons row */}
-            <div className="border-t pt-4 mt-4 flex items-center justify-between shrink-0 select-none">
+            <div className="border-t border-slate-200 pt-4 mt-4 flex items-center justify-between shrink-0 select-none">
               {selectedWarehouse ? (
                 <button
                   type="button"
