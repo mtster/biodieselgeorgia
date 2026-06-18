@@ -205,7 +205,7 @@ export default function VehiclesSettingView({
                 fontClass="font-mono"
                 value={tPlate}
                 onChange={(e) => setTPlate(formatLicensePlate(e.target.value))}
-                disabled={!!selectedTruck}
+                disabled={false}
                 placeholder="e.g. AA-123-BB"
                 className="disabled:bg-slate-50 disabled:text-gray-500"
               />

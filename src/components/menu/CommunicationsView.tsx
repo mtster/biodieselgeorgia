@@ -312,12 +312,13 @@ export default function CommunicationsView({
 
   const uniqueUsers = Array.from(
     new Map(
-      communications.map(c => {
-        const id = c.user_id || '';
-        const resolved = employees.find(e => e.id === id);
-        const name = resolved ? resolved.name : (c.user_name || '');
-        return [id || name, { id: id || name, name }];
-      })
+      communications
+        .filter(c => c.user_id)
+        .map(c => {
+          const id = c.user_id || '';
+          const employee = employees.find(e => e.id === id);
+          return [id, { id, name: employee ? employee.name : (c.user_name || 'Unknown') }];
+        })
     ).values()
   ).filter(u => u.name);
 

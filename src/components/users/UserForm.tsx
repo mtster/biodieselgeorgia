@@ -52,35 +52,60 @@ export default function UserForm({
     if (editingUser && !editingUser.edit_permissions) {
       const defaultEditPerms: Record<string, { add: boolean, edit: boolean, delete: boolean }> = {};
       editPermissionPages.forEach(p => {
-        defaultEditPerms[p.id] = { add: true, edit: true, delete: true };
+        defaultEditPerms[p.id] = { add: false, edit: false, delete: false };
       });
       setEditingUser({
         ...editingUser,
         edit_permissions: defaultEditPerms
       });
     }
-  }, [editingUser, setEditingUser]);
+  }, [editingUser, setEditingUser, isNew]);
 
   useImperativeHandle(formRef, () => ({
     save: handleSaveAll,
     fillDummy: fillDummyUser
   }));
 
+  const privilegeToPageMap: Record<string, string> = {
+    'Suppliers': 'suppliers',
+    'Communications': 'communications',
+    'Orders': 'orders',
+    'Users': 'users',
+    'Cities': 'cities',
+    'Vehicles': 'vehicles',
+    'Warehouses': 'warehouses'
+  };
+
   const togglePrivilege = (priv: string) => {
     if (!editingUser) return;
     const isChecked = editingUser.privileges.includes(priv);
-    let updated: string[];
+    let updatedPrivs: string[];
 
     if (isChecked) {
-      updated = editingUser.privileges.filter(p => p !== priv);
+      updatedPrivs = editingUser.privileges.filter(p => p !== priv);
     } else {
-      updated = [...editingUser.privileges, priv];
+      updatedPrivs = [...editingUser.privileges, priv];
     }
 
-    setEditingUser({
+    const updated = {
       ...editingUser,
-      privileges: updated
-    });
+      privileges: updatedPrivs
+    };
+
+    // Sync to edit permissions
+    const pageId = privilegeToPageMap[priv];
+    if (pageId) {
+      const currentPerms = updated.edit_permissions || {};
+      const newPerms = { ...currentPerms };
+      newPerms[pageId] = { 
+        add: !isChecked, 
+        edit: !isChecked, 
+        delete: !isChecked 
+      };
+      updated.edit_permissions = newPerms;
+    }
+
+    setEditingUser(updated);
   };
 
   const toggleEditPermission = (pageId: string, type: 'add' | 'edit' | 'delete') => {
@@ -89,10 +114,24 @@ export default function UserForm({
     const pagePerms = currentPerms[pageId] || { add: false, edit: false, delete: false };
     const updatedPage = { ...pagePerms, [type]: !pagePerms[type] };
     const updatedAll = { ...currentPerms, [pageId]: updatedPage };
-    setEditingUser({
+    
+    let updated = {
       ...editingUser,
       edit_permissions: updatedAll
-    });
+    };
+    
+    // Sync to menu privileges
+    const privName = Object.keys(privilegeToPageMap).find(key => privilegeToPageMap[key] === pageId);
+    if (privName) {
+      const isAnyChecked = updatedPage.add || updatedPage.edit || updatedPage.delete;
+      if (isAnyChecked && !updated.privileges.includes(privName)) {
+        updated.privileges = [...updated.privileges, privName];
+      } else if (!isAnyChecked && updated.privileges.includes(privName)) {
+        updated.privileges = updated.privileges.filter(p => p !== privName);
+      }
+    }
+
+    setEditingUser(updated);
   };
 
   const handleSaveAll = () => {
