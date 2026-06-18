@@ -121,7 +121,7 @@ export default function VehiclesSettingView({
       <PageHeader title="Vehicles" />
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 max-w-6xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
         {activeTrucks.map((truck) => {
           const assignedDriver = employees.find(e => e.id === truck.driver_id)?.name || 'None';
           const assignedCompanion = employees.find(e => e.id === truck.companion_id)?.name || 'None';

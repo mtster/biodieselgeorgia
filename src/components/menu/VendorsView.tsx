@@ -15,6 +15,22 @@ import VendorsList from '../vendors/VendorsList';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
+
+const defaultSuppliersColumns: ManagedColumn[] = [
+  { id: 'trade_name', label: 'Trade Name', visible: true },
+  { id: 'id_code', label: 'Taxation ID', visible: true },
+  { id: 'status', label: 'Status', visible: true },
+  { id: 'price_per_liter', label: 'Rate (₾)', visible: true },
+  { id: 'working_hours', label: 'Working Hours', visible: true },
+  { id: 'location', label: 'Location', visible: true },
+  { id: 'company_code', label: 'Assigned Code', visible: true },
+  { id: 'primary_contact', label: 'Primary Contact', visible: true },
+  { id: 'additional_contacts', label: 'Additional Contacts', visible: true },
+  { id: 'manager', label: 'Acquisition Mgr', visible: true },
+  { id: 'dispatcher', label: 'System Dispatcher', visible: true },
+  { id: 'comments', label: 'Memos / Internal Notes', visible: true }
+];
 
 interface Props {
   vendors: Vendor[];
@@ -50,6 +66,18 @@ export default function VendorsView({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // Columns Manager State
+  const [isColModalOpen, setIsColModalOpen] = useState(false);
+  const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
+    const loaded = localStorage.getItem('suppliers_columns_managed');
+    return loaded ? JSON.parse(loaded) : defaultSuppliersColumns;
+  });
+
+  const handleSaveColumns = (updated: ManagedColumn[]) => {
+    setManagedCols(updated);
+    localStorage.setItem('suppliers_columns_managed', JSON.stringify(updated));
+  };
 
   // Delete confirmation modal states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -220,6 +248,8 @@ export default function VendorsView({
                   setIsImporting(true);
                 } else if (val === 'delete' && selectedVendors.length > 0) {
                   setShowBulkDeleteConfirm(true);
+                } else if (val === 'col_manager') {
+                  setIsColModalOpen(true);
                 }
                 e.target.value = ''; // Reset select trigger
               }}
@@ -230,6 +260,7 @@ export default function VendorsView({
               <option value="delete" disabled={selectedVendors.length === 0}>
                 Delete {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
               </option>
+              <option value="col_manager">Columns Manager</option>
             </select>
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
               ▼
@@ -316,9 +347,19 @@ export default function VendorsView({
             askDelete={askDelete}
             selectedVendors={selectedVendors}
             setSelectedVendors={setSelectedVendors} 
+            managedCols={managedCols}
           />
         </div>
       )}
+
+      <ColumnsManagerModal
+        isOpen={isColModalOpen}
+        onClose={() => setIsColModalOpen(false)}
+        columns={managedCols}
+        onSave={handleSaveColumns}
+        storageKey="suppliers_columns_managed"
+        defaultColumns={defaultSuppliersColumns}
+      />
 
       {/* EXCEL BULK IMPORT MODAL */}
       <VendorImportModal

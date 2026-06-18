@@ -188,16 +188,31 @@ export default function VendorFormFields({
         </FormSelect>
       </div>
 
-      <FormInput
-        label="Exact Address (Details, Floor, Entry) *"
-        type="text"
-        value={editingVendor.address}
-        onChange={(e) => {
-          setEditingVendor(prev => prev ? { ...prev, address: e.target.value } : null);
-          if (fieldErrors.address) setFieldErrors(prev => ({ ...prev, address: '' }));
-        }}
-        error={fieldErrors.address}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormInput
+          label="Exact Address (Details, Floor, Entry) *"
+          type="text"
+          value={editingVendor.address}
+          onChange={(e) => {
+            setEditingVendor(prev => prev ? { ...prev, address: e.target.value } : null);
+            if (fieldErrors.address) setFieldErrors(prev => ({ ...prev, address: '' }));
+          }}
+          error={fieldErrors.address}
+        />
+
+        <FormSelect
+          label="Supplier / Vendor Status *"
+          value={editingVendor.status || 'Active'}
+          onChange={(e) => {
+            const val = e.target.value as any;
+            setEditingVendor(prev => prev ? { ...prev, status: val } : null);
+          }}
+        >
+          <option value="Active">Active</option>
+          <option value="Under Negotiation">Under Negotiation</option>
+          <option value="Cancelled">Cancelled</option>
+        </FormSelect>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormSelect

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useImperativeHandle } from 'react';
 import { User, UserRole } from '../../types';
 import { formatPhone } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
+import { Check } from 'lucide-react';
 
 interface Props {
   editingUser: User;
@@ -14,12 +15,26 @@ interface Props {
 }
 
 export const availablePrivileges = [
-  'All', 
-  'User Management', 
-  'Orders', 
-  'Assigned Tasks Only', 
-  'Analytics',
-  'Reports'
+  'Dashboard',
+  'Suppliers',
+  'Communications',
+  'Orders',
+  'Reports',
+  'Users',
+  'Cities',
+  'Vehicles',
+  'Warehouses',
+  'Changes History'
+];
+
+const editPermissionPages = [
+  { id: 'suppliers', label: 'Suppliers' },
+  { id: 'communications', label: 'Communications' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'cities', label: 'Cities' },
+  { id: 'vehicles', label: 'Vehicles' },
+  { id: 'warehouses', label: 'Warehouses' },
+  { id: 'users', label: 'Users' }
 ];
 
 export default function UserForm({
@@ -33,6 +48,19 @@ export default function UserForm({
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    if (editingUser && !editingUser.edit_permissions) {
+      const defaultEditPerms: Record<string, { add: boolean, edit: boolean, delete: boolean }> = {};
+      editPermissionPages.forEach(p => {
+        defaultEditPerms[p.id] = { add: true, edit: true, delete: true };
+      });
+      setEditingUser({
+        ...editingUser,
+        edit_permissions: defaultEditPerms
+      });
+    }
+  }, [editingUser, setEditingUser]);
+
   useImperativeHandle(formRef, () => ({
     save: handleSaveAll,
     fillDummy: fillDummyUser
@@ -40,33 +68,30 @@ export default function UserForm({
 
   const togglePrivilege = (priv: string) => {
     if (!editingUser) return;
-    const hasAll = editingUser.privileges.includes('All');
-    const isChecked = priv === 'All' ? hasAll : (hasAll || editingUser.privileges.includes(priv));
+    const isChecked = editingUser.privileges.includes(priv);
     let updated: string[];
 
-    if (priv === 'All') {
-      if (hasAll) {
-        updated = [];
-      } else {
-        updated = [...availablePrivileges];
-      }
+    if (isChecked) {
+      updated = editingUser.privileges.filter(p => p !== priv);
     } else {
-      if (isChecked) {
-        updated = editingUser.privileges.filter(p => p !== priv && p !== 'All');
-      } else {
-        const temp = [...editingUser.privileges.filter(p => p !== 'All'), priv];
-        const hasAllOthers = availablePrivileges.filter(p => p !== 'All').every(p => temp.includes(p));
-        if (hasAllOthers) {
-          updated = [...availablePrivileges];
-        } else {
-          updated = temp;
-        }
-      }
+      updated = [...editingUser.privileges, priv];
     }
 
     setEditingUser({
       ...editingUser,
       privileges: updated
+    });
+  };
+
+  const toggleEditPermission = (pageId: string, type: 'add' | 'edit' | 'delete') => {
+    if (!editingUser) return;
+    const currentPerms = editingUser.edit_permissions || {};
+    const pagePerms = currentPerms[pageId] || { add: false, edit: false, delete: false };
+    const updatedPage = { ...pagePerms, [type]: !pagePerms[type] };
+    const updatedAll = { ...currentPerms, [pageId]: updatedPage };
+    setEditingUser({
+      ...editingUser,
+      edit_permissions: updatedAll
     });
   };
 
@@ -109,13 +134,13 @@ export default function UserForm({
     let finalPrivileges = editingUser.privileges;
     if (finalPrivileges.length === 0) {
       if (editingUser.role === 'admin') {
-        finalPrivileges = ['All', 'User Management', 'Orders', 'Reports', 'Analytics'];
+        finalPrivileges = ['Dashboard', 'Suppliers', 'Communications', 'Orders', 'Reports', 'Users', 'Cities', 'Vehicles', 'Changes History'];
       } else if (editingUser.role === 'manager') {
-        finalPrivileges = ['User Management', 'Orders', 'Reports', 'Analytics'];
+        finalPrivileges = ['Dashboard', 'Suppliers', 'Communications', 'Orders', 'Reports', 'Cities', 'Vehicles'];
       } else if (editingUser.role === 'driver') {
-        finalPrivileges = ['Assigned Tasks Only'];
+        finalPrivileges = ['Dashboard', 'Orders'];
       } else if (editingUser.role === 'vendor') {
-        finalPrivileges = ['Assigned Tasks Only'];
+        finalPrivileges = ['Dashboard', 'Orders'];
       }
     }
 
@@ -129,7 +154,7 @@ export default function UserForm({
     if (!editingUser) return;
     setEditingUser({
         ...editingUser,
-        name: 'Dummy User ' + Math.floor(Math.random() * 1000),
+        name: 'Dummy User ' + Math.floor(Math.random() * 1055),
         personal_id: Array.from({ length: 11 }, () => Math.floor(Math.random() * 10)).join(''),
         email: `dummy${Math.floor(Math.random() * 1000)}@example.com`,
         password: 'password123',
@@ -221,9 +246,9 @@ export default function UserForm({
             let autoPrivileges = editingUser.privileges || [];
             
             if (role === 'admin') autoPrivileges = [...availablePrivileges];
-            else if (role === 'manager') autoPrivileges = ['Orders', 'User Management', 'Reports', 'Analytics'];
-            else if (role === 'driver') autoPrivileges = ['Assigned Tasks Only'];
-            else if (role === 'vendor') autoPrivileges = ['Assigned Tasks Only'];
+            else if (role === 'manager') autoPrivileges = ['Dashboard', 'Suppliers', 'Communications', 'Orders', 'Reports', 'Cities', 'Vehicles', 'Warehouses'];
+            else if (role === 'driver') autoPrivileges = ['Dashboard', 'Orders'];
+            else if (role === 'vendor') autoPrivileges = ['Dashboard', 'Orders'];
 
             setEditingUser({
               ...editingUser, 
@@ -241,19 +266,17 @@ export default function UserForm({
           <option value="vendor">Supplier (Vendor)</option>
         </FormSelect>
 
-        {/* Privileges card with beautiful iOS slider toggles using green color */}
+        {/* Menu Permissions card with beautiful iOS slider toggles */}
         <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4">
           <div>
-            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wide">Operation Privileges</h4>
-            <p className="text-[10px] text-gray-405 mt-0.5 leading-tight font-sans">Toggle permission states. Toggle "All" to select every core standard functionality.</p>
+            <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest font-sans">Menu Permissions</h4>
           </div>
           
-          <div className="space-y-3 select-none">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 select-none">
             {availablePrivileges.map((privilege) => {
-              const hasAll = editingUser.privileges.includes('All');
-              const isChecked = privilege === 'All' ? hasAll : (hasAll || editingUser.privileges.includes(privilege));
+              const isChecked = editingUser.privileges.includes(privilege);
               return (
-                <div key={privilege} className="flex items-center justify-between py-1 border-b border-gray-200/50 last:border-0">
+                <div key={privilege} className="flex items-center justify-between py-1 border-b border-gray-100 sm:odd:pr-2">
                   <span className="text-xs font-bold text-slate-700 font-sans">{privilege}</span>
                   
                   <button
@@ -274,6 +297,81 @@ export default function UserForm({
             })}
           </div>
         </div>
+
+        {/* Edit Permissions Card */}
+        <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4">
+          <div>
+            <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest font-sans">Edit Permissions</h4>
+          </div>
+
+          <div className="border border-gray-100 rounded-xl overflow-hidden bg-white select-none shadow-xs">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 border-b border-gray-100 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+              <div className="col-span-6 text-left">Modules / Pages</div>
+              <div className="col-span-2 text-center">Add</div>
+              <div className="col-span-2 text-center">Edit</div>
+              <div className="col-span-2 text-center">Delete</div>
+            </div>
+
+            {/* Rows */}
+            <div className="divide-y divide-gray-100">
+              {editPermissionPages.map((page) => {
+                const perms = (editingUser.edit_permissions || {})[page.id] || { add: false, edit: false, delete: false };
+                return (
+                  <div key={page.id} className="grid grid-cols-12 px-4 py-2.5 items-center">
+                    <span className="col-span-6 text-xs font-bold text-gray-700 font-sans">{page.label}</span>
+                    
+                    {/* Add Checkbox */}
+                    <div className="col-span-2 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleEditPermission(page.id, 'add')}
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${
+                          perms.add
+                            ? 'border-emerald-600 bg-emerald-600 text-white'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        {perms.add && <Check size={11} strokeWidth={3.5} />}
+                      </button>
+                    </div>
+
+                    {/* Edit Checkbox */}
+                    <div className="col-span-2 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleEditPermission(page.id, 'edit')}
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${
+                          perms.edit
+                            ? 'border-emerald-600 bg-emerald-600 text-white'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        {perms.edit && <Check size={11} strokeWidth={3.5} />}
+                      </button>
+                    </div>
+
+                    {/* Delete Checkbox */}
+                    <div className="col-span-2 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleEditPermission(page.id, 'delete')}
+                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${
+                          perms.delete
+                            ? 'border-emerald-600 bg-emerald-600 text-white'
+                            : 'border-gray-205 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        {perms.delete && <Check size={11} strokeWidth={3.5} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

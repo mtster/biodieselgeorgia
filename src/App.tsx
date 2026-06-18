@@ -33,6 +33,7 @@ import UsersView from './components/menu/UsersView';
 import ReportsView from './components/menu/ReportsView';
 import CitiesSettingView from './components/settings/CitiesSettingView';
 import VehiclesSettingView from './components/settings/VehiclesSettingView';
+import WarehousesSettingView from './components/settings/WarehousesSettingView';
 import HistoryView from './components/menu/HistoryView';
 import MobileLogisticsView from './components/menu/MobileLogisticsView';
 import Sidebar from './components/menu/Sidebar';
@@ -322,6 +323,16 @@ export default function App() {
     await refreshAllData();
   };
 
+  const handleSaveWarehouse = async (wh: Warehouse) => {
+    await saveWarehouse(wh, currentUser?.name || 'System');
+    await refreshAllData();
+  };
+
+  const handleDeleteWarehouse = async (id: string, name: string) => {
+    await deleteWarehouse(id, name, currentUser?.name || 'System');
+    await refreshAllData();
+  };
+
   const handleRevertChange = async (log: ChangeHistory): Promise<boolean> => {
     try {
       const success = await revertChange(log, currentUser?.name || 'System');
@@ -525,6 +536,15 @@ export default function App() {
                 cities={cities}
                 onSaveTruck={handleSaveTruck}
                 onDeleteTruck={handleDeleteTruck}
+                onBack={() => setActiveTab('dashboard')}
+              />
+            )}
+
+            {activeTab === 'warehouses' && (
+              <WarehousesSettingView 
+                warehouses={warehouses}
+                onSaveWarehouse={handleSaveWarehouse}
+                onDeleteWarehouse={handleDeleteWarehouse}
                 onBack={() => setActiveTab('dashboard')}
               />
             )}

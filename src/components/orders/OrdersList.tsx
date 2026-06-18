@@ -2,6 +2,7 @@ import React from 'react';
 import { Order, Vendor, User } from '../../types';
 import { Edit2, Trash2, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
+import { ManagedColumn } from '../ColumnsManagerModal';
 
 interface Props {
   filteredOrders: Order[];
@@ -11,6 +12,7 @@ interface Props {
   askDelete: (id: string, docNum: string) => void;
   selectedOrders?: string[];
   setSelectedOrders?: React.Dispatch<React.SetStateAction<string[]>>;
+  managedCols: ManagedColumn[];
 }
 
 export default function OrdersList({
@@ -20,7 +22,8 @@ export default function OrdersList({
   startEdit,
   askDelete,
   selectedOrders = [],
-  setSelectedOrders
+  setSelectedOrders,
+  managedCols = []
 }: Props) {
 
   const handleRowClick = (ord: Order) => {
@@ -36,31 +39,8 @@ export default function OrdersList({
     }
   };
 
-  const columns: ColumnConfig<Order>[] = [
-    {
-      header: 'Sel',
-      key: 'select',
-      className: 'w-12 text-center',
-      render: (ord) => {
-        const isChecked = selectedOrders.includes(ord.id);
-        return (
-          <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => toggleSelect(ord.id)}
-              className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
-                isChecked
-                  ? 'border-emerald-600 bg-emerald-600 text-white'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
-            >
-              {isChecked && <Check size={11} strokeWidth={3.5} />}
-            </button>
-          </div>
-        );
-      }
-    },
-    {
+  const columnMap: Record<string, ColumnConfig<Order>> = {
+    order_date: {
       header: 'Date',
       key: 'order_date',
       render: (ord) => new Date(ord.order_date).toLocaleDateString('en-US', {
@@ -69,12 +49,12 @@ export default function OrdersList({
         day: '2-digit'
       })
     },
-    {
+    doc_number: {
       header: 'Doc Num',
       key: 'doc_number',
       render: (ord) => ord.doc_number
     },
-    {
+    vendor_id: {
       header: 'Supplier',
       key: 'supplier',
       render: (ord) => {
@@ -82,12 +62,12 @@ export default function OrdersList({
         return supplierObj ? supplierObj.trade_name : (ord.vendor_name || 'Dispatched supplier');
       }
     },
-    {
+    warehouse_id: {
       header: 'Warehouse',
       key: 'warehouse_name',
       render: (ord) => ord.warehouse_name || 'Unassigned Warehouse'
     },
-    {
+    status: {
       header: 'Status',
       key: 'status',
       render: (ord) => {
@@ -95,12 +75,12 @@ export default function OrdersList({
         return s.charAt(0).toUpperCase() + s.slice(1);
       }
     },
-    {
+    pickup_date_time: {
       header: 'Dispatch Date',
       key: 'pickup_date_time',
       render: (ord) => ord.pickup_date_time ? new Date(ord.pickup_date_time).toLocaleString('en-US') : '-'
     },
-    {
+    planned: {
       header: 'Planned',
       key: 'planned',
       render: (ord) => {
@@ -109,7 +89,7 @@ export default function OrdersList({
         return `${requested}${actual}`;
       }
     },
-    {
+    tanks_to_leave: {
       header: 'Dropoff',
       key: 'tanks_to_leave',
       render: (ord) => {
@@ -118,7 +98,7 @@ export default function OrdersList({
         return `${requested}${actual}`;
       }
     },
-    {
+    tanks_to_bring: {
       header: 'Pickup',
       key: 'tanks_to_bring',
       render: (ord) => {
@@ -127,35 +107,79 @@ export default function OrdersList({
         return `${requested}${actual}`;
       }
     },
-    {
+    note: {
       header: 'Comment',
       key: 'comment',
       render: (ord) => ord.note || '-'
-    },
-    {
-      header: 'Actions',
-      key: 'actions',
-      className: 'text-right',
-      render: (ord) => (
-        <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1 select-none">
-          <button 
-            onClick={() => startEdit(ord, false)}
-            className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-            title="Modify details"
+    }
+  };
+
+  const columns: ColumnConfig<Order>[] = [];
+
+  // Prepend select checkbox column
+  columns.push({
+    header: 'Sel',
+    key: 'select',
+    className: 'w-12 text-center',
+    render: (ord) => {
+      const isChecked = selectedOrders.includes(ord.id);
+      return (
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => toggleSelect(ord.id)}
+            className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
+              isChecked
+                ? 'border-emerald-600 bg-emerald-600 text-white'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
           >
-            <Edit2 size={13} />
-          </button>
-          <button 
-            onClick={() => askDelete(ord.id, ord.doc_number)}
-            className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-            title="Delete coordinate"
-          >
-            <Trash2 size={13} />
+            {isChecked && <Check size={11} strokeWidth={3.5} />}
           </button>
         </div>
-      )
+      );
     }
-  ];
+  });
+
+  // Map dynamic visible columns
+  managedCols.forEach((col) => {
+    if (col.visible) {
+      if (columnMap[col.id]) {
+        columns.push(columnMap[col.id]);
+      } else {
+        columns.push({
+          header: col.label,
+          key: col.id,
+          render: (item: any) => item[col.id] ?? '-'
+        });
+      }
+    }
+  });
+
+  // Append action button column at the end
+  columns.push({
+    header: 'Actions',
+    key: 'actions',
+    className: 'text-right',
+    render: (ord) => (
+      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1 select-none">
+        <button 
+          onClick={() => startEdit(ord, false)}
+          className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+          title="Modify details"
+        >
+          <Edit2 size={13} />
+        </button>
+        <button 
+          onClick={() => askDelete(ord.id, ord.doc_number)}
+          className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+          title="Delete coordinate"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    )
+  });
 
   const rowClassName = (ord: Order) => {
     const isChecked = selectedOrders.includes(ord.id);

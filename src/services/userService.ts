@@ -168,21 +168,24 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           console.warn('Edge Function invoke error, trying direct profiles update:', edgeErr);
         }
 
-        if (!updatedOnEdge) {
-          const { error } = await supabase
-            .from('profiles')
-            .update({
-              name: user.name,
-              personal_id: user.personal_id,
-              phone: user.phone,
-              role: user.role,
-              privileges: user.privileges
-            })
-            .eq('id', user.id);
+        // Always perform direct update in profiles table to preserve privileges and granular edit_permissions mapping
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            name: user.name,
+            personal_id: user.personal_id,
+            phone: user.phone,
+            role: user.role,
+            privileges: user.privileges,
+            edit_permissions: user.edit_permissions
+          })
+          .eq('id', user.id);
 
-          if (error) throw error;
-          finalUser = { ...user } as User;
+        if (profileError) {
+          console.warn('Direct profile sync updating failed', profileError);
+          if (!updatedOnEdge) throw profileError;
         }
+        finalUser = { ...user } as User;
       }
     } catch (e: any) {
       console.error('Supabase saveUser failed', e);

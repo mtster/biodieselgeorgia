@@ -12,6 +12,20 @@ import OrdersList from '../orders/OrdersList';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
+
+const defaultOrdersColumns: ManagedColumn[] = [
+  { id: 'order_date', label: 'Date', visible: true },
+  { id: 'doc_number', label: 'Doc Num', visible: true },
+  { id: 'vendor_id', label: 'Supplier', visible: true },
+  { id: 'warehouse_id', label: 'Warehouse', visible: true },
+  { id: 'status', label: 'Status', visible: true },
+  { id: 'pickup_date_time', label: 'Dispatch Date', visible: true },
+  { id: 'planned', label: 'Planned Qty', visible: true },
+  { id: 'tanks_to_leave', label: 'Dropoff Tanks', visible: true },
+  { id: 'tanks_to_bring', label: 'Pickup Tanks', visible: true },
+  { id: 'note', label: 'Comment', visible: true }
+];
 
 interface Props {
   orders: Order[];
@@ -42,6 +56,18 @@ export default function OrdersView({
   // Bulk-delete selection states
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // Columns Manager State
+  const [isColModalOpen, setIsColModalOpen] = useState(false);
+  const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
+    const loaded = localStorage.getItem('orders_columns_managed');
+    return loaded ? JSON.parse(loaded) : defaultOrdersColumns;
+  });
+
+  const handleSaveColumns = (updated: ManagedColumn[]) => {
+    setManagedCols(updated);
+    localStorage.setItem('orders_columns_managed', JSON.stringify(updated));
+  };
 
   // Delete confirmation modal states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -190,6 +216,8 @@ export default function OrdersView({
                   setShowSMSLogs(true);
                 } else if (val === 'delete' && selectedOrders.length > 0) {
                   setShowBulkDeleteConfirm(true);
+                } else if (val === 'col_manager') {
+                  setIsColModalOpen(true);
                 }
                 e.target.value = ''; // Reset select trigger
               }}
@@ -200,6 +228,7 @@ export default function OrdersView({
               <option value="delete" disabled={selectedOrders.length === 0}>
                 Delete {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
               </option>
+              <option value="col_manager">Columns Manager</option>
             </select>
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
               ▼
@@ -246,25 +275,31 @@ export default function OrdersView({
       ) : (
         <div className="space-y-6 text-left">
           {/* SEARCH & FILTERS CONTROLS */}
-          <div className="bg-white p-4 border border-gray-100 rounded-2xl shadow-xs flex flex-col md:flex-row gap-4 items-center">
-            {/* Period Filter */}
-            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full md:w-auto">
-              <span className="text-[11px] font-mono uppercase text-gray-400 select-none">Period:</span>
-              <div className="flex items-center gap-1.5 w-full sm:w-auto">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-gray-55 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
-                />
-                <span className="text-gray-300 text-xs">-</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-gray-55 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
-                />
-              </div>
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+            {/* Start Date */}
+            <div className="relative w-full md:w-auto min-w-[140px]">
+              <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+                Start Date
+              </span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+              />
+            </div>
+
+            {/* End Date */}
+            <div className="relative w-full md:w-auto min-w-[140px]">
+              <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+                End Date
+              </span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+              />
             </div>
 
             {/* Text Search & Status Filter */}
@@ -298,9 +333,19 @@ export default function OrdersView({
             askDelete={askDelete}
             selectedOrders={selectedOrders}
             setSelectedOrders={setSelectedOrders} 
+            managedCols={managedCols}
           />
         </div>
       )}
+
+      <ColumnsManagerModal
+        isOpen={isColModalOpen}
+        onClose={() => setIsColModalOpen(false)}
+        columns={managedCols}
+        onSave={handleSaveColumns}
+        storageKey="orders_columns_managed"
+        defaultColumns={defaultOrdersColumns}
+      />
 
       {/* SMS DISPATCH LOG LOGGER POPUP */}
       <SMSLogsModal

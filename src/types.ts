@@ -5,6 +5,14 @@
 
 export type UserRole = 'admin' | 'manager' | 'driver' | 'vendor';
 
+export interface EditPermissions {
+  [page: string]: {
+    add: boolean;
+    edit: boolean;
+    delete: boolean;
+  };
+}
+
 export interface User {
   id: string;
   name: string;
@@ -14,6 +22,7 @@ export interface User {
   phone: string;
   role: UserRole;
   privileges: string[]; // ოპერაციების პრივილეგიები
+  edit_permissions?: EditPermissions;
   is_deleted?: boolean;
   created_at?: string;
 }
@@ -51,6 +60,7 @@ export interface Vendor {
   contacts: VendorContact[];  // კონტაქტები
   comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
+  status?: 'Active' | 'Under Negotiation' | 'Cancelled';
   is_deleted?: boolean;
   created_at: string;
   last_pickup_date?: string;

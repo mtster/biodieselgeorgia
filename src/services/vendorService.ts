@@ -60,6 +60,7 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
         manager_id: isValidUuid(finalVendor.manager_id) ? finalVendor.manager_id : null,
         operator_id: isValidUuid(finalVendor.operator_id) ? finalVendor.operator_id : null,
         working_hours: finalVendor.working_hours || '',
+        status: finalVendor.status || 'Active',
         contacts: Array.isArray(finalVendor.contacts) ? finalVendor.contacts : [],
         comments: Array.isArray(finalVendor.comments) ? finalVendor.comments : [],
         is_deleted: !!finalVendor.is_deleted,

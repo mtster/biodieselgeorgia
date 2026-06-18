@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 import { Communication, Vendor, User } from '../../types';
-import { Plus, Trash2, X, Calendar } from 'lucide-react';
+import { Plus, Trash2, X, Calendar, Check, Edit3 } from 'lucide-react';
 import { LANG } from '../../utils/lang';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import { StandardTable, ColumnConfig } from '../StandardTable';
+import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
+
+const defaultCommunicationsColumns: ManagedColumn[] = [
+  { id: 'date_time', label: 'Date & Time', visible: true },
+  { id: 'type', label: 'Type', visible: true },
+  { id: 'vendor_name', label: 'Supplier / Subject', visible: true },
+  { id: 'user_name', label: 'Operator / User', visible: true },
+  { id: 'comment', label: 'Interaction Comment', visible: true },
+  { id: 'reminder_time', label: 'Reminder Time', visible: true }
+];
 
 // Integrated Premium iOS-Style Wheel/Grid DateTime Selector
 function IosDateTimePicker({ 
@@ -203,10 +213,30 @@ export default function CommunicationsView({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
+  // Selection and Bulk Actions State
+  const [selectedComms, setSelectedComms] = useState<string[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
   // States
   const [editingComm, setEditingComm] = useState<Communication | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Auto-complete suppliers state in communications form modal
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+
+  // Columns Manager State
+  const [isColModalOpen, setIsColModalOpen] = useState(false);
+  const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
+    const loaded = localStorage.getItem('communications_columns_managed');
+    return loaded ? JSON.parse(loaded) : defaultCommunicationsColumns;
+  });
+
+  const handleSaveColumns = (updated: ManagedColumn[]) => {
+    setManagedCols(updated);
+    localStorage.setItem('communications_columns_managed', JSON.stringify(updated));
+  };
 
   const startNew = () => {
     const defaultComm: Communication = {
@@ -221,6 +251,23 @@ export default function CommunicationsView({
     };
     setEditingComm(defaultComm);
     setIsNew(true);
+    const suppObj = suppliers.find(s => s.id === defaultComm.vendor_id);
+    setVendorSearch(suppObj ? suppObj.trade_name : '');
+  };
+
+  const startEdit = (comm: Communication) => {
+    setEditingComm({ ...comm });
+    setIsNew(false);
+    const suppObj = suppliers.find(s => s.id === comm.vendor_id);
+    setVendorSearch(suppObj ? suppObj.trade_name : '');
+  };
+
+  const handleBulkDeleteExecute = () => {
+    selectedComms.forEach(id => {
+      onDelete(id);
+    });
+    setSelectedComms([]);
+    setShowBulkDeleteConfirm(false);
   };
 
   const handleSaveAll = () => {
@@ -271,18 +318,18 @@ export default function CommunicationsView({
     return true;
   });
 
-  const columns: ColumnConfig<Communication>[] = [
-    {
+  const columnMap: Record<string, ColumnConfig<Communication>> = {
+    date_time: {
       header: 'Date & Time',
       key: 'date_time',
       render: (comm) => new Date(comm.date_time).toLocaleString('en-US')
     },
-    {
+    type: {
       header: 'Type',
       key: 'type',
       render: (comm) => comm.type === 'action' ? 'Action' : 'Reminder'
     },
-    {
+    vendor_name: {
       header: 'Supplier / Subject',
       key: 'vendor_name',
       render: (comm) => {
@@ -290,77 +337,213 @@ export default function CommunicationsView({
         return suppObj ? suppObj.trade_name : (comm.vendor_name || 'Supplier');
       }
     },
-    {
+    user_name: {
       header: 'Operator / User',
       key: 'user_name',
       render: (comm) => comm.user_name || 'Manager'
     },
-    {
+    comment: {
       header: 'Interaction Comment',
       key: 'comment',
       render: (comm) => comm.comment
     },
-    {
+    reminder_time: {
       header: 'Reminder Time',
       key: 'reminder_time',
       render: (comm) => comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('en-US') : '-'
-    },
-    {
-      header: 'Actions',
-      key: 'actions',
-      className: 'text-right',
-      render: (comm) => (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-end select-none">
-          <button 
-            onClick={() => setDeleteConfirmId(comm.id)}
-            className="text-gray-400 hover:text-red-650 p-1 bg-gray-50 hover:bg-slate-100 rounded cursor-pointer transition"
-            title="Delete"
+    }
+  };
+
+  const columns: ColumnConfig<Communication>[] = [];
+
+  // Prepend select checkboxes column
+  columns.push({
+    header: 'Sel',
+    key: 'select',
+    className: 'w-12 text-center',
+    render: (comm) => {
+      const isChecked = selectedComms.includes(comm.id);
+      return (
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedComms.includes(comm.id)) {
+                setSelectedComms(selectedComms.filter(id => id !== comm.id));
+              } else {
+                setSelectedComms([...selectedComms, comm.id]);
+              }
+            }}
+            className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
+              isChecked
+                ? 'border-emerald-600 bg-emerald-600 text-white'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
           >
-            <Trash2 size={13} />
+            {isChecked && <Check size={11} strokeWidth={3.5} />}
           </button>
         </div>
-      )
+      );
     }
-  ];
+  });
+
+  // Map configured visible columns
+  managedCols.forEach((col) => {
+    if (col.visible) {
+      if (columnMap[col.id]) {
+        columns.push(columnMap[col.id]);
+      } else {
+        columns.push({
+          header: col.label,
+          key: col.id,
+          render: (item: any) => item[col.id] ?? '-'
+        });
+      }
+    }
+  });
+
+  // Append action button column at the end
+  columns.push({
+    header: 'Actions',
+    key: 'actions',
+    className: 'text-right',
+    render: (comm) => (
+      <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1 select-none">
+        <button 
+          onClick={() => startEdit(comm)}
+          className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+          title="Edit"
+        >
+          <Edit3 size={13} />
+        </button>
+        <button 
+          onClick={() => setDeleteConfirmId(comm.id)}
+          className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+          title="Delete"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    )
+  });
+
+  const headerActions = (
+    <>
+      <div className="relative">
+        <select
+          value=""
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === 'delete' && selectedComms.length > 0) {
+              setShowBulkDeleteConfirm(true);
+            } else if (val === 'col_manager') {
+              setIsColModalOpen(true);
+            }
+            e.target.value = ''; // Reset select trigger
+          }}
+          className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
+        >
+          <option value="" disabled hidden>Actions</option>
+          <option value="delete" disabled={selectedComms.length === 0}>
+            Delete {selectedComms.length > 0 ? `(${selectedComms.length})` : ''}
+          </option>
+          <option value="col_manager">Columns Manager</option>
+        </select>
+        <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+          ▼
+        </span>
+      </div>
+
+      <button 
+        id="btn-add-comm"
+        onClick={startNew}
+        className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer select-none"
+      >
+        <Plus size={15} />
+        New Log Entry
+      </button>
+    </>
+  );
 
   return (
     <div className="space-y-6 text-left" id="communications-view-panel">
       
       {/* Header */}
       <PageHeader 
-        title="Communications Log" 
-        actions={
-          <button 
-            id="btn-add-comm"
-            onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer"
-          >
-            <Plus size={15} />
-            New Log Entry
-          </button>
-        }
+        title="Communications" 
+        actions={headerActions}
       />
 
       {/* Filters Container */}
-      <div className="bg-white p-4 border border-gray-100 rounded-2xl shadow-xs flex flex-col md:flex-row gap-4 items-center">
-        {/* Period Filter */}
-        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center w-full md:w-auto">
-          <span className="text-[11px] font-mono uppercase text-gray-400 select-none">Period:</span>
-          <div className="flex items-center gap-1.5 w-full sm:w-auto">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-gray-50 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
-            />
-            <span className="text-gray-300 text-xs">-</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-gray-50 border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 outline-none w-full sm:w-36 font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
-            />
-          </div>
+      <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+        {/* Start Date */}
+        <div className="relative w-full md:w-auto min-w-[140px]">
+          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+            Start Date
+          </span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+          />
+        </div>
+
+        {/* End Date */}
+        <div className="relative w-full md:w-auto min-w-[140px]">
+          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+            End Date
+          </span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+          />
+        </div>
+
+        {/* Type Filter */}
+        <div className="relative w-full md:w-auto min-w-[140px]">
+          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+            Type
+          </span>
+          <select
+            value="" /* Needs state */
+            onChange={(e) => {}}
+            className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+          >
+            <option value="">All Types</option>
+            <option value="action">Action</option>
+            <option value="reminder">Reminder</option>
+          </select>
+        </div>
+
+        {/* Supplier Filter */}
+        <div className="relative w-full md:w-auto min-w-[140px]">
+          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+            Supplier
+          </span>
+          <select
+            value="" /* Needs state */
+            onChange={(e) => {}}
+            className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+          >
+            <option value="">All Suppliers</option>
+          </select>
+        </div>
+
+        {/* User Filter */}
+        <div className="relative w-full md:w-auto min-w-[140px]">
+          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+            User
+          </span>
+          <select
+            value="" /* Needs state */
+            onChange={(e) => {}}
+            className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+          >
+            <option value="">All Users</option>
+          </select>
         </div>
 
         {/* Text Search */}
@@ -420,15 +603,63 @@ export default function CommunicationsView({
                 />
               )}
 
-              <div>
+              {/* Dynamic Autocomplete Search Selector for Supplier */}
+              <div className="relative">
                 <label className="text-[10px] font-semibold text-gray-455 block mb-1">Supplier Object *</label>
-                <select
-                  value={editingComm.vendor_id}
-                  onChange={(e) => setEditingComm({...editingComm, vendor_id: e.target.value})}
-                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer"
-                >
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.trade_name}</option>)}
-                </select>
+                <input
+                  type="text"
+                  placeholder="Type to search supplier..."
+                  value={vendorSearch}
+                  onChange={(e) => {
+                    setVendorSearch(e.target.value);
+                    setShowVendorSuggestions(true);
+                    if (e.target.value === '') {
+                      setEditingComm(prev => prev ? { ...prev, vendor_id: '' } : null);
+                    }
+                  }}
+                  onFocus={() => setShowVendorSuggestions(true)}
+                  className="w-full px-3.5 py-2 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 font-sans"
+                />
+                {showVendorSuggestions && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowVendorSuggestions(false)} 
+                    />
+                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 divide-y divide-gray-50">
+                      {suppliers
+                        .filter(s => {
+                          const searchStr = vendorSearch.toLowerCase();
+                          return s.trade_name.toLowerCase().includes(searchStr) || 
+                                 s.company_name.toLowerCase().includes(searchStr) || 
+                                 s.id_code.toLowerCase().includes(searchStr);
+                        })
+                        .map(s => (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              setEditingComm(prev => prev ? { ...prev, vendor_id: s.id } : null);
+                              setVendorSearch(s.trade_name);
+                              setShowVendorSuggestions(false);
+                            }}
+                            className="px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left transition duration-100"
+                          >
+                            <p className="text-xs font-bold text-gray-800">{s.trade_name}</p>
+                            <p className="text-[9px] text-gray-400 font-mono mt-0.5">{s.company_name}</p>
+                          </div>
+                        ))
+                      }
+                      {suppliers.filter(s => {
+                        const searchStr = vendorSearch.toLowerCase();
+                        return s.trade_name.toLowerCase().includes(searchStr) || 
+                               s.company_name.toLowerCase().includes(searchStr) || 
+                               s.id_code.toLowerCase().includes(searchStr);
+                      }).length === 0 && (
+                        <div className="px-3.5 py-3 text-xs text-gray-400 italic">No suppliers found matching "{vendorSearch}"</div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div>
@@ -477,6 +708,48 @@ export default function CommunicationsView({
         }}
         title="Delete Log Entry"
         message="Are you sure you want to delete this communication log entry? This operation is permanent."
+      />
+
+      {/* BULK DELETE CONFIRMATION MODAL */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm border shadow-lg p-6 space-y-4 text-center">
+            <div className="w-12 h-12 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto animate-pulse">
+              <Trash2 size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">Confirm Bulk Logs Deleted</h4>
+              <p className="text-[11.5px] text-gray-455 mt-2 font-sans leading-normal">
+                Are you sure you want to permanently delete <strong>{selectedComms.length} selected communication entries</strong>? This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-2 font-sans pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl cursor-pointer"
+              >
+                No, Keep Them
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDeleteExecute}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-black text-white rounded-xl cursor-pointer"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ColumnsManagerModal
+        isOpen={isColModalOpen}
+        onClose={() => setIsColModalOpen(false)}
+        columns={managedCols}
+        onSave={handleSaveColumns}
+        storageKey="communications_columns_managed"
+        defaultColumns={defaultCommunicationsColumns}
       />
 
     </div>

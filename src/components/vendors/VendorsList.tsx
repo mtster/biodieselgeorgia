@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Vendor, User, VendorComment } from '../../types';
 import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
+import { ManagedColumn } from '../ColumnsManagerModal';
 
 interface Props {
   filteredVendors: Vendor[];
@@ -10,6 +11,7 @@ interface Props {
   askDelete: (id: string, name: string) => void;
   selectedVendors: string[];
   setSelectedVendors: React.Dispatch<React.SetStateAction<string[]>>;
+  managedCols: ManagedColumn[];
 }
 
 export default function VendorsList({
@@ -17,7 +19,8 @@ export default function VendorsList({
   users,
   startEdit,
   selectedVendors = [],
-  setSelectedVendors
+  setSelectedVendors,
+  managedCols = []
 }: Props) {
   const [hoveredComments, setHoveredComments] = useState<{
     comments: VendorComment[];
@@ -36,61 +39,56 @@ export default function VendorsList({
     startEdit(vendor, false);
   };
 
-  const columns: ColumnConfig<Vendor>[] = [
-    {
-      header: 'Sel',
-      key: 'select',
-      className: 'w-12 text-center',
-      render: (vendor) => {
-        const isChecked = selectedVendors.includes(vendor.id);
-        return (
-          <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => toggleSelect(vendor.id)}
-              className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
-                isChecked
-                  ? 'border-emerald-600 bg-emerald-600 text-white'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
-              }`}
-            >
-              {isChecked && <Check size={11} strokeWidth={3.5} />}
-            </button>
-          </div>
-        );
-      }
-    },
-    {
+  // Predefined column mapping
+  const columnMap: Record<string, ColumnConfig<Vendor>> = {
+    trade_name: {
       header: 'Trade Name',
       key: 'trade_name',
       render: (vendor) => vendor.trade_name
     },
-    {
+    id_code: {
       header: 'Taxation ID',
       key: 'id_code',
       render: (vendor) => vendor.id_code
     },
-    {
+    status: {
+      header: 'Status',
+      key: 'status',
+      render: (vendor) => {
+        const stat = vendor.status || 'Active';
+        const colorMap: Record<string, string> = {
+          'Active': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          'Under Negotiation': 'bg-amber-50 text-amber-700 border-amber-200',
+          'Cancelled': 'bg-rose-50 text-rose-700 border-rose-200'
+        };
+        return (
+          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${colorMap[stat] || colorMap['Active']}`}>
+            {stat}
+          </span>
+        );
+      }
+    },
+    price_per_liter: {
       header: 'Rate (₾)',
       key: 'price_per_liter',
       render: (vendor) => `₾ ${vendor.price_per_liter.toFixed(2)}`
     },
-    {
+    working_hours: {
       header: 'Working Hours',
       key: 'working_hours',
       render: (vendor) => vendor.working_hours
     },
-    {
+    location: {
       header: 'Location',
       key: 'location',
       render: (vendor) => `${vendor.city} (${vendor.district}), ${vendor.address}`
     },
-    {
+    company_code: {
       header: 'Assigned Code',
       key: 'company_code',
       render: (vendor) => vendor.company_code || '-'
     },
-    {
+    primary_contact: {
       header: 'Primary Contact',
       key: 'primary_contact',
       render: (vendor) => {
@@ -98,7 +96,7 @@ export default function VendorsList({
         return defaultContact ? `${defaultContact.name} (${defaultContact.phone})` : 'No Contact';
       }
     },
-    {
+    additional_contacts: {
       header: 'Additional Contacts',
       key: 'additional_contacts',
       render: (vendor) => {
@@ -108,17 +106,17 @@ export default function VendorsList({
           : '-';
       }
     },
-    {
+    manager: {
       header: 'Acquisition Mgr',
       key: 'manager',
       render: (vendor) => users.find(u => u.id === vendor.manager_id)?.name || '-'
     },
-    {
+    dispatcher: {
       header: 'System Dispatch',
       key: 'dispatcher',
       render: (vendor) => users.find(u => u.id === vendor.operator_id)?.name || '-'
     },
-    {
+    comments: {
       header: 'Memos / Internal Notes',
       key: 'comments',
       render: (vendor) => {
@@ -146,24 +144,69 @@ export default function VendorsList({
           </div>
         );
       }
-    },
-    {
-      header: 'Actions',
-      key: 'actions',
-      className: 'text-right',
-      render: (vendor) => (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-end gap-1 select-none">
+    }
+  };
+
+  const columns: ColumnConfig<Vendor>[] = [];
+
+  // Prepend multi-select checkbox column
+  columns.push({
+    header: 'Sel',
+    key: 'select',
+    className: 'w-12 text-center',
+    render: (vendor) => {
+      const isChecked = selectedVendors.includes(vendor.id);
+      return (
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
           <button
-            onClick={() => startEdit(vendor, false)}
-            className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-            title="Edit"
+            type="button"
+            onClick={() => toggleSelect(vendor.id)}
+            className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
+              isChecked
+                ? 'border-emerald-600 bg-emerald-600 text-white'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
           >
-            <Edit3 size={13} />
+            {isChecked && <Check size={11} strokeWidth={3.5} />}
           </button>
         </div>
-      )
+      );
     }
-  ];
+  });
+
+  // Map configured columns
+  managedCols.forEach((col) => {
+    if (col.visible) {
+      if (columnMap[col.id]) {
+        columns.push(columnMap[col.id]);
+      } else {
+        // Handle fallback or added custom columns
+        columns.push({
+          header: col.label,
+          key: col.id,
+          render: (v: any) => v[col.id] ?? '-'
+        });
+      }
+    }
+  });
+
+  // Append action button column at the end
+  columns.push({
+    header: 'Actions',
+    key: 'actions',
+    className: 'text-right',
+    render: (vendor) => (
+      <div onClick={(e) => e.stopPropagation()} className="flex justify-end gap-1 select-none">
+        <button
+          onClick={() => startEdit(vendor, false)}
+          className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+          title="Edit"
+        >
+          <Edit3 size={13} />
+        </button>
+      </div>
+    )
+  });
 
   const rowClassName = (vendor: Vendor) => {
     const isChecked = selectedVendors.includes(vendor.id);

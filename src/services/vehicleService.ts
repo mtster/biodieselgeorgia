@@ -44,6 +44,7 @@ export async function saveVehicle(vehicle: Vehicle, loggerName: string): Promise
         model: vehicle.model,
         driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
         companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
+        city: vehicle.city || null,
       };
 
       let success = false;

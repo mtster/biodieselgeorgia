@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS public.communications CASCADE;
 DROP TABLE IF EXISTS public.orders CASCADE;
 DROP TABLE IF EXISTS public.vendors CASCADE;
 DROP TABLE IF EXISTS public.suppliers CASCADE;
-DROP TABLE IF EXISTS public.trucks CASCADE;
+DROP TABLE IF EXISTS public.vehicles CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 DROP TABLE IF EXISTS public.warehouses CASCADE;
@@ -59,16 +59,18 @@ CREATE TABLE public.profiles (
     phone TEXT NOT NULL,
     role public.user_role NOT NULL,
     privileges TEXT[] DEFAULT '{}'::TEXT[],
+    edit_permissions JSONB DEFAULT '{}'::JSONB,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Vehicles / Trucks
-CREATE TABLE public.trucks (
+-- 5. Vehicles
+CREATE TABLE public.vehicles (
     plate_number TEXT PRIMARY KEY,
     model TEXT NOT NULL,
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    city TEXT,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -115,7 +117,7 @@ CREATE TABLE public.orders (
     operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Creator Operator
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,   -- Driver assigned
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,-- Companion assigned
-    truck_plate TEXT REFERENCES public.trucks(plate_number) ON DELETE SET NULL, -- Assigned Vehicle Plate
+    truck_plate TEXT REFERENCES public.vehicles(plate_number) ON DELETE SET NULL, -- Assigned Vehicle Plate
     status TEXT NOT NULL DEFAULT 'registered' CHECK (status IN ('registered', 'scheduled', 'completed', 'cancelled')),
     sms_sent BOOLEAN DEFAULT FALSE,
     is_deleted BOOLEAN DEFAULT FALSE,
@@ -184,7 +186,7 @@ ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.districts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.warehouses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trucks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.communications ENABLE ROW LEVEL SECURITY;
@@ -196,7 +198,7 @@ ALTER TABLE public.change_history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated full access on cities" ON public.cities FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on districts" ON public.districts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on warehouses" ON public.warehouses FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on trucks" ON public.trucks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated full access on vehicles" ON public.vehicles FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on vendors" ON public.vendors FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on orders" ON public.orders FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on communications" ON public.communications FOR ALL TO authenticated USING (true) WITH CHECK (true);

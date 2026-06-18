@@ -88,7 +88,7 @@ export default function CitiesSettingView({
       <PageHeader title="Cities" />
 
       {/* Grid of Cities including the "+ Add New Window" */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 max-w-6xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
         {activeCities.map((city) => {
           const count = districts.filter(d => d.city_id === city.id).length;
           return (

@@ -25,30 +25,42 @@ export default function Sidebar({
 }: SidebarProps) {
   
   const [settingsOpen, setSettingsOpen] = useState(
-    ['users', 'cities', 'vehicles', 'history'].includes(activeTab)
+    ['users', 'cities', 'vehicles', 'warehouses', 'history'].includes(activeTab)
   );
 
   useEffect(() => {
-    if (['users', 'cities', 'vehicles', 'history'].includes(activeTab)) {
+    if (['users', 'cities', 'vehicles', 'warehouses', 'history'].includes(activeTab)) {
       setSettingsOpen(true);
     }
   }, [activeTab]);
   
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.privileges?.includes('All');
+
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-    { id: 'analytics', name: 'Analytics', icon: <BarChart3 size={18} /> },
     { id: 'vendors', name: 'Suppliers', icon: <Building2 size={18} /> },
     { id: 'communications', name: 'Communications', icon: <MessageSquare size={18} /> },
     { id: 'orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
     { id: 'reports', name: 'Reports', icon: <FileText size={18} /> },
-  ];
+  ].filter(item => {
+    if (isAdmin) return true;
+    if (!currentUser || !currentUser.privileges) return true;
+    return currentUser.privileges.includes(item.name);
+  });
 
   const settingsSubItems = [
     { id: 'users', name: 'Users', icon: <Users size={16} /> },
     { id: 'cities', name: 'Cities', icon: <Globe size={16} /> },
     { id: 'vehicles', name: 'Vehicles', icon: <Truck size={16} /> },
-    { id: 'history', name: 'Change History', icon: <History size={16} /> },
-  ];
+    { id: 'warehouses', name: 'Warehouses', icon: <Building2 size={16} /> },
+    { id: 'history', name: 'Changes History', icon: <History size={16} /> },
+  ].filter(item => {
+    if (isAdmin) return true;
+    if (!currentUser || !currentUser.privileges) return true;
+    return currentUser.privileges.includes(item.name);
+  });
+
+  const showSettings = settingsSubItems.length > 0;
 
   return (
     <aside className={`bg-slate-900 text-slate-100 flex-shrink-0 flex flex-col justify-between transition-all duration-300 z-30 md:sticky md:top-0 md:h-screen md:overflow-hidden ${
@@ -101,49 +113,51 @@ export default function Sidebar({
         })}
 
         {/* Settings Collapsible Dropdown */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
-              ['users', 'cities', 'vehicles', 'history'].includes(activeTab)
-                ? 'text-white font-extrabold bg-slate-800/40' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Settings size={18} />
-              <span>Settings</span>
-            </div>
-            {settingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
+        {showSettings && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
+                ['users', 'cities', 'vehicles', 'warehouses', 'history'].includes(activeTab)
+                  ? 'text-white font-extrabold bg-slate-800/40' 
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Settings size={18} />
+                <span>Settings</span>
+              </div>
+              {settingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
 
-          {settingsOpen && (
-            <div className="pl-4 space-y-1 mt-1 border-l border-slate-800 ml-5">
-              {settingsSubItems.map((subItem) => {
-                const isSubActive = activeTab === subItem.id;
-                return (
-                  <button
-                    key={subItem.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(subItem.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition text-left cursor-pointer ${
-                      isSubActive
-                        ? 'bg-emerald-800 text-white shadow-xs font-extrabold'
-                        : 'text-slate-405 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                    }`}
-                  >
-                    {subItem.icon}
-                    <span>{subItem.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            {settingsOpen && (
+              <div className="pl-4 space-y-1 mt-1 border-l border-slate-800 ml-5">
+                {settingsSubItems.map((subItem) => {
+                  const isSubActive = activeTab === subItem.id;
+                  return (
+                    <button
+                      key={subItem.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(subItem.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition text-left cursor-pointer ${
+                        isSubActive
+                          ? 'bg-emerald-800 text-white shadow-xs font-extrabold'
+                          : 'text-slate-405 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                      }`}
+                    >
+                      {subItem.icon}
+                      <span>{subItem.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Profile and signout */}
