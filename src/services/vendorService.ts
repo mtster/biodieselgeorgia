@@ -62,7 +62,7 @@ export function cleanVendorDbPayload(vendor: any): any {
   const managerId = cleanUserUuid(vendor.manager_id);
   const operatorId = cleanUserUuid(vendor.operator_id);
 
-  return {
+  const payload: any = {
     id: vendor.id,
     id_code: vendor.id_code || '',
     company_name: vendor.company_name || vendor.trade_name || '',
@@ -82,9 +82,35 @@ export function cleanVendorDbPayload(vendor: any): any {
     fact_qty: Number(vendor.fact_qty) || 0,
     fact_tank_dropoff: Number(vendor.fact_tank_dropoff) || 0,
     fact_tank_pickup: Number(vendor.fact_tank_pickup) || 0,
+    status: vendor.status || 'Active',
     is_deleted: !!vendor.is_deleted,
     created_at: vendor.created_at || new Date().toISOString()
   };
+
+  // Preserve any custom column fields on the actual DB payload!
+  Object.keys(vendor).forEach(key => {
+    if (key.startsWith('custom_')) {
+      payload[key] = vendor[key] !== undefined ? vendor[key] : null;
+    }
+  });
+
+  return payload;
+}
+
+export async function createDatabaseColumn(columnName: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      console.log('Provisioning vendor custom column via RPC:', columnName);
+      const { error } = await supabase.rpc('add_custom_column_to_vendors', { column_name: columnName, column_type: 'TEXT' });
+      if (error) {
+        console.error('Database column provisioning RPC error:', error);
+      } else {
+        console.log('Successfully completed dynamic database column RPC for:', columnName);
+      }
+    } catch (e) {
+      console.error('Dynamic column creation exception:', e);
+    }
+  }
 }
 
 export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
@@ -108,24 +134,8 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
     created_at: vendor.created_at || new Date().toISOString()
   };
 
-  const customFieldsObj: Record<string, any> = {};
-  Object.keys(finalVendor).forEach(key => {
-    if (key.startsWith('custom_') || ['status', 'fact_qty', 'fact_tank_dropoff', 'fact_tank_pickup'].includes(key)) {
-      customFieldsObj[key] = (finalVendor as any)[key];
-    }
-  });
-
+  // Ensure contact lists are clean of old system indicator
   let cleanContacts = (finalVendor.contacts || []).filter(c => c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
-  if (Object.keys(customFieldsObj).length > 0) {
-    cleanContacts.push({
-      id: 'contact-custom-fields-data',
-      name: '__DYNAMIC_CUSTOM_FIELDS__',
-      phone: '0000',
-      position: 'other',
-      note: JSON.stringify(customFieldsObj),
-      is_default: false
-    });
-  }
   finalVendor.contacts = cleanContacts;
 
   if (isSupabaseConfigured && supabase) {

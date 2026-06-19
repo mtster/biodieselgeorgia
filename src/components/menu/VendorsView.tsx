@@ -16,6 +16,7 @@ import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
+import { createDatabaseColumn } from '../../services/vendorService';
 
 const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'trade_name', label: 'Trade Name', visible: true },
@@ -81,9 +82,20 @@ export default function VendorsView({
     return loaded ? JSON.parse(loaded) : defaultSuppliersColumns;
   });
 
-  const handleSaveColumns = (updated: ManagedColumn[]) => {
+  const handleSaveColumns = async (updated: ManagedColumn[]) => {
     setManagedCols(updated);
     localStorage.setItem('suppliers_columns_managed', JSON.stringify(updated));
+
+    // Provision each dynamic custom column securely in Supabase vendors table
+    for (const col of updated) {
+      if (col.isCustom && col.id.startsWith('custom_')) {
+        try {
+          await createDatabaseColumn(col.id);
+        } catch (err) {
+          console.error(`Error provisioning custom column on db [${col.id}]:`, err);
+        }
+      }
+    }
   };
 
   // Delete confirmation modal states

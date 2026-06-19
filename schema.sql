@@ -2,41 +2,33 @@
 --  BIODIESEL GEORGIA - DATABASE SCHEMA SCRIPT (PRODUCTIONS STANDARDS)
 -- ====================================================================
 --  This script establishes tables, primary keys, foreign constraints, indices, and defaults.
+--  Configured to be non-destructive and re-runnable again and again safely.
 
 -- Enable robust extension support if needed
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Clean drop of pre-existing tables to prevent version mismatch errors
+-- Recreate trigger function securely (does not delete table data)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 
-DROP TABLE IF EXISTS public.change_history CASCADE;
-DROP TABLE IF EXISTS public.communications CASCADE;
-DROP TABLE IF EXISTS public.orders CASCADE;
-DROP TABLE IF EXISTS public.vendors CASCADE;
-DROP TABLE IF EXISTS public.suppliers CASCADE;
-DROP TABLE IF EXISTS public.vehicles CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
-DROP TABLE IF EXISTS public.users CASCADE;
-DROP TABLE IF EXISTS public.warehouses CASCADE;
-DROP TABLE IF EXISTS public.districts CASCADE;
-DROP TABLE IF EXISTS public.cities CASCADE;
-
-DROP TYPE IF EXISTS public.user_role CASCADE;
-
--- Create role Enum type
-CREATE TYPE public.user_role AS ENUM ('admin', 'manager', 'driver', 'vendor');
+-- Create role Enum type (checking first to be re-runnable)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    CREATE TYPE public.user_role AS ENUM ('admin', 'manager', 'driver', 'vendor');
+  END IF;
+END$$;
 
 -- 1. Cities
-CREATE TABLE public.cities (
+CREATE TABLE IF NOT EXISTS public.cities (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 2. Districts
-CREATE TABLE public.districts (
+CREATE TABLE IF NOT EXISTS public.districts (
     id TEXT PRIMARY KEY,
     city_id TEXT REFERENCES public.cities(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -44,14 +36,14 @@ CREATE TABLE public.districts (
 );
 
 -- 3. Warehouses
-CREATE TABLE public.warehouses (
+CREATE TABLE IF NOT EXISTS public.warehouses (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 4. Profiles (Map 1:1 to Supabase Auth Users)
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
     name TEXT NOT NULL,
     personal_id TEXT UNIQUE NOT NULL,
@@ -64,8 +56,12 @@ CREATE TABLE public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Apply non-destructive updates to public.profiles table if it pre-exists
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+
 -- 5. Vehicles
-CREATE TABLE public.vehicles (
+CREATE TABLE IF NOT EXISTS public.vehicles (
     plate_number TEXT PRIMARY KEY,
     model TEXT NOT NULL,
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -75,8 +71,12 @@ CREATE TABLE public.vehicles (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Apply non-destructive updates to public.vehicles table if it pre-exists
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+
 -- 6. Vendors
-CREATE TABLE public.vendors (
+CREATE TABLE IF NOT EXISTS public.vendors (
     id TEXT PRIMARY KEY,
     id_code TEXT NOT NULL,                  -- Company Identification Code
     company_name TEXT NOT NULL,             -- Legal Company Name
@@ -96,14 +96,27 @@ CREATE TABLE public.vendors (
     fact_qty NUMERIC(12, 2) DEFAULT 0.00,  -- Fact QTY
     fact_tank_dropoff INT DEFAULT 0,       -- Fact Tank Dropoff
     fact_tank_pickup INT DEFAULT 0,        -- Fact Tank Pickup
+    status TEXT DEFAULT 'Active',          -- Status
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_pickup_date TIMESTAMPTZ,
     average_interval_days INT DEFAULT 0
 );
 
+-- Apply non-destructive updates to public.vendors table if it pre-exists (prevents schema cache issues)
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_qty NUMERIC(12, 2) DEFAULT 0.00;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_tank_dropoff INT DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_tank_pickup INT DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS last_pickup_date TIMESTAMPTZ;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS average_interval_days INT DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+
 -- 7. Orders
-CREATE TABLE public.orders (
+CREATE TABLE IF NOT EXISTS public.orders (
     id TEXT PRIMARY KEY,
     order_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     doc_number TEXT UNIQUE NOT NULL,         -- Document/Invoice Number
@@ -121,14 +134,18 @@ CREATE TABLE public.orders (
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,   -- Driver assigned
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,-- Companion assigned
     truck_plate TEXT REFERENCES public.vehicles(plate_number) ON DELETE SET NULL, -- Assigned Vehicle Plate
-    status TEXT NOT NULL DEFAULT 'registered' CHECK (status IN ('registered', 'scheduled', 'completed', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'registered',
     sms_sent BOOLEAN DEFAULT FALSE,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Safe update of the status CHECK constraint if it exists
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;
+ALTER TABLE public.orders ADD CONSTRAINT orders_status_check CHECK (status IN ('registered', 'driver_assigned', 'picked_up', 'completed', 'cancelled'));
+
 -- 8. Communications
-CREATE TABLE public.communications (
+CREATE TABLE IF NOT EXISTS public.communications (
     id TEXT PRIMARY KEY,
     date_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     type TEXT NOT NULL CHECK (type IN ('action', 'reminder')), -- Communication Type
@@ -142,7 +159,7 @@ CREATE TABLE public.communications (
 );
 
 -- 9. Change History Trackers
-CREATE TABLE public.change_history (
+CREATE TABLE IF NOT EXISTS public.change_history (
     id TEXT PRIMARY KEY,
     date_time TIMESTAMPTZ DEFAULT NOW(),
     employee_name TEXT NOT NULL,
@@ -151,6 +168,20 @@ CREATE TABLE public.change_history (
     old_value TEXT,
     new_value TEXT
 );
+
+-- Functional system utility to add custom columns dynamically on the vendors table
+CREATE OR REPLACE FUNCTION public.add_custom_column_to_vendors(column_name TEXT, column_type TEXT DEFAULT 'TEXT')
+RETURNS VOID SECURITY DEFINER AS $$
+BEGIN
+  -- Double check/sanitize input to avoid SQL injection
+  IF column_name !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
+    RAISE EXCEPTION 'Invalid column name: %', column_name;
+  END IF;
+  
+  -- Create the column if it does not exist
+  EXECUTE format('ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS %I %s DEFAULT NULL', column_name, column_type);
+END;
+$$ LANGUAGE plpgsql;
 
 -- Create and configure trigger function to auto insert profile
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -167,8 +198,7 @@ BEGIN
     COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[])
   )
   ON CONFLICT (id) DO UPDATE 
-  SET 
-    email = EXCLUDED.email,
+  SET \n    email = EXCLUDED.email,
     name = EXCLUDED.name,
     phone = EXCLUDED.phone,
     personal_id = EXCLUDED.personal_id,
@@ -198,6 +228,15 @@ ALTER TABLE public.change_history ENABLE ROW LEVEL SECURITY;
 -- Apply simplified, safe, full-access policies for authenticated users on all tables
 -- To prevent infinite loops, NEVER do SELECT on profiles from a policy check.
 -- Instead, check user identity via auth.uid() or verify attributes in the auth.jwt().
+DROP POLICY IF EXISTS "Authenticated full access on cities" ON public.cities;
+DROP POLICY IF EXISTS "Authenticated full access on districts" ON public.districts;
+DROP POLICY IF EXISTS "Authenticated full access on warehouses" ON public.warehouses;
+DROP POLICY IF EXISTS "Authenticated full access on vehicles" ON public.vehicles;
+DROP POLICY IF EXISTS "Authenticated full access on vendors" ON public.vendors;
+DROP POLICY IF EXISTS "Authenticated full access on orders" ON public.orders;
+DROP POLICY IF EXISTS "Authenticated full access on communications" ON public.communications;
+DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.change_history;
+
 CREATE POLICY "Authenticated full access on cities" ON public.cities FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on districts" ON public.districts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on warehouses" ON public.warehouses FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -211,14 +250,17 @@ CREATE POLICY "Authenticated full access on change_history" ON public.change_his
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN SECURITY DEFINER AS $$
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.profiles
+  RETURN EXISTS (\n    SELECT 1 FROM public.profiles
     WHERE id = auth.uid() AND role = 'admin'::public.user_role
   );
 END;
 $$ LANGUAGE plpgsql;
 
 -- Profiles policies (highly optimized against recursion)
+DROP POLICY IF EXISTS "Users can read profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins have full access on profiles" ON public.profiles;
+
 CREATE POLICY "Users can read profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL TO authenticated USING (
