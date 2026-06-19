@@ -73,7 +73,8 @@ export const LANG = {
 
   orderStatuses: {
     registered: 'Registered',
-    scheduled: 'Scheduled',
+    driver_assigned: 'Driver Assigned',
+    picked_up: 'Picked Up',
     completed: 'Completed',
     cancelled: 'Cancelled',
   },

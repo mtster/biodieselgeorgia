@@ -72,6 +72,8 @@ export default function OrdersList({
       key: 'status',
       render: (ord) => {
         const s = ord.status;
+        if (s === 'driver_assigned') return 'Driver Assigned';
+        if (s === 'picked_up') return 'Picked Up';
         return s.charAt(0).toUpperCase() + s.slice(1);
       }
     },

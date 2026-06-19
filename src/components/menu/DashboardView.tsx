@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function DashboardView({ suppliers, orders, employees, trucks, onNavigate }: Props) {
-  const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'scheduled');
+  const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = orders.filter(o => o.status === 'completed');
   
   const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.qty_actual || 0), 0);
@@ -141,9 +141,19 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider block ${
                         order.status === 'registered' 
                           ? 'bg-yellow-50 text-yellow-700 border border-yellow-150' 
+                          : order.status === 'driver_assigned'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-150' 
+                          : order.status === 'picked_up'
+                          ? 'bg-purple-50 text-purple-700 border border-purple-150'
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-150'
                       }`}>
-                        {order.status === 'registered' ? 'Registered' : 'Scheduled'}
+                        {order.status === 'registered' 
+                          ? 'Registered' 
+                          : order.status === 'driver_assigned' 
+                          ? 'Driver Assigned' 
+                          : order.status === 'picked_up' 
+                          ? 'Picked Up' 
+                          : 'Active'}
                       </span>
                     </div>
                   </div>

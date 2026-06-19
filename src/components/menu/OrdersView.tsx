@@ -298,7 +298,10 @@ export default function OrdersView({
                     placeholder: "All Statuses",
                     options: [
                       { value: "registered", label: "Registered" },
-                      { value: "completed", label: "Completed" }
+                      { value: "driver_assigned", label: "Driver Assigned" },
+                      { value: "picked_up", label: "Picked Up" },
+                      { value: "completed", label: "Completed" },
+                      { value: "cancelled", label: "Cancelled" }
                     ]
                   }
                 ]}

@@ -77,9 +77,11 @@ export function cleanVendorDbPayload(vendor: any): any {
     manager_id: isValidUuid(managerId) ? managerId : null,
     operator_id: isValidUuid(operatorId) ? operatorId : null,
     working_hours: vendor.working_hours || '',
-    status: vendor.status || 'Active',
     contacts: Array.isArray(vendor.contacts) ? vendor.contacts : [],
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
+    fact_qty: Number(vendor.fact_qty) || 0,
+    fact_tank_dropoff: Number(vendor.fact_tank_dropoff) || 0,
+    fact_tank_pickup: Number(vendor.fact_tank_pickup) || 0,
     is_deleted: !!vendor.is_deleted,
     created_at: vendor.created_at || new Date().toISOString()
   };
@@ -108,7 +110,7 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
 
   const customFieldsObj: Record<string, any> = {};
   Object.keys(finalVendor).forEach(key => {
-    if (key.startsWith('custom_') || ['fact_qty', 'fact_tank_dropoff', 'fact_tank_pickup'].includes(key)) {
+    if (key.startsWith('custom_') || ['status', 'fact_qty', 'fact_tank_dropoff', 'fact_tank_pickup'].includes(key)) {
       customFieldsObj[key] = (finalVendor as any)[key];
     }
   });

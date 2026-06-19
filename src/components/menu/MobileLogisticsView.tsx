@@ -34,7 +34,7 @@ export default function MobileLogisticsView({
 
   // Filter orders assigned to this driver
   const myOrders = orders.filter(o => o.driver_id === currentUser.id);
-  const activeOrders = myOrders.filter(o => o.status === 'registered' || o.status === 'scheduled');
+  const activeOrders = myOrders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = myOrders.filter(o => o.status === 'completed');
 
   const handleSelectOrder = (order: Order) => {

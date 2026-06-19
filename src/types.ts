@@ -25,6 +25,7 @@ export interface User {
   edit_permissions?: EditPermissions;
   is_deleted?: boolean;
   created_at?: string;
+  warehouse_id?: string;      // საწყობი
 }
 
 export interface VendorContact {
@@ -70,7 +71,7 @@ export interface Vendor {
   average_interval_days?: number;
 }
 
-export type OrderStatus = 'registered' | 'scheduled' | 'completed' | 'cancelled'; // რეგისტრირებული, დაგეგმილი, დასრულებული, გაუქმებული
+export type OrderStatus = 'registered' | 'driver_assigned' | 'picked_up' | 'completed' | 'cancelled'; // რეგისტრირებული, მძღოლი მიმაგრებული, აყვანილი, დასრულებული, გაუქმებული
 
 export interface Order {
   id: string;
@@ -124,6 +125,7 @@ export interface Truck {
   companion_name?: string;
   is_deleted?: boolean;
   city?: string;              // ქალაქი
+  warehouse_id?: string;      // საწყობი
 }
 
 export type Vehicle = Truck;

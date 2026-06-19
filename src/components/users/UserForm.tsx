@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useImperativeHandle } from 'react';
-import { User, UserRole } from '../../types';
+import { User, UserRole, Warehouse } from '../../types';
 import { formatPhone } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
 import { Check } from 'lucide-react';
+import { getWarehouses } from '../../services/lookupService';
 
 interface Props {
   editingUser: User;
@@ -47,6 +48,11 @@ export default function UserForm({
   formRef
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+
+  useEffect(() => {
+    getWarehouses().then(data => setWarehouses(data || []));
+  }, []);
 
   useEffect(() => {
     if (editingUser && !editingUser.edit_permissions) {
@@ -303,6 +309,22 @@ export default function UserForm({
           <option value="manager">Manager</option>
           <option value="driver">Driver</option>
           <option value="vendor">Supplier (Vendor)</option>
+        </FormSelect>
+
+        <FormSelect
+          label="Assigned Warehouse (Optional)"
+          value={editingUser.warehouse_id || ''}
+          onChange={(e) => {
+            setEditingUser({
+              ...editingUser,
+              warehouse_id: e.target.value || undefined
+            });
+          }}
+        >
+          <option value="">Select a Warehouse (Unassigned)</option>
+          {warehouses.map(wh => (
+            <option key={wh.id} value={wh.id}>{wh.name}</option>
+          ))}
         </FormSelect>
 
         {/* Menu Permissions card with beautiful iOS slider toggles */}

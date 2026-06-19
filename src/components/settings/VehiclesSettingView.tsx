@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Vehicle, User, City } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Vehicle, User, City, Warehouse } from '../../types';
 import { Plus, Trash2, Truck as TruckIcon, X } from 'lucide-react';
 import { FormInput, FormSelect } from '../FormInput';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { getWarehouses } from '../../services/lookupService';
 
 interface Props {
   trucks: Vehicle[];
@@ -31,6 +32,12 @@ export default function VehiclesSettingView({
   const [tDriver, setTDriver] = useState('');
   const [tCompanion, setTCompanion] = useState('');
   const [tCity, setTCity] = useState('');
+  const [tWarehouseId, setTWarehouseId] = useState('');
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+
+  useEffect(() => {
+    getWarehouses().then(data => setWarehouses(data || []));
+  }, []);
 
   // Confirmation state
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -70,6 +77,7 @@ export default function VehiclesSettingView({
     setTDriver(truck ? truck.driver_id || '' : '');
     setTCompanion(truck ? truck.companion_id || '' : '');
     setTCity(truck ? truck.city || '' : '');
+    setTWarehouseId(truck ? truck.warehouse_id || '' : '');
     setShowConfirmDelete(false);
     setIsModalOpen(true);
   };
@@ -91,6 +99,7 @@ export default function VehiclesSettingView({
       companion_id: tCompanion,
       companion_name: companionObj?.name || '',
       city: tCity,
+      warehouse_id: tWarehouseId,
       is_deleted: false
     });
 
@@ -125,6 +134,7 @@ export default function VehiclesSettingView({
         {activeTrucks.map((truck) => {
           const assignedDriver = employees.find(e => e.id === truck.driver_id)?.name || 'None';
           const assignedCompanion = employees.find(e => e.id === truck.companion_id)?.name || 'None';
+          const assignedWarehouse = warehouses.find(w => w.id === truck.warehouse_id)?.name || 'Unassigned';
 
           return (
             <button
@@ -151,6 +161,7 @@ export default function VehiclesSettingView({
                   </h4>
                   <div className="text-[10px] text-gray-405 font-sans mt-1.5 space-y-0.5">
                     <p className="truncate">City: <strong className="text-gray-700">{truck.city || 'Unassigned'}</strong></p>
+                    <p className="truncate">Warehouse: <strong className="text-emerald-800 font-bold">{assignedWarehouse}</strong></p>
                     <p className="truncate">Driver: <strong className="text-gray-700">{assignedDriver}</strong></p>
                     <p className="truncate">Companion: <strong className="text-gray-655">{assignedCompanion}</strong></p>
                   </div>
@@ -227,6 +238,18 @@ export default function VehiclesSettingView({
                 <option value="">Select a City</option>
                 {cities.map(city => (
                   <option key={city.id} value={city.name}>{city.name}</option>
+                ))}
+              </FormSelect>
+
+              {/* Warehouse Dropdown */}
+              <FormSelect
+                label="Assigned Warehouse"
+                value={tWarehouseId}
+                onChange={(e) => setTWarehouseId(e.target.value)}
+              >
+                <option value="">Select a Warehouse</option>
+                {warehouses.map(wh => (
+                  <option key={wh.id} value={wh.id}>{wh.name}</option>
                 ))}
               </FormSelect>
 

@@ -19,6 +19,16 @@ export const DEFAULT_USERS: User[] = [
   }
 ];
 
+export function decodeProfile(p: any): User {
+  if (!p) return p;
+  const edit_permissions = p.edit_permissions || {};
+  const warehouse_id = p.warehouse_id || edit_permissions.warehouse_id || '';
+  return {
+    ...p,
+    warehouse_id: warehouse_id || undefined
+  };
+}
+
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -32,16 +42,17 @@ export async function getUsers(): Promise<User[]> {
           }
         });
         if (res.ok) {
-          return await res.json();
+          const list = await res.json();
+          return list.map(decodeProfile);
         }
       }
       const { data, error } = await supabase.from('profiles').select('*').eq('is_deleted', false).order('name');
-      if (!error && data) return data;
+      if (!error && data) return data.map(decodeProfile);
     } catch (e) {
       console.warn('Supabase getUsers failed', e);
     }
   }
-  return getLocal<User[]>(KEY_USERS, DEFAULT_USERS).filter(item => !item.is_deleted);
+  return getLocal<User[]>(KEY_USERS, DEFAULT_USERS).filter(item => !item.is_deleted).map(decodeProfile);
 }
 
 export async function saveUser(user: User, loggerName: string): Promise<User> {
@@ -190,7 +201,10 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             phone: user.phone,
             role: user.role,
             privileges: user.privileges,
-            edit_permissions: user.edit_permissions
+            edit_permissions: {
+              ...(user.edit_permissions || {}),
+              warehouse_id: user.warehouse_id
+            }
           })
           .eq('id', user.id);
 
@@ -219,13 +233,13 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
 
   const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
   if (isNew) {
-    setLocal(KEY_USERS, [...list, finalUser]);
+    setLocal(KEY_USERS, [...list, decodeProfile(finalUser)]);
     await trackChange(loggerName, 'User added', 'Name', '', finalUser.name);
   } else {
-    setLocal(KEY_USERS, list.map(item => item.id === finalUser.id ? finalUser : item));
+    setLocal(KEY_USERS, list.map(item => item.id === finalUser.id ? decodeProfile(finalUser) : item));
     await trackChange(loggerName, 'User updated', 'Name', '', finalUser.name);
   }
-  return finalUser;
+  return decodeProfile(finalUser);
 }
 
 export async function deleteUser(id: string, name: string, loggerName: string): Promise<boolean> {

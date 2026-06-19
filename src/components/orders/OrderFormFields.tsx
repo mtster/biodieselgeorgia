@@ -134,9 +134,10 @@ export default function OrderFormFields({
             } : null);
           }}
         >
-          <option value="registered">Registered (Submitted)</option>
-          <option value="scheduled">Scheduled (Route Assigned)</option>
-          <option value="completed">Completed (Fulfill Data Locked)</option>
+           <option value="registered">Registered</option>
+          <option value="driver_assigned">Driver Assigned</option>
+          <option value="picked_up">Picked Up</option>
+          <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </FormSelect>
 
