@@ -216,7 +216,7 @@ export default function VendorFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormSelect
-          label="Acquisition Manager *"
+          label="Sales Manager *"
           value={editingVendor.manager_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, manager_id: e.target.value } : null);
@@ -240,7 +240,7 @@ export default function VendorFormFields({
         </FormSelect>
 
         <FormSelect
-          label="Systems Dispatcher *"
+          label="Operation Manager *"
           value={editingVendor.operator_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, operator_id: e.target.value } : null);

@@ -27,8 +27,8 @@ const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'company_code', label: 'Assigned Code', visible: true },
   { id: 'primary_contact', label: 'Primary Contact', visible: true },
   { id: 'additional_contacts', label: 'Additional Contacts', visible: true },
-  { id: 'manager', label: 'Acquisition Mgr', visible: true },
-  { id: 'dispatcher', label: 'System Dispatcher', visible: true },
+  { id: 'manager', label: 'Sales Manager', visible: true },
+  { id: 'dispatcher', label: 'Operation Manager', visible: true },
   { id: 'comments', label: 'Memos / Internal Notes', visible: true }
 ];
 
@@ -59,6 +59,8 @@ export default function VendorsView({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedSalesManager, setSelectedSalesManager] = useState('');
+  const [selectedOperationManager, setSelectedOperationManager] = useState('');
   
   // Active edit state (On-screen form)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
@@ -196,7 +198,10 @@ export default function VendorsView({
     const matchesCity = !selectedCity || v.city === selectedCity;
     const matchesDistrict = !selectedDistrict || v.district === selectedDistrict;
 
-    return matchesSearch && matchesCity && matchesDistrict;
+    const matchesSalesManager = !selectedSalesManager || v.manager_id === selectedSalesManager;
+    const matchesOperationManager = !selectedOperationManager || v.operator_id === selectedOperationManager;
+
+    return matchesSearch && matchesCity && matchesDistrict && matchesSalesManager && matchesOperationManager;
   });
 
   const askDelete = (id: string, name: string) => {
@@ -344,6 +349,23 @@ export default function VendorsView({
                     return !cObj || d.city_id === cObj.id;
                   })
                   .map(d => ({ value: d.name, label: d.name }))
+              },
+              {
+                label: "Sales Manager",
+                value: selectedSalesManager,
+                onChange: setSelectedSalesManager,
+                placeholder: "All Sales Managers",
+                options: users
+                  .filter(u => u.role === 'manager' || u.role === 'admin')
+                  .map(u => ({ value: u.id, label: u.name }))
+              },
+              {
+                label: "Operation Manager",
+                value: selectedOperationManager,
+                onChange: setSelectedOperationManager,
+                placeholder: "All Operation Managers",
+                options: users
+                  .map(u => ({ value: u.id, label: u.name }))
               }
             ]}
           />

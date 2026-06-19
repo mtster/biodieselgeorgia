@@ -11,6 +11,8 @@ import VendorContactModal from './VendorContactModal';
 import VendorCommentModal from './VendorCommentModal';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 
+import { MessageSquare, X } from 'lucide-react';
+
 interface Props {
   editingVendor: Vendor;
   setEditingVendor: React.Dispatch<React.SetStateAction<Vendor | null>>;
@@ -56,6 +58,9 @@ export default function VendorForm({
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activeComment, setActiveComment] = useState<VendorComment | null>(null);
   const [commentDeleteId, setCommentDeleteId] = useState<string | null>(null);
+
+  // Communication modal open state
+  const [isCommModalOpen, setIsCommModalOpen] = useState(false);
 
   // Initialize contacts list
   useEffect(() => {
@@ -424,179 +429,85 @@ export default function VendorForm({
                   Communications
                 </h4>
               </div>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => setIsCommModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 border border-emerald-205 rounded-xl text-xs font-bold font-sans cursor-pointer transition-all flex items-center gap-1.5 shadow-3xs"
+                >
+                  <MessageSquare size={13} />
+                  Add Communication
+                </button>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Timeline List of Communications - 7 cols */}
-              <div className="lg:col-span-7 space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                <span className="text-[11px] font-bold font-mono text-gray-400 uppercase tracking-widest block">
-                  Logged Interactions
-                </span>
+            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+              <span className="text-[11px] font-bold font-mono text-gray-400 uppercase tracking-widest block">
+                Logged Interactions (List)
+              </span>
+              
+              {(() => {
+                const sComms = communications.filter(c => c.vendor_id === editingVendor.id && !c.is_deleted);
+                if (sComms.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-xs text-gray-400 italic bg-slate-50/50 rounded-xl border border-dashed border-gray-200">
+                      No previous interactions logged for this supplier.
+                    </div>
+                  );
+                }
                 
-                {(() => {
-                  const sComms = communications.filter(c => c.vendor_id === editingVendor.id && !c.is_deleted);
-                  if (sComms.length === 0) {
-                    return (
-                      <div className="p-8 text-center text-xs text-gray-400 italic bg-slate-50/50 rounded-xl border border-dashed border-gray-200">
-                        No previous interactions logged for this supplier.
-                      </div>
-                    );
-                  }
-                  
-                  return sComms.map((comm) => (
-                    <div key={comm.id} className="p-3.5 bg-slate-50/50 hover:bg-slate-55 border border-gray-100 rounded-xl space-y-2 transition relative group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase ${
-                            comm.type === 'reminder' ? 'bg-amber-100 text-amber-850' : 'bg-emerald-100 text-emerald-850'
-                          }`}>
-                            {comm.type}
-                          </span>
-                          <span className="text-[10px] text-gray-500 font-semibold font-sans">
-                            via {comm.vendor_contact_name || 'Direct'}
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {sComms.map((comm) => (
+                      <div key={comm.id} className="p-3.5 bg-slate-50/50 hover:bg-slate-55 border border-gray-100 rounded-xl space-y-2 transition relative group text-left">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase ${
+                              comm.type === 'reminder' ? 'bg-amber-100 text-amber-850' : 'bg-emerald-100 text-emerald-850'
+                            }`}>
+                              {comm.type}
+                            </span>
+                            <span className="text-[10px] text-gray-500 font-semibold font-sans">
+                              via {comm.vendor_contact_name || 'Direct'}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-gray-400 font-mono">
+                            {new Date(comm.date_time).toLocaleString()}
                           </span>
                         </div>
-                        <span className="text-[9px] text-gray-400 font-mono">
-                          {new Date(comm.date_time).toLocaleString()}
-                        </span>
-                      </div>
-                      
-                      <p className="text-xs text-slate-700 font-sans leading-relaxed break-words">
-                        {comm.comment}
-                      </p>
+                        
+                        <p className="text-xs text-slate-700 font-sans leading-relaxed break-words">
+                          {comm.comment}
+                        </p>
 
-                      <div className="flex items-center justify-between pt-1 border-t border-gray-150 text-[9px] text-gray-450">
-                        <span className="font-semibold">
-                          Logged by: <span className="text-gray-600">{comm.user_name || 'System'}</span>
-                        </span>
-                        {comm.reminder_time && (
-                          <span className="text-amber-800 font-bold font-mono">
-                            Due: {new Date(comm.reminder_time).toLocaleString()}
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-150 text-[9px] text-gray-450">
+                          <span className="font-semibold">
+                            Logged by: <span className="text-gray-600">{comm.user_name || 'System'}</span>
                           </span>
+                          {comm.reminder_time && (
+                            <span className="text-amber-800 font-bold font-mono">
+                              Due: {new Date(comm.reminder_time).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {!isReadOnly && onDeleteCommunication && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteCommunication(comm.id)}
+                            className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-650 hover:bg-white rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                            title="Delete communication log"
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         )}
                       </div>
-
-                      {!isReadOnly && onDeleteCommunication && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteCommunication(comm.id)}
-                          className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-650 hover:bg-white rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                          title="Delete communication log"
-                        >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  ));
-                })()}
-              </div>
-
-              {/* Add New Log Form - 5 cols */}
-              {!isReadOnly && (
-                <div className="lg:col-span-5 bg-slate-50/40 p-4 border border-gray-100 rounded-xl space-y-3 h-fit">
-                  <span className="text-[11px] font-bold font-mono text-gray-400 uppercase tracking-widest block border-b pb-1.55">
-                    Log Dynamic Interaction
-                  </span>
-                  
-                  {/* Date Input */}
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase font-sans">Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      value={newCommDate}
-                      onChange={(e) => setNewCommDate(e.target.value)}
-                      className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-600 font-sans cursor-pointer text-gray-800"
-                    />
+                    ))}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Log Type */}
-                    <div>
-                      <label className="text-[9px] font-bold text-gray-400 uppercase font-sans">Type</label>
-                      <select
-                        value={newCommType}
-                        onChange={(e) => setNewCommType(e.target.value as any)}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-600 font-sans cursor-pointer text-gray-800"
-                      >
-                        <option value="action">Action</option>
-                        <option value="reminder">Reminder</option>
-                      </select>
-                    </div>
-
-                    {/* Assigned User */}
-                    <div>
-                      <label className="text-[9px] font-bold text-gray-400 uppercase font-sans">User Rep</label>
-                      <select
-                        value={newCommUserId}
-                        onChange={(e) => setNewCommUserId(e.target.value)}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-600 font-sans cursor-pointer text-gray-800 text-ellipsis overflow-hidden"
-                      >
-                        {users.map(u => (
-                          <option key={u.id} value={u.id}>{u.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Reminder Time */}
-                  {newCommType === 'reminder' && (
-                    <div>
-                      <label className="text-[9px] font-bold text-amber-700 uppercase font-sans">Reminder Due *</label>
-                      <input
-                        type="datetime-local"
-                        value={newCommReminderTime}
-                        onChange={(e) => setNewCommReminderTime(e.target.value)}
-                        className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs focus:outline-none focus:border-amber-600 font-sans cursor-pointer text-amber-900"
-                      />
-                    </div>
-                  )}
-
-                  {/* Supplier Contact */}
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase font-sans">Supplier Contact Point</label>
-                    <select
-                      value={newCommContactId}
-                      onChange={(e) => setNewCommContactId(e.target.value)}
-                      className="w-full mt-0.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-600 font-sans cursor-pointer text-gray-800 text-ellipsis overflow-hidden"
-                    >
-                      <option value="">Direct / No contact selected</option>
-                      {tempContacts.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.position})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Description Comment */}
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-400 uppercase font-sans">Notes / Discussion Content *</label>
-                    <textarea
-                      rows={3}
-                      placeholder="Discussed pricing rate terms / Scheduled upcoming grease pickup..."
-                      value={newCommComment}
-                      onChange={(e) => {
-                        setNewCommComment(e.target.value);
-                        if (commError) setCommError('');
-                      }}
-                      className="w-full mt-0.5 p-2 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-emerald-600 font-sans"
-                    />
-                    {commError && (
-                      <p className="text-[9px] text-red-650 font-bold block mt-0.5">{commError}</p>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddSupplierCommunication}
-                    className="w-full py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-[11px] font-extrabold transition cursor-pointer select-none text-center shadow-3xs"
-                  >
-                    Log Communication
-                  </button>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
 
@@ -626,6 +537,137 @@ export default function VendorForm({
         onSave={handleSaveComment}
         onDelete={handleRemoveComment}
       />
+
+      {/* Dynamic Add Communication Popup Modal */}
+      {isCommModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-200 text-left">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h3 className="font-extrabold text-sm text-gray-800">Log Supplier Communication</h3>
+              <button 
+                type="button"
+                onClick={() => setIsCommModalOpen(false)} 
+                className="text-gray-400 hover:text-gray-650 cursor-pointer p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              {/* Date & Time */}
+              <div>
+                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Date & Time *</label>
+                <input
+                  type="datetime-local"
+                  value={newCommDate}
+                  onChange={(e) => setNewCommDate(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-850 font-sans"
+                />
+              </div>
+
+              {/* Log Type and User Rep */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-455 block mb-1">Type *</label>
+                  <select
+                    value={newCommType}
+                    onChange={(e) => setNewCommType(e.target.value as any)}
+                    className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-800"
+                  >
+                    <option value="action">Action</option>
+                    <option value="reminder">Reminder</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-455 block mb-1">User Rep *</label>
+                  <select
+                    value={newCommUserId}
+                    onChange={(e) => setNewCommUserId(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-800 text-ellipsis overflow-hidden"
+                  >
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Reminder Time */}
+              {newCommType === 'reminder' && (
+                <div>
+                  <label className="text-[10px] font-semibold text-amber-700 block mb-1">Reminder Due Time *</label>
+                  <input
+                    type="datetime-local"
+                    value={newCommReminderTime}
+                    onChange={(e) => setNewCommReminderTime(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-white border border-amber-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:outline-none focus:border-amber-600 cursor-pointer text-amber-900"
+                  />
+                </div>
+              )}
+
+              {/* Supplier Contact */}
+              <div>
+                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Supplier Contact Point</label>
+                <select
+                  value={newCommContactId}
+                  onChange={(e) => setNewCommContactId(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-800 text-ellipsis overflow-hidden"
+                >
+                  <option value="">Direct / No contact selected</option>
+                  {tempContacts.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.position})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Comment */}
+              <div>
+                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Notes / Discussion Content *</label>
+                <textarea
+                  rows={4}
+                  placeholder="Discussed pricing rate terms / Scheduled upcoming grease pickup..."
+                  value={newCommComment}
+                  onChange={(e) => {
+                    setNewCommComment(e.target.value);
+                    if (commError) setCommError('');
+                  }}
+                  className="w-full p-2.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 font-sans text-gray-800"
+                />
+                {commError && (
+                  <p className="text-[9px] text-red-650 font-bold block mt-0.5">{commError}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2.5 font-sans">
+              <button
+                type="button"
+                onClick={() => setIsCommModalOpen(false)}
+                className="px-4 py-1.5 bg-gray-100 text-gray-750 hover:bg-gray-200 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newCommComment.trim()) {
+                    setCommError("Log comment is required.");
+                    return;
+                  }
+                  await handleAddSupplierCommunication();
+                  setIsCommModalOpen(false);
+                }}
+                className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm animate-none"
+              >
+                Log Communication
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

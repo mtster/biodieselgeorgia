@@ -107,12 +107,12 @@ export default function VendorsList({
       }
     },
     manager: {
-      header: 'Acquisition Mgr',
+      header: 'Sales Manager',
       key: 'manager',
       render: (vendor) => users.find(u => u.id === vendor.manager_id)?.name || '-'
     },
     dispatcher: {
-      header: 'System Dispatch',
+      header: 'Operation Manager',
       key: 'dispatcher',
       render: (vendor) => users.find(u => u.id === vendor.operator_id)?.name || '-'
     },

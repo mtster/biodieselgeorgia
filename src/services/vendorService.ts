@@ -5,16 +5,34 @@ import { KEY_VENDORS, getLocal, setLocal } from './localStorage';
 
 export { KEY_VENDORS };
 
+export function decodeVendorCustomFields(vendor: Vendor): Vendor {
+  const customContact = (vendor.contacts || []).find(c => c.name === "__DYNAMIC_CUSTOM_FIELDS__");
+  if (customContact && customContact.note) {
+    try {
+      const parsed = JSON.parse(customContact.note);
+      return {
+        ...vendor,
+        ...parsed
+      };
+    } catch (e) {
+      console.error('Failed to parse dynamic custom fields', e);
+    }
+  }
+  return vendor;
+}
+
 export async function getVendors(): Promise<Vendor[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('vendors').select('*').eq('is_deleted', false).order('trade_name');
-      if (!error && data) return data;
+      if (!error && data) {
+        return data.map(v => decodeVendorCustomFields(v));
+      }
     } catch (e) {
       console.warn('Supabase getVendors failed', e);
     }
   }
-  return getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted);
+  return getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted).map(v => decodeVendorCustomFields(v));
 }
 
 export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
@@ -37,6 +55,26 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
     operator_id: cleanUserUuid(vendor.operator_id),
     created_at: vendor.created_at || new Date().toISOString()
   };
+
+  const customFieldsObj: Record<string, any> = {};
+  Object.keys(finalVendor).forEach(key => {
+    if (key.startsWith('custom_') || ['fact_qty', 'fact_tank_dropoff', 'fact_tank_pickup'].includes(key)) {
+      customFieldsObj[key] = (finalVendor as any)[key];
+    }
+  });
+
+  let cleanContacts = (finalVendor.contacts || []).filter(c => c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
+  if (Object.keys(customFieldsObj).length > 0) {
+    cleanContacts.push({
+      id: 'contact-custom-fields-data',
+      name: '__DYNAMIC_CUSTOM_FIELDS__',
+      phone: '0000',
+      position: 'other',
+      note: JSON.stringify(customFieldsObj),
+      is_default: false
+    });
+  }
+  finalVendor.contacts = cleanContacts;
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -63,6 +101,9 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
         status: finalVendor.status || 'Active',
         contacts: Array.isArray(finalVendor.contacts) ? finalVendor.contacts : [],
         comments: Array.isArray(finalVendor.comments) ? finalVendor.comments : [],
+        fact_qty: Number(finalVendor.fact_qty) || 0,
+        fact_tank_dropoff: Number(finalVendor.fact_tank_dropoff) || 0,
+        fact_tank_pickup: Number(finalVendor.fact_tank_pickup) || 0,
         is_deleted: !!finalVendor.is_deleted,
         created_at: finalVendor.created_at
       };
@@ -82,7 +123,7 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
     setLocal(KEY_VENDORS, list.map(item => item.id === finalVendor.id ? finalVendor : item));
     await trackChange(loggerName, 'Vendor updated', 'Trade Name', '', finalVendor.trade_name);
   }
-  return finalVendor;
+  return decodeVendorCustomFields(finalVendor);
 }
 
 export async function deleteVendor(id: string, tradeName: string, loggerName: string): Promise<boolean> {

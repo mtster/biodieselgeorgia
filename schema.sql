@@ -93,6 +93,9 @@ CREATE TABLE public.vendors (
     contacts JSONB DEFAULT '[]'::JSONB,     -- Contacts List
     comments JSONB DEFAULT '[]'::JSONB,     -- Comments History
     working_hours TEXT,                     -- Working Hours
+    fact_qty NUMERIC(12, 2) DEFAULT 0.00,  -- Fact QTY
+    fact_tank_dropoff INT DEFAULT 0,       -- Fact Tank Dropoff
+    fact_tank_pickup INT DEFAULT 0,        -- Fact Tank Pickup
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_pickup_date TIMESTAMPTZ,

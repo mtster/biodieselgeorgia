@@ -49,11 +49,11 @@ export default function Sidebar({
   });
 
   const settingsSubItems = [
-    { id: 'users', name: 'Users', icon: <Users size={16} /> },
-    { id: 'cities', name: 'Cities', icon: <Globe size={16} /> },
-    { id: 'vehicles', name: 'Vehicles', icon: <Truck size={16} /> },
-    { id: 'warehouses', name: 'Warehouses', icon: <Building2 size={16} /> },
-    { id: 'history', name: 'Changes History', icon: <History size={16} /> },
+    { id: 'users', name: 'Users', icon: <Users size={18} /> },
+    { id: 'cities', name: 'Cities', icon: <Globe size={18} /> },
+    { id: 'vehicles', name: 'Vehicles', icon: <Truck size={18} /> },
+    { id: 'warehouses', name: 'Warehouses', icon: <Building2 size={18} /> },
+    { id: 'history', name: 'Changes History', icon: <History size={18} /> },
   ].filter(item => {
     if (isAdmin) return true;
     if (!currentUser || !currentUser.privileges) return true;
@@ -143,10 +143,10 @@ export default function Sidebar({
                         setActiveTab(subItem.id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold transition text-left cursor-pointer ${
+                      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
                         isSubActive
-                          ? 'bg-emerald-800 text-white shadow-xs font-extrabold'
-                          : 'text-slate-405 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                          ? 'bg-emerald-800 text-white shadow-sm font-extrabold'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                       }`}
                     >
                       {subItem.icon}

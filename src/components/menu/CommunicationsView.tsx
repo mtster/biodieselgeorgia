@@ -585,6 +585,19 @@ export default function CommunicationsView({
                 </select>
               </div>
 
+              <div>
+                <label className="text-[10px] font-semibold text-gray-455 block mb-1">User Rep *</label>
+                <select
+                  value={editingComm.user_id}
+                  onChange={(e) => setEditingComm({...editingComm, user_id: e.target.value})}
+                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer"
+                >
+                  {employees.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {editingComm.type === 'reminder' && (
                 <IosDateTimePicker
                   label="Reminder Due Time"

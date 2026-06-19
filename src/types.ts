@@ -61,6 +61,9 @@ export interface Vendor {
   comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
   status?: 'Active' | 'Under Negotiation' | 'Cancelled';
+  fact_qty?: number;          // ფაქტიური რაოდენობა
+  fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
+  fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
   is_deleted?: boolean;
   created_at: string;
   last_pickup_date?: string;
