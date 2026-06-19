@@ -126,7 +126,9 @@ export async function revertChange(log: ChangeHistory, loggerName: string): Prom
           if (field === 'Bank Account') vendor.bank_account = log.old_value || vendor.bank_account;
           
           if (isSupabaseConfigured && supabase) {
-            await supabase.from('vendors').update(vendor).eq('id', vendor.id);
+            const { cleanVendorDbPayload } = await import('./vendorService');
+            const cleanDbPayload = cleanVendorDbPayload(vendor);
+            await supabase.from('vendors').update(cleanDbPayload).eq('id', vendor.id);
           }
           setLocal(KEY_VENDORS, list.map(v => v.id === vendor.id ? vendor : v));
           await trackChange(loggerName, 'Vendor update reverted', field, log.new_value, log.old_value);

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Vendor, Order, Communication, Vehicle as Truck, 
   ChangeHistory, Warehouse, City, District 
@@ -56,6 +56,12 @@ import {
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const currentUserRef = useRef<User | null>(null);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   const [deleteAlertMessage, setDeleteAlertMessage] = useState<string | null>(null);
   
   // Database Live Models
@@ -201,6 +207,10 @@ export default function App() {
     if (isSupabaseConfigured && supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
+          if (currentUserRef.current && currentUserRef.current.id === session.user.id) {
+            // Already logged in in active state, skip redundant profile refetching and DB calls
+            return;
+          }
           try {
             let dbUser: any = null;
             const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');

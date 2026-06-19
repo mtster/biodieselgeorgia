@@ -43,6 +43,48 @@ export async function getVendors(): Promise<Vendor[]> {
   return getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted).map(v => decodeVendorCustomFields(v));
 }
 
+export function cleanVendorDbPayload(vendor: any): any {
+  const isValidUuid = (val: string | null | undefined): boolean => {
+    if (!val) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+  };
+
+  const cleanUserUuid = (val: string | null | undefined): string | null => {
+    if (!val) return null;
+    if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
+    if (val.startsWith('user-')) {
+      const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
+      return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
+    }
+    return val;
+  };
+
+  const managerId = cleanUserUuid(vendor.manager_id);
+  const operatorId = cleanUserUuid(vendor.operator_id);
+
+  return {
+    id: vendor.id,
+    id_code: vendor.id_code || '',
+    company_name: vendor.company_name || vendor.trade_name || '',
+    trade_name: vendor.trade_name || '',
+    company_code: vendor.company_code || vendor.id_code || '',
+    bank_account: vendor.bank_account || '',
+    city: vendor.city || '',
+    district: vendor.district || '',
+    address: vendor.address || '',
+    price_per_liter: Number(vendor.price_per_liter) || 0,
+    warehouse_id: vendor.warehouse_id || null,
+    manager_id: isValidUuid(managerId) ? managerId : null,
+    operator_id: isValidUuid(operatorId) ? operatorId : null,
+    working_hours: vendor.working_hours || '',
+    status: vendor.status || 'Active',
+    contacts: Array.isArray(vendor.contacts) ? vendor.contacts : [],
+    comments: Array.isArray(vendor.comments) ? vendor.comments : [],
+    is_deleted: !!vendor.is_deleted,
+    created_at: vendor.created_at || new Date().toISOString()
+  };
+}
+
 export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
   const isNew = !vendor.id;
 
@@ -86,40 +128,15 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const isValidUuid = (val: string | null | undefined): boolean => {
-        if (!val) return false;
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-      };
-
-      const dbPayload = {
-        id: finalVendor.id,
-        id_code: finalVendor.id_code || '',
-        company_name: finalVendor.company_name || finalVendor.trade_name || '',
-        trade_name: finalVendor.trade_name || '',
-        company_code: finalVendor.company_code || finalVendor.id_code || '',
-        bank_account: finalVendor.bank_account || '',
-        city: finalVendor.city || '',
-        district: finalVendor.district || '',
-        address: finalVendor.address || '',
-        price_per_liter: Number(finalVendor.price_per_liter) || 0,
-        warehouse_id: finalVendor.warehouse_id || null,
-        manager_id: isValidUuid(finalVendor.manager_id) ? finalVendor.manager_id : null,
-        operator_id: isValidUuid(finalVendor.operator_id) ? finalVendor.operator_id : null,
-        working_hours: finalVendor.working_hours || '',
-        status: finalVendor.status || 'Active',
-        contacts: Array.isArray(finalVendor.contacts) ? finalVendor.contacts : [],
-        comments: Array.isArray(finalVendor.comments) ? finalVendor.comments : [],
-        fact_qty: Number(finalVendor.fact_qty) || 0,
-        fact_tank_dropoff: Number(finalVendor.fact_tank_dropoff) || 0,
-        fact_tank_pickup: Number(finalVendor.fact_tank_pickup) || 0,
-        is_deleted: !!finalVendor.is_deleted,
-        created_at: finalVendor.created_at
-      };
-
+      const dbPayload = cleanVendorDbPayload(finalVendor);
       const { error } = await supabase.from('vendors').upsert([dbPayload], { onConflict: 'id' });
-      if (error) console.error('Supabase upsert error details:', error);
+      if (error) {
+        console.error('Supabase upsert error details:', error);
+        throw error;
+      }
     } catch (e) {
       console.error('Supabase saveVendor failed', e);
+      throw e;
     }
   }
 
