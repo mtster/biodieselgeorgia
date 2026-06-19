@@ -6,19 +6,27 @@ import { KEY_VENDORS, getLocal, setLocal } from './localStorage';
 export { KEY_VENDORS };
 
 export function decodeVendorCustomFields(vendor: Vendor): Vendor {
-  const customContact = (vendor.contacts || []).find(c => c.name === "__DYNAMIC_CUSTOM_FIELDS__");
+  const contacts = vendor.contacts || [];
+  const customContact = contacts.find(c => c.name === "__DYNAMIC_CUSTOM_FIELDS__");
+  const cleanContacts = contacts.filter(c => c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
+  
+  const decoded = {
+    ...vendor,
+    contacts: cleanContacts
+  };
+
   if (customContact && customContact.note) {
     try {
       const parsed = JSON.parse(customContact.note);
       return {
-        ...vendor,
+        ...decoded,
         ...parsed
       };
     } catch (e) {
       console.error('Failed to parse dynamic custom fields', e);
     }
   }
-  return vendor;
+  return decoded;
 }
 
 export async function getVendors(): Promise<Vendor[]> {

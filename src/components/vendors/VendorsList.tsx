@@ -100,7 +100,7 @@ export default function VendorsList({
       header: 'Additional Contacts',
       key: 'additional_contacts',
       render: (vendor) => {
-        const additionalContacts = (vendor.contacts || []).filter(c => !c.is_default);
+        const additionalContacts = (vendor.contacts || []).filter(c => !c.is_default && c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
         return additionalContacts.length > 0
           ? additionalContacts.map(c => `${c.name} (${c.phone})`).join(', ')
           : '-';

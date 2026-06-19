@@ -136,11 +136,33 @@ export default function App() {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
-            const { data: dbUser } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('email', session.user.email)
-              .single();
+            let dbUser: any = null;
+            if (session.access_token) {
+              try {
+                const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
+                  headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                  }
+                });
+                if (res.ok) {
+                  const profiles = await res.json();
+                  if (profiles && profiles.length > 0) {
+                    dbUser = profiles[0];
+                  }
+                }
+              } catch (err) {
+                console.warn('Failed to load profile via proxy', err);
+              }
+            }
+
+            if (!dbUser) {
+              const { data: directUser } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('email', session.user.email)
+                .single();
+              dbUser = directUser;
+            }
               
             if (dbUser) {
               setCurrentUser(dbUser);
@@ -179,11 +201,34 @@ export default function App() {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           try {
-            const { data: dbUser } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('email', session.user.email)
-              .single();
+            let dbUser: any = null;
+            if (session?.access_token) {
+              try {
+                const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
+                  headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                  }
+                });
+                if (res.ok) {
+                  const profiles = await res.json();
+                  if (profiles && profiles.length > 0) {
+                    dbUser = profiles[0];
+                  }
+                }
+              } catch (err) {
+                console.warn('Live Event: Failed to load profile via proxy', err);
+              }
+            }
+
+            if (!dbUser) {
+              const { data: directUser } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('email', session.user.email)
+                .single();
+              dbUser = directUser;
+            }
+
             if (dbUser) setCurrentUser(dbUser);
           } catch (err) {
             console.error('Live Event login sync error:', err);

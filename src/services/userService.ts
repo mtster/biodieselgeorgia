@@ -22,6 +22,18 @@ export const DEFAULT_USERS: User[] = [
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
+      if (token) {
+        const res = await fetch('/api/profiles?is_deleted=false', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          return await res.json();
+        }
+      }
       const { data, error } = await supabase.from('profiles').select('*').eq('is_deleted', false).order('name');
       if (!error && data) return data;
     } catch (e) {

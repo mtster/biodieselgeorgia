@@ -173,6 +173,52 @@ async function startServer() {
     }
   });
 
+  // Proxy endpoint to read profiles bypassing RLS recursion
+  app.get("/api/profiles", async (req, res) => {
+    try {
+      if (!isSupabaseConfigured || !supabaseAdmin) {
+        return res.status(400).json({ error: "Supabase service role key is not configured on the server." });
+      }
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Authorization token is missing" });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
+      const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
+
+      if (userError || !user) {
+        return res.status(401).json({ error: "Unauthorized: Invalid session token" });
+      }
+
+      const { email, is_deleted, id } = req.query;
+      let query = supabaseAdmin.from("profiles").select("*");
+
+      if (email) {
+        query = query.eq("email", email);
+      }
+      if (is_deleted !== undefined) {
+        query = query.eq("is_deleted", is_deleted === "true");
+      }
+      if (id) {
+        query = query.eq("id", id);
+      }
+
+      const { data: profiles, error: queryErr } = await query.order("name");
+
+      if (queryErr) {
+        return res.status(500).json({ error: queryErr.message });
+      }
+
+      res.json(profiles || []);
+    } catch (e: any) {
+      console.error("Fetch profiles via proxy failed:", e);
+      res.status(500).json({ error: e.message || "Internal server error" });
+    }
+  });
+
   // Serve static assets and frontend index
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

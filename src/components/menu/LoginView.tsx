@@ -46,12 +46,35 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
 
         if (data?.user) {
-          // Find matching profile in public.profiles table (synced by the trigger)
-          const { data: dbUser, error: dbError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('email', data.user.email)
-            .single();
+          let dbUser: any = null;
+          const sessionRes = await supabase.auth.getSession();
+          const token = sessionRes.data.session?.access_token;
+          if (token) {
+            try {
+              const res = await fetch(`/api/profiles?email=${encodeURIComponent(data.user.email || '')}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`
+                }
+              });
+              if (res.ok) {
+                const profiles = await res.json();
+                if (profiles && profiles.length > 0) {
+                  dbUser = profiles[0];
+                }
+              }
+            } catch (err) {
+              console.warn('Failed to load profile via proxy', err);
+            }
+          }
+
+          if (!dbUser) {
+            const { data: directUser } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('email', data.user.email)
+              .single();
+            dbUser = directUser;
+          }
 
           if (dbUser) {
             onLoginSuccess(dbUser);
