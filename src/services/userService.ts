@@ -24,7 +24,8 @@ export async function getUsers(): Promise<User[]> {
     try {
       const sessionRes = await supabase.auth.getSession();
       const token = sessionRes.data.session?.access_token;
-      if (token) {
+      const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
+      if (token && useProxy) {
         const res = await fetch('/api/profiles?is_deleted=false', {
           headers: {
             'Authorization': `Bearer ${token}`

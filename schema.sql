@@ -207,13 +207,24 @@ CREATE POLICY "Authenticated full access on orders" ON public.orders FOR ALL TO 
 CREATE POLICY "Authenticated full access on communications" ON public.communications FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on change_history" ON public.change_history FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- SECURITY DEFINER function to bypass RLS recursion on the profiles table
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN SECURITY DEFINER AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'::public.user_role
+  );
+END;
+$$ LANGUAGE plpgsql;
+
 -- Profiles policies (highly optimized against recursion)
 CREATE POLICY "Users can read profiles" ON public.profiles FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL TO authenticated USING (
-  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+  public.is_admin()
 ) WITH CHECK (
-  (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+  public.is_admin()
 );
 
 -- Indices for high-speed performance

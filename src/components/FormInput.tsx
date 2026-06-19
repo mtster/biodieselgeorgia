@@ -15,6 +15,11 @@ export function FormInput({
   className = '',
   ...props
 }: FormInputProps) {
+  let finalValue = props.value;
+  if (props.type === 'date' && typeof finalValue === 'string' && finalValue.includes('T')) {
+    finalValue = finalValue.split('T')[0];
+  }
+
   return (
     <div className={`relative ${containerClassName}`}>
       <span
@@ -31,6 +36,7 @@ export function FormInput({
             : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
         } ${className}`}
         {...props}
+        value={finalValue}
       />
       {error && (
         <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">

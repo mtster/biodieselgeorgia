@@ -49,7 +49,8 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           let dbUser: any = null;
           const sessionRes = await supabase.auth.getSession();
           const token = sessionRes.data.session?.access_token;
-          if (token) {
+          const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
+          if (token && useProxy) {
             try {
               const res = await fetch(`/api/profiles?email=${encodeURIComponent(data.user.email || '')}`, {
                 headers: {

@@ -12,6 +12,9 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
   const [showPresets, setShowPresets] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const cleanStartDate = startDate && startDate.includes('T') ? startDate.split('T')[0] : startDate;
+  const cleanEndDate = endDate && endDate.includes('T') ? endDate.split('T')[0] : endDate;
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -81,7 +84,7 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
     <div ref={containerRef} className="flex items-center gap-2 relative">
       <div className="relative w-full md:w-auto min-w-[140px]">
         <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">Start Date</span>
-        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 font-sans h-[38px]" />
+        <input type="date" value={cleanStartDate} onChange={(e) => setStartDate(e.target.value)} className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 font-sans h-[38px]" />
       </div>
 
       <button
@@ -107,7 +110,7 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
 
       <div className="relative w-full md:w-auto min-w-[140px]">
         <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">End Date</span>
-        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 font-sans h-[38px]" />
+        <input type="date" value={cleanEndDate} onChange={(e) => setEndDate(e.target.value)} className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 font-sans h-[38px]" />
       </div>
     </div>
   );

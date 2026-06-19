@@ -137,7 +137,8 @@ export default function App() {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             let dbUser: any = null;
-            if (session.access_token) {
+            const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
+            if (session.access_token && useProxy) {
               try {
                 const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
                   headers: {
@@ -202,7 +203,8 @@ export default function App() {
         if (event === 'SIGNED_IN' && session?.user) {
           try {
             let dbUser: any = null;
-            if (session?.access_token) {
+            const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
+            if (session?.access_token && useProxy) {
               try {
                 const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
                   headers: {
