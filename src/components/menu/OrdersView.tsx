@@ -8,6 +8,7 @@ import {
 import PeriodFilter from '../PeriodFilter';
 import OrderForm from '../orders/OrderForm';
 import SMSLogsModal from '../orders/SMSLogsModal';
+import AssignDriverModal from '../orders/AssignDriverModal';
 import OrdersList from '../orders/OrdersList';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
@@ -56,6 +57,7 @@ export default function OrdersView({
   // Bulk-delete selection states
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
 
   // Columns Manager State
   const [isColModalOpen, setIsColModalOpen] = useState(false);
@@ -216,6 +218,8 @@ export default function OrdersView({
                   setShowSMSLogs(true);
                 } else if (val === 'delete' && selectedOrders.length > 0) {
                   setShowBulkDeleteConfirm(true);
+                } else if (val === 'assign_driver' && selectedOrders.length > 0) {
+                  setShowAssignDriverModal(true);
                 } else if (val === 'col_manager') {
                   setIsColModalOpen(true);
                 }
@@ -225,6 +229,9 @@ export default function OrdersView({
             >
               <option value="" disabled hidden>Actions</option>
               <option value="sms_logs">SMS Logs ({smsLogs.length})</option>
+              <option value="assign_driver" disabled={selectedOrders.length === 0}>
+                Assign Driver {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
+              </option>
               <option value="delete" disabled={selectedOrders.length === 0}>
                 Delete {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
               </option>
@@ -336,6 +343,31 @@ export default function OrdersView({
         isOpen={showSMSLogs}
         onClose={() => setShowSMSLogs(false)}
         smsLogs={smsLogs}
+      />
+
+      <AssignDriverModal
+        isOpen={showAssignDriverModal}
+        onClose={() => setShowAssignDriverModal(false)}
+        onSave={(driverId, companionId, truckPlate) => {
+          selectedOrders.forEach(id => {
+            const ord = orders.find(o => o.id === id);
+            if (ord) {
+              onSave({
+                ...ord,
+                driver_id: driverId,
+                companion_id: companionId,
+                truck_plate: truckPlate,
+                status: 'driver_assigned'
+              });
+            }
+          });
+          setSelectedOrders([]);
+        }}
+        orders={selectedOrders.map(id => orders.find(o => o.id === id)!).filter(Boolean)}
+        employees={employees}
+        trucks={trucks}
+        suppliers={suppliers}
+        warehouses={warehouses}
       />
 
       {/* SYSTEM CONFIRMATION DELETE MODAL */}

@@ -198,7 +198,8 @@ BEGIN
     COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[])
   )
   ON CONFLICT (id) DO UPDATE 
-  SET \n    email = EXCLUDED.email,
+  SET 
+    email = EXCLUDED.email,
     name = EXCLUDED.name,
     phone = EXCLUDED.phone,
     personal_id = EXCLUDED.personal_id,
@@ -250,7 +251,8 @@ CREATE POLICY "Authenticated full access on change_history" ON public.change_his
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN SECURITY DEFINER AS $$
 BEGIN
-  RETURN EXISTS (\n    SELECT 1 FROM public.profiles
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
     WHERE id = auth.uid() AND role = 'admin'::public.user_role
   );
 END;
