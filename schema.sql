@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     fact_qty NUMERIC(12, 2) DEFAULT 0.00,  -- Fact QTY
     fact_tank_dropoff INT DEFAULT 0,       -- Fact Tank Dropoff
     fact_tank_pickup INT DEFAULT 0,        -- Fact Tank Pickup
+    barrels_amount INT DEFAULT 0,          -- Barrels amount
     status TEXT DEFAULT 'Active',          -- Status
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -110,6 +111,7 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES 
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_qty NUMERIC(12, 2) DEFAULT 0.00;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_tank_dropoff INT DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_tank_pickup INT DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS barrels_amount INT DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS last_pickup_date TIMESTAMPTZ;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS average_interval_days INT DEFAULT 0;
@@ -148,15 +150,25 @@ ALTER TABLE public.orders ADD CONSTRAINT orders_status_check CHECK (status IN ('
 CREATE TABLE IF NOT EXISTS public.communications (
     id TEXT PRIMARY KEY,
     date_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    type TEXT NOT NULL CHECK (type IN ('action', 'reminder')), -- Communication Type
+    type TEXT NOT NULL CHECK (type IN ('action', 'reminder', 'task')), -- Communication Type
     reminder_time TIMESTAMPTZ,                -- Remind time
     user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Logging user
     vendor_id TEXT REFERENCES public.vendors(id) ON DELETE CASCADE,  -- Connected Vendor
     vendor_contact_id TEXT,                   -- Specific contact person
     comment TEXT NOT NULL,                     -- Notes/Log details
+    responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Responsible User
+    task_status TEXT,                          -- Task Status (pending, etc.)
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Safe update of communication type check constraint
+ALTER TABLE public.communications DROP CONSTRAINT IF EXISTS communications_type_check;
+ALTER TABLE public.communications ADD CONSTRAINT communications_type_check CHECK (type IN ('action', 'reminder', 'task'));
+
+-- Apply non-destructive updates to public.communications
+ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS task_status TEXT;
 
 -- 9. Change History Trackers
 CREATE TABLE IF NOT EXISTS public.change_history (

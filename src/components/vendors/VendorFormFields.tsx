@@ -214,6 +214,45 @@ export default function VendorFormFields({
         </FormSelect>
       </div>
 
+      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-1 pt-2">Fact & Volumetric Parameters</span>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormInput
+          label="Fact QTY"
+          type="number"
+          step="0.01"
+          fontClass="font-mono"
+          value={editingVendor.fact_qty === undefined ? '' : editingVendor.fact_qty}
+          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
+        />
+
+        <FormInput
+          label="Fact Tank Dropoff"
+          type="number"
+          fontClass="font-mono"
+          value={editingVendor.fact_tank_dropoff === undefined ? '' : editingVendor.fact_tank_dropoff}
+          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormInput
+          label="Fact Tank Pickup"
+          type="number"
+          fontClass="font-mono"
+          value={editingVendor.fact_tank_pickup === undefined ? '' : editingVendor.fact_tank_pickup}
+          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+        />
+
+        <FormInput
+          label="Barrels Amount"
+          type="number"
+          fontClass="font-mono"
+          value={editingVendor.barrels_amount === undefined ? '' : editingVendor.barrels_amount}
+          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, barrels_amount: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormSelect
           label="Sales Manager *"

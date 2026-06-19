@@ -15,6 +15,8 @@ const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'vendor_name', label: 'Supplier / Subject', visible: true },
   { id: 'user_name', label: 'Operator / User', visible: true },
   { id: 'comment', label: 'Interaction Comment', visible: true },
+  { id: 'responsible_user_id', label: 'Responsible User', visible: true },
+  { id: 'task_status', label: 'Task Status', visible: true },
   { id: 'reminder_time', label: 'Reminder Time', visible: true }
 ];
 
@@ -227,6 +229,8 @@ export default function CommunicationsView({
   const [typeFilter, setTypeFilter] = useState('');
   const [supplierFilter, setSupplierFilter] = useState('');
   const [userFilter, setUserFilter] = useState('');
+  const [taskResponsibleFilter, setTaskResponsibleFilter] = useState('');
+  const [taskStatusFilter, setTaskStatusFilter] = useState('');
 
   // Auto-complete suppliers state in communications form modal
   const [vendorSearch, setVendorSearch] = useState('');
@@ -285,6 +289,7 @@ export default function CommunicationsView({
 
     const supplierObj = suppliers.find(s => s.id === editingComm.vendor_id);
     const employeeObj = employees.find(e => e.id === editingComm.user_id);
+    const responsibleObj = employees.find(e => e.id === editingComm.responsible_user_id);
     const defaultContactId = supplierObj?.contacts?.[0]?.id || '';
     const defaultContactName = supplierObj?.contacts?.[0]?.name || '';
 
@@ -292,6 +297,7 @@ export default function CommunicationsView({
       ...editingComm,
       vendor_name: supplierObj?.trade_name || '',
       user_name: employeeObj?.name || currentEmployee.name,
+      responsible_user_name: responsibleObj?.name || '',
       vendor_contact_id: editingComm.vendor_contact_id || defaultContactId,
       vendor_contact_name: defaultContactName
     };
@@ -329,6 +335,11 @@ export default function CommunicationsView({
     if (!matchesSearch) return false;
 
     if (typeFilter && comm.type !== typeFilter) return false;
+
+    if (typeFilter === 'task') {
+      if (taskResponsibleFilter && comm.responsible_user_id !== taskResponsibleFilter) return false;
+      if (taskStatusFilter && comm.task_status !== taskStatusFilter) return false;
+    }
     
     if (supplierFilter) {
       const matchDb = comm.vendor_id === supplierFilter;
@@ -368,7 +379,25 @@ export default function CommunicationsView({
     type: {
       header: 'Type',
       key: 'type',
-      render: (comm) => comm.type === 'action' ? 'Action' : 'Reminder'
+      render: (comm) => {
+        const styleMap: Record<string, string> = {
+          action: 'bg-emerald-50 text-emerald-800 border-emerald-100',
+          reminder: 'bg-amber-50 text-amber-800 border-amber-100',
+          task: 'bg-blue-50 text-blue-800 border-blue-105',
+        };
+        const labelMap: Record<string, string> = {
+          action: 'Action',
+          reminder: 'Reminder',
+          task: 'Task',
+        };
+        const statusClass = styleMap[comm.type] || 'bg-slate-50 text-slate-700 border-slate-100';
+        const label = labelMap[comm.type] || comm.type;
+        return (
+          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold tracking-wide ${statusClass}`}>
+            {label}
+          </span>
+        );
+      }
     },
     vendor_name: {
       header: 'Supplier / Subject',
@@ -390,6 +419,37 @@ export default function CommunicationsView({
       header: 'Interaction Comment',
       key: 'comment',
       render: (comm) => comm.comment
+    },
+    responsible_user_id: {
+      header: 'Responsible User',
+      key: 'responsible_user_id',
+      render: (comm) => {
+        if (comm.type !== 'task' || !comm.responsible_user_id) return <span className="text-gray-400">-</span>;
+        const emp = employees.find(e => e.id === comm.responsible_user_id);
+        return emp ? <span className="font-medium text-blue-600">{emp.name}</span> : <span className="text-gray-400">-</span>;
+      }
+    },
+    task_status: {
+      header: 'Task Status',
+      key: 'task_status',
+      render: (comm) => {
+        if (comm.type !== 'task' || !comm.task_status) return <span className="text-gray-400">-</span>;
+        const labelMap: Record<string, string> = {
+          pending: 'Pending',
+          in_progress: 'In Progress',
+          completed: 'Completed',
+        };
+        const styleMap: Record<string, string> = {
+          pending: 'bg-rose-50 text-rose-800 border-rose-100',
+          in_progress: 'bg-indigo-50 text-indigo-850 border-indigo-100',
+          completed: 'bg-emerald-50 text-emerald-850 border-emerald-100'
+        };
+        return (
+          <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wide uppercase ${styleMap[comm.task_status] || 'bg-slate-50 text-slate-700'}`}>
+            {labelMap[comm.task_status] || comm.task_status}
+          </span>
+        );
+      }
     },
     reminder_time: {
       header: 'Reminder Time',
@@ -509,14 +569,61 @@ export default function CommunicationsView({
           </span>
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setTypeFilter(val);
+              if (val !== 'task') {
+                setTaskResponsibleFilter('');
+                setTaskStatusFilter('');
+              }
+            }}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
             <option value="">All Types</option>
             <option value="action">Action</option>
             <option value="reminder">Reminder</option>
+            <option value="task">Task</option>
           </select>
         </div>
+
+        {/* Task-specific Filters */}
+        {typeFilter === 'task' && (
+          <>
+            {/* Responsible User Filter */}
+            <div className="relative w-full md:w-auto min-w-[140px]">
+              <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-[#3182ce] bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+                Responsible
+              </span>
+              <select
+                value={taskResponsibleFilter}
+                onChange={(e) => setTaskResponsibleFilter(e.target.value)}
+                className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-blue-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+              >
+                <option value="">All Responsible</option>
+                {uniqueUsers.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Task Status Filter */}
+            <div className="relative w-full md:w-auto min-w-[145px]">
+              <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-[#3182ce] bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+                Task Status
+              </span>
+              <select
+                value={taskStatusFilter}
+                onChange={(e) => setTaskStatusFilter(e.target.value)}
+                className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-blue-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </>
+        )}
 
         {/* User Filter */}
         <div className="relative w-full md:w-auto min-w-[140px]">
@@ -577,11 +684,20 @@ export default function CommunicationsView({
                 <label className="text-[10px] font-semibold text-gray-455 block mb-1">Interaction Type</label>
                 <select
                   value={editingComm.type}
-                  onChange={(e) => setEditingComm({...editingComm, type: e.target.value as any})}
+                  onChange={(e) => {
+                    const nextType = e.target.value as any;
+                    setEditingComm({
+                      ...editingComm,
+                      type: nextType,
+                      task_status: nextType === 'task' ? (editingComm.task_status || 'pending') : undefined,
+                      responsible_user_id: nextType === 'task' ? (editingComm.responsible_user_id || employees[0]?.id || '') : undefined
+                    });
+                  }}
                   className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer"
                 >
                   <option value="action">Action</option>
                   <option value="reminder">Reminder</option>
+                  <option value="task">Task</option>
                 </select>
               </div>
 
@@ -597,6 +713,37 @@ export default function CommunicationsView({
                   ))}
                 </select>
               </div>
+
+              {editingComm.type === 'task' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-blue-700 block mb-1">Responsible User *</label>
+                    <select
+                      value={editingComm.responsible_user_id || ''}
+                      onChange={(e) => setEditingComm({...editingComm, responsible_user_id: e.target.value})}
+                      className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer text-gray-850"
+                    >
+                      <option value="">Select Employee</option>
+                      {employees.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-blue-700 block mb-1">Task Status *</label>
+                    <select
+                      value={editingComm.task_status || 'pending'}
+                      onChange={(e) => setEditingComm({...editingComm, task_status: e.target.value as any})}
+                      className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer text-gray-850"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {editingComm.type === 'reminder' && (
                 <IosDateTimePicker

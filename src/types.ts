@@ -65,6 +65,7 @@ export interface Vendor {
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
   fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
+  barrels_amount?: number;    // Barrels amount
   is_deleted?: boolean;
   created_at: string;
   last_pickup_date?: string;
@@ -104,7 +105,7 @@ export interface Order {
 export interface Communication {
   id: string;
   date_time: string;          // თარიღი და დრო
-  type: 'action' | 'reminder'; // სახეობა (მოქმედება, შეხსენება)
+  type: 'action' | 'reminder' | 'task'; // სახეობა (მოქმედება, შეხსენება, დავალება)
   reminder_time?: string;     // შეხსენების დრო
   user_id: string;            // მომხმარებელი (User)
   user_name?: string;
@@ -113,6 +114,9 @@ export interface Communication {
   vendor_contact_id: string;  // მომწოდებლის კონტაქტი
   vendor_contact_name?: string;
   comment: string;            // კომენტარი
+  responsible_user_id?: string;
+  responsible_user_name?: string;
+  task_status?: string;
   is_deleted?: boolean;
 }
 

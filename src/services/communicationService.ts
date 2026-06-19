@@ -31,6 +31,7 @@ export async function saveCommunication(comm: Communication, loggerName: string)
         vendor_name, 
         user_name, 
         vendor_contact_name, 
+        responsible_user_name,
         ...dbComm 
       } = finalComm as any;
 

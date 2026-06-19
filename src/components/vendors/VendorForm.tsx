@@ -10,8 +10,9 @@ import VendorCommentsSection from './VendorCommentsSection';
 import VendorContactModal from './VendorContactModal';
 import VendorCommentModal from './VendorCommentModal';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { StandardTable, ColumnConfig } from '../StandardTable';
 
-import { MessageSquare, X } from 'lucide-react';
+import { MessageSquare, X, Trash2 } from 'lucide-react';
 
 interface Props {
   editingVendor: Vendor;
@@ -69,11 +70,13 @@ export default function VendorForm({
 
   // New communication form states
   const [newCommDate, setNewCommDate] = useState(new Date().toISOString().substring(0, 16));
-  const [newCommType, setNewCommType] = useState<'action' | 'reminder'>('action');
+  const [newCommType, setNewCommType] = useState<'action' | 'reminder' | 'task'>('action');
   const [newCommReminderTime, setNewCommReminderTime] = useState('');
   const [newCommContactId, setNewCommContactId] = useState('');
   const [newCommUserId, setNewCommUserId] = useState(currentUser.id);
   const [newCommComment, setNewCommComment] = useState('');
+  const [newCommResponsibleUserId, setNewCommResponsibleUserId] = useState('');
+  const [newCommTaskStatus, setNewCommTaskStatus] = useState('pending');
   const [commError, setCommError] = useState('');
 
   useEffect(() => {
@@ -112,7 +115,10 @@ export default function VendorForm({
       vendor_name: editingVendor.trade_name,
       vendor_contact_id: newCommContactId,
       vendor_contact_name: assignedContact ? assignedContact.name : 'Direct Interaction',
-      comment: newCommComment.trim()
+      comment: newCommComment.trim(),
+      responsible_user_id: newCommType === 'task' ? (newCommResponsibleUserId || undefined) : undefined,
+      responsible_user_name: newCommType === 'task' ? (users.find(u => u.id === newCommResponsibleUserId)?.name || '') : undefined,
+      task_status: newCommType === 'task' ? newCommTaskStatus : undefined
     };
 
     try {
@@ -122,6 +128,8 @@ export default function VendorForm({
         setNewCommReminderTime('');
         setNewCommType('action');
         setNewCommDate(new Date().toISOString().substring(0, 16));
+        setNewCommResponsibleUserId('');
+        setNewCommTaskStatus('pending');
       }
     } catch (e) {
       console.error(e);
@@ -379,6 +387,110 @@ export default function VendorForm({
     ]);
   };
 
+  const commColumns: ColumnConfig<Communication>[] = [
+    {
+      header: 'Date & Time',
+      key: 'date_time',
+      render: (comm) => {
+        const d = new Date(comm.date_time);
+        return isNaN(d.getTime()) ? (
+          <span className="font-mono text-xs">{comm.date_time}</span>
+        ) : (
+          <span className="font-mono text-xs">{d.toLocaleString()}</span>
+        );
+      }
+    },
+    {
+      header: 'Type',
+      key: 'type',
+      render: (comm) => {
+        const styleMap: Record<string, string> = {
+          action: 'bg-emerald-50 text-emerald-800 border-emerald-100',
+          reminder: 'bg-amber-50 text-amber-800 border-amber-100',
+          task: 'bg-blue-50 text-blue-800 border-blue-105',
+        };
+        const labelMap: Record<string, string> = {
+          action: 'Action',
+          reminder: 'Reminder',
+          task: 'Task',
+        };
+        const statusClass = styleMap[comm.type] || 'bg-slate-50 text-slate-700 border-slate-100';
+        const label = labelMap[comm.type] || comm.type;
+        return (
+          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold tracking-wide ${statusClass}`}>
+            {label}
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Interaction Details / Comment',
+      key: 'comment',
+      className: 'whitespace-normal max-w-sm break-words text-slate-700',
+      render: (comm) => comm.comment
+    },
+    {
+      header: 'Logged By',
+      key: 'user_name',
+      render: (comm) => (
+        <span className="font-medium text-slate-600">{comm.user_name || currentUser.name}</span>
+      )
+    },
+    {
+      header: 'Responsible',
+      key: 'responsible_user_id',
+      render: (comm) => {
+        if (comm.type !== 'task') return <span className="text-gray-400">-</span>;
+        const emp = users.find(u => u.id === comm.responsible_user_id);
+        return emp ? <span className="font-medium text-blue-600">{emp.name}</span> : <span className="text-gray-400">-</span>;
+      }
+    },
+    {
+      header: 'Task Status',
+      key: 'task_status',
+      render: (comm) => {
+        if (comm.type !== 'task' || !comm.task_status) return <span className="text-gray-400">-</span>;
+        const labelMap: Record<string, string> = {
+          pending: 'Pending',
+          in_progress: 'In Progress',
+          completed: 'Completed',
+        };
+        const styleMap: Record<string, string> = {
+          pending: 'bg-rose-50 text-rose-800 border-rose-100',
+          in_progress: 'bg-indigo-50 text-indigo-850 border-indigo-100',
+          completed: 'bg-emerald-50 text-emerald-850 border-emerald-100'
+        };
+        return (
+          <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wide uppercase ${styleMap[comm.task_status] || 'bg-slate-50 text-slate-700'}`}>
+            {labelMap[comm.task_status] || comm.task_status}
+          </span>
+        );
+      }
+    },
+    {
+      header: '',
+      key: 'actions',
+      className: 'text-right pr-4',
+      render: (comm) => (
+        <div className="flex justify-end gap-1">
+          {!isReadOnly && onDeleteCommunication && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteCommunication(comm.id);
+              }}
+              className="p-1 px-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+              title="Delete Log"
+            >
+              <Trash2 size={13.5} />
+            </button>
+          )}
+        </div>
+      )
+    }
+  ];
+
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl" id="vendors-form-panel">
       <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
@@ -396,7 +508,7 @@ export default function VendorForm({
         />
 
         {/* Contacts & Comments Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-0">
           <VendorContactsSection
             contacts={tempContacts}
             onAddContact={() => openContactModal()}
@@ -422,7 +534,7 @@ export default function VendorForm({
         </div>
 
         {/* Communications Log Section */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-6 mt-6">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4">
             <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-black uppercase text-gray-800 tracking-wider">
@@ -441,73 +553,12 @@ export default function VendorForm({
               )}
             </div>
 
-            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-              <span className="text-[11px] font-bold font-mono text-gray-400 uppercase tracking-widest block">
-                Logged Interactions (List)
-              </span>
-              
-              {(() => {
-                const sComms = communications.filter(c => c.vendor_id === editingVendor.id && !c.is_deleted);
-                if (sComms.length === 0) {
-                  return (
-                    <div className="p-8 text-center text-xs text-gray-400 italic bg-slate-50/50 rounded-xl border border-dashed border-gray-200">
-                      No previous interactions logged for this supplier.
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {sComms.map((comm) => (
-                      <div key={comm.id} className="p-3.5 bg-slate-50/50 hover:bg-slate-55 border border-gray-100 rounded-xl space-y-2 transition relative group text-left">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase ${
-                              comm.type === 'reminder' ? 'bg-amber-100 text-amber-850' : 'bg-emerald-100 text-emerald-850'
-                            }`}>
-                              {comm.type}
-                            </span>
-                            <span className="text-[10px] text-gray-500 font-semibold font-sans">
-                              via {comm.vendor_contact_name || 'Direct'}
-                            </span>
-                          </div>
-                          <span className="text-[9px] text-gray-400 font-mono">
-                            {new Date(comm.date_time).toLocaleString()}
-                          </span>
-                        </div>
-                        
-                        <p className="text-xs text-slate-700 font-sans leading-relaxed break-words">
-                          {comm.comment}
-                        </p>
-
-                        <div className="flex items-center justify-between pt-1 border-t border-gray-150 text-[9px] text-gray-450">
-                          <span className="font-semibold">
-                            Logged by: <span className="text-gray-600">{comm.user_name || 'System'}</span>
-                          </span>
-                          {comm.reminder_time && (
-                            <span className="text-amber-800 font-bold font-mono">
-                              Due: {new Date(comm.reminder_time).toLocaleString()}
-                            </span>
-                          )}
-                        </div>
-
-                        {!isReadOnly && onDeleteCommunication && (
-                          <button
-                            type="button"
-                            onClick={() => onDeleteCommunication(comm.id)}
-                            className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-650 hover:bg-white rounded-lg transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                            title="Delete communication log"
-                          >
-                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
+            <div className="pt-1">
+              <StandardTable
+                data={communications.filter(c => c.vendor_id === editingVendor.id && !c.is_deleted)}
+                columns={commColumns}
+                emptyMessage="No previous interactions logged for this supplier."
+              />
             </div>
           </div>
 
@@ -576,6 +627,7 @@ export default function VendorForm({
                   >
                     <option value="action">Action</option>
                     <option value="reminder">Reminder</option>
+                    <option value="task">Task</option>
                   </select>
                 </div>
 
@@ -592,6 +644,38 @@ export default function VendorForm({
                   </select>
                 </div>
               </div>
+
+              {/* Conditional Task Fields */}
+              {newCommType === 'task' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-blue-700 block mb-1">Responsible User *</label>
+                    <select
+                      value={newCommResponsibleUserId}
+                      onChange={(e) => setNewCommResponsibleUserId(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer text-gray-850"
+                    >
+                      <option value="">Select Employee</option>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-blue-700 block mb-1">Task Status *</label>
+                    <select
+                      value={newCommTaskStatus}
+                      onChange={(e) => setNewCommTaskStatus(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer text-gray-850"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {/* Reminder Time */}
               {newCommType === 'reminder' && (
