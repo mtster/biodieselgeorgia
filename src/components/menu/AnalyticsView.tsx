@@ -27,7 +27,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
 
   // 2. Calculated Metrics
   const completedOrders = orders.filter(o => o.status === 'completed');
-  const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.qty_actual || 0), 0);
+  const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const avgLiters = completedOrders.length > 0 ? Math.round(totalLiters / completedOrders.length) : 0;
 
   // 3. City Breakdown
@@ -41,7 +41,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
   completedOrders.forEach(ord => {
     const s = suppliers.find(x => x.id === ord.vendor_id);
     if (s) {
-      cityLitersMap[s.city] = (cityLitersMap[s.city] || 0) + (ord.qty_actual || 0);
+      cityLitersMap[s.city] = (cityLitersMap[s.city] || 0) + (ord.fact_qty || 0);
     }
   });
 

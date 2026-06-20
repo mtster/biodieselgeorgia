@@ -618,6 +618,9 @@ export default function App() {
               <ReportsView 
                 suppliers={vendors}
                 orders={orders}
+                users={users}
+                cities={cities}
+                districts={districts}
               />
             )}
 

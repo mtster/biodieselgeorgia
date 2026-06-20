@@ -96,7 +96,7 @@ function triggerSMS(order: Order) {
     id: 'sms-' + Math.random().toString(36).substring(2, 9),
     date_time: new Date().toISOString(),
     recipient: 'Accounting / Directors',
-    message: `Biodiesel Georgia: Order doc #${order.doc_number} completed. Quantity: ${order.qty_actual || order.qty_requested} liters.`,
+    message: `Biodiesel Georgia: Order doc #${order.doc_number} completed. Quantity: ${order.fact_qty || order.qty_requested} liters.`,
     status: 'Sent (Simulated)',
   };
   setLocal('biodiesel_sms_logs', [newSMS, ...logs]);

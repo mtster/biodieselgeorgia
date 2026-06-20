@@ -17,7 +17,7 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
   const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = orders.filter(o => o.status === 'completed');
   
-  const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.qty_actual || 0), 0);
+  const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
   return (

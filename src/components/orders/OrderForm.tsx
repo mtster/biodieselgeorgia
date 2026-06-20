@@ -74,8 +74,8 @@ export default function OrderForm({
         finalOrder.pickup_date_time = new Date().toISOString();
       }
 
-      if (finalOrder.qty_actual === undefined || finalOrder.qty_actual <= 0) {
-        errs.qty_actual = 'Please specify Actual Volume Received (Liters) for completed orders.';
+      if (finalOrder.fact_qty === undefined || finalOrder.fact_qty <= 0) {
+        errs.fact_qty = 'Please specify Actual Volume Received (Liters) for completed orders.';
       }
     }
 

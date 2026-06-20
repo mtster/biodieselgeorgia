@@ -63,9 +63,9 @@ export default function MobileLogisticsView({
 
     const updatedOrder: Order = {
       ...selectedOrder,
-      qty_actual: liters,
-      tanks_left_actual: left,
-      tanks_bring_actual: brought,
+      fact_qty: liters,
+      fact_tank_dropoff: left,
+      fact_tank_pickup: brought,
       pickup_date_time: new Date().toISOString(),
       note: note.trim(),
       status: 'completed'
@@ -361,15 +361,15 @@ export default function MobileLogisticsView({
                     <div className="bg-emerald-50/30 rounded-xl p-3 grid grid-cols-3 gap-2 text-center text-[10px]">
                       <div>
                         <span className="text-gray-400 uppercase block mb-0.5 font-bold">QTY RECORDED</span>
-                        <span className="font-black text-emerald-800 font-mono text-xs">{order.qty_actual} L</span>
+                        <span className="font-black text-emerald-800 font-mono text-xs">{order.fact_qty} L</span>
                       </div>
                       <div>
                         <span className="text-gray-400 uppercase block mb-0.5 font-bold">Tanks Left</span>
-                        <span className="font-black text-emerald-800 font-mono text-xs">{order.tanks_left_actual}</span>
+                        <span className="font-black text-emerald-800 font-mono text-xs">{order.fact_tank_dropoff}</span>
                       </div>
                       <div>
                         <span className="text-gray-400 uppercase block mb-0.5 font-bold">Tanks Brought</span>
-                        <span className="font-black text-emerald-800 font-mono text-xs">{order.tanks_bring_actual}</span>
+                        <span className="font-black text-emerald-800 font-mono text-xs">{order.fact_tank_pickup}</span>
                       </div>
                     </div>
 

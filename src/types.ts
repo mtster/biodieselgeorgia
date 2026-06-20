@@ -79,13 +79,7 @@ export interface Order {
   vendor_name?: string;       // დამხმარე ველი
   warehouse_id: string;       // საწყობი
   warehouse_name?: string;    // დამხმარე ველი
-  note?: string;              // შენიშვნა
   qty_requested: number;      // რაოდენობა
-  qty_actual?: number;        // ფაქტობრივი რაოდენობა
-  tanks_to_leave: number;     // დასატოვებელი ავზები რაოდ
-  tanks_to_bring: number;     // წამოსაღები ავზების რაოდ
-  tanks_left_actual?: number; // ფაქტ. დასატოვებელი ავზები რაოდ
-  tanks_bring_actual?: number;// ფაქტ. წამოსაღები ავზების რაოდ
   pickup_date_time?: string;  // წამოღების თარიღი და დრო
   operator_id: string;        // შეკვეთის თანამშრომელი (ვინც შექმნა)
   operator_name?: string;
@@ -98,6 +92,9 @@ export interface Order {
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
   fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
+  note?: string;              // შენიშვნა
+  tanks_to_leave: number;     // დასატოვებელი ავზები რაოდ
+  tanks_to_bring: number;     // წამოსაღები ავზების რაოდ
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
   is_deleted?: boolean;
 }

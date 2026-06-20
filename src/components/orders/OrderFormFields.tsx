@@ -200,28 +200,28 @@ export default function OrderFormFields({
               type="number"
               required
               fontClass="font-mono font-bold"
-              value={editingOrder.qty_actual || ''}
+              value={editingOrder.fact_qty || ''}
               onChange={(e) => {
-                setEditingOrder(prev => prev ? { ...prev, qty_actual: parseFloat(e.target.value) || 0 } : null);
-                if (fieldErrors.qty_actual) setFieldErrors(prev => ({ ...prev, qty_actual: '' }));
+                setEditingOrder(prev => prev ? { ...prev, fact_qty: parseFloat(e.target.value) || 0 } : null);
+                if (fieldErrors.fact_qty) setFieldErrors(prev => ({ ...prev, fact_qty: '' }));
               }}
-              error={fieldErrors.qty_actual}
+              error={fieldErrors.fact_qty}
             />
 
             <FormInput
               label="Actual Placed Tanks *"
               type="number"
               fontClass="font-mono"
-              value={editingOrder.tanks_left_actual !== undefined ? editingOrder.tanks_left_actual : ''}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_left_actual: parseInt(e.target.value) || 0 } : null)}
+              value={editingOrder.fact_tank_dropoff !== undefined ? editingOrder.fact_tank_dropoff : ''}
+              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: parseInt(e.target.value) || 0 } : null)}
             />
 
             <FormInput
               label="Actual Picked Tanks *"
               type="number"
               fontClass="font-mono"
-              value={editingOrder.tanks_bring_actual !== undefined ? editingOrder.tanks_bring_actual : ''}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_bring_actual: parseInt(e.target.value) || 0 } : null)}
+              value={editingOrder.fact_tank_pickup !== undefined ? editingOrder.fact_tank_pickup : ''}
+              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: parseInt(e.target.value) || 0 } : null)}
             />
           </div>
         </div>

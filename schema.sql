@@ -120,11 +120,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
     warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL,
     note TEXT,                               -- General Notes
     qty_requested NUMERIC(12, 2) NOT NULL,   -- Requested Liters
-    qty_actual NUMERIC(12, 2),               -- Actual Liters Picked Up
     tanks_to_leave INT NOT NULL DEFAULT 0,   -- Tanks to Leave
     tanks_to_bring INT NOT NULL DEFAULT 0,   -- Tanks to Retrieve
-    tanks_left_actual INT,                   -- Actual Tanks Left
-    tanks_bring_actual INT,                  -- Actual Tanks Retrieved
     pickup_date_time TIMESTAMPTZ,            -- Retrieve Date and Time
     operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Creator Operator
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,   -- Driver assigned
