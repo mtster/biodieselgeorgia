@@ -3,6 +3,7 @@ import { User, UserRole, Warehouse } from '../../types';
 import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import DeleteButton from '../DeleteButton';
 
 import UserForm from '../users/UserForm';
 
@@ -102,6 +103,15 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
 
   const headerActions = editingUser ? (
     <>
+      {!isNew && editingUser && editingUser.id !== currentUser.id && (
+        <DeleteButton
+          onClick={() => {
+            askDelete(editingUser.id, editingUser.name);
+            setEditingUser(null);
+          }}
+          label="Delete"
+        />
+      )}
       <button 
         onClick={() => {
           formRef.current?.fillDummy();

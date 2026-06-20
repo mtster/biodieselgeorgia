@@ -16,6 +16,7 @@ import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
+import DeleteButton from '../DeleteButton';
 import { createDatabaseColumn } from '../../services/vendorService';
 
 const defaultSuppliersColumns: ManagedColumn[] = [
@@ -247,12 +248,9 @@ export default function VendorsView({
             </button>
           )}
           {!isNew && (
-            <button 
+            <DeleteButton
               onClick={() => askDelete(editingVendor.id, editingVendor.trade_name)}
-              className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold rounded-xl text-xs transition cursor-pointer select-none"
-            >
-              Delete
-            </button>
+            />
           )}
           <button 
             onClick={() => formRef.current?.save()}

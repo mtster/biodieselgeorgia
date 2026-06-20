@@ -14,6 +14,7 @@ import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
+import DeleteButton from '../DeleteButton';
 import { createDatabaseOrderColumn } from '../../services/orderService';
 
 const defaultOrdersColumns: ManagedColumn[] = [
@@ -194,15 +195,11 @@ export default function OrdersView({
       {editingOrder ? (
         <>
           {editingOrder.id && (
-            <button 
+            <DeleteButton
               onClick={() => {
                 askDelete(editingOrder.id, editingOrder.doc_number);
               }}
-              className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold rounded-xl text-xs transition cursor-pointer select-none flex items-center gap-1.5"
-            >
-              <Trash2 size={13} />
-              Delete
-            </button>
+            />
           )}
           <button 
             onClick={() => {

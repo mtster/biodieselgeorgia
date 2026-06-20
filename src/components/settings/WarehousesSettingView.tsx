@@ -4,6 +4,7 @@ import { Plus, Trash2, Building, X } from 'lucide-react';
 import { FormInput } from '../FormInput';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import FormModal from '../FormModal';
 
 interface Props {
   warehouses: Warehouse[];
@@ -114,81 +115,40 @@ export default function WarehousesSettingView({
       </div>
 
       {/* Main editor Popup Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl border border-slate-200 overflow-hidden p-6 relative flex flex-col">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4 shrink-0">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">
-                {selectedWarehouse ? 'Warehouse Specifications' : 'Add Warehouse'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-750 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Input Fields */}
-            <div className="space-y-4 py-1 flex-1 text-left">
-              <FormInput
-                label="Warehouse / Storage Facility Name *"
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="e.g. Tbilisi Central Depot"
-              />
-            </div>
-
-            {/* Footer buttons row */}
-            <div className="border-t border-slate-200 pt-4 mt-4 flex items-center justify-between shrink-0 select-none">
-              {selectedWarehouse ? (
-                <button
-                  type="button"
-                  onClick={triggerDeleteWarehouse}
-                  className="flex items-center gap-1 p-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition shrink-0 cursor-pointer"
-                >
-                  <Trash2 size={14} />
-                  Delete Warehouse
-                </button>
-              ) : <div />}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-black rounded-lg text-xs transition cursor-pointer"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-
-            {/* Delete confirmation modal */}
-            <ConfirmDeleteModal
-              isOpen={showConfirmDelete}
-              onClose={() => setShowConfirmDelete(false)}
-              onConfirm={handleConfirmDeleteWarehouse}
-              title="Delete warehouse?"
-              message={
-                <span>
-                  Are you sure you want to permanently delete warehouse <strong>"{warehouseToDelete?.name}"</strong>? This action cannot be undone.
-                </span>
-              }
-            />
-
-          </div>
+      <FormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={selectedWarehouse ? 'Warehouse Specifications' : 'Add Warehouse'}
+        maxWidthClass="max-w-md"
+        onDelete={selectedWarehouse ? triggerDeleteWarehouse : undefined}
+        deleteLabel="Delete"
+        onCancel={() => setIsModalOpen(false)}
+        onSave={handleSave}
+        saveLabel="Save Changes"
+      >
+        <div className="space-y-4">
+          <FormInput
+            label="Warehouse / Storage Facility Name *"
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="e.g. Tbilisi Central Depot"
+          />
         </div>
-      )}
+      </FormModal>
+
+      {/* Delete confirmation modal */}
+      <ConfirmDeleteModal
+        isOpen={showConfirmDelete}
+        onClose={() => setShowConfirmDelete(false)}
+        onConfirm={handleConfirmDeleteWarehouse}
+        title="Delete warehouse?"
+        message={
+          <span>
+            Are you sure you want to permanently delete warehouse <strong>"{warehouseToDelete?.name}"</strong>? This action cannot be undone.
+          </span>
+        }
+      />
 
     </div>
   );

@@ -69,12 +69,12 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
         { label: 'This Month', start: startOfMonth, end: endOfMonth },
     ];
 
-    // Previous 5 months
-    for (let i = 1; i <= 5; i++) {
+    // Previous 12 months
+    for (let i = 1; i <= 12; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const start = new Date(d.getFullYear(), d.getMonth(), 1);
         const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        presets.push({ label: `${d.toLocaleString('default', { month: 'long' })}`, start, end });
+        presets.push({ label: d.toLocaleString('default', { month: 'long' }), start, end });
     }
 
     return presets;

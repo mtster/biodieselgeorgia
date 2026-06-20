@@ -4,6 +4,7 @@ import { Plus, Trash2, MapPin, X, Building } from 'lucide-react';
 import { FormInput } from '../FormInput';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import FormModal from '../FormModal';
 
 interface Props {
   cities: City[];
@@ -134,128 +135,87 @@ export default function CitiesSettingView({
       </div>
 
       {/* Main detailed editor Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl border border-slate-200 overflow-hidden p-6 relative flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4 shrink-0">
-              <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">
-                {selectedCity ? 'City Details' : 'Create New City'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-450 hover:text-gray-700 cursor-pointer p-1 rounded-lg hover:bg-slate-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <FormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={selectedCity ? 'City Details' : 'Create New City'}
+        maxWidthClass="max-w-lg"
+        onDelete={selectedCity ? triggerDeleteCity : undefined}
+        deleteLabel="Delete"
+        onCancel={() => setIsModalOpen(false)}
+        onSave={handleSave}
+        saveLabel="Save Changes"
+      >
+        <div className="space-y-5">
+          {/* City Name Form field */}
+          <FormInput
+            label="City *"
+            type="text"
+            value={cityNameInput}
+            onChange={(e) => setCityNameInput(e.target.value)}
+            placeholder="e.g. Tbilisi"
+          />
 
-            {/* Modal Scrollable Body */}
-            <div className="flex-1 overflow-y-auto space-y-5 pr-1 py-1">
-              {/* City Name Form field */}
-              <FormInput
-                label="City Name *"
-                type="text"
-                value={cityNameInput}
-                onChange={(e) => setCityNameInput(e.target.value)}
-                placeholder="e.g. Tbilisi"
-              />
+          {/* Districts inline sub-management if City exists */}
+          {selectedCity && (
+            <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 space-y-3">
+              <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">
+                Districts
+              </h4>
 
-              {/* Districts inline sub-management if City exists */}
-              {selectedCity && (
-                <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 space-y-3">
-                  <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">
-                    Associated Districts & Neighborhoods
-                  </h4>
-
-                  <div className="flex gap-2">
-                    <input 
-                      type="text"
-                      value={newDistrictName}
-                      onChange={(e) => setNewDistrictName(e.target.value)}
-                      placeholder="New district name..."
-                      className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 bg-white"
-                    />
-                    <button 
-                      onClick={handleAddDistrict}
-                      type="button"
-                      className="px-3.5 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
-                    >
-                      Add
-                    </button>
-                  </div>
-
-                  <div className="space-y-1.5 max-h-44 overflow-y-auto pt-1">
-                    {districts.filter(d => d.city_id === selectedCity.id).map(d => (
-                      <div key={d.id} className="p-2 bg-white border border-gray-100 rounded-lg flex items-center justify-between text-xs sm:px-3">
-                        <span className="font-bold text-gray-750">{d.name}</span>
-                        <button 
-                          onClick={() => onDeleteDistrict(d.id, d.name)}
-                          type="button"
-                          className="p-1 hover:text-red-650 rounded text-gray-400 hover:bg-red-50"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                    {districts.filter(d => d.city_id === selectedCity.id).length === 0 && (
-                      <p className="text-[10px] text-gray-405 font-sans italic text-center py-2">
-                        No districts registered yet.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Bottom row */}
-            <div className="border-t border-slate-200 pt-4 mt-4 flex items-center justify-between shrink-0 select-none">
-              {selectedCity ? (
-                <button
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  value={newDistrictName}
+                  onChange={(e) => setNewDistrictName(e.target.value)}
+                  placeholder="New district name..."
+                  className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 bg-white"
+                />
+                <button 
+                  onClick={handleAddDistrict}
                   type="button"
-                  onClick={triggerDeleteCity}
-                  className="flex items-center gap-1 p-2 text-xs font-bold text-red-650 hover:bg-red-50 rounded-lg transition shrink-0 cursor-pointer"
+                  className="px-3.5 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
                 >
-                  <Trash2 size={14} />
-                  Delete City
-                </button>
-              ) : <div />}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-black rounded-lg text-xs transition cursor-pointer"
-                >
-                  Save Changes
+                  Add
                 </button>
               </div>
+
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pt-1">
+                {districts.filter(d => d.city_id === selectedCity.id).map(d => (
+                  <div key={d.id} className="p-2 bg-white border border-gray-100 rounded-lg flex items-center justify-between text-xs sm:px-3">
+                    <span className="font-bold text-gray-750">{d.name}</span>
+                    <button 
+                      onClick={() => onDeleteDistrict(d.id, d.name)}
+                      type="button"
+                      className="p-1 hover:text-red-650 rounded text-gray-400 hover:bg-red-50"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+                {districts.filter(d => d.city_id === selectedCity.id).length === 0 && (
+                  <p className="text-[10px] text-gray-405 font-sans italic text-center py-2">
+                    No districts registered yet.
+                  </p>
+                )}
+              </div>
             </div>
-
-            {/* Standardized Confirmation Overlay for Deleting Cities */}
-            <ConfirmDeleteModal
-              isOpen={showConfirmDelete}
-              onClose={() => setShowConfirmDelete(false)}
-              onConfirm={handleConfirmDeleteCity}
-              title="Delete City?"
-              message={
-                <span>
-                  Are you sure you want to delete city <strong>"{cityToDelete?.name}"</strong>? It will hide it from the UI immediately. This action is soft-deleted in the database.
-                </span>
-              }
-            />
-
-          </div>
+          )}
         </div>
-      )}
+      </FormModal>
+
+      {/* Standardized Confirmation Overlay for Deleting Cities */}
+      <ConfirmDeleteModal
+        isOpen={showConfirmDelete}
+        onClose={() => setShowConfirmDelete(false)}
+        onConfirm={handleConfirmDeleteCity}
+        title="Delete City?"
+        message={
+          <span>
+            Are you sure you want to delete city <strong>"{cityToDelete?.name}"</strong>? It will hide it from the UI immediately. This action is soft-deleted in the database.
+          </span>
+        }
+      />
 
     </div>
   );

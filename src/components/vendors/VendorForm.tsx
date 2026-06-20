@@ -10,7 +10,9 @@ import VendorCommentsSection from './VendorCommentsSection';
 import VendorContactModal from './VendorContactModal';
 import VendorCommentModal from './VendorCommentModal';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import FormModal from '../FormModal';
 import { StandardTable, ColumnConfig } from '../StandardTable';
+import { FormInput, FormSelect } from '../FormInput';
 
 import { MessageSquare, X, Trash2 } from 'lucide-react';
 
@@ -62,6 +64,28 @@ export default function VendorForm({
 
   // Communication modal open state
   const [isCommModalOpen, setIsCommModalOpen] = useState(false);
+  const [activeComm, setActiveComm] = useState<Communication | null>(null);
+
+  useEffect(() => {
+    if (activeComm) {
+      setNewCommDate(new Date(activeComm.date_time).toISOString().substring(0, 16));
+      setNewCommType(activeComm.type);
+      setNewCommReminderTime(activeComm.reminder_time ? new Date(activeComm.reminder_time).toISOString().substring(0, 16) : '');
+      setNewCommContactId(activeComm.vendor_contact_id || '');
+      setNewCommUserId(activeComm.user_id);
+      setNewCommComment(activeComm.comment);
+      setNewCommResponsibleUserId(activeComm.responsible_user_id || '');
+      setNewCommTaskStatus(activeComm.task_status || 'pending');
+    } else {
+      setNewCommDate(new Date().toISOString().substring(0, 16));
+      setNewCommType('action');
+      setNewCommReminderTime('');
+      setNewCommUserId(currentUser.id);
+      setNewCommComment('');
+      setNewCommResponsibleUserId('');
+      setNewCommTaskStatus('pending');
+    }
+  }, [activeComm, isCommModalOpen]);
 
   // Initialize contacts list
   useEffect(() => {
@@ -90,7 +114,7 @@ export default function VendorForm({
     }
   }, [tempContacts]);
 
-  const handleAddSupplierCommunication = async () => {
+  const handleSaveCommunication = async () => {
     if (!editingVendor.id) {
       alert("Please save this supplier before logging communication records.");
       return;
@@ -105,7 +129,7 @@ export default function VendorForm({
     const assignedContact = tempContacts.find(c => c.id === newCommContactId);
 
     const commPayload: Communication = {
-      id: '',
+      id: activeComm ? activeComm.id : '',
       date_time: new Date(newCommDate).toISOString(),
       type: newCommType,
       reminder_time: newCommType === 'reminder' && newCommReminderTime ? new Date(newCommReminderTime).toISOString() : undefined,
@@ -130,6 +154,7 @@ export default function VendorForm({
         setNewCommDate(new Date().toISOString().substring(0, 16));
         setNewCommResponsibleUserId('');
         setNewCommTaskStatus('pending');
+        setActiveComm(null);
       }
     } catch (e) {
       console.error(e);
@@ -544,7 +569,10 @@ export default function VendorForm({
               {!isReadOnly && (
                 <button
                   type="button"
-                  onClick={() => setIsCommModalOpen(true)}
+                  onClick={() => {
+                    setActiveComm(null);
+                    setIsCommModalOpen(true);
+                  }}
                   className="px-3.5 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 border border-emerald-205 rounded-xl text-xs font-bold font-sans cursor-pointer transition-all flex items-center gap-1.5 shadow-3xs"
                 >
                   <MessageSquare size={13} />
@@ -557,7 +585,12 @@ export default function VendorForm({
               <StandardTable
                 data={communications.filter(c => c.vendor_id === editingVendor.id && !c.is_deleted)}
                 columns={commColumns}
+                onRowClick={(comm) => {
+                  setActiveComm(comm);
+                  setIsCommModalOpen(true);
+                }}
                 emptyMessage="No previous interactions logged for this supplier."
+                hidePagination={true}
               />
             </div>
           </div>
@@ -590,168 +623,112 @@ export default function VendorForm({
       />
 
       {/* Dynamic Add Communication Popup Modal */}
-      {isCommModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-gray-200 text-left">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <h3 className="font-extrabold text-sm text-gray-800">Log Supplier Communication</h3>
-              <button 
-                type="button"
-                onClick={() => setIsCommModalOpen(false)} 
-                className="text-gray-400 hover:text-gray-650 cursor-pointer p-1 rounded-lg hover:bg-slate-100"
+      <FormModal
+        isOpen={isCommModalOpen}
+        onClose={() => setIsCommModalOpen(false)}
+        title={activeComm ? "Edit Communication" : "New Communication"}
+        maxWidthClass="max-w-md"
+        onCancel={() => setIsCommModalOpen(false)}
+        onSave={async () => {
+          await handleSaveCommunication();
+          setIsCommModalOpen(false);
+        }}
+        saveLabel={activeComm ? "Save Communication" : "Add Communication"}
+      >
+        <div className="space-y-4">
+          <FormInput
+            label="Date & Time *"
+            type="datetime-local"
+            value={newCommDate}
+            onChange={(e) => setNewCommDate(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <FormSelect
+              label="Type *"
+              value={newCommType}
+              onChange={(e) => setNewCommType(e.target.value as any)}
+            >
+              <option value="action">Action</option>
+              <option value="reminder">Reminder</option>
+              <option value="task">Task</option>
+            </FormSelect>
+
+            <FormSelect
+              label="User Rep *"
+              value={newCommUserId}
+              onChange={(e) => setNewCommUserId(e.target.value)}
+            >
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </FormSelect>
+          </div>
+
+          {newCommType === 'task' && (
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect
+                label="Responsible User *"
+                value={newCommResponsibleUserId}
+                onChange={(e) => setNewCommResponsibleUserId(e.target.value)}
               >
-                <X size={17} />
-              </button>
-            </div>
+                <option value="">Select Employee</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </FormSelect>
 
-            <div className="space-y-3.5">
-              {/* Date & Time */}
-              <div>
-                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Date & Time *</label>
-                <input
-                  type="datetime-local"
-                  value={newCommDate}
-                  onChange={(e) => setNewCommDate(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-850 font-sans"
-                />
-              </div>
-
-              {/* Log Type and User Rep */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-semibold text-gray-455 block mb-1">Type *</label>
-                  <select
-                    value={newCommType}
-                    onChange={(e) => setNewCommType(e.target.value as any)}
-                    className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-800"
-                  >
-                    <option value="action">Action</option>
-                    <option value="reminder">Reminder</option>
-                    <option value="task">Task</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-semibold text-gray-455 block mb-1">User Rep *</label>
-                  <select
-                    value={newCommUserId}
-                    onChange={(e) => setNewCommUserId(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-800 text-ellipsis overflow-hidden"
-                  >
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Conditional Task Fields */}
-              {newCommType === 'task' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-semibold text-blue-700 block mb-1">Responsible User *</label>
-                    <select
-                      value={newCommResponsibleUserId}
-                      onChange={(e) => setNewCommResponsibleUserId(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer text-gray-850"
-                    >
-                      <option value="">Select Employee</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>{u.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-semibold text-blue-700 block mb-1">Task Status *</label>
-                    <select
-                      value={newCommTaskStatus}
-                      onChange={(e) => setNewCommTaskStatus(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none focus:border-blue-600 cursor-pointer text-gray-850"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* Reminder Time */}
-              {newCommType === 'reminder' && (
-                <div>
-                  <label className="text-[10px] font-semibold text-amber-700 block mb-1">Reminder Due Time *</label>
-                  <input
-                    type="datetime-local"
-                    value={newCommReminderTime}
-                    onChange={(e) => setNewCommReminderTime(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-white border border-amber-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:outline-none focus:border-amber-600 cursor-pointer text-amber-900"
-                  />
-                </div>
-              )}
-
-              {/* Supplier Contact */}
-              <div>
-                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Supplier Contact Point</label>
-                <select
-                  value={newCommContactId}
-                  onChange={(e) => setNewCommContactId(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 cursor-pointer text-gray-800 text-ellipsis overflow-hidden"
-                >
-                  <option value="">Direct / No contact selected</option>
-                  {tempContacts.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.position})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Comment */}
-              <div>
-                <label className="text-[10px] font-semibold text-gray-455 block mb-1">Notes / Discussion Content *</label>
-                <textarea
-                  rows={4}
-                  placeholder="Discussed pricing rate terms / Scheduled upcoming grease pickup..."
-                  value={newCommComment}
-                  onChange={(e) => {
-                    setNewCommComment(e.target.value);
-                    if (commError) setCommError('');
-                  }}
-                  className="w-full p-2.5 bg-gray-55 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:border-emerald-600 font-sans text-gray-800"
-                />
-                {commError && (
-                  <p className="text-[9px] text-red-650 font-bold block mt-0.5">{commError}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2.5 font-sans">
-              <button
-                type="button"
-                onClick={() => setIsCommModalOpen(false)}
-                className="px-4 py-1.5 bg-gray-100 text-gray-750 hover:bg-gray-200 rounded-lg text-xs font-semibold cursor-pointer"
+              <FormSelect
+                label="Task Status *"
+                value={newCommTaskStatus}
+                onChange={(e) => setNewCommTaskStatus(e.target.value)}
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!newCommComment.trim()) {
-                    setCommError("Log comment is required.");
-                    return;
-                  }
-                  await handleAddSupplierCommunication();
-                  setIsCommModalOpen(false);
-                }}
-                className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm animate-none"
-              >
-                Log Communication
-              </button>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </FormSelect>
             </div>
+          )}
+
+          {newCommType === 'reminder' && (
+            <FormInput
+              label="Reminder Due Time *"
+              type="datetime-local"
+              value={newCommReminderTime}
+              onChange={(e) => setNewCommReminderTime(e.target.value)}
+            />
+          )}
+
+          <FormSelect
+            label="Supplier"
+            value={newCommContactId}
+            onChange={(e) => setNewCommContactId(e.target.value)}
+          >
+            <option value="">Direct / No contact selected</option>
+            {tempContacts.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.position})
+              </option>
+            ))}
+          </FormSelect>
+
+          <div className="relative">
+            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">Notes / Discussion Content *</span>
+            <textarea
+              rows={4}
+              placeholder="Discussed pricing rate terms / Scheduled upcoming grease pickup..."
+              value={newCommComment}
+              onChange={(e) => {
+                setNewCommComment(e.target.value);
+                if (commError) setCommError('');
+              }}
+              className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
+            />
+            {commError && (
+              <p className="text-[10px] text-red-600 font-bold mt-1 text-left">{commError}</p>
+            )}
           </div>
         </div>
-      )}
+      </FormModal>
     </div>
   );
 }

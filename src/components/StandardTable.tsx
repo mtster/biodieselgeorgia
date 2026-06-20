@@ -17,6 +17,7 @@ interface StandardTableProps<T> {
   onLoadMore?: () => void;
   hasMore?: boolean;
   isLoading?: boolean;
+  hidePagination?: boolean;
 }
 
 export function StandardTable<T>({
@@ -25,7 +26,8 @@ export function StandardTable<T>({
   onRowClick,
   rowClassName,
   emptyMessage = 'No records found.',
-  isLoading = false
+  isLoading = false,
+  hidePagination = false
 }: StandardTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
@@ -103,7 +105,7 @@ export function StandardTable<T>({
       )}
 
       {/* Beautiful High-Contrast Pagination Footer */}
-      {totalItems > 0 && (
+      {!hidePagination && totalItems > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 bg-slate-50/60 px-4 py-3 select-none shrink-0 gap-3">
           <div className="text-xs text-gray-500 font-medium font-sans">
             Showing <span className="font-bold text-gray-800">{totalItems === 0 ? 0 : startIndex + 1}</span> to{' '}

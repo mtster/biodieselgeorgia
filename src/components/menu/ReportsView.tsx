@@ -150,14 +150,14 @@ export default function ReportsView({
       />
 
       {/* RE-ARCHITECTED INTERACTIVE REPORT DIRECTORY GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-2">
         {reportCards.map((card) => {
           const Icon = card.icon;
           return (
             <button
               key={card.id}
               onClick={() => setSelectedReport(card.id)}
-              className="group relative flex flex-col justify-between p-6 bg-white border border-gray-100 rounded-2xl text-left hover:shadow-md hover:border-gray-300 transition-all cursor-pointer select-none"
+              className="group relative flex flex-col p-6 bg-white border border-gray-200 hover:border-emerald-500 rounded-2xl text-left transition cursor-pointer select-none shadow-xs"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -179,12 +179,6 @@ export default function ReportsView({
                     {card.description}
                   </p>
                 </div>
-              </div>
-
-              {/* Action Button Indicator */}
-              <div className="flex items-center text-xs font-bold text-gray-400 group-hover:text-emerald-700 transition-colors mt-6 pt-3 border-t border-gray-50">
-                <span>Generate Report</span>
-                <ArrowRight size={14} className="ml-1.5 transform group-hover:translate-x-1 transition-transform" />
               </div>
             </button>
           );
