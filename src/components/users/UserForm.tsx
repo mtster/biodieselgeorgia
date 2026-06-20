@@ -3,13 +3,13 @@ import { User, UserRole, Warehouse } from '../../types';
 import { formatPhone } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
 import { Check } from 'lucide-react';
-import { getWarehouses } from '../../services/lookupService';
 
 interface Props {
   editingUser: User;
   setEditingUser: React.Dispatch<React.SetStateAction<User | null>>;
   isNew: boolean;
   currentUser: User;
+  warehouses: Warehouse[];
   onSave: (user: User) => void;
   onCancel: () => void;
   formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
@@ -43,16 +43,12 @@ export default function UserForm({
   setEditingUser,
   isNew,
   currentUser,
+  warehouses,
   onSave,
   onCancel,
   formRef
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-
-  useEffect(() => {
-    getWarehouses().then(data => setWarehouses(data || []));
-  }, []);
 
   useEffect(() => {
     if (editingUser && !editingUser.edit_permissions) {

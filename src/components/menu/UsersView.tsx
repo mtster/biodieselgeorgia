@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { User, UserRole } from '../../types';
+import { User, UserRole, Warehouse } from '../../types';
 import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
@@ -9,11 +9,12 @@ import UserForm from '../users/UserForm';
 interface Props {
   users: User[];
   currentUser: User;
+  warehouses: Warehouse[];
   onSave: (user: User) => void;
   onDelete: (id: string, name: string) => void;
 }
 
-export default function UsersView({ users, currentUser, onSave, onDelete }: Props) {
+export default function UsersView({ users, currentUser, warehouses, onSave, onDelete }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   
   // States
@@ -138,6 +139,7 @@ export default function UsersView({ users, currentUser, onSave, onDelete }: Prop
           setEditingUser={setEditingUser}
           isNew={isNew}
           currentUser={currentUser}
+          warehouses={warehouses}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingUser(null)}
           formRef={formRef}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { Vendor, Order, User } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
@@ -95,7 +96,7 @@ export default function LastDeliveries({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reports > Last Deliveries"
+        title={<>Reports <ChevronRight size={20} className="text-gray-400 mx-1" /> Last Deliveries</>}
         onBack={onBack}
         backButtonId="reports-last-deliveries-back"
       />

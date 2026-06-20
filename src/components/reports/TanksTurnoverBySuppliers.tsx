@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { Vendor, Order, User, City, District } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
@@ -129,7 +130,7 @@ export default function TanksTurnoverBySuppliers({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reports > Tanks Turnover by Suppliers"
+        title={<>Reports <ChevronRight size={20} className="text-gray-400 mx-1" /> Tanks Turnover by Suppliers</>}
         onBack={onBack}
         backButtonId="reports-turnover-back"
       />

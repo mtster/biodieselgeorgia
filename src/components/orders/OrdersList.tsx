@@ -1,5 +1,5 @@
 import React from 'react';
-import { Order, Vendor, User } from '../../types';
+import { Order, Vendor, User, Warehouse } from '../../types';
 import { Edit2, Trash2, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
@@ -7,6 +7,7 @@ import { ManagedColumn } from '../ColumnsManagerModal';
 interface Props {
   filteredOrders: Order[];
   suppliers: Vendor[];
+  warehouses: Warehouse[];
   employees: User[];
   startEdit: (ord: Order, readOnly?: boolean) => void;
   askDelete: (id: string, docNum: string) => void;
@@ -18,6 +19,7 @@ interface Props {
 export default function OrdersList({
   filteredOrders,
   suppliers,
+  warehouses,
   employees,
   startEdit,
   askDelete,
@@ -65,7 +67,10 @@ export default function OrdersList({
     warehouse_id: {
       header: 'Warehouse',
       key: 'warehouse_name',
-      render: (ord) => ord.warehouse_name || 'Unassigned Warehouse'
+      render: (ord) => {
+        const wh = warehouses.find(w => w.id === ord.warehouse_id);
+        return wh ? wh.name : (ord.warehouse_name || 'Unassigned Warehouse');
+      }
     },
     status: {
       header: 'Status',

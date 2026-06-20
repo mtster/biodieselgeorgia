@@ -335,6 +335,7 @@ export default function OrdersView({
           <OrdersList 
             filteredOrders={filteredOrders} 
             suppliers={suppliers} 
+            warehouses={warehouses}
             employees={employees}
             startEdit={startEdit} 
             askDelete={askDelete}

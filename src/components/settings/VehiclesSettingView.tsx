@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Vehicle, User, City, Warehouse } from '../../types';
 import { Plus, Trash2, Truck as TruckIcon, X } from 'lucide-react';
 import { FormInput, FormSelect } from '../FormInput';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
-import { getWarehouses } from '../../services/lookupService';
 
 interface Props {
   trucks: Vehicle[];
   employees: User[];
   cities: City[];
+  warehouses: Warehouse[];
   onSaveTruck: (t: Vehicle) => void;
   onDeleteTruck: (plate: string) => void;
   onBack: () => void;
@@ -19,6 +19,7 @@ export default function VehiclesSettingView({
   trucks,
   employees,
   cities = [],
+  warehouses = [],
   onSaveTruck,
   onDeleteTruck,
   onBack
@@ -33,11 +34,6 @@ export default function VehiclesSettingView({
   const [tCompanion, setTCompanion] = useState('');
   const [tCity, setTCity] = useState('');
   const [tWarehouseId, setTWarehouseId] = useState('');
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-
-  useEffect(() => {
-    getWarehouses().then(data => setWarehouses(data || []));
-  }, []);
 
   // Confirmation state
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);

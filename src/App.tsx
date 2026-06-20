@@ -609,6 +609,7 @@ export default function App() {
               <UsersView 
                 users={users}
                 currentUser={currentUser}
+                warehouses={warehouses}
                 onSave={handleUserSave}
                 onDelete={handleUserDelete}
               />
@@ -641,6 +642,7 @@ export default function App() {
                 trucks={trucks}
                 employees={users}
                 cities={cities}
+                warehouses={warehouses}
                 onSaveTruck={handleSaveTruck}
                 onDeleteTruck={handleDeleteTruck}
                 onBack={() => setActiveTab('dashboard')}

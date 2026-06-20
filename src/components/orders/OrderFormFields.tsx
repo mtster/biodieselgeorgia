@@ -142,33 +142,42 @@ export default function OrderFormFields({
           <option value="cancelled">Cancelled</option>
         </FormSelect>
 
-        {/* Fact & Volumetric Parameters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormInput
-            label="Fact QTY (L)"
-            type="number"
-            step="0.01"
-            fontClass="font-mono font-bold"
-            value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
-            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
-          />
+        {/* Fact & Volumetric Parameters (Only for Completed Orders) */}
+        {editingOrder.status === 'completed' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white border border-emerald-100 rounded-2xl p-6 animate-in slide-in-from-top-3 duration-150">
+            <FormInput
+              label="Fact QTY (L) *"
+              type="number"
+              step="0.01"
+              required
+              fontClass="font-mono font-bold"
+              value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
+              onChange={(e) => {
+                setEditingOrder(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null);
+                if (fieldErrors.fact_qty) setFieldErrors(prev => ({ ...prev, fact_qty: '' }));
+              }}
+              error={fieldErrors.fact_qty}
+            />
 
-          <FormInput
-            label="Fact Tank Dropoff"
-            type="number"
-            fontClass="font-mono"
-            value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
-            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-          />
+            <FormInput
+              label="Fact Tank Dropoff *"
+              type="number"
+              required
+              fontClass="font-mono"
+              value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
+              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+            />
 
-          <FormInput
-            label="Fact Tank Pickup"
-            type="number"
-            fontClass="font-mono"
-            value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
-            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-          />
-        </div>
+            <FormInput
+              label="Fact Tank Pickup *"
+              type="number"
+              required
+              fontClass="font-mono"
+              value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
+              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+            />
+          </div>
+        )}
 
         {/* Dynamic Custom Fields from Columns Manager */}
         <DynamicCustomFields
@@ -185,47 +194,6 @@ export default function OrderFormFields({
           onChange={(e) => setEditingOrder(prev => prev ? { ...prev, note: e.target.value } : null)}
         />
       </div>
-
-      {/* HIGH-PRIORITY DATE & TIME PICKER PANEL FOR COMPLETED LOGISTICS */}
-      {editingOrder.status === 'completed' && (
-        <div className="bg-white border border-emerald-100 rounded-2xl p-6 space-y-5 animate-in slide-in-from-top-3 duration-150">
-          <FulfillmentDateTimePicker
-            value={editingOrder.pickup_date_time}
-            onChange={(val) => setEditingOrder(prev => prev ? { ...prev, pickup_date_time: val } : null)}
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-3 border-t">
-            <FormInput
-              label="Actual Received (L) *"
-              type="number"
-              required
-              fontClass="font-mono font-bold"
-              value={editingOrder.fact_qty || ''}
-              onChange={(e) => {
-                setEditingOrder(prev => prev ? { ...prev, fact_qty: parseFloat(e.target.value) || 0 } : null);
-                if (fieldErrors.fact_qty) setFieldErrors(prev => ({ ...prev, fact_qty: '' }));
-              }}
-              error={fieldErrors.fact_qty}
-            />
-
-            <FormInput
-              label="Actual Placed Tanks *"
-              type="number"
-              fontClass="font-mono"
-              value={editingOrder.fact_tank_dropoff !== undefined ? editingOrder.fact_tank_dropoff : ''}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: parseInt(e.target.value) || 0 } : null)}
-            />
-
-            <FormInput
-              label="Actual Picked Tanks *"
-              type="number"
-              fontClass="font-mono"
-              value={editingOrder.fact_tank_pickup !== undefined ? editingOrder.fact_tank_pickup : ''}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: parseInt(e.target.value) || 0 } : null)}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Crew and Fleet Dispatch Assignments */}
       <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 pb-16">

@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
   onBack?: () => void;
   actions?: React.ReactNode;
@@ -30,7 +30,7 @@ export default function PageHeader({
           </button>
         )}
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight">{title}</h2>
+          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight flex items-center">{title}</h2>
           {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
       </div>
