@@ -93,9 +93,6 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     contacts JSONB DEFAULT '[]'::JSONB,     -- Contacts List
     comments JSONB DEFAULT '[]'::JSONB,     -- Comments History
     working_hours TEXT,                     -- Working Hours
-    fact_qty NUMERIC(12, 2) DEFAULT 0.00,  -- Fact QTY
-    fact_tank_dropoff INT DEFAULT 0,       -- Fact Tank Dropoff
-    fact_tank_pickup INT DEFAULT 0,        -- Fact Tank Pickup
     barrels_amount INT DEFAULT 0,          -- Barrels amount
     status TEXT DEFAULT 'Active',          -- Status
     is_deleted BOOLEAN DEFAULT FALSE,
@@ -108,9 +105,6 @@ CREATE TABLE IF NOT EXISTS public.vendors (
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_qty NUMERIC(12, 2) DEFAULT 0.00;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_tank_dropoff INT DEFAULT 0;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS fact_tank_pickup INT DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS barrels_amount INT DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS last_pickup_date TIMESTAMPTZ;
@@ -136,11 +130,19 @@ CREATE TABLE IF NOT EXISTS public.orders (
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,   -- Driver assigned
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,-- Companion assigned
     truck_plate TEXT REFERENCES public.vehicles(plate_number) ON DELETE SET NULL, -- Assigned Vehicle Plate
+    fact_qty NUMERIC(12, 2) DEFAULT 0.00,  -- Fact QTY
+    fact_tank_dropoff INT DEFAULT 0,       -- Fact Tank Dropoff
+    fact_tank_pickup INT DEFAULT 0,        -- Fact Tank Pickup
     status TEXT NOT NULL DEFAULT 'registered',
     sms_sent BOOLEAN DEFAULT FALSE,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Apply non-destructive updates to public.orders table if it pre-exists
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_qty NUMERIC(12, 2) DEFAULT 0.00;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_tank_dropoff INT DEFAULT 0;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_tank_pickup INT DEFAULT 0;
 
 -- Safe update of the status CHECK constraint if it exists
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;
@@ -192,6 +194,20 @@ BEGIN
   
   -- Create the column if it does not exist
   EXECUTE format('ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS %I %s DEFAULT NULL', column_name, column_type);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Functional system utility to add custom columns dynamically on the orders table
+CREATE OR REPLACE FUNCTION public.add_custom_column_to_orders(column_name TEXT, column_type TEXT DEFAULT 'TEXT')
+RETURNS VOID SECURITY DEFINER AS $$
+BEGIN
+  -- Double check/sanitize input to avoid SQL injection
+  IF column_name !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
+    RAISE EXCEPTION 'Invalid column name: %', column_name;
+  END IF;
+  
+  -- Create the column if it does not exist
+  EXECUTE format('ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS %I %s DEFAULT NULL', column_name, column_type);
 END;
 $$ LANGUAGE plpgsql;
 

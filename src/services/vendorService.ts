@@ -79,9 +79,6 @@ export function cleanVendorDbPayload(vendor: any): any {
     working_hours: vendor.working_hours || '',
     contacts: Array.isArray(vendor.contacts) ? vendor.contacts : [],
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
-    fact_qty: Number(vendor.fact_qty) || 0,
-    fact_tank_dropoff: Number(vendor.fact_tank_dropoff) || 0,
-    fact_tank_pickup: Number(vendor.fact_tank_pickup) || 0,
     status: vendor.status || 'Active',
     is_deleted: !!vendor.is_deleted,
     created_at: vendor.created_at || new Date().toISOString()

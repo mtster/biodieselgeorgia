@@ -96,6 +96,17 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
 
       {showPresets && (
         <div className="absolute top-full left-12 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 w-48 p-2 space-y-1">
+          <button
+            onClick={() => {
+              setStartDate('');
+              setEndDate('');
+              setShowPresets(false);
+            }}
+            className="w-full text-left px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition"
+          >
+            Clear Dates
+          </button>
+          <div className="border-t border-gray-100 my-1"></div>
           {getPresetDates().map(p => (
             <button
               key={p.label}

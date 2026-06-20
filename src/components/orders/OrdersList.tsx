@@ -97,6 +97,21 @@ export default function OrdersList({
       key: 'tanks_to_bring',
       render: (ord) => `${ord.tanks_to_bring}`
     },
+    fact_qty: {
+      header: 'Fact QTY',
+      key: 'fact_qty',
+      render: (ord) => ord.fact_qty === undefined || ord.fact_qty === null ? '-' : ord.fact_qty
+    },
+    fact_tank_dropoff: {
+      header: 'Fact Tank Dropoff',
+      key: 'fact_tank_dropoff',
+      render: (ord) => ord.fact_tank_dropoff === undefined || ord.fact_tank_dropoff === null ? '-' : ord.fact_tank_dropoff
+    },
+    fact_tank_pickup: {
+      header: 'Fact Tank Pickup',
+      key: 'fact_tank_pickup',
+      render: (ord) => ord.fact_tank_pickup === undefined || ord.fact_tank_pickup === null ? '-' : ord.fact_tank_pickup
+    },
     note: {
       header: 'Comment',
       key: 'comment',

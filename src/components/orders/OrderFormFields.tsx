@@ -4,6 +4,7 @@ import { ShieldAlert } from 'lucide-react';
 import SupplierAutocomplete from './SupplierAutocomplete';
 import { FormInput, FormSelect } from '../FormInput';
 import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
+import DynamicCustomFields from '../DynamicCustomFields';
 
 interface OrderFormFieldsProps {
   editingOrder: Order;
@@ -140,6 +141,41 @@ export default function OrderFormFields({
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </FormSelect>
+
+        {/* Fact & Volumetric Parameters */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormInput
+            label="Fact QTY (L)"
+            type="number"
+            step="0.01"
+            fontClass="font-mono font-bold"
+            value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
+            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
+          />
+
+          <FormInput
+            label="Fact Tank Dropoff"
+            type="number"
+            fontClass="font-mono"
+            value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
+            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+          />
+
+          <FormInput
+            label="Fact Tank Pickup"
+            type="number"
+            fontClass="font-mono"
+            value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
+            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+          />
+        </div>
+
+        {/* Dynamic Custom Fields from Columns Manager */}
+        <DynamicCustomFields
+          storageKey="orders_columns_managed"
+          data={editingOrder}
+          onChange={(updated) => setEditingOrder(updated)}
+        />
 
         {/* Handover comments */}
         <FormInput

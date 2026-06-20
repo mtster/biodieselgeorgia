@@ -14,6 +14,7 @@ import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
+import { createDatabaseOrderColumn } from '../../services/orderService';
 
 const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'order_date', label: 'Date', visible: true },
@@ -23,8 +24,11 @@ const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'status', label: 'Status', visible: true },
   { id: 'pickup_date_time', label: 'Dispatch Date', visible: true },
   { id: 'planned', label: 'Planned Qty', visible: true },
+  { id: 'fact_qty', label: 'Fact QTY', visible: true },
   { id: 'tanks_to_leave', label: 'Dropoff Tanks', visible: true },
+  { id: 'fact_tank_dropoff', label: 'Fact Tank Dropoff', visible: true },
   { id: 'tanks_to_bring', label: 'Pickup Tanks', visible: true },
+  { id: 'fact_tank_pickup', label: 'Fact Tank Pickup', visible: true },
   { id: 'note', label: 'Comment', visible: true }
 ];
 
@@ -66,9 +70,20 @@ export default function OrdersView({
     return loaded ? JSON.parse(loaded) : defaultOrdersColumns;
   });
 
-  const handleSaveColumns = (updated: ManagedColumn[]) => {
+  const handleSaveColumns = async (updated: ManagedColumn[]) => {
     setManagedCols(updated);
     localStorage.setItem('orders_columns_managed', JSON.stringify(updated));
+
+    // Provision each dynamic custom column securely in Supabase orders table
+    for (const col of updated) {
+      if (col.isCustom && col.id.startsWith('custom_')) {
+        try {
+          await createDatabaseOrderColumn(col.id);
+        } catch (err) {
+          console.error(`Error provisioning custom column on db [${col.id}]:`, err);
+        }
+      }
+    }
   };
 
   // Delete confirmation modal states
@@ -259,7 +274,8 @@ export default function OrdersView({
       
       {/* 1. STANDARDIZED PAGE HEADER */}
       <PageHeader 
-        title="Orders"
+        title={editingOrder ? (editingOrder.id ? `Order: ${editingOrder.doc_number}` : "New Order") : "Orders"}
+
         onBack={editingOrder ? () => setEditingOrder(null) : undefined}
         backButtonId="order-form-back-arrow"
         actions={headerActions}

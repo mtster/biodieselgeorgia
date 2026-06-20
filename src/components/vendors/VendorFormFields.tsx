@@ -2,6 +2,7 @@ import React from 'react';
 import { Vendor, Warehouse, User, City, District } from '../../types';
 import { WorkingHoursInput } from './WorkingHoursInput';
 import { FormInput, FormSelect } from '../FormInput';
+import DynamicCustomFields from '../DynamicCustomFields';
 
 interface VendorFormFieldsProps {
   editingVendor: Vendor;
@@ -214,36 +215,9 @@ export default function VendorFormFields({
         </FormSelect>
       </div>
 
-      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-1 pt-2">Fact & Volumetric Parameters</span>
+      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-1 pt-2">Barrels Parameters</span>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormInput
-          label="Fact QTY"
-          type="number"
-          step="0.01"
-          fontClass="font-mono"
-          value={editingVendor.fact_qty === undefined ? '' : editingVendor.fact_qty}
-          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
-        />
-
-        <FormInput
-          label="Fact Tank Dropoff"
-          type="number"
-          fontClass="font-mono"
-          value={editingVendor.fact_tank_dropoff === undefined ? '' : editingVendor.fact_tank_dropoff}
-          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormInput
-          label="Fact Tank Pickup"
-          type="number"
-          fontClass="font-mono"
-          value={editingVendor.fact_tank_pickup === undefined ? '' : editingVendor.fact_tank_pickup}
-          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-        />
-
         <FormInput
           label="Barrels Amount"
           type="number"
@@ -301,38 +275,11 @@ export default function VendorFormFields({
       </div>
 
       {/* Dynamic Custom Fields from Columns Manager */}
-      {(() => {
-        let customCols: { id: string; label: string }[] = [];
-        try {
-          const stored = localStorage.getItem('suppliers_columns_managed');
-          if (stored) {
-            const parsed = JSON.parse(stored) as any[];
-            customCols = parsed.filter(col => col && (col.isCustom || col.id?.startsWith('custom_')));
-          }
-        } catch (e) {
-          console.error(e);
-        }
-
-        if (customCols.length === 0) return null;
-
-        return (
-          <div className="space-y-4 pt-4 border-t border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {customCols.map(col => (
-                <FormInput
-                  key={col.id}
-                  label={`${col.label}`}
-                  type="text"
-                  value={(editingVendor as any)[col.id] || ''}
-                  onChange={(e) => {
-                    setEditingVendor(prev => prev ? { ...prev, [col.id]: e.target.value } : null);
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      <DynamicCustomFields
+        storageKey="suppliers_columns_managed"
+        data={editingVendor}
+        onChange={(updated) => setEditingVendor(updated)}
+      />
     </div>
   );
 }

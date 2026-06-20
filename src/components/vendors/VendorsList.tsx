@@ -83,21 +83,6 @@ export default function VendorsList({
       key: 'location',
       render: (vendor) => `${vendor.city} (${vendor.district}), ${vendor.address}`
     },
-    fact_qty: {
-      header: 'Fact QTY',
-      key: 'fact_qty',
-      render: (vendor) => vendor.fact_qty === undefined || vendor.fact_qty === null ? '-' : vendor.fact_qty
-    },
-    fact_tank_dropoff: {
-      header: 'Fact Tank Dropoff',
-      key: 'fact_tank_dropoff',
-      render: (vendor) => vendor.fact_tank_dropoff === undefined || vendor.fact_tank_dropoff === null ? '-' : vendor.fact_tank_dropoff
-    },
-    fact_tank_pickup: {
-      header: 'Fact Tank Pickup',
-      key: 'fact_tank_pickup',
-      render: (vendor) => vendor.fact_tank_pickup === undefined || vendor.fact_tank_pickup === null ? '-' : vendor.fact_tank_pickup
-    },
     barrels_amount: {
       header: 'Barrels Amount',
       key: 'barrels_amount',

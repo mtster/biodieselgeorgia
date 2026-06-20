@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type UserRole = 'admin' | 'manager' | 'driver' | 'vendor';
+export type UserRole = 'admin' | 'manager' | 'driver' | 'vendor' | 'warehouse_manager' | 'assistant';
 
 export interface EditPermissions {
   [page: string]: {
@@ -62,9 +62,6 @@ export interface Vendor {
   comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
   status?: 'Active' | 'Under Negotiation' | 'Cancelled';
-  fact_qty?: number;          // ფაქტიური რაოდენობა
-  fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
-  fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
   barrels_amount?: number;    // Barrels amount
   is_deleted?: boolean;
   created_at: string;
@@ -98,6 +95,9 @@ export interface Order {
   companion_name?: string;
   truck_plate?: string;       // მანქანა
   status: OrderStatus;        // სტატუსი
+  fact_qty?: number;          // ფაქტიური რაოდენობა
+  fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
+  fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
   is_deleted?: boolean;
 }

@@ -106,6 +106,22 @@ export async function getSMSLogs(): Promise<any[]> {
   return getLocal<any[]>('biodiesel_sms_logs', []);
 }
 
+export async function createDatabaseOrderColumn(columnName: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      console.log('Provisioning order custom column via RPC:', columnName);
+      const { error } = await supabase.rpc('add_custom_column_to_orders', { column_name: columnName, column_type: 'TEXT' });
+      if (error) {
+        console.error('Database column provisioning RPC error:', error);
+      } else {
+        console.log('Successfully completed dynamic database column RPC for:', columnName);
+      }
+    } catch (e) {
+      console.error('Dynamic column creation exception:', e);
+    }
+  }
+}
+
 export async function deleteOrder(id: string, docNum: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {

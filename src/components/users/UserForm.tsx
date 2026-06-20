@@ -283,22 +283,51 @@ export default function UserForm({
           error={fieldErrors.phone}
         />
 
-        <FormSelect
+         <FormSelect
           label="Role / Designation *"
           value={editingUser.role || ''}
           onChange={(e) => {
             const role = e.target.value as any;
             let autoPrivileges = editingUser.privileges || [];
+            let autoEditPerms = { ...(editingUser.edit_permissions || {}) };
             
-            if (role === 'admin') autoPrivileges = [...availablePrivileges];
-            else if (role === 'manager') autoPrivileges = ['Dashboard', 'Suppliers', 'Communications', 'Orders', 'Reports', 'Cities', 'Vehicles', 'Warehouses'];
-            else if (role === 'driver') autoPrivileges = ['Dashboard', 'Orders'];
-            else if (role === 'vendor') autoPrivileges = ['Dashboard', 'Orders'];
+            if (role === 'admin') {
+              autoPrivileges = [...availablePrivileges];
+              availablePrivileges.forEach(priv => {
+                const pageId = privilegeToPageMap[priv];
+                if (pageId) {
+                  autoEditPerms[pageId] = { add: true, edit: true, delete: true };
+                }
+              });
+            } else if (role === 'manager') {
+              autoPrivileges = ['Dashboard', 'Suppliers', 'Communications', 'Orders', 'Reports', 'Cities', 'Vehicles', 'Warehouses'];
+              autoPrivileges.forEach(priv => {
+                const pageId = privilegeToPageMap[priv];
+                if (pageId) {
+                  autoEditPerms[pageId] = { add: true, edit: true, delete: true };
+                }
+              });
+            } else if (role === 'driver') {
+              autoPrivileges = ['Dashboard', 'Orders'];
+            } else if (role === 'vendor') {
+              autoPrivileges = ['Dashboard', 'Orders'];
+            } else if (role === 'warehouse_manager') {
+              // Ensure Dashboard, Vehicles, and Warehouses
+              autoPrivileges = Array.from(new Set([...autoPrivileges, 'Dashboard', 'Vehicles', 'Warehouses']));
+              autoEditPerms['vehicles'] = { add: true, edit: true, delete: true };
+              autoEditPerms['warehouses'] = { add: true, edit: true, delete: true };
+            } else if (role === 'assistant') {
+              // Ensure Dashboard, Vehicles, and Warehouses
+              autoPrivileges = Array.from(new Set([...autoPrivileges, 'Dashboard', 'Vehicles', 'Warehouses']));
+              autoEditPerms['vehicles'] = { add: false, edit: true, delete: false };
+              autoEditPerms['warehouses'] = { add: false, edit: true, delete: false };
+            }
 
             setEditingUser({
               ...editingUser, 
               role: role,
-              privileges: autoPrivileges
+              privileges: autoPrivileges,
+              edit_permissions: autoEditPerms
             });
             if (fieldErrors.role) setFieldErrors(prev => ({ ...prev, role: '' }));
           }}
@@ -307,6 +336,8 @@ export default function UserForm({
           <option value="" hidden></option>
           <option value="admin">Administrator (Admin)</option>
           <option value="manager">Manager</option>
+          <option value="warehouse_manager">Warehouse Manager</option>
+          <option value="assistant">Assistant</option>
           <option value="driver">Driver</option>
           <option value="vendor">Supplier (Vendor)</option>
         </FormSelect>
