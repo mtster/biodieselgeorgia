@@ -157,7 +157,7 @@ export default function ReportsView({
             <button
               key={card.id}
               onClick={() => setSelectedReport(card.id)}
-              className="group relative flex flex-col justify-between p-6 bg-white border border-gray-150 rounded-2xl text-left hover:shadow-md hover:border-gray-300 transition-all cursor-pointer select-none"
+              className="group relative flex flex-col justify-between p-6 bg-white border border-gray-100 rounded-2xl text-left hover:shadow-md hover:border-gray-300 transition-all cursor-pointer select-none"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">

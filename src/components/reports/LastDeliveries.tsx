@@ -101,7 +101,7 @@ export default function LastDeliveries({
       />
 
       {/* FILTER BAR DESIGN */}
-      <div className="bg-white p-5 border border-gray-100 rounded-2xl shadow-xs text-left">
+      <div className="text-left">
         <CentralSearchBar
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}

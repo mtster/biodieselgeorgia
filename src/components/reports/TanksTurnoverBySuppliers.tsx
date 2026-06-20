@@ -135,7 +135,7 @@ export default function TanksTurnoverBySuppliers({
       />
 
       {/* FILTER BAR DESIGNS */}
-      <div className="bg-white p-5 border border-gray-100 rounded-2xl shadow-xs text-left">
+      <div className="text-left">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-4">
             <PeriodFilter
