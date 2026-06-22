@@ -134,7 +134,12 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Operation Manager": "ოპერაციების მენეჯერი",
   "Working Hours": "სამუშაო საათები",
   "City": "ქალაქი",
+  "e.g. Tbilisi": "მაგ: თბილისი",
   "District": "რაიონი",
+  "City Details": "ქალაქის დეტალები",
+  "Create New City": "ახალი ქალაქის შექმნა",
+  "Districts": "რაიონები",
+  "New district name...": "რაიონის სახელი...",
   "IBAN / Bank Account": "IBAN / საბანკო ანგარიში",
   "Contacts": "კონტაქტები",
 
@@ -416,7 +421,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "None": "არცერთი",
   "Unassigned": "გაუნაწილებელი",
   "Manage Asset": "მონაცემების მართვა",
-  "Add New Vehicle": "ახალი ტრანსპორტის დამატება",
+  "Add New Vehicle": "ტრანსპორტის დამატება",
   "Vehicle Specifications": "ტრანსპორტის დეტალები",
   "Add Vehicle to Fleet": "ტრანსპორტის დამატება",
   "License Plate Number": "სახელმწიფო ნომერი",
@@ -535,6 +540,10 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Supplier (Vendor)": "მომწოდებელი (Vendor)",
   "Role": "როლი",
   "Unknown": "უცნობი",
+  "User Management": "მომხმარებლების მართვა",
+  "Assigned Tasks Only": "მხოლოდ მინიჭებული დავალებები",
+  "Analytics": "ანალიტიკა",
+  "Reports": "რეპორტები",
 };
 
 export function t(key: string): string {

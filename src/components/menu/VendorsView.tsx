@@ -408,9 +408,12 @@ export default function VendorsView({
       <VendorImportModal
         isOpen={isImporting}
         onClose={() => setIsImporting(false)}
-        importText={importText}
-        setImportText={setImportText}
-        onImport={handleImportExcel}
+        warehouses={warehouses}
+        users={users}
+        cities={cities}
+        districts={districts}
+        currentUser={currentUser}
+        onComplete={() => window.location.reload()}
       />
 
       {/* DELETE CONFIRMATION SYSTEM MODAL */}

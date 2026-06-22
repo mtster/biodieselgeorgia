@@ -348,7 +348,7 @@ export default function UserForm({
             });
           }}
         >
-          <option value="">{t("Select a Warehouse (Unassigned)")}</option>
+          <option value="">{t("Select a Warehouse")}</option>
           {warehouses.map(wh => (
             <option key={wh.id} value={wh.id}>{wh.name}</option>
           ))}

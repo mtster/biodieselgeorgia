@@ -15,7 +15,7 @@ import FormModal from '../FormModal';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { FormInput, FormSelect } from '../FormInput';
 
-import { MessageSquare, X, Trash2 } from 'lucide-react';
+import { MessageSquare, X, Trash2, Edit3 } from 'lucide-react';
 
 interface Props {
   editingVendor: Vendor;
@@ -499,17 +499,25 @@ export default function VendorForm({
       className: 'text-right pr-4',
       render: (comm) => (
         <div className="flex justify-end gap-1">
-          {!isReadOnly && onDeleteCommunication && (
+          {(!isReadOnly && onSaveCommunication) && (
             <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteCommunication(comm.id);
-              }}
-              className="p-1 px-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
-              title={t("Delete Log")}
+              onClick={() => setActiveComm(comm)}
+              className="p-1 px-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
+              title={t("Edit")}
             >
-              <Trash2 size={13.5} />
+              <Edit3 size={14} />
+            </button>
+          )}
+          {(!isReadOnly && onDeleteCommunication) && (
+            <button
+              onClick={() => {
+                setActiveComm(comm);
+                setIsCommDeleteModalOpen(true);
+              }}
+              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              title={t("Delete")}
+            >
+              <Trash2 size={13} />
             </button>
           )}
         </div>
@@ -630,6 +638,11 @@ export default function VendorForm({
         title={activeComm ? t("Edit Communication") : t("New Communication")}
         maxWidthClass="max-w-md"
         onCancel={() => setIsCommModalOpen(false)}
+        onDelete={activeComm && onDeleteCommunication ? () => {
+            onDeleteCommunication(activeComm.id);
+            setIsCommModalOpen(false);
+        } : undefined}
+        deleteLabel={t("Delete")}
         onSave={async () => {
           await handleSaveCommunication();
           setIsCommModalOpen(false);

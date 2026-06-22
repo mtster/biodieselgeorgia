@@ -119,7 +119,7 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
         }}
         className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
       >
-        Fill Dummy
+        {t("Fill Dummy")}
       </button>
       <button 
         onClick={() => {
@@ -127,7 +127,7 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
         }}
         className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
       >
-        Save
+        {t("Save")}
       </button>
     </>
   ) : undefined;
