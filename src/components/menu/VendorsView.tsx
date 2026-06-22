@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { t } from '../../utils/lang';
 import { 
   Vendor, VendorContact, VendorComment, 
   Warehouse, User, City, District, Communication 
@@ -244,7 +245,7 @@ export default function VendorsView({
               onClick={() => formRef.current?.fillDummy()}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer select-none"
             >
-              Fill Dummy
+              {t("Fill Dummy")}
             </button>
           )}
           {!isNew && (
@@ -254,9 +255,9 @@ export default function VendorsView({
           )}
           <button 
             onClick={() => formRef.current?.save()}
-            className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+            className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-bold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
           >
-            Save
+            {t("Save")}
           </button>
         </>
       ) : (
@@ -277,12 +278,12 @@ export default function VendorsView({
               }}
               className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
             >
-              <option value="" disabled hidden>Actions</option>
-              <option value="import">Import</option>
+              <option value="" disabled hidden>{t("Actions")}</option>
+              <option value="import">{t("Import")}</option>
               <option value="delete" disabled={selectedVendors.length === 0}>
-                Delete {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
+                {t("Delete")} {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
               </option>
-              <option value="col_manager">Columns Manager</option>
+              <option value="col_manager">{t("Columns Manager")}</option>
             </select>
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
               ▼
@@ -295,7 +296,7 @@ export default function VendorsView({
             className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
           >
             <Plus size={15} />
-            Add Supplier
+            {t("Add Supplier")}
           </button>
         </>
       )}
@@ -307,7 +308,7 @@ export default function VendorsView({
       
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
       <PageHeader 
-        title="Suppliers"
+        title={t("Suppliers")}
         onBack={editingVendor ? () => setEditingVendor(null) : undefined}
         backButtonId="vendor-form-back-arrow"
         actions={headerActions}
@@ -338,23 +339,23 @@ export default function VendorsView({
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             idPrefix="vendors-search"
-            searchPlaceholder="Search suppliers by trade name, legal entity, or registered taxation ID coordinates..."
+            searchPlaceholder={t("Search suppliers by trade name, legal entity, or registered taxation ID coordinates...")}
             filters={[
               {
-                label: "City",
+                label: t("City"),
                 value: selectedCity,
                 onChange: (val) => {
                   setSelectedCity(val);
                   setSelectedDistrict('');
                 },
-                placeholder: "All Cities",
+                placeholder: t("All Cities"),
                 options: cities.map(c => ({ value: c.name, label: c.name }))
               },
               {
-                label: "District",
+                label: t("District"),
                 value: selectedDistrict,
                 onChange: setSelectedDistrict,
-                placeholder: "All Districts",
+                placeholder: t("All Districts"),
                 options: districts
                   .filter(d => {
                     const cObj = cities.find(x => x.name === selectedCity);
@@ -363,19 +364,19 @@ export default function VendorsView({
                   .map(d => ({ value: d.name, label: d.name }))
               },
               {
-                label: "Sales Manager",
+                label: t("Sales Manager"),
                 value: selectedSalesManager,
                 onChange: setSelectedSalesManager,
-                placeholder: "All Sales Managers",
+                placeholder: t("All Sales Managers"),
                 options: users
                   .filter(u => u.role === 'manager' || u.role === 'admin')
                   .map(u => ({ value: u.id, label: u.name }))
               },
               {
-                label: "Operation Manager",
+                label: t("Operation Manager"),
                 value: selectedOperationManager,
                 onChange: setSelectedOperationManager,
-                placeholder: "All Operation Managers",
+                placeholder: t("All Operation Managers"),
                 options: users
                   .map(u => ({ value: u.id, label: u.name }))
               }
@@ -436,9 +437,9 @@ export default function VendorsView({
               <Trash2 size={24} />
             </div>
             <div>
-              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">Confirm Bulk Deletion</h4>
+              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">{t("Confirm Bulk Deletion")}</h4>
               <p className="text-[11.5px] text-gray-450 mt-2 font-sans leading-normal">
-                Are you sure you want to soft delete <strong>{selectedVendors.length} selected suppliers</strong>? They will hide from the UI immediately.
+                {t("Are you sure you want to soft delete")} <strong>{selectedVendors.length} {t("selected suppliers")}</strong>? {t("They will hide from the UI immediately.")}
               </p>
             </div>
             <div className="flex gap-2 font-sans pt-2">

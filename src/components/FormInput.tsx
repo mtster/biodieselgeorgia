@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../utils/lang';
 
 export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -27,7 +28,7 @@ export function FormInput({
           error ? 'text-red-500' : 'text-gray-400'
         }`}
       >
-        {label}
+        {t(label)}
       </span>
       <input
         className={`block w-full px-3.5 py-4 md:py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 transition-all ${fontClass} ${
@@ -70,7 +71,7 @@ export function FormSelect({
           error ? 'text-red-550' : 'text-gray-400'
         }`}
       >
-        {label}
+        {t(label)}
       </span>
       <select
         className={`block w-full px-3.5 py-4 md:py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 transition-all cursor-pointer relative ${fontClass} ${

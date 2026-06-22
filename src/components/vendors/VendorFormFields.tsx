@@ -1,5 +1,6 @@
 import React from 'react';
 import { Vendor, Warehouse, User, City, District } from '../../types';
+import { t } from '../../utils/lang';
 import { WorkingHoursInput } from './WorkingHoursInput';
 import { FormInput, FormSelect } from '../FormInput';
 import DynamicCustomFields from '../DynamicCustomFields';
@@ -29,11 +30,11 @@ export default function VendorFormFields({
 }: VendorFormFieldsProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5 text-left">
-      <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">Core Supplier Parameters</span>
+      <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">{t("Core Parameters")}</span>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label="Trade/Commercial Name *"
+          label={t("Trade/Commercial Name *")}
           type="text"
           value={editingVendor.trade_name}
           onChange={(e) => {
@@ -44,7 +45,7 @@ export default function VendorFormFields({
         />
 
         <FormInput
-          label="Legal/Registered Name (Company Name) *"
+          label={t("Legal/Registered Name (Company Name) *")}
           type="text"
           value={editingVendor.company_name}
           onChange={(e) => {
@@ -57,7 +58,7 @@ export default function VendorFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label="Identification Code *"
+          label={t("Identification Code *")}
           type="text"
           fontClass="font-mono"
           value={editingVendor.id_code}
@@ -69,7 +70,7 @@ export default function VendorFormFields({
         />
 
         <FormInput
-          label="Code *"
+          label={t("Code *")}
           type="text"
           fontClass="font-mono"
           value={editingVendor.company_code || ''}
@@ -79,7 +80,7 @@ export default function VendorFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label="Base Price per Liter (₾) *"
+          label={t("Base Price per Litre (₾) *")}
           type="number"
           step="0.01"
           fontClass="font-mono"
@@ -92,7 +93,7 @@ export default function VendorFormFields({
         />
 
         <FormSelect
-          label="Assigned Base Warehouse *"
+          label={t("Assigned Base Warehouse *")}
           value={editingVendor.warehouse_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, warehouse_id: e.target.value } : null);
@@ -107,7 +108,7 @@ export default function VendorFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label="IBAN / Bank Account *"
+          label={t("IBAN / Bank Account *")}
           type="text"
           fontClass="font-mono"
           value={editingVendor.bank_account}
@@ -135,7 +136,7 @@ export default function VendorFormFields({
 
         <div className="relative">
           <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
-            Working Hours *
+            {t("Working Hours *")}
           </span>
           <WorkingHoursInput
             value={editingVendor.working_hours || ''}
@@ -150,7 +151,7 @@ export default function VendorFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormSelect
-          label="City *"
+          label={t("City *")}
           value={editingVendor.city || ''}
           onChange={(e) => {
             const val = e.target.value;
@@ -170,7 +171,7 @@ export default function VendorFormFields({
         </FormSelect>
 
         <FormSelect
-          label="District *"
+          label={t("District *")}
           value={editingVendor.district || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, district: e.target.value } : null);
@@ -191,7 +192,7 @@ export default function VendorFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label="Exact Address (Details, Floor, Entry) *"
+          label={t("Exact Address (Details, Floor, Entry) *")}
           type="text"
           value={editingVendor.address}
           onChange={(e) => {
@@ -202,34 +203,24 @@ export default function VendorFormFields({
         />
 
         <FormSelect
-          label="Supplier / Vendor Status *"
+          label={t("Supplier / Vendor Status *")}
           value={editingVendor.status || 'Active'}
           onChange={(e) => {
             const val = e.target.value as any;
             setEditingVendor(prev => prev ? { ...prev, status: val } : null);
           }}
         >
-          <option value="Active">Active</option>
-          <option value="Under Negotiation">Under Negotiation</option>
-          <option value="Cancelled">Cancelled</option>
+          <option value="Active">{t("Active")}</option>
+          <option value="Under Negotiation">{t("Under Negotiation")}</option>
+          <option value="Cancelled">{t("Cancelled")}</option>
         </FormSelect>
       </div>
 
-      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-1 pt-2">Barrels Parameters</span>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormInput
-          label="Barrels Amount"
-          type="number"
-          fontClass="font-mono"
-          value={editingVendor.barrels_amount === undefined ? '' : editingVendor.barrels_amount}
-          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, barrels_amount: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-        />
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormSelect
-          label="Sales Manager *"
+          label={t("Sales Manager *")}
           value={editingVendor.manager_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, manager_id: e.target.value } : null);
@@ -253,7 +244,7 @@ export default function VendorFormFields({
         </FormSelect>
 
         <FormSelect
-          label="Operation Manager *"
+          label={t("Operation Manager *")}
           value={editingVendor.operator_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, operator_id: e.target.value } : null);

@@ -1,5 +1,7 @@
 import React from 'react';
+import { t } from '../../utils/lang';
 import { VendorComment } from '../../types';
+import AddButton from '../AddButton';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 interface VendorCommentsSectionProps {
@@ -19,16 +21,13 @@ export default function VendorCommentsSection({
     <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between" id="vendor-internal-comments">
       <div>
         <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
-          <span className="text-xs font-black uppercase text-gray-500 tracking-wider font-sans">
-            Comments
+          <span className="text-xs font-bold uppercase text-gray-500 tracking-wider font-sans">
+            {t("Comments")}
           </span>
-          <button
-            type="button"
+          <AddButton
+            label="Add Comment"
             onClick={onAddComment}
-            className="px-2.5 py-1 text-[11px] bg-slate-50 hover:bg-slate-100 border border-gray-200 text-slate-700 font-black rounded-lg transition inline-flex items-center gap-1 select-none cursor-pointer"
-          >
-            <Plus size={12} /> Add Comment
-          </button>
+          />
         </div>
 
         <div className="space-y-2.5 max-h-[224px] overflow-y-auto pr-1">
@@ -45,7 +44,7 @@ export default function VendorCommentsSection({
                     type="button"
                     onClick={() => onModifyComment(c)}
                     className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-                    title="Edit"
+                    title={t("Edit")}
                   >
                     <Pencil size={13} />
                   </button>
@@ -53,7 +52,7 @@ export default function VendorCommentsSection({
                     type="button"
                     onClick={() => onRemoveComment(c.id)}
                     className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-                    title="Discard"
+                    title={t("Discard")}
                   >
                     <Trash2 size={13} />
                   </button>
@@ -64,7 +63,7 @@ export default function VendorCommentsSection({
 
           {comments.length === 0 && (
             <div className="text-center py-10 text-gray-400 text-xs italic font-sans">
-              No comments.
+              {t("No comments.")}
             </div>
           )}
         </div>

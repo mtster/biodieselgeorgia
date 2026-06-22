@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Vendor, User, VendorComment } from '../../types';
+import { t } from '../../utils/lang';
 import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
@@ -42,17 +43,17 @@ export default function VendorsList({
   // Predefined column mapping
   const columnMap: Record<string, ColumnConfig<Vendor>> = {
     trade_name: {
-      header: 'Trade Name',
+      header: t('Trade Name'),
       key: 'trade_name',
       render: (vendor) => vendor.trade_name
     },
     id_code: {
-      header: 'Taxation ID',
+      header: t('Taxation ID'),
       key: 'id_code',
       render: (vendor) => vendor.id_code
     },
     status: {
-      header: 'Status',
+      header: t('Status'),
       key: 'status',
       render: (vendor) => {
         const stat = vendor.status || 'Active';
@@ -63,46 +64,46 @@ export default function VendorsList({
         };
         return (
           <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${colorMap[stat] || colorMap['Active']}`}>
-            {stat}
+            {t(stat)}
           </span>
         );
       }
     },
     price_per_liter: {
-      header: 'Rate (₾)',
+      header: t('Rate (₾)'),
       key: 'price_per_liter',
       render: (vendor) => `₾ ${vendor.price_per_liter.toFixed(2)}`
     },
     working_hours: {
-      header: 'Working Hours',
+      header: t('Working Hours'),
       key: 'working_hours',
       render: (vendor) => vendor.working_hours
     },
     location: {
-      header: 'Location',
+      header: t('Location'),
       key: 'location',
       render: (vendor) => `${vendor.city} (${vendor.district}), ${vendor.address}`
     },
     barrels_amount: {
-      header: 'Barrels Amount',
+      header: t('Barrels Amount'),
       key: 'barrels_amount',
       render: (vendor) => vendor.barrels_amount === undefined || vendor.barrels_amount === null ? '-' : vendor.barrels_amount
     },
     company_code: {
-      header: 'Assigned Code',
+      header: t('Assigned Code'),
       key: 'company_code',
       render: (vendor) => vendor.company_code || '-'
     },
     primary_contact: {
-      header: 'Primary Contact',
+      header: t('Primary Contact'),
       key: 'primary_contact',
       render: (vendor) => {
         const defaultContact = (vendor.contacts || []).find(c => c.is_default);
-        return defaultContact ? `${defaultContact.name} (${defaultContact.phone})` : 'No Contact';
+        return defaultContact ? `${defaultContact.name} (${defaultContact.phone})` : t('No Contact');
       }
     },
     additional_contacts: {
-      header: 'Additional Contacts',
+      header: t('Additional Contacts'),
       key: 'additional_contacts',
       render: (vendor) => {
         const additionalContacts = (vendor.contacts || []).filter(c => !c.is_default && c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
@@ -112,17 +113,17 @@ export default function VendorsList({
       }
     },
     manager: {
-      header: 'Sales Manager',
+      header: t('Sales Manager'),
       key: 'manager',
       render: (vendor) => users.find(u => u.id === vendor.manager_id)?.name || '-'
     },
     dispatcher: {
-      header: 'Operation Manager',
+      header: t('Operation Manager'),
       key: 'dispatcher',
       render: (vendor) => users.find(u => u.id === vendor.operator_id)?.name || '-'
     },
     comments: {
-      header: 'Memos / Internal Notes',
+      header: t('Memos / Internal Notes'),
       key: 'comments',
       render: (vendor) => {
         const latestComment = vendor.comments && vendor.comments.length > 0 ? vendor.comments[0] : null;
@@ -145,7 +146,7 @@ export default function VendorsList({
             }}
             onMouseLeave={() => setHoveredComments(null)}
           >
-            {latestComment ? latestComment.comment : 'No comments'}
+            {latestComment ? latestComment.comment : t('No comments')}
           </div>
         );
       }
@@ -156,7 +157,7 @@ export default function VendorsList({
 
   // Prepend multi-select checkbox column
   columns.push({
-    header: 'Sel',
+    header: '',
     key: 'select',
     className: 'w-12 text-center',
     render: (vendor) => {
@@ -197,7 +198,7 @@ export default function VendorsList({
 
   // Append action button column at the end
   columns.push({
-    header: 'Actions',
+    header: t('Actions'),
     key: 'actions',
     className: 'text-right',
     render: (vendor) => (
@@ -205,7 +206,7 @@ export default function VendorsList({
         <button
           onClick={() => startEdit(vendor, false)}
           className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-          title="Edit"
+          title={t("Edit")}
         >
           <Edit3 size={13} />
         </button>
@@ -225,7 +226,7 @@ export default function VendorsList({
         columns={columns}
         onRowClick={handleRowClick}
         rowClassName={rowClassName}
-        emptyMessage="No supplier data matches current search criteria."
+        emptyMessage={t("No supplier data matches current search criteria.")}
       />
 
       {hoveredComments && hoveredComments.comments.length > 0 && hoveredComments.rect && (() => {

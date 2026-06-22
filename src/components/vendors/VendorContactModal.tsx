@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { VendorContact } from '../../types';
 import { X, Trash2 } from 'lucide-react';
-import { formatPhone } from '../../utils/lang';
+import { formatPhone, t } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
 import FormModal from '../FormModal';
 
@@ -64,13 +64,13 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
     >
       <div className="space-y-3.5">
         <FormInput
-          label="Contact Name *"
+          label={t("Contact Name *")}
           type="text"
           value={contactName}
           onChange={(e) => setContactName(e.target.value)}
         />
         <FormInput
-          label="Mobile Phone Number *"
+          label={t("Mobile Phone Number *")}
           type="text"
           value={contactPhone}
           fontClass="font-mono"

@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { X } from 'lucide-react';
 import DeleteButton from './DeleteButton';
+import { t } from '../utils/lang';
 
 interface FormModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export default function FormModal({
         {/* Modal Header without border-b */}
         <div className="flex items-center justify-between pb-3 mb-4 shrink-0">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">
-            {title}
+            {t(title)}
           </h3>
           <button 
             type="button"
@@ -59,7 +60,7 @@ export default function FormModal({
             <div className="mr-auto select-none">
               <DeleteButton
                 onClick={onDelete}
-                label={deleteLabel}
+                label={t(deleteLabel)}
               />
             </div>
           ) : (
@@ -72,7 +73,7 @@ export default function FormModal({
               onClick={onCancel || onClose}
               className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer select-none"
             >
-              {cancelLabel}
+              {t(cancelLabel)}
             </button>
             {onSave && (
               <button
@@ -80,7 +81,7 @@ export default function FormModal({
                 onClick={onSave}
                 className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-black rounded-lg text-xs transition cursor-pointer select-none"
               >
-                {saveLabel}
+                {t(saveLabel)}
               </button>
             )}
           </div>

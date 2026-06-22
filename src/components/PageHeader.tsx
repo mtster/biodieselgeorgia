@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { t } from '../utils/lang';
 
 interface PageHeaderProps {
   title: React.ReactNode;
@@ -30,8 +31,10 @@ export default function PageHeader({
           </button>
         )}
         <div>
-          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight flex items-center">{title}</h2>
-          {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+          <h2 className="text-xl font-extrabold text-gray-800 font-sans tracking-tight flex items-center">
+            {typeof title === 'string' ? t(title) : title}
+          </h2>
+          {subtitle && <p className="text-xs text-gray-500 mt-0.5">{t(subtitle)}</p>}
         </div>
       </div>
       {actions && (

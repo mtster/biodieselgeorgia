@@ -5,6 +5,7 @@ import {
   ChevronDown, ChevronRight, Truck
 } from 'lucide-react';
 import { User } from '../../types';
+import { t } from '../../utils/lang';
 
 interface SidebarProps {
   currentUser: User;
@@ -74,8 +75,8 @@ export default function Sidebar({
             <Leaf size={18} />
           </div>
           <div>
-            <h1 className="text-base font-black tracking-tighter leading-none text-white">
-              Biodiesel Georgia
+            <h1 className="text-base font-black tracking-tighter leading-none text-white font-sans uppercase">
+              {t("Biodiesel Georgia")}
             </h1>
           </div>
         </div>
@@ -107,7 +108,7 @@ export default function Sidebar({
               }`}
             >
               {item.icon}
-              <span>{item.name}</span>
+              <span>{t(item.name)}</span>
             </button>
           );
         })}
@@ -126,7 +127,7 @@ export default function Sidebar({
             >
               <div className="flex items-center gap-3">
                 <Settings size={18} />
-                <span>Settings</span>
+                <span>{t("Settings")}</span>
               </div>
               {settingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
@@ -150,7 +151,7 @@ export default function Sidebar({
                       }`}
                     >
                       {subItem.icon}
-                      <span>{subItem.name}</span>
+                      <span>{t(subItem.name)}</span>
                     </button>
                   );
                 })}
@@ -169,7 +170,7 @@ export default function Sidebar({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-slate-200 truncate">{currentUser.name}</p>
             <span className="text-xs text-emerald-400 font-mono capitalize block">
-              {currentUser.role === 'admin' ? 'Administrator' : 'Staff'}
+              {currentUser.role === 'admin' ? t('Administrator') : t('Staff')}
             </span>
           </div>
         </div>
@@ -180,7 +181,7 @@ export default function Sidebar({
           className="w-full py-2 bg-slate-800 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
         >
           <LogOut size={13} />
-          Log Out
+          {t("Log Out")}
         </button>
       </div>
 

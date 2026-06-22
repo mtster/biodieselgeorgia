@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { User } from '../../types';
 import { LogIn, Leaf } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/db';
+import { t } from '../../utils/lang';
 
 interface Props {
   users: User[];
@@ -25,7 +26,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setErrorMsg('Please enter email and password');
+      setErrorMsg(t('Please enter email and password'));
       return;
     }
 
@@ -40,7 +41,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         });
 
         if (error) {
-          setErrorMsg('Authorization failed: ' + (error.message === 'Invalid login credentials' ? 'Incorrect email or password' : error.message));
+          setErrorMsg(t('Authorization failed: ') + (error.message === 'Invalid login credentials' ? t('Incorrect email or password') : error.message));
           setLoading(false);
           return;
         }
@@ -73,7 +74,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               .from('profiles')
               .select('*')
               .eq('email', data.user.email)
-              .single();
+               .single();
             dbUser = directUser;
           }
 
@@ -103,11 +104,11 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         if (matched) {
           onLoginSuccess(matched);
         } else {
-          setErrorMsg('User not found or incorrect password (local storage)');
+          setErrorMsg(t('Incorrect email or password'));
         }
       }
     } catch (e: any) {
-      setErrorMsg('Connection error: ' + e.message);
+      setErrorMsg(t('Connection error: ') + e.message);
     } finally {
       setLoading(false);
     }
@@ -127,9 +128,9 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           </div>
           <div>
             <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase font-mono block">
-              Logistics Portal Sign In
+              {t("Logistics Portal Sign In")}
             </span>
-            <span className="text-sm font-black tracking-tight leading-none text-gray-800 block mt-1 font-sans">Biodiesel Georgia</span>
+            <span className="text-sm font-black tracking-tight leading-none text-gray-800 block mt-1 font-sans">{t("Biodiesel Georgia")}</span>
           </div>
         </div>
 
@@ -142,7 +143,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         {/* Real Form using native standard colors */}
         <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Email Address</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">{t("Email Address")}</label>
             <input 
               id="input-login-email"
               type="email"
@@ -155,7 +156,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Password</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">{t("Password")}</label>
             <input 
               id="input-login-password"
               type="password"
@@ -174,19 +175,19 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 focus:bg-emerald-950 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <LogIn size={15} />
-            {loading ? 'Please wait...' : 'Sign In'}
+            {loading ? t('Please wait...') : t('Sign In')}
           </button>
         </form>
 
         {/* Local storage seed assistance helper */}
         {!isSupabaseConfigured && (
           <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400 font-sans">
-            <span>Demo Admin:</span>
+            <span>{t("Demo Admin:")}</span>
             <button
               onClick={() => handleLocalDemoUser('admin')}
               className="text-emerald-700 font-bold hover:underline"
             >
-              Auto-fill (admin@biodiesel.ge)
+              {t("Auto-fill (admin@biodiesel.ge)")}
             </button>
           </div>
         )}

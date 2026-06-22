@@ -37,65 +37,233 @@ export const formatWorkingHours = (val: string) => {
 
 export const LANG = {
   // Navigation & Sections
-  brand: 'Biodiesel Georgia',
-  portalVersion: 'Portal v2.0',
-  dashboard: 'Main Dashboard',
-  analytics: 'Analytics',
-  suppliers: 'Suppliers',
-  communications: 'Communications',
-  orders: 'Orders',
-  employees: 'Users',
-  reports: 'Reports',
-  lookups: 'Lookups',
-  history: 'Change History',
-  settings: 'Settings',
-  logout: 'Log Out',
-  structureDesc: 'Structure Description',
+  brand: 'ბიოდიზელი ჯორჯია',
+  portalVersion: 'პორტალი v2.0',
+  dashboard: 'პანელი',
+  analytics: 'ანალიტიკა',
+  suppliers: 'მომწოდებლები',
+  communications: 'კომუნიკაციები',
+  orders: 'შეკვეთები',
+  employees: 'მომხმარებლები',
+  reports: 'რეპორტები',
+  lookups: 'პარამეტრები',
+  history: 'ცვლილებების ისტორია',
+  settings: 'პარამეტრები',
+  logout: 'გამოსვლა',
+  structureDesc: 'სტრუქტურის აღწერა',
 
   // Roles & Privileges
   actions: {
-    save: 'Save Data',
-    cancel: 'Cancel',
-    delete: 'Delete',
-    edit: 'Edit',
-    add: 'Add',
-    importExcel: 'Import from Excel',
-    newSupplier: 'New Supplier',
-    newComm: 'New Communication',
+    save: 'მონაცემების შენახვა',
+    cancel: 'გაუქმება',
+    delete: 'წაშლა',
+    edit: 'რედაქტირება',
+    add: 'დამატება',
+    importExcel: 'Excel-იდან იმპორტი',
+    newSupplier: 'ახალი მომწოდებელი',
+    newComm: 'ახალი კომუნიკაცია',
   },
 
   roles: {
-    admin: 'Administrator',
-    manager: 'Manager',
-    driver: 'Driver',
-    companion: 'Vendor',
+    admin: 'ადმინისტრატორი',
+    manager: 'მენეჯერი',
   },
-
-  orderStatuses: {
-    registered: 'Registered',
-    driver_assigned: 'Driver Assigned',
-    picked_up: 'Picked Up',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
-  },
-
-  commTypes: {
-    action: 'Action',
-    reminder: 'Reminder',
-  },
-
-  months: {
-    jan: 'January',
-    feb: 'February',
-    mar: 'March',
-    apr: 'April',
-    may: 'May',
-    jun: 'June',
-    jul: 'July',
-    aug: 'August',
-    sep: 'September',
-    oct: 'October',
-    nov: 'November',
-    dec: 'December',
-  }
 };
+
+const GEORGIAN_DICTIONARY: Record<string, string> = {
+  // General Buttons & Actions
+  "Save": "შენახვა",
+  "Save Changes": "ცვლილებების შენახვა",
+  "Cancel": "გაუქმება",
+  "Delete": "წაშლა",
+  "Edit": "რედაქტირება",
+  "Add": "დამატება",
+  "Close": "დახურვა",
+  "Go Back": "უკან დაბრუნება",
+  "Search": "ძებნა",
+  "Fill Dummy": "ტესტური შევსება",
+  "Filter by period": "პერიოდით ფილტრაცია",
+  "Create": "შექმნა",
+  "Log Out": "გამოსვლა",
+  "Staff": "პერსონალი",
+  "Administrator": "ადმინისტრატორი",
+  "Manager": "მენეჯერი",
+  "Driver": "მძღოლი",
+
+  // Side Navigation & Tabs
+  "Dashboard": "პანელი",
+  "Suppliers": "მომწოდებლები",
+  "Communications": "კომუნიკაციები",
+  "Orders": "შეკვეთები",
+  "Reports": "რეპორტები",
+  "Settings": "პარამეტრები",
+  "Users": "მომხმარებლები",
+  "Cities": "ქალაქები",
+  "Vehicles": "ტრანსპორტი",
+  "Warehouses": "საწყობები",
+  "Changes History": "ცვლილებების ისტორია",
+
+  // Suppliers / Vendors
+  "Supplier": "მომწოდებელი",
+  "Add Supplier": "მომწოდებლის დამატება",
+  "Core Parameters": "ძირითადი პარამეტრები",
+  "Trade Name": "სავაჭრო სახელი",
+  "Trade/Commercial Name": "სავაჭრო სახელი",
+  "Legal Name": "იურიდიული სახელი",
+  "Legal/Registered Name (Company Name)": "იურიდიული სახელი",
+  "Identification Code": "საიდენტიფიკაციო კოდი",
+  "Code": "კოდი",
+  "Phone": "ტელეფონი",
+  "Address": "მისამართი",
+  "Status": "სტატუსი",
+  "Type": "ტიპი",
+  "Payment Method": "გადახდის მეთოდი",
+  "Cash": "ნაღდი",
+  "Bank Transfer": "ანგარიშსწორება",
+  "Price Rate (per Litre)": "ფასი (ლიტრზე)",
+  "Base Price per Litre": "ფასი (ლიტრზე)",
+  "Base Price per Litre (₾)": "ფასი (ლიტრზე)",
+  "Assigned Base Warehouse": "მინიჭებული საწყობი",
+  "Exact Address (Details, Floor, Entry)": "ზუსტი მისამართი (დეტალები, სართული, შესასვლელი)",
+  "Supplier / Vendor Status": "მომწოდებლის სტატუსი",
+  "Active": "აქტიური",
+  "Under Negotiation": "მოლაპარაკების პროცესში",
+  "Cancelled": "გაუქმებული",
+  "Barrels Amount": "კასრების რაოდენობა",
+  "Sales Manager": "გაყიდვების მენეჯერი",
+  "Operation Manager": "ოპერაციების მენეჯერი",
+  "Working Hours": "სამუშაო საათები",
+  "City": "ქალაქი",
+  "District": "რაიონი",
+  "IBAN / Bank Account": "IBAN / საბანკო ანგარიში",
+  "Contacts": "კონტაქტები",
+
+  "Add Supplier Contact": "მომწოდებლის კონტაქტის დამატება",
+  "Contact Name": "კონტაქტის სახელი",
+  "Mobile Phone Number": "მობილურის ნომერი",
+  "Add Contact": "კონტაქტის დამატება",
+  "Save Contact": "კონტაქტის შენახვა",
+  "No contacts recorded": "კონტაქტები არ არის დამატებული",
+
+  "Comments": "კომენტარები",
+  "Add Comment": "კომენტარის დამატება",
+  "Save Comment": "კომენტარის შენახვა",
+  "No comments": "კომენტარები არ არის",
+  "Discard Comment": "კომენტარის წაშლა",
+  "Are you sure you want to discard this comment?": "დარწმუნებული ხართ, რომ გსურთ ამ კომენტარის წაშლა?",
+
+  // Communications
+  "New Communication": "ახალი კომუნიკაცია",
+  "Add Communication": "კომუნიკაციის დამატება",
+  "Save Communication": "კომუნიკაციის შენახვა",
+  "Edit Communication": "კომუნიკაციის რედაქტირება",
+  "Date & Time": "თარიღი და დრო",
+  "Interaction/Details": "ინტერაქციის დეტალები",
+  "Interaction Details / Comment": "ინტერაქციის დეტალები / კომენტარი",
+  "Logged By": "ავტორი",
+  "Responsible": "პასუხისმგებელი",
+  "User Rep": "წარმომადგენელი",
+  "Responsible User": "პასუხისმგებელი პირი",
+  "Task Status": "დავალების სტატუსი",
+  "Reminder Due Time": "შეხსენების დრო",
+  "Notes / Discussion Content": "შენიშვნები / დისკუსიის შინაარსი",
+  "Action": "აქტივობა",
+  "Reminder": "შეხსენება",
+  "Task": "დავალება",
+  "Pending": "მოლოდინში",
+  "In Progress": "მიმდინარეობს",
+  "Completed": "დასრულებულია",
+  "No previous interactions logged for this supplier": "ამ მომწოდებლისთვის წინა ინტერაქციები არ არის.",
+  "Direct / No contact selected": "პირდაპირები / არჩეული კონტაქტი არ არის",
+
+  // Misc
+  "Yes": "დიახ",
+  "No": "არა",
+  "Primary Contact": "პირველადი კონტაქტი",
+  "Mark as Primary": "პირველადად მონიშვნა",
+  "Delete Log": "ჩანაწერის წაშლა",
+  "Discard Supplier?": "მომწოდებლის წაშლა?",
+  "Are you sure you want to delete supplier": "დარწმუნებული ხართ, რომ გსურთ წაშალოთ მომწოდებელი",
+  "Showing": "ნაჩვენებია",
+  "to": "-",
+  "of": "დან",
+  "records": "ჩანაწერი",
+  "No records found.": "ჩანაწერები ვერ მოიძებნა.",
+  "Previous": "წინა",
+  "Next": "შემდეგი",
+  "Today": "დღეს",
+  "Yesterday": "გუშინ",
+  "This Week": "ამ კვირაში",
+  "Last Week": "წინა კვირას",
+  "This Month": "ამ თვეში",
+
+  // Months
+  "January": "იანვარი",
+  "February": "თებერვალი",
+  "March": "მარტი",
+  "April": "აპრილი",
+  "May": "მაისი",
+  "June": "ივნისი",
+  "July": "ივლისი",
+  "August": "აგვისტო",
+  "September": "სექტემბერი",
+  "October": "ოქტომბერი",
+  "November": "ნოემბერი",
+  "December": "დეკემბერი",
+  "January 2026": "იანვარი 2026",
+  "February 2026": "თებერვალი 2026",
+  "March 2026": "მარტი 2026",
+  "April 2026": "აპრილი 2026",
+  "May 2026": "მაისი 2026",
+  "June 2026": "ივნისი 2026",
+  "July 2026": "ივლისი 2026",
+  "August 2026": "აგვისტო 2026",
+  "September 2026": "სექტემბერი 2026",
+  "October 2026": "ოქტომბერი 2026",
+  "November 2026": "ნოემბერი 2026",
+  "December 2026": "დეკემბერი 2026",
+  "January 2025": "იანვარი 2025",
+  "February 2025": "თებერვალი 2025",
+  "March 2025": "მარტი 2025",
+  "April 2025": "აპრილი 2025",
+  "May 2025": "მაისი 2025",
+  "June 2025": "ივნისი 2025",
+  "July 2025": "ივლისი 2025",
+  "August 2025": "აგვისტო 2025",
+  "September 2025": "სექტემბერი 2025",
+  "October 2025": "ოქტომბერი 2025",
+  "November 2025": "ნოემბერი 2025",
+  "December 2025": "დეკემბერი 2025",
+};
+
+export function t(key: string): string {
+  if (!key) return '';
+  const trimmed = key.trim();
+  
+  // If the key already contains Georgian characters, do not double-translate
+  if (/[\u10A0-\u10FF]/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Stripping trailing asterisks/colons for matching but keeping them in output
+  const hasAsterisk = trimmed.endsWith('*');
+  const hasColon = trimmed.endsWith(':');
+  
+  let lookupKey = trimmed;
+  if (hasAsterisk) {
+    lookupKey = trimmed.slice(0, -1).trim();
+  } else if (hasColon) {
+    lookupKey = trimmed.slice(0, -1).trim();
+  }
+
+  const translated = GEORGIAN_DICTIONARY[lookupKey] || GEORGIAN_DICTIONARY[trimmed];
+  if (translated) {
+    let suffix = '';
+    if (hasAsterisk && !translated.endsWith('*')) suffix += ' *';
+    if (hasColon && !translated.endsWith(':')) suffix += ':';
+    return translated + suffix;
+  }
+
+  // Fallback to dictionary
+  return GEORGIAN_DICTIONARY[key] || key;
+}

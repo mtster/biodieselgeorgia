@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { t } from '../../utils/lang';
 import { 
   Vendor, VendorContact, VendorComment, 
   Warehouse, User, City, District, Communication 
@@ -414,7 +415,7 @@ export default function VendorForm({
 
   const commColumns: ColumnConfig<Communication>[] = [
     {
-      header: 'Date & Time',
+      header: t('Date & Time'),
       key: 'date_time',
       render: (comm) => {
         const d = new Date(comm.date_time);
@@ -426,7 +427,7 @@ export default function VendorForm({
       }
     },
     {
-      header: 'Type',
+      header: t('Type'),
       key: 'type',
       render: (comm) => {
         const styleMap: Record<string, string> = {
@@ -435,34 +436,34 @@ export default function VendorForm({
           task: 'bg-blue-50 text-blue-800 border-blue-105',
         };
         const labelMap: Record<string, string> = {
-          action: 'Action',
-          reminder: 'Reminder',
-          task: 'Task',
+          action: t('Action'),
+          reminder: t('Reminder'),
+          task: t('Task'),
         };
         const statusClass = styleMap[comm.type] || 'bg-slate-50 text-slate-700 border-slate-100';
         const label = labelMap[comm.type] || comm.type;
         return (
           <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold tracking-wide ${statusClass}`}>
-            {label}
+            {t(label)}
           </span>
         );
       }
     },
     {
-      header: 'Interaction Details / Comment',
+      header: t('Interaction Details / Comment'),
       key: 'comment',
-      className: 'whitespace-normal max-w-sm break-words text-slate-700',
+      className: 'whitespace-normal max-w-sm break-words',
       render: (comm) => comm.comment
     },
     {
-      header: 'Logged By',
+      header: t('Logged By'),
       key: 'user_name',
       render: (comm) => (
         <span className="font-medium text-slate-600">{comm.user_name || currentUser.name}</span>
       )
     },
     {
-      header: 'Responsible',
+      header: t('Responsible'),
       key: 'responsible_user_id',
       render: (comm) => {
         if (comm.type !== 'task') return <span className="text-gray-400">-</span>;
@@ -471,14 +472,14 @@ export default function VendorForm({
       }
     },
     {
-      header: 'Task Status',
+      header: t('Task Status'),
       key: 'task_status',
       render: (comm) => {
         if (comm.type !== 'task' || !comm.task_status) return <span className="text-gray-400">-</span>;
         const labelMap: Record<string, string> = {
-          pending: 'Pending',
-          in_progress: 'In Progress',
-          completed: 'Completed',
+          pending: t('Pending'),
+          in_progress: t('In Progress'),
+          completed: t('Completed'),
         };
         const styleMap: Record<string, string> = {
           pending: 'bg-rose-50 text-rose-800 border-rose-100',
@@ -506,7 +507,7 @@ export default function VendorForm({
                 onDeleteCommunication(comm.id);
               }}
               className="p-1 px-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
-              title="Delete Log"
+              title={t("Delete Log")}
             >
               <Trash2 size={13.5} />
             </button>
@@ -562,8 +563,8 @@ export default function VendorForm({
           <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4">
             <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-black uppercase text-gray-800 tracking-wider">
-                  Communications
+                <h4 className="text-xs font-bold uppercase text-gray-800 tracking-wider">
+                  {t("Communications")}
                 </h4>
               </div>
               {!isReadOnly && (
@@ -576,7 +577,7 @@ export default function VendorForm({
                   className="px-3.5 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 border border-emerald-205 rounded-xl text-xs font-bold font-sans cursor-pointer transition-all flex items-center gap-1.5 shadow-3xs"
                 >
                   <MessageSquare size={13} />
-                  Add Communication
+                  {t("Add Communication")}
                 </button>
               )}
             </div>
@@ -589,7 +590,7 @@ export default function VendorForm({
                   setActiveComm(comm);
                   setIsCommModalOpen(true);
                 }}
-                emptyMessage="No previous interactions logged for this supplier."
+                emptyMessage={t("No previous interactions logged for this supplier.")}
                 hidePagination={true}
               />
             </div>
@@ -602,8 +603,8 @@ export default function VendorForm({
         isOpen={!!commentDeleteId}
         onClose={() => setCommentDeleteId(null)}
         onConfirm={() => commentDeleteId && handleRemoveComment(commentDeleteId)}
-        title="Discard Comment?"
-        message="Are you sure you want to discard this comment?"
+        title={t("Discard Comment?")}
+        message={t("Are you sure you want to discard this comment?")}
       />
 
       <VendorContactModal
@@ -626,35 +627,35 @@ export default function VendorForm({
       <FormModal
         isOpen={isCommModalOpen}
         onClose={() => setIsCommModalOpen(false)}
-        title={activeComm ? "Edit Communication" : "New Communication"}
+        title={activeComm ? t("Edit Communication") : t("New Communication")}
         maxWidthClass="max-w-md"
         onCancel={() => setIsCommModalOpen(false)}
         onSave={async () => {
           await handleSaveCommunication();
           setIsCommModalOpen(false);
         }}
-        saveLabel={activeComm ? "Save Communication" : "Add Communication"}
+        saveLabel={activeComm ? t("Save Communication") : t("Add Communication")}
       >
         <div className="space-y-4">
           <FormInput
-            label="Date & Time *"
+            label={t("Date & Time *")}
             type="datetime-local"
             value={newCommDate}
             onChange={(e) => setNewCommDate(e.target.value)}
           />
           <div className="grid grid-cols-2 gap-3">
             <FormSelect
-              label="Type *"
+              label={t("Type *")}
               value={newCommType}
               onChange={(e) => setNewCommType(e.target.value as any)}
             >
-              <option value="action">Action</option>
-              <option value="reminder">Reminder</option>
-              <option value="task">Task</option>
+              <option value="action">{t("Action")}</option>
+              <option value="reminder">{t("Reminder")}</option>
+              <option value="task">{t("Task")}</option>
             </FormSelect>
 
             <FormSelect
-              label="User Rep *"
+              label={t("User Rep *")}
               value={newCommUserId}
               onChange={(e) => setNewCommUserId(e.target.value)}
             >
@@ -667,31 +668,31 @@ export default function VendorForm({
           {newCommType === 'task' && (
             <div className="grid grid-cols-2 gap-3">
               <FormSelect
-                label="Responsible User *"
+                label={t("Responsible User *")}
                 value={newCommResponsibleUserId}
                 onChange={(e) => setNewCommResponsibleUserId(e.target.value)}
               >
-                <option value="">Select Employee</option>
+                <option value="">{t("Select Employee")}</option>
                 {users.map(u => (
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </FormSelect>
 
               <FormSelect
-                label="Task Status *"
+                label={t("Task Status *")}
                 value={newCommTaskStatus}
                 onChange={(e) => setNewCommTaskStatus(e.target.value)}
               >
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
+                <option value="pending">{t("Pending")}</option>
+                <option value="in_progress">{t("In Progress")}</option>
+                <option value="completed">{t("Completed")}</option>
               </FormSelect>
             </div>
           )}
 
           {newCommType === 'reminder' && (
             <FormInput
-              label="Reminder Due Time *"
+              label={t("Reminder Due Time *")}
               type="datetime-local"
               value={newCommReminderTime}
               onChange={(e) => setNewCommReminderTime(e.target.value)}
@@ -699,11 +700,11 @@ export default function VendorForm({
           )}
 
           <FormSelect
-            label="Supplier"
+            label={t("Supplier")}
             value={newCommContactId}
             onChange={(e) => setNewCommContactId(e.target.value)}
           >
-            <option value="">Direct / No contact selected</option>
+            <option value="">{t("Direct / No contact selected")}</option>
             {tempContacts.map(c => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.position})
@@ -712,10 +713,10 @@ export default function VendorForm({
           </FormSelect>
 
           <div className="relative">
-            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">Notes / Discussion Content *</span>
+            <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Notes / Discussion Content *")}</span>
             <textarea
               rows={4}
-              placeholder="Discussed pricing rate terms / Scheduled upcoming grease pickup..."
+              placeholder={t("Discussed pricing rate terms / Scheduled upcoming grease pickup...")}
               value={newCommComment}
               onChange={(e) => {
                 setNewCommComment(e.target.value);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { t } from '../utils/lang';
 
 export interface ColumnConfig<T> {
   header: React.ReactNode;
@@ -57,7 +58,7 @@ export function StandardTable<T>({
                     col.className || ''
                   }`}
                 >
-                  {col.header}
+                  {typeof col.header === 'string' ? t(col.header) : col.header}
                 </th>
               ))}
             </tr>
@@ -94,13 +95,13 @@ export function StandardTable<T>({
       {isLoading && (
         <div className="py-4 text-center text-xs text-gray-400 italic bg-slate-50/40 select-none font-sans font-medium flex items-center justify-center gap-1.5 animate-pulse border-b border-gray-200">
           <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-          Fetching older entries...
+          {t("Fetching older entries...")}
         </div>
       )}
 
       {totalItems === 0 && (
         <div className="text-center py-20 text-xs text-gray-400 italic select-none bg-white">
-          {emptyMessage}
+          {t(emptyMessage)}
         </div>
       )}
 
@@ -108,9 +109,9 @@ export function StandardTable<T>({
       {!hidePagination && totalItems > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 bg-slate-50/60 px-4 py-3 select-none shrink-0 gap-3">
           <div className="text-xs text-gray-500 font-medium font-sans">
-            Showing <span className="font-bold text-gray-800">{totalItems === 0 ? 0 : startIndex + 1}</span> to{' '}
-            <span className="font-bold text-gray-800">{endIndex}</span> of{' '}
-            <span className="font-bold text-gray-800">{totalItems}</span> entries
+            {t("Showing")} <span className="font-bold text-gray-800">{totalItems === 0 ? 0 : startIndex + 1}</span> {t("to")}{' '}
+            <span className="font-bold text-gray-800">{endIndex}</span> {t("of")}{' '}
+            <span className="font-bold text-gray-800">{totalItems}</span> {t("records")}
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -120,7 +121,7 @@ export function StandardTable<T>({
               className="p-1 px-3 border border-gray-200 rounded-xl hover:bg-slate-100 text-xs font-bold text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5 cursor-pointer bg-white shadow-3xs"
             >
               <ChevronLeft size={14} strokeWidth={2.5} />
-              <span>Previous</span>
+              <span>{t("Previous")}</span>
             </button>
             
             <div className="flex items-center gap-1 px-3">
@@ -135,8 +136,8 @@ export function StandardTable<T>({
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               className="p-1 px-3 border border-gray-200 rounded-xl hover:bg-slate-100 text-xs font-bold text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5 cursor-pointer bg-white shadow-3xs"
             >
-              <span>Next</span>
-              <ChevronRight size={14} strokeWidth={2.5} />
+              <span>{t("Next")}</span>
+              <ChevronRight size={14} strokeWidth={2.5} strokeLinecap={"round"} />
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
+import { t } from '../utils/lang';
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -28,16 +29,16 @@ export default function ConfirmDeleteModal({
         </div>
         
         <div className="space-y-1.5 text-center">
-          <h3 className="font-extrabold text-sm text-gray-950">{title}</h3>
+          <h3 className="font-extrabold text-sm text-gray-950">{t(title)}</h3>
           <div className="text-xs text-gray-500 leading-relaxed font-sans">
             {message ? (
               message
             ) : itemName ? (
               <span>
-                Are you sure you want to delete <strong>"{itemName}"</strong>? This action is irreversible.
+                {t("Are you sure you want to delete")} <strong>"{itemName}"</strong>? {t("This action is irreversible.")}
               </span>
             ) : (
-              <span>Are you sure you want to delete this item? This action is irreversible.</span>
+              <span>{t("Are you sure you want to delete this item? This action is irreversible.")}</span>
             )}
           </div>
         </div>
@@ -48,14 +49,14 @@ export default function ConfirmDeleteModal({
             onClick={onClose} 
             className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button 
             type="button"
             onClick={onConfirm} 
             className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl text-xs transition cursor-pointer shadow-sm"
           >
-            Delete
+            {t("Delete")}
           </button>
         </div>
       </div>

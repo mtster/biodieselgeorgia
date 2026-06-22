@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Vendor, Order, User, City, District } from '../../types';
 import PageHeader from '../PageHeader';
+import { t } from '../../utils/lang';
 
 import DeliveredOrdersBySuppliers from '../reports/DeliveredOrdersBySuppliers';
 import DeliveredOrdersByRegions from '../reports/DeliveredOrdersByRegions';
@@ -167,16 +168,16 @@ export default function ReportsView({
                   </div>
                   {/* Category Badge */}
                   <span className="text-[9px] font-extrabold uppercase font-sans tracking-wider bg-slate-100 text-gray-500 px-2.5 py-1 rounded-md">
-                    {card.badge}
+                    {t(card.badge)}
                   </span>
                 </div>
 
                 <div className="space-y-1">
                   <h3 className="text-sm font-extrabold text-gray-900 group-hover:text-emerald-800 transition-colors font-sans leading-tight">
-                    {card.title}
+                    {t(card.title)}
                   </h3>
                   <p className="text-xs text-gray-500 leading-normal font-normal">
-                    {card.description}
+                    {t(card.description)}
                   </p>
                 </div>
               </div>

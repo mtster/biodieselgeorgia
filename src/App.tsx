@@ -8,7 +8,7 @@ import {
   User, Vendor, Order, Communication, Vehicle as Truck, 
   ChangeHistory, Warehouse, City, District 
 } from './types';
-
+import { t } from './utils/lang';
 import { 
   getUsers, saveUser, deleteUser,
   getVendors, saveVendor, deleteVendor,
@@ -461,7 +461,7 @@ export default function App() {
       <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center space-y-3.5">
         <div className="w-10 h-10 border-4 border-emerald-800 border-t-transparent rounded-full animate-spin"></div>
         <p className="text-xs font-bold font-mono text-gray-400 tracking-widest uppercase">
-          Biodiesel Georgia - Loading...
+          {t("Biodiesel Georgia")} - {t("Loading...")}
         </p>
       </div>
     );
@@ -516,7 +516,7 @@ export default function App() {
             <div className="bg-emerald-800 text-white p-1 rounded-lg">
               <Leaf size={16} />
             </div>
-            <span className="font-black text-sm text-gray-800 font-sans">Biodiesel Georgia</span>
+            <span className="font-black text-sm text-gray-800 font-sans">{t("Biodiesel Georgia")}</span>
           </div>
 
           <button 
@@ -679,16 +679,16 @@ export default function App() {
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-gray-900">Deletion Blocked</h3>
+              <h3 className="text-sm font-extrabold text-gray-900">{t("Deletion Blocked")}</h3>
               <p className="mt-2 text-xs text-gray-600 leading-relaxed font-medium">
-                {deleteAlertMessage}
+                {t(deleteAlertMessage)}
               </p>
             </div>
             <button
               onClick={() => setDeleteAlertMessage(null)}
               className="w-full inline-flex justify-center rounded-xl bg-gray-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-gray-800 transition shadow-sm focus:outline-none cursor-pointer"
             >
-              Understood
+              {t("Understood")}
             </button>
           </div>
         </div>
