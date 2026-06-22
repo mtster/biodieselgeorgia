@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
+import { t } from '../../utils/lang';
 
 interface FulfillmentDateTimePickerProps {
   value?: string;
@@ -79,14 +80,14 @@ export default function FulfillmentDateTimePicker({
   return (
     <div className="bg-white border border-emerald-100 rounded-2xl p-6 space-y-5 animate-in slide-in-from-top-3 duration-150">
       <div className="border-b pb-2 flex items-center justify-between">
-        <span className="text-xs font-black uppercase text-emerald-800 tracking-wider font-sans block">1. Fulfillment Clock & Calendar Details</span>
-        <span className="text-[10px] bg-emerald-50 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded">PRIORITY UX</span>
+        <span className="text-xs font-black uppercase text-emerald-800 tracking-wider font-sans block">{t("Fulfillment Clock & Calendar Details")}</span>
+        <span className="text-[10px] bg-emerald-50 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded">{t("PRIORITY UX")}</span>
       </div>
 
       <div className="space-y-4 font-sans">
         <div>
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 flex items-center gap-1.5">
-            <Clock size={12} className="text-emerald-700" /> Specify Pickup Time First *
+            <Clock size={12} className="text-emerald-700" /> {t("Specify Pickup Time First")} *
           </label>
           <div className="flex gap-3 max-w-xs items-center font-mono">
             <select
@@ -101,7 +102,7 @@ export default function FulfillmentDateTimePicker({
             >
               {Array.from({ length: 24 }).map((_, h) => {
                 const val = h.toString().padStart(2, '0');
-                return <option key={val} value={val}>{val} Hours</option>;
+                return <option key={val} value={val}>{val} {t("Hours")}</option>;
               })}
             </select>
             
@@ -118,7 +119,7 @@ export default function FulfillmentDateTimePicker({
               className="flex-1 px-3 py-2 bg-slate-50 border border-gray-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 rounded-xl text-sm font-extrabold focus:outline-none select-none text-center disabled:opacity-50"
             >
               {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(val => (
-                <option key={val} value={val}>{val} Mins</option>
+                <option key={val} value={val}>{val} {t("Mins")}</option>
               ))}
             </select>
           </div>
@@ -127,8 +128,8 @@ export default function FulfillmentDateTimePicker({
         <div className="pt-3 border-t border-gray-55 flex flex-col space-y-3.5">
           <div className="flex items-center justify-between bg-slate-50/50 p-2.5 rounded-xl">
             <div className="text-left">
-              <span className="text-xs font-bold text-gray-800 block">Override Standard Date Selection?</span>
-              <span className="text-[10px] text-gray-400 font-sans block">By default, order registers today's date context.</span>
+              <span className="text-xs font-bold text-gray-800 block">{t("Override Standard Date Selection?")}</span>
+              <span className="text-[10px] text-gray-400 font-sans block">{t("By default, order registers today's date context.")}</span>
             </div>
             
             <button
@@ -154,7 +155,7 @@ export default function FulfillmentDateTimePicker({
           {useCustomDate && (
             <div className="grid grid-cols-2 gap-3.5 max-w-sm pt-2 p-3 bg-slate-50 rounded-xl animate-in slide-in-from-top-1.5">
               <div className="relative">
-                <span className="absolute -top-1.5 left-2 px-1 text-[8.5px] font-black text-gray-400 bg-slate-50 uppercase tracking-widest">Day</span>
+                <span className="absolute -top-1.5 left-2 px-1 text-[8.5px] font-black text-gray-400 bg-slate-50 uppercase tracking-widest font-mono">{t("Day")}</span>
                 <select
                   value={selectedDay}
                   disabled={disabled}
@@ -163,14 +164,14 @@ export default function FulfillmentDateTimePicker({
                     setSelectedDay(nextVal);
                     updateParent(pickupHour, pickupMin, useCustomDate, nextVal, selectedMonth);
                   }}
-                  className="block w-full px-3 py-2 bg-white border border-gray-205 focus:border-emerald-500 rounded-xl text-xs font-bold focus:outline-none disabled:opacity-50"
+                  className="block w-full px-3 py-2 bg-white border border-gray-25 focus:border-emerald-500 rounded-xl text-xs font-bold focus:outline-none disabled:opacity-50"
                 >
                   {daysList.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
 
               <div className="relative">
-                <span className="absolute -top-1.5 left-2 px-1 text-[8.5px] font-black text-gray-400 bg-slate-50 uppercase tracking-widest">Month</span>
+                <span className="absolute -top-1.5 left-2 px-1 text-[8.5px] font-black text-gray-400 bg-slate-50 uppercase tracking-widest font-mono">{t("Month")}</span>
                 <select
                   value={selectedMonth}
                   disabled={disabled}
@@ -179,9 +180,9 @@ export default function FulfillmentDateTimePicker({
                     setSelectedMonth(nextVal);
                     updateParent(pickupHour, pickupMin, useCustomDate, selectedDay, nextVal);
                   }}
-                  className="block w-full px-3 py-2 bg-white border border-gray-205 focus:border-emerald-500 rounded-xl text-xs font-bold focus:outline-none disabled:opacity-50"
+                  className="block w-full px-3 py-2 bg-white border border-gray-25 focus:border-emerald-500 rounded-xl text-xs font-bold focus:outline-none disabled:opacity-50"
                 >
-                  {monthsList.map(m => <option key={m.value} value={m.value}>{m.name}</option>)}
+                  {monthsList.map(m => <option key={m.value} value={m.value}>{t(m.name)}</option>)}
                 </select>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useImperativeHandle } from 'react';
 import { User, UserRole, Warehouse } from '../../types';
-import { formatPhone } from '../../utils/lang';
+import { formatPhone, t } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
 import { Check } from 'lucide-react';
 
@@ -208,10 +208,10 @@ export default function UserForm({
   return (
     <div className="animate-in fade-in duration-200 max-w-2xl text-left" id="users-form-panel">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block pb-2">Profile Information</span>
+        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block pb-2">{t("Profile Information")}</span>
         
         <FormInput
-          label="Full Name *"
+          label={t("Full Name *")}
           type="text"
           id="user-full-name"
           value={editingUser.name}
@@ -223,7 +223,7 @@ export default function UserForm({
         />
 
         <FormInput
-          label="Personal ID (11 digits) *"
+          label={t("Personal ID (11 digits) *")}
           type="text"
           id="user-personal-id"
           maxLength={11}
@@ -237,7 +237,7 @@ export default function UserForm({
         />
 
         <FormInput
-          label="Email Address *"
+          label={t("Email Address *")}
           type="email"
           id="user-email-address"
           fontClass="font-mono"
@@ -251,7 +251,7 @@ export default function UserForm({
         />
 
         <FormInput
-          label={isNew ? 'Password *' : 'Change Password (Optional)'}
+          label={isNew ? t('Password *') : t('Change Password (Optional)')}
           type="password"
           id="user-password"
           fontClass="font-mono"
@@ -264,7 +264,7 @@ export default function UserForm({
         />
 
         <FormInput
-          label="Phone *"
+          label={t("Phone *")}
           type="text"
           id="user-phone-number"
           fontClass="font-mono"
@@ -280,7 +280,7 @@ export default function UserForm({
         />
 
          <FormSelect
-          label="Role / Designation *"
+          label={t("Role / Designation *")}
           value={editingUser.role || ''}
           onChange={(e) => {
             const role = e.target.value as any;
@@ -330,16 +330,16 @@ export default function UserForm({
           error={fieldErrors.role}
         >
           <option value="" hidden></option>
-          <option value="admin">Administrator (Admin)</option>
-          <option value="manager">Manager</option>
-          <option value="warehouse_manager">Warehouse Manager</option>
-          <option value="assistant">Assistant</option>
-          <option value="driver">Driver</option>
-          <option value="vendor">Supplier (Vendor)</option>
+          <option value="admin">{t("Administrator (Admin)")}</option>
+          <option value="manager">{t("Manager")}</option>
+          <option value="warehouse_manager">{t("Warehouse Manager")}</option>
+          <option value="assistant">{t("Assistant")}</option>
+          <option value="driver">{t("Driver")}</option>
+          <option value="vendor">{t("Supplier (Vendor)")}</option>
         </FormSelect>
 
         <FormSelect
-          label="Assigned Warehouse (Optional)"
+          label={t("Assigned Warehouse (Optional)")}
           value={editingUser.warehouse_id || ''}
           onChange={(e) => {
             setEditingUser({
@@ -348,7 +348,7 @@ export default function UserForm({
             });
           }}
         >
-          <option value="">Select a Warehouse (Unassigned)</option>
+          <option value="">{t("Select a Warehouse (Unassigned)")}</option>
           {warehouses.map(wh => (
             <option key={wh.id} value={wh.id}>{wh.name}</option>
           ))}
@@ -357,7 +357,7 @@ export default function UserForm({
         {/* Menu Permissions card with beautiful iOS slider toggles */}
         <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4">
           <div>
-            <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest font-sans">Menu Permissions</h4>
+            <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest font-sans">{t("Menu Permissions")}</h4>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 select-none">
@@ -365,7 +365,7 @@ export default function UserForm({
               const isChecked = editingUser.privileges.includes(privilege);
               return (
                 <div key={privilege} className="flex items-center justify-between py-1 border-b border-gray-100 sm:odd:pr-2">
-                  <span className="text-xs font-bold text-slate-700 font-sans">{privilege}</span>
+                  <span className="text-xs font-bold text-slate-700 font-sans">{t(privilege)}</span>
                   
                   <button
                     type="button"
@@ -389,16 +389,16 @@ export default function UserForm({
         {/* Edit Permissions Card */}
         <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4">
           <div>
-            <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest font-sans">Edit Permissions</h4>
+            <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest font-sans">{t("Edit Permissions")}</h4>
           </div>
 
           <div className="border border-gray-100 rounded-xl overflow-hidden bg-white select-none shadow-xs">
             {/* Table Header */}
             <div className="grid grid-cols-12 bg-slate-50 px-4 py-2 border-b border-gray-100 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-              <div className="col-span-6 text-left">Modules / Pages</div>
-              <div className="col-span-2 text-center">Add</div>
-              <div className="col-span-2 text-center">Edit</div>
-              <div className="col-span-2 text-center">Delete</div>
+              <div className="col-span-6 text-left">{t("Modules / Pages")}</div>
+              <div className="col-span-2 text-center">{t("Add")}</div>
+              <div className="col-span-2 text-center">{t("Edit")}</div>
+              <div className="col-span-2 text-center">{t("Delete")}</div>
             </div>
 
             {/* Rows */}
@@ -407,7 +407,7 @@ export default function UserForm({
                 const perms = (editingUser.edit_permissions || {})[page.id] || { add: false, edit: false, delete: false };
                 return (
                   <div key={page.id} className="grid grid-cols-12 px-4 py-2.5 items-center">
-                    <span className="col-span-6 text-xs font-bold text-gray-700 font-sans">{page.label}</span>
+                    <span className="col-span-6 text-xs font-bold text-gray-700 font-sans">{t(page.label)}</span>
                     
                     {/* Add Checkbox */}
                     <div className="col-span-2 flex justify-center">

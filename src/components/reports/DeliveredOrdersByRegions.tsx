@@ -4,6 +4,7 @@ import { Vendor, Order, City, District } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
+import { t } from '../../utils/lang';
 
 interface Props {
   suppliers: Vendor[];
@@ -100,7 +101,7 @@ export default function DeliveredOrdersByRegions({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={<>Reports <ChevronRight size={20} className="text-gray-400 mx-1" /> Delivered Orders by Regions</>}
+        title={<>{t("Reports")} <ChevronRight size={20} className="text-gray-400 mx-1" /> {t("Delivered Orders by Regions")}</>}
         onBack={onBack}
         backButtonId="reports-regions-back"
       />
@@ -120,7 +121,7 @@ export default function DeliveredOrdersByRegions({
               <CentralSearchBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                searchPlaceholder="Search regions by city name or district representation..."
+                searchPlaceholder={t("Search regions by city name or district representation...")}
               />
             </div>
           </div>
@@ -134,19 +135,19 @@ export default function DeliveredOrdersByRegions({
             <thead>
               <tr className="select-none bg-slate-50 border-b border-gray-200">
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  City
+                  {t("City")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Region (District)
+                  {t("Region (District)")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  Visits Amount
+                  {t("Visits Amount")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  Oil Amount (Liters)
+                  {t("Oil Amount (Liters)")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  Cost (₾)
+                  {t("Cost (₾)")}
                 </th>
               </tr>
             </thead>
@@ -174,7 +175,7 @@ export default function DeliveredOrdersByRegions({
               {regionRows.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-20 text-xs text-gray-400 italic">
-                    No matching regional record aggregates found.
+                    {t("No matching regional record aggregates found.")}
                   </td>
                 </tr>
               )}
@@ -183,10 +184,10 @@ export default function DeliveredOrdersByRegions({
               {regionRows.length > 0 && (
                 <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
-                    TOTAL SUMMARY
+                    {t("TOTAL SUMMARY")}
                   </td>
                   <td className="py-4 px-4 font-semibold">
-                    {regionRows.length} active regions
+                    {regionRows.length} {t("active regions")}
                   </td>
                   <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">
                     {totalVisits}

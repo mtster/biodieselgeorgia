@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, GripVertical, Plus, Check } from 'lucide-react';
+import { t } from '../utils/lang';
 
 export interface ManagedColumn {
   id: string;
@@ -121,8 +122,8 @@ export default function ColumnsManagerModal({
         {/* Header - Columns Manager */}
         <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 shrink-0">
           <div>
-            <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest font-sans">
-              Columns Manager
+            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-widest font-sans">
+              {t("Columns Manager")}
             </h3>
           </div>
           <button 
@@ -141,7 +142,7 @@ export default function ColumnsManagerModal({
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Enter column name..."
+                placeholder={t("Enter column name...")}
                 value={newColName}
                 onChange={(e) => setNewColName(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -151,7 +152,7 @@ export default function ColumnsManagerModal({
                 type="button"
                 onClick={handleSaveCustomColumn}
                 className="p-1.5 bg-emerald-700 text-white hover:bg-emerald-850 rounded-lg cursor-pointer transition flex items-center justify-center shrink-0"
-                title="Add Column"
+                title={t("Add Column") || "Add Column"}
               >
                 <Check size={14} strokeWidth={2.5} />
               </button>
@@ -159,7 +160,7 @@ export default function ColumnsManagerModal({
                 type="button"
                 onClick={() => { setIsAdding(false); setNewColName(''); }}
                 className="p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 rounded-lg cursor-pointer transition flex items-center justify-center shrink-0"
-                title="Cancel"
+                title={t("Cancel") || "Cancel"}
               >
                 <X size={14} />
               </button>
@@ -171,7 +172,7 @@ export default function ColumnsManagerModal({
               className="w-full border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-slate-50/50 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer transition text-gray-500 hover:text-emerald-750"
             >
               <Plus size={16} />
-              <span className="text-xs font-bold leading-none font-sans">Add New Column</span>
+              <span className="text-xs font-bold leading-none font-sans">{t("Add New Column")}</span>
             </button>
           )}
         </div>
@@ -202,7 +203,7 @@ export default function ColumnsManagerModal({
                     className="w-4 h-4 text-emerald-600 border-gray-350 rounded focus:ring-emerald-500 cursor-pointer"
                   />
                   <span className={`text-xs font-semibold font-sans ${col.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>
-                    {col.label}
+                    {t(col.label)}
                     {col.isCustom && <span className="ml-1.5 text-[8px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded font-mono uppercase">custom</span>}
                   </span>
                 </div>
@@ -218,7 +219,7 @@ export default function ColumnsManagerModal({
             onClick={handleResetToDefault}
             className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer"
           >
-            Default
+            {t("Default")}
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -226,14 +227,14 @@ export default function ColumnsManagerModal({
               onClick={onClose}
               className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer"
             >
-              Cancel
+              {t("Cancel")}
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-black rounded-lg text-xs transition cursor-pointer"
+              className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-lg text-xs transition cursor-pointer"
             >
-              Save Changes
+              {t("Save Changes")}
             </button>
           </div>
         </div>

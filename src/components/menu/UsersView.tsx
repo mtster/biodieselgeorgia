@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { t } from '../../utils/lang';
 import { User, UserRole, Warehouse } from '../../types';
 import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
 import PageHeader from '../PageHeader';
@@ -136,7 +137,7 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
       
       {/* 1. STANDARDIZED PAGE HEADER */}
       <PageHeader 
-        title="Users"
+        title={t("Users")}
         onBack={editingUser ? () => setEditingUser(null) : undefined}
         backButtonId="user-form-back-arrow"
         actions={headerActions}
@@ -175,10 +176,12 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
                         usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :
                         'bg-amber-50 text-amber-700'
                       }`}>
-                        {usr.role === 'admin' ? 'Administrator' :
-                         usr.role === 'manager' ? 'Manager' :
-                         usr.role === 'driver' ? 'Driver' :
-                         usr.role === 'vendor' ? 'Supplier (Vendor)' : 'Unknown'}
+                        {usr.role === 'admin' ? t('Administrator') :
+                         usr.role === 'manager' ? t('Manager') :
+                         usr.role === 'warehouse_manager' ? t('Warehouse Manager') :
+                         usr.role === 'assistant' ? t('Assistant') :
+                         usr.role === 'driver' ? t('Driver') :
+                         usr.role === 'vendor' ? t('Supplier (Vendor)') : t('Unknown')}
                       </span>
                     </div>
                     {currentUser.role === 'admin' && (
@@ -202,29 +205,29 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
                   </div>
 
                   <div className="text-[11px] text-gray-500 space-y-1 pt-1 font-sans">
-                    <p><strong>Personal ID:</strong> <span className="font-mono">{usr.personal_id}</span></p>
-                    <p><strong>Email:</strong> <span className="font-mono">{usr.email}</span></p>
-                    <p><strong>Phone:</strong> <span className="font-mono text-emerald-900 font-bold">{usr.phone}</span></p>
+                    <p><strong>{t("Personal ID")}:</strong> <span className="font-mono">{usr.personal_id}</span></p>
+                    <p><strong>{t("Email")}:</strong> <span className="font-mono">{usr.email}</span></p>
+                    <p><strong>{t("Phone")}:</strong> <span className="font-mono text-emerald-900 font-bold">{usr.phone}</span></p>
                   </div>
                 </div>
 
                 {/* Privileges indicators */}
                 <div className="pt-2.5 border-t border-gray-100 space-y-1">
-                  <span className="text-[9px] font-black text-gray-400 uppercase block tracking-wider">Privileges</span>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block tracking-wider">{t("Privileges")}</span>
                   <div className="flex flex-wrap gap-1">
                     {usr.privileges?.includes('All') ? (
                       <span className="text-[9px] bg-slate-50 text-emerald-800 border-emerald-100 px-1.5 py-0.5 rounded-md font-mono border font-bold">
-                        All
+                        {t("All")}
                       </span>
                     ) : (
                       usr.privileges?.map((p) => (
                         <span key={p} className="text-[9px] bg-slate-50 text-gray-650 px-1.5 py-0.5 rounded-md font-mono border font-medium">
-                          {p}
+                          {t(p)}
                         </span>
                       ))
                     )}
                     {(!usr.privileges || usr.privileges.length === 0) && (
-                      <span className="text-[9px] text-gray-400 italic">No custom privileges</span>
+                      <span className="text-[9px] text-gray-400 italic">{t("No custom privileges")}</span>
                     )}
                   </div>
                 </div>
@@ -243,7 +246,7 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
                   <Plus size={20} />
                 </div>
                 <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
-                  Add New User
+                  {t("Add New User")}
                 </span>
               </button>
             )}
@@ -260,10 +263,10 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
           setDeleteConfirmName(null);
         }}
         onConfirm={confirmDelete}
-        title="Remove User?"
+        title={t("Remove User?")}
         message={
           <span>
-            Are you sure you want to completely delete user account profile for <strong>"{deleteConfirmName}"</strong>? This is a permanent administrative soft-deletion.
+            {t("Are you sure you want to completely delete user account profile for")} <strong>"{deleteConfirmName}"</strong>? {t("This is a permanent administrative soft-deletion.")}
           </span>
         }
       />

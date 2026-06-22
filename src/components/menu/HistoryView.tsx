@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { ChangeHistory } from '../../types';
 import PageHeader from '../PageHeader';
 import { StandardTable, ColumnConfig } from '../StandardTable';
-import { FormSelect } from '../FormInput';
+import CentralSearchBar from '../CentralSearchBar';
+import PeriodFilter from '../PeriodFilter';
+import { t } from '../../utils/lang';
 
 interface Props {
   history: ChangeHistory[];
@@ -17,6 +19,7 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedOperation, setSelectedOperation] = useState('');
   const [selectedField, setSelectedField] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Extract unique options from the change log data dynamically
   const uniqueUsers = Array.from(new Set(history.map(h => h.employee_name).filter(Boolean))).sort();
@@ -53,39 +56,52 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
       return false;
     }
 
+    // 5. Search Bar Filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchUser = log.employee_name?.toLowerCase().includes(term);
+      const matchOp = log.operation?.toLowerCase().includes(term);
+      const matchField = log.field_name?.toLowerCase().includes(term);
+      const matchOld = log.old_value?.toLowerCase().includes(term);
+      const matchNew = log.new_value?.toLowerCase().includes(term);
+      if (!matchUser && !matchOp && !matchField && !matchOld && !matchNew) {
+        return false;
+      }
+    }
+
     return true;
   });
 
   const columns: ColumnConfig<ChangeHistory>[] = [
     {
-      header: 'Date & Time',
+      header: t('Date & Time'),
       key: 'date_time',
       render: (log) => new Date(log.date_time).toLocaleString('en-US')
     },
     {
-      header: 'User',
+      header: t('User'),
       key: 'employee_name',
       render: (log) => log.employee_name
     },
     {
-      header: 'Operation',
+      header: t('Operation'),
       key: 'operation',
-      render: (log) => log.operation
+      render: (log) => t(log.operation)
     },
     {
-      header: 'Field',
+      header: t('Field'),
       key: 'field_name',
-      render: (log) => log.field_name || '-'
+      render: (log) => log.field_name ? t(log.field_name) : '-'
     },
     {
-      header: 'Old Value',
+      header: t('Old Value'),
       key: 'old_value',
-      render: (log) => log.old_value || '-'
+      render: (log) => log.old_value ? t(log.old_value) : '-'
     },
     {
-      header: 'New Value',
+      header: t('New Value'),
       key: 'new_value',
-      render: (log) => log.new_value || '-'
+      render: (log) => log.new_value ? t(log.new_value) : '-'
     }
   ];
 
@@ -93,66 +109,48 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
     <div className="space-y-6 text-left">
       
       {/* 1. Header */}
-      <PageHeader title="Change History" />
+      <PageHeader title={t("Change History")} />
 
-      {/* 2. Premium Filters Bar */}
-      <div className="bg-white p-4 border border-gray-100 rounded-2xl shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-center">
-        
-        {/* Period (No label) */}
-        <div className="col-span-1 sm:col-span-2">
-          <div className="flex items-center gap-1.5 h-full">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-white border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-3 text-xs text-gray-700 outline-none w-full font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
-            />
-            <span className="text-gray-300 text-xs select-none font-bold">-</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-white border border-gray-200 focus:border-emerald-600 rounded-xl px-2.5 py-3 text-xs text-gray-700 outline-none w-full font-sans cursor-pointer transition-all focus:ring-1 focus:ring-emerald-600"
-            />
-          </div>
+      {/* 2. Seamless Filters Bar (CentralSearchBar + PeriodFilter) with No thick white outline */}
+      <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+        <PeriodFilter 
+          startDate={startDate} 
+          setStartDate={setStartDate} 
+          endDate={endDate} 
+          setEndDate={setEndDate} 
+        />
+
+        <div className="flex-1 w-full">
+          <CentralSearchBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            idPrefix="history-search"
+            searchPlaceholder={t("Search change history logs...")}
+            filters={[
+              {
+                label: t("User"),
+                value: selectedUser,
+                placeholder: t("All Users"),
+                onChange: setSelectedUser,
+                options: uniqueUsers.map(user => ({ value: user, label: user }))
+              },
+              {
+                label: t("Operation"),
+                value: selectedOperation,
+                placeholder: t("All Operations"),
+                onChange: setSelectedOperation,
+                options: uniqueOperations.map(op => ({ value: op, label: t(op) }))
+              },
+              {
+                label: t("Field"),
+                value: selectedField,
+                placeholder: t("All Fields"),
+                onChange: setSelectedField,
+                options: uniqueFields.map(fd => ({ value: fd, label: t(fd) }))
+              }
+            ]}
+          />
         </div>
-
-        {/* User filter */}
-        <FormSelect
-          label="User"
-          value={selectedUser}
-          onChange={(e) => setSelectedUser(e.target.value)}
-        >
-          <option value="">All Users</option>
-          {uniqueUsers.map(user => (
-            <option key={user} value={user}>{user}</option>
-          ))}
-        </FormSelect>
-
-        {/* Operation filter */}
-        <FormSelect
-          label="Operation"
-          value={selectedOperation}
-          onChange={(e) => setSelectedOperation(e.target.value)}
-        >
-          <option value="">All Operations</option>
-          {uniqueOperations.map(op => (
-            <option key={op} value={op}>{op}</option>
-          ))}
-        </FormSelect>
-
-        {/* Field filter */}
-        <FormSelect
-          label="Field"
-          value={selectedField}
-          onChange={(e) => setSelectedField(e.target.value)}
-        >
-          <option value="">All Fields</option>
-          {uniqueFields.map(fd => (
-            <option key={fd} value={fd}>{fd}</option>
-          ))}
-        </FormSelect>
-
       </div>
 
       {/* 3. Table element */}
@@ -160,7 +158,7 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
         <StandardTable
           data={filteredHistory}
           columns={columns}
-          emptyMessage="No change history logs match current filters."
+          emptyMessage={t("No change history logs match current filters.")}
           onLoadMore={loadMore}
           hasMore={history.length > 0 && history.length % 50 === 0}
           isLoading={isLoadingMore}
@@ -170,4 +168,3 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
     </div>
   );
 }
-

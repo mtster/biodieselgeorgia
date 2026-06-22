@@ -3,6 +3,7 @@ import { Order, Vendor, User, Warehouse } from '../../types';
 import { Edit2, Trash2, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
+import { t } from '../../utils/lang';
 
 interface Props {
   filteredOrders: Order[];
@@ -43,7 +44,7 @@ export default function OrdersList({
 
   const columnMap: Record<string, ColumnConfig<Order>> = {
     order_date: {
-      header: 'Date',
+      header: t('Date'),
       key: 'order_date',
       render: (ord) => new Date(ord.order_date).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -52,12 +53,12 @@ export default function OrdersList({
       })
     },
     doc_number: {
-      header: 'Doc Num',
+      header: t('Doc Num'),
       key: 'doc_number',
       render: (ord) => ord.doc_number
     },
     vendor_id: {
-      header: 'Supplier',
+      header: t('Supplier'),
       key: 'supplier',
       render: (ord) => {
         const supplierObj = suppliers.find(s => s.id === ord.vendor_id);
@@ -65,7 +66,7 @@ export default function OrdersList({
       }
     },
     warehouse_id: {
-      header: 'Warehouse',
+      header: t('Warehouse'),
       key: 'warehouse_name',
       render: (ord) => {
         const wh = warehouses.find(w => w.id === ord.warehouse_id);
@@ -73,52 +74,52 @@ export default function OrdersList({
       }
     },
     status: {
-      header: 'Status',
+      header: t('Status'),
       key: 'status',
       render: (ord) => {
         const s = ord.status;
-        if (s === 'driver_assigned') return 'Driver Assigned';
-        if (s === 'picked_up') return 'Picked Up';
-        return s.charAt(0).toUpperCase() + s.slice(1);
+        if (s === 'driver_assigned') return t('Driver Assigned');
+        if (s === 'picked_up') return t('Picked Up');
+        return t(s);
       }
     },
     pickup_date_time: {
-      header: 'Dispatch Date',
+      header: t('Dispatch Date'),
       key: 'pickup_date_time',
       render: (ord) => ord.pickup_date_time ? new Date(ord.pickup_date_time).toLocaleString('en-US') : '-'
     },
     planned: {
-      header: 'Planned',
+      header: t('Planned'),
       key: 'planned',
       render: (ord) => `${ord.qty_requested} L`
     },
     tanks_to_leave: {
-      header: 'Dropoff',
+      header: t('Dropoff'),
       key: 'tanks_to_leave',
       render: (ord) => `${ord.tanks_to_leave}`
     },
     tanks_to_bring: {
-      header: 'Pickup',
+      header: t('Pickup'),
       key: 'tanks_to_bring',
       render: (ord) => `${ord.tanks_to_bring}`
     },
     fact_qty: {
-      header: 'Fact QTY',
+      header: t('Fact QTY'),
       key: 'fact_qty',
       render: (ord) => ord.fact_qty === undefined || ord.fact_qty === null ? '-' : ord.fact_qty
     },
     fact_tank_dropoff: {
-      header: 'Fact Tank Dropoff',
+      header: t('Fact Tank Dropoff'),
       key: 'fact_tank_dropoff',
       render: (ord) => ord.fact_tank_dropoff === undefined || ord.fact_tank_dropoff === null ? '-' : ord.fact_tank_dropoff
     },
     fact_tank_pickup: {
-      header: 'Fact Tank Pickup',
+      header: t('Fact Tank Pickup'),
       key: 'fact_tank_pickup',
       render: (ord) => ord.fact_tank_pickup === undefined || ord.fact_tank_pickup === null ? '-' : ord.fact_tank_pickup
     },
     note: {
-      header: 'Comment',
+      header: t('Comment'),
       key: 'comment',
       render: (ord) => ord.note || '-'
     }
@@ -128,7 +129,7 @@ export default function OrdersList({
 
   // Prepend select checkbox column
   columns.push({
-    header: 'Sel',
+    header: '',
     key: 'select',
     className: 'w-12 text-center',
     render: (ord) => {
@@ -202,7 +203,7 @@ export default function OrdersList({
       columns={columns}
       onRowClick={handleRowClick}
       rowClassName={rowClassName}
-      emptyMessage="No active collection order entries were located."
+      emptyMessage={t("No active collection order entries were located.")}
     />
   );
 }

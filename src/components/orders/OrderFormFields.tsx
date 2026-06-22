@@ -5,6 +5,7 @@ import SupplierAutocomplete from './SupplierAutocomplete';
 import { FormInput, FormSelect } from '../FormInput';
 import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
 import DynamicCustomFields from '../DynamicCustomFields';
+import { t } from '../../utils/lang';
 
 interface OrderFormFieldsProps {
   editingOrder: Order;
@@ -38,7 +39,7 @@ export default function OrderFormFields({
   return (
     <div className="space-y-6 text-left">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">Core Transaction Details</span>
+        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">{t("Core Transaction Details")}</span>
         
         {/* Supplier Autocomplete Input - Notch styling */}
         <SupplierAutocomplete 
@@ -51,10 +52,10 @@ export default function OrderFormFields({
           setFieldErrors={setFieldErrors}
           suppliers={suppliers}
         />
-
+        
         {/* Destination storage dropdown */}
         <FormSelect
-          label="Base Destination Warehouse *"
+          label={`${t("Warehouse")} *`}
           value={editingOrder.warehouse_id}
           onChange={(e) => {
             setEditingOrder(prev => prev ? { ...prev, warehouse_id: e.target.value } : null);
@@ -71,7 +72,7 @@ export default function OrderFormFields({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Document ID */}
           <FormInput
-            label="Document Dispatch ID *"
+            label={`${t("Document Dispatch ID")} *`}
             type="text"
             fontClass="font-mono font-bold"
             value={editingOrder.doc_number}
@@ -84,7 +85,7 @@ export default function OrderFormFields({
 
           {/* Dispatch Date */}
           <FormInput
-            label="Order Dispatch Date *"
+            label={`${t("Order Dispatch Date")} *`}
             type="date"
             fontClass="font-mono"
             value={editingOrder.order_date}
@@ -95,7 +96,7 @@ export default function OrderFormFields({
         <div className="grid grid-cols-3 gap-3">
           {/* Planned Volume */}
           <FormInput
-            label="Planned QTY (L)"
+            label={t("Planned QTY (L)")}
             type="number"
             fontClass="font-mono"
             value={editingOrder.qty_requested || ''}
@@ -104,7 +105,7 @@ export default function OrderFormFields({
 
           {/* Tanks dropoff */}
           <FormInput
-            label="Tanks Dropoff"
+            label={t("Tanks Dropoff")}
             type="number"
             fontClass="font-mono"
             value={editingOrder.tanks_to_leave}
@@ -113,7 +114,7 @@ export default function OrderFormFields({
 
           {/* Tanks pickup */}
           <FormInput
-            label="Tanks Pickup"
+            label={t("Tanks Pickup")}
             type="number"
             fontClass="font-mono"
             value={editingOrder.tanks_to_bring}
@@ -123,7 +124,7 @@ export default function OrderFormFields({
 
         {/* Status Selector */}
         <FormSelect
-          label="Fulfillment Status *"
+          label={`${t("Fulfillment Status")} *`}
           value={editingOrder.status}
           className="bg-emerald-50 text-emerald-800 font-bold"
           onChange={(e) => {
@@ -135,18 +136,18 @@ export default function OrderFormFields({
             } : null);
           }}
         >
-           <option value="registered">Registered</option>
-          <option value="driver_assigned">Driver Assigned</option>
-          <option value="picked_up">Picked Up</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="registered">{t("Registered")}</option>
+          <option value="driver_assigned">{t("Driver Assigned")}</option>
+          <option value="picked_up">{t("Picked Up")}</option>
+          <option value="completed">{t("Completed")}</option>
+          <option value="cancelled">{t("Cancelled")}</option>
         </FormSelect>
 
         {/* Fact & Volumetric Parameters (Only for Completed Orders) */}
         {editingOrder.status === 'completed' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white border border-emerald-100 rounded-2xl p-6 animate-in slide-in-from-top-3 duration-150">
             <FormInput
-              label="Fact QTY (L) *"
+              label={`${t("Fact QTY (L)")} *`}
               type="number"
               step="0.01"
               required
@@ -160,7 +161,7 @@ export default function OrderFormFields({
             />
 
             <FormInput
-              label="Fact Tank Dropoff *"
+              label={`${t("Fact Tank Dropoff")} *`}
               type="number"
               required
               fontClass="font-mono"
@@ -169,7 +170,7 @@ export default function OrderFormFields({
             />
 
             <FormInput
-              label="Fact Tank Pickup *"
+              label={`${t("Fact Tank Pickup")} *`}
               type="number"
               required
               fontClass="font-mono"
@@ -188,7 +189,7 @@ export default function OrderFormFields({
 
         {/* Handover comments */}
         <FormInput
-          label="Handover Comments / Navigation Note on Location"
+          label={t("Handover Comments / Navigation Note on Location")}
           type="text"
           value={editingOrder.note || ''}
           onChange={(e) => setEditingOrder(prev => prev ? { ...prev, note: e.target.value } : null)}
@@ -197,11 +198,11 @@ export default function OrderFormFields({
 
       {/* Crew and Fleet Dispatch Assignments */}
       <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 pb-16">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">2. Operations Vehicle Crew</span>
+        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">{t("Operations Vehicle Crew")}</span>
         
         {/* Driver select */}
         <FormSelect
-          label="Assigned Fleet Driver *"
+          label={`${t("Assigned Fleet Driver")} *`}
           value={editingOrder.driver_id}
           onChange={(e) => {
             setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null);
@@ -217,7 +218,7 @@ export default function OrderFormFields({
 
         {/* Co-Driver helper select */}
         <FormSelect
-          label="Operations Dispatcher / Co-Driver Helper"
+          label={t("Operations Dispatcher / Co-Driver Helper")}
           value={editingOrder.companion_id}
           onChange={(e) => setEditingOrder(prev => prev ? { ...prev, companion_id: e.target.value } : null)}
         >
@@ -229,7 +230,7 @@ export default function OrderFormFields({
 
         {/* Truck asset */}
         <FormSelect
-          label="Assigned Vehicle Plate Asset *"
+          label={`${t("Assigned Vehicle Plate Asset")} *`}
           value={editingOrder.truck_plate}
           onChange={(e) => {
             setEditingOrder(prev => prev ? { ...prev, truck_plate: e.target.value } : null);

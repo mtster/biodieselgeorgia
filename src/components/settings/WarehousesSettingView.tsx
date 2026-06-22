@@ -5,6 +5,7 @@ import { FormInput } from '../FormInput';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
+import { t } from '../../utils/lang';
 
 interface Props {
   warehouses: Warehouse[];
@@ -69,7 +70,7 @@ export default function WarehousesSettingView({
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
       {/* Centralized Page Header */}
-      <PageHeader title="Warehouses" />
+      <PageHeader title={t("Warehouses")} />
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 w-full">
@@ -89,12 +90,12 @@ export default function WarehousesSettingView({
                   {warehouse.name}
                 </h4>
                 <p className="text-[10px] text-gray-400 font-sans mt-1">
-                  Active Storage Unit
+                  {t("Active Storage Unit")}
                 </p>
               </div>
             </div>
             <span className="text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity">
-              Configure Cards &rarr;
+              {t("Configure Cards")} &rarr;
             </span>
           </button>
         ))}
@@ -109,7 +110,7 @@ export default function WarehousesSettingView({
             <Plus size={20} />
           </div>
           <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
-            Add New Warehouse
+            {t("Add New Warehouse")}
           </span>
         </button>
       </div>
@@ -118,21 +119,21 @@ export default function WarehousesSettingView({
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={selectedWarehouse ? 'Warehouse Specifications' : 'Add Warehouse'}
+        title={selectedWarehouse ? t('Warehouse Specifications') : t('Add Warehouse')}
         maxWidthClass="max-w-md"
         onDelete={selectedWarehouse ? triggerDeleteWarehouse : undefined}
-        deleteLabel="Delete"
+        deleteLabel={t("Delete")}
         onCancel={() => setIsModalOpen(false)}
         onSave={handleSave}
-        saveLabel="Save Changes"
+        saveLabel={t("Save Changes")}
       >
         <div className="space-y-4">
           <FormInput
-            label="Warehouse / Storage Facility Name *"
+            label={`${t("Warehouse / Storage Facility Name")} *`}
             type="text"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
-            placeholder="e.g. Tbilisi Central Depot"
+            placeholder={t("e.g. Tbilisi Central Depot")}
           />
         </div>
       </FormModal>
@@ -142,10 +143,10 @@ export default function WarehousesSettingView({
         isOpen={showConfirmDelete}
         onClose={() => setShowConfirmDelete(false)}
         onConfirm={handleConfirmDeleteWarehouse}
-        title="Delete warehouse?"
+        title={t("Delete warehouse?")}
         message={
           <span>
-            Are you sure you want to permanently delete warehouse <strong>"{warehouseToDelete?.name}"</strong>? This action cannot be undone.
+            {t("Are you sure you want to permanently delete warehouse")} <strong>"{warehouseToDelete?.name}"</strong>? {t("This action cannot be undone.")}
           </span>
         }
       />

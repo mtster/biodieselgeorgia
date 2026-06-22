@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../../types';
 import OrderFormFields from './OrderFormFields';
+import { t } from '../../utils/lang';
 
 interface Props {
   editingOrder: Order;
@@ -50,20 +51,20 @@ export default function OrderForm({
     const errs: Record<string, string> = {};
 
     if (!editingOrder.vendor_id) {
-      errs.vendor_id = 'Please select a Supplier / Vendor.';
+      errs.vendor_id = t('Please select a Supplier / Vendor.');
     }
     if (!editingOrder.warehouse_id) {
-      errs.warehouse_id = 'Please select a Base Destination Warehouse.';
+      errs.warehouse_id = t('Please select a Base Destination Warehouse.');
     }
     if (!editingOrder.doc_number.trim()) {
-      errs.doc_number = 'Document dispatch number is required.';
+      errs.doc_number = t('Document dispatch number is required.');
     }
     if (editingOrder.status !== 'registered' && editingOrder.status !== 'cancelled') {
       if (!editingOrder.driver_id) {
-        errs.driver_id = 'Please select an Assigned Fleet Driver.';
+        errs.driver_id = t('Please select an Assigned Fleet Driver.');
       }
       if (!editingOrder.truck_plate) {
-        errs.truck_plate = 'Please select an Assigned Vehicle.';
+        errs.truck_plate = t('Please select an Assigned Vehicle.');
       }
     }
 
@@ -75,7 +76,7 @@ export default function OrderForm({
       }
 
       if (finalOrder.fact_qty === undefined || finalOrder.fact_qty <= 0) {
-        errs.fact_qty = 'Please specify Actual Volume Received (Liters) for completed orders.';
+        errs.fact_qty = t('Please specify Actual Volume Received (Liters) for completed orders.');
       }
     }
 

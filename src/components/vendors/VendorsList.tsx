@@ -188,7 +188,7 @@ export default function VendorsList({
       } else {
         // Handle fallback or added custom columns
         columns.push({
-          header: col.label,
+          header: t(col.label),
           key: col.id,
           render: (v: any) => v[col.id] ?? '-'
         });

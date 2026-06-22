@@ -4,6 +4,7 @@ import { Vendor, Order, User, City, District } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
+import { t } from '../../utils/lang';
 
 interface Props {
   suppliers: Vendor[];
@@ -85,7 +86,7 @@ export default function TanksTurnoverBySuppliers({
       const finalBalance = openingBalance + filled - returned;
 
       const managerObj = users.find(u => u.id === s.manager_id);
-      const managerName = managerObj ? managerObj.name : 'Unassigned';
+      const managerName = managerObj ? managerObj.name : t('Unassigned');
 
       return {
         id: s.id,
@@ -130,7 +131,7 @@ export default function TanksTurnoverBySuppliers({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={<>Reports <ChevronRight size={20} className="text-gray-400 mx-1" /> Tanks Turnover by Suppliers</>}
+        title={<>{t("Reports")} <ChevronRight size={20} className="text-gray-400 mx-1" /> {t("Tanks Turnover by Suppliers")}</>}
         onBack={onBack}
         backButtonId="reports-turnover-back"
       />
@@ -150,12 +151,12 @@ export default function TanksTurnoverBySuppliers({
               <CentralSearchBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                searchPlaceholder="Search suppliers by name, code, or account managers..."
+                searchPlaceholder={t("Search suppliers by name, code, or account managers...")}
                 filters={[
                   {
-                    label: 'City',
+                    label: t('City'),
                     value: selectedCity,
-                    placeholder: 'All Cities',
+                    placeholder: t('All Cities'),
                     onChange: (val) => {
                       setSelectedCity(val);
                       setSelectedDistrict('');
@@ -163,18 +164,18 @@ export default function TanksTurnoverBySuppliers({
                     options: cities.map(c => ({ value: c.name, label: c.name })),
                   },
                   {
-                    label: 'Region',
+                    label: t('Region'),
                     value: selectedDistrict,
-                    placeholder: 'All Regions',
+                    placeholder: t('All Regions'),
                     onChange: setSelectedDistrict,
                     options: districts
                       .filter(d => !selectedCity || d.city_id === cities.find(c => c.name === selectedCity)?.id)
                       .map(d => ({ value: d.name, label: d.name })),
                   },
                   {
-                    label: 'Manager',
+                    label: t('Manager'),
                     value: selectedManager,
-                    placeholder: 'All Managers',
+                    placeholder: t('All Managers'),
                     onChange: setSelectedManager,
                     options: filterManagers.map(m => ({ value: m.id, label: m.name })),
                   },
@@ -192,28 +193,28 @@ export default function TanksTurnoverBySuppliers({
             <thead>
               <tr className="select-none bg-slate-50 border-b border-gray-200">
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Identification Code
+                  {t("Identification Code")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Company Name
+                  {t("Company Name")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  City / Region
+                  {t("City / Region")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Manager
+                  {t("Manager")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  Opening Balance
+                  {t("Opening Balance")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  Filled
+                  {t("Filled")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  Returned
+                  {t("Returned")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  Final Balance
+                  {t("Final Balance")}
                 </th>
               </tr>
             </thead>
@@ -254,7 +255,7 @@ export default function TanksTurnoverBySuppliers({
               {turnoverRows.length === 0 && (
                 <tr>
                   <td colSpan={8} className="text-center py-20 text-xs text-gray-400 italic">
-                    No matching supplier records found for tank turnovers.
+                    {t("No matching supplier records found for tank turnovers.")}
                   </td>
                 </tr>
               )}
@@ -263,10 +264,10 @@ export default function TanksTurnoverBySuppliers({
               {turnoverRows.length > 0 && (
                 <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
-                    TOTAL SUMMARY
+                    {t("TOTAL SUMMARY")}
                   </td>
                   <td className="py-4 px-4">
-                    {turnoverRows.length} active suppliers
+                    {turnoverRows.length} {t("active suppliers")}
                   </td>
                   <td colSpan={2} className="py-4 px-4"></td>
                   <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">

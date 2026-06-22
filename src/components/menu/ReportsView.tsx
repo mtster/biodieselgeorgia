@@ -147,7 +147,7 @@ export default function ReportsView({
     <div className="space-y-6">
       {/* CENTRALIZED PAGE HEADER */}
       <PageHeader
-        title="Reports"
+        title={t("Reports")}
       />
 
       {/* RE-ARCHITECTED INTERACTIVE REPORT DIRECTORY GRID */}

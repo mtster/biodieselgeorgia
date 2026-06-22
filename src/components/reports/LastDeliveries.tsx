@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { Vendor, Order, User } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
+import { t } from '../../utils/lang';
 
 interface Props {
   suppliers: Vendor[];
@@ -37,7 +38,7 @@ export default function LastDeliveries({
 
       const lastOrder = sortedOrders[0];
       const lastDateStr = lastOrder ? (lastOrder.pickup_date_time || lastOrder.order_date) : '';
-      const finalDeliveryDate = lastDateStr ? lastDateStr.split('T')[0] : 'No deliveries';
+      const finalDeliveryDate = lastDateStr ? lastDateStr.split('T')[0] : t('No deliveries');
 
       let daysAgo: number | string = '-';
       if (lastDateStr) {
@@ -53,7 +54,7 @@ export default function LastDeliveries({
       }
 
       const managerObj = users.find(u => u.id === s.manager_id);
-      const managerName = managerObj ? managerObj.name : 'Unassigned';
+      const managerName = managerObj ? managerObj.name : t('Unassigned');
 
       return {
         id: s.id,
@@ -96,7 +97,7 @@ export default function LastDeliveries({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={<>Reports <ChevronRight size={20} className="text-gray-400 mx-1" /> Last Deliveries</>}
+        title={<>{t("Reports")} <ChevronRight size={20} className="text-gray-400 mx-1" /> {t("Last Deliveries")}</>}
         onBack={onBack}
         backButtonId="reports-last-deliveries-back"
       />
@@ -107,7 +108,7 @@ export default function LastDeliveries({
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           idPrefix="last-deliveries-search"
-          searchPlaceholder="Search last deliveries by company, code, manager, city, region, or status..."
+          searchPlaceholder={t("Search last deliveries by company, code, manager, city, region, or status...")}
         />
       </div>
 
@@ -118,25 +119,25 @@ export default function LastDeliveries({
             <thead>
               <tr className="select-none bg-slate-50 border-b border-gray-200">
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Identification Code
+                  {t("Identification Code")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Company Name
+                  {t("Company Name")}
                 </th>
                 <th className="py-4 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  City / Region
+                  {t("City / Region")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Manager
+                  {t("Manager")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Status
+                  {t("Status")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Final Delivery Date
+                  {t("Final Delivery Date")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  Days Ago
+                  {t("Days Ago")}
                 </th>
               </tr>
             </thead>
@@ -169,14 +170,14 @@ export default function LastDeliveries({
                           : 'bg-rose-50 text-rose-700'
                       }`}
                     >
-                      {row.status}
+                      {t(row.status)}
                     </span>
                   </td>
                   <td className="py-3.5 px-4 font-mono font-medium text-gray-650">
                     {row.finalDeliveryDate}
                   </td>
                   <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-800">
-                    {typeof row.daysAgo === 'number' ? `${row.daysAgo} days` : row.daysAgo}
+                    {typeof row.daysAgo === 'number' ? `${row.daysAgo} ${t('days')}` : t(row.daysAgo)}
                   </td>
                 </tr>
               ))}
@@ -184,7 +185,7 @@ export default function LastDeliveries({
               {deliveryRows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="text-center py-20 text-xs text-gray-400 italic">
-                    No matching supplier records found for last deliveries.
+                    {t("No matching supplier records found for last deliveries.")}
                   </td>
                 </tr>
               )}
@@ -193,14 +194,14 @@ export default function LastDeliveries({
               {deliveryRows.length > 0 && (
                 <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
-                    TOTAL SUMMARY
+                    {t("TOTAL SUMMARY")}
                   </td>
                   <td className="py-4 px-4">
-                    {totalSuppliers} monitored suppliers
+                    {totalSuppliers} {t("monitored suppliers")}
                   </td>
                   <td colSpan={4} className="py-4 px-4"></td>
                   <td className="py-4 px-4 text-right font-mono text-sm text-emerald-950">
-                    Avg: {avgDaysAgo} days
+                    {t("Avg:")} {avgDaysAgo} {t("days")}
                   </td>
                 </tr>
               )}

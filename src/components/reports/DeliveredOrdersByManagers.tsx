@@ -4,6 +4,7 @@ import { Vendor, Order, User } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
+import { t } from '../../utils/lang';
 
 interface Props {
   suppliers: Vendor[];
@@ -68,10 +69,10 @@ export default function DeliveredOrdersByManagers({
         return sum + (liters * price);
       }, 0);
 
-      let managerName = 'Unassigned Account';
+      let managerName = t('Unassigned Account');
       if (g.managerId !== 'unassigned') {
         const userObj = users.find(u => u.id === g.managerId);
-        managerName = userObj ? userObj.name : 'Unknown Manager';
+        managerName = userObj ? userObj.name : t('Unknown Manager');
       }
 
       return {
@@ -100,7 +101,7 @@ export default function DeliveredOrdersByManagers({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={<>Reports <ChevronRight size={20} className="text-gray-400 mx-1" /> Delivered Orders by Managers</>}
+        title={<>{t("Reports")} <ChevronRight size={20} className="text-gray-400 mx-1" /> {t("Delivered Orders by Managers")}</>}
         onBack={onBack}
         backButtonId="reports-managers-back"
       />
@@ -120,7 +121,7 @@ export default function DeliveredOrdersByManagers({
               <CentralSearchBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                searchPlaceholder="Search managers by employee legal name..."
+                searchPlaceholder={t("Search managers by employee legal name...")}
               />
             </div>
           </div>
@@ -134,16 +135,16 @@ export default function DeliveredOrdersByManagers({
             <thead>
               <tr className="select-none bg-slate-50 border-b border-gray-200">
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Manager Name
+                  {t("Manager Name")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  Visits Amount
+                  {t("Visits Amount")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  Oil Amount (Liters)
+                  {t("Oil Amount (Liters)")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  Cost (₾)
+                  {t("Cost (₾)")}
                 </th>
               </tr>
             </thead>
@@ -168,7 +169,7 @@ export default function DeliveredOrdersByManagers({
               {managerRows.length === 0 && (
                 <tr>
                   <td colSpan={4} className="text-center py-20 text-xs text-gray-400 italic">
-                    No matching manager record aggregates found.
+                    {t("No matching manager record aggregates found.")}
                   </td>
                 </tr>
               )}
@@ -177,7 +178,7 @@ export default function DeliveredOrdersByManagers({
               {managerRows.length > 0 && (
                 <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
-                    TOTAL SUMMARY
+                    {t("TOTAL SUMMARY")}
                   </td>
                   <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">
                     {totalVisits}

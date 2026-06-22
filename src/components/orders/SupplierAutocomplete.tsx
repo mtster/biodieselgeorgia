@@ -1,5 +1,6 @@
 import React from 'react';
 import { Vendor, Order } from '../../types';
+import { t } from '../../utils/lang';
 
 interface Props {
   vendorSearch: string;
@@ -25,7 +26,7 @@ export default function SupplierAutocomplete({
   return (
     <div className="relative" id="vendor-autocomplete-container">
       <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.vendor_id ? 'text-red-500' : 'text-gray-400'}`}>
-        Supplier / Vendor Restaurant *
+        {t("Supplier / Vendor Restaurant")} *
       </span>
       <input
         type="text"
@@ -87,7 +88,7 @@ export default function SupplierAutocomplete({
                      s.company_name.toLowerCase().includes(searchStr) || 
                      s.id_code.toLowerCase().includes(searchStr);
             }).length === 0 && (
-              <div className="px-3.5 py-3 text-xs text-gray-400 italic">No suppliers found matching "{vendorSearch}"</div>
+              <div className="px-3.5 py-3 text-xs text-gray-400 italic">{t("No suppliers found matching")} "{vendorSearch}"</div>
             )}
           </div>
         </>

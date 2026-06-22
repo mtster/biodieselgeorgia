@@ -421,10 +421,10 @@ export default function VendorsView({
           setDeleteConfirmName(null);
         }}
         onConfirm={confirmDelete}
-        title="Remove Supplier?"
+        title={t("Remove Supplier?")}
         message={
           <span>
-            Are you sure you want to delete supplier <strong>"{deleteConfirmName}"</strong>? This supplier profile coordinates will be soft deleted.
+            {t("Are you sure you want to delete supplier")} <strong>"{deleteConfirmName}"</strong>? {t("This supplier profile coordinates will be soft deleted.")}
           </span>
         }
       />
@@ -448,14 +448,14 @@ export default function VendorsView({
                 onClick={() => setShowBulkDeleteConfirm(false)}
                 className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl"
               >
-                No, Go Back
+                {t("No, Go Back")}
               </button>
               <button
                 type="button"
                 onClick={handleBulkDeleteExecute}
                 className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-black text-white rounded-xl cursor-pointer"
               >
-                Yes, Delete
+                {t("Yes, Delete")}
               </button>
             </div>
           </div>

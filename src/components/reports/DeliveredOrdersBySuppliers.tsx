@@ -4,6 +4,7 @@ import { Vendor, Order, User, City, District } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
+import { t } from '../../utils/lang';
 
 interface Props {
   suppliers: Vendor[];
@@ -104,7 +105,7 @@ export default function DeliveredOrdersBySuppliers({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={<>Reports <ChevronRight size={20} className="text-gray-400 mx-1" /> Delivered Orders by Suppliers</>}
+        title={<>{t("Reports")} <ChevronRight size={20} className="text-gray-400 mx-1" /> {t("Delivered Orders by Suppliers")}</>}
         onBack={onBack}
         backButtonId="reports-suppliers-back"
       />
@@ -124,12 +125,12 @@ export default function DeliveredOrdersBySuppliers({
               <CentralSearchBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                searchPlaceholder="Search suppliers by name, legal entity or taxation credentials..."
+                searchPlaceholder={t("Search suppliers by name, legal entity or taxation credentials...")}
                 filters={[
                   {
-                    label: 'City',
+                    label: t('City'),
                     value: selectedCity,
-                    placeholder: 'All Cities',
+                    placeholder: t('All Cities'),
                     onChange: (val) => {
                       setSelectedCity(val);
                       setSelectedDistrict('');
@@ -137,18 +138,18 @@ export default function DeliveredOrdersBySuppliers({
                     options: cities.map(c => ({ value: c.name, label: c.name })),
                   },
                   {
-                    label: 'Region',
+                    label: t('Region'),
                     value: selectedDistrict,
-                    placeholder: 'All Regions',
+                    placeholder: t('All Regions'),
                     onChange: setSelectedDistrict,
                     options: districts
                       .filter(d => !selectedCity || d.city_id === cities.find(c => c.name === selectedCity)?.id)
                       .map(d => ({ value: d.name, label: d.name })),
                   },
                   {
-                    label: 'Manager',
+                    label: t('Manager'),
                     value: selectedManager,
-                    placeholder: 'All Managers',
+                    placeholder: t('All Managers'),
                     onChange: setSelectedManager,
                     options: filterManagers.map(m => ({ value: m.id, label: m.name })),
                   },
@@ -166,19 +167,19 @@ export default function DeliveredOrdersBySuppliers({
             <thead>
               <tr className="select-none bg-slate-50 border-b border-gray-200">
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Identification Code
+                  {t("Identification Code")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  Company Name
+                  {t("Company Name")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  Visits Amount
+                  {t("Visits Amount")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  Oil Amount (Liters)
+                  {t("Oil Amount (Liters)")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  Cost (₾)
+                  {t("Cost (₾)")}
                 </th>
               </tr>
             </thead>
@@ -209,7 +210,7 @@ export default function DeliveredOrdersBySuppliers({
               {supplierRows.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-20 text-xs text-gray-400 italic">
-                    No matching supplier records found.
+                    {t("No matching supplier records found.")}
                   </td>
                 </tr>
               )}
@@ -218,10 +219,10 @@ export default function DeliveredOrdersBySuppliers({
               {supplierRows.length > 0 && (
                 <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px] px-4">
-                    TOTAL SUMMARY
+                    {t("TOTAL SUMMARY")}
                   </td>
                   <td className="py-4 px-4">
-                    {supplierRows.length} active suppliers
+                    {supplierRows.length} {t("active suppliers")}
                   </td>
                   <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">
                     {totalVisits}

@@ -5,6 +5,8 @@ import {
   Plus, Search, Trash2
 } from 'lucide-react';
 
+import { t } from '../../utils/lang';
+
 import PeriodFilter from '../PeriodFilter';
 import OrderForm from '../orders/OrderForm';
 import SMSLogsModal from '../orders/SMSLogsModal';
@@ -207,7 +209,7 @@ export default function OrdersView({
             }}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
           >
-            Fill Dummy
+            {t("Fill Dummy")}
           </button>
           <button 
             onClick={() => {
@@ -215,7 +217,7 @@ export default function OrdersView({
             }}
             className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
           >
-            Save
+            {t("Save")}
           </button>
         </>
       ) : (
@@ -239,15 +241,15 @@ export default function OrdersView({
               }}
               className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
             >
-              <option value="" disabled hidden>Actions</option>
-              <option value="sms_logs">SMS Logs ({smsLogs.length})</option>
+              <option value="" disabled hidden>{t("Actions")}</option>
+              <option value="sms_logs">{t("SMS Logs")} ({smsLogs.length})</option>
               <option value="assign_driver" disabled={selectedOrders.length === 0}>
-                Assign Driver {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
+                {t("Assign Driver")} {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
               </option>
               <option value="delete" disabled={selectedOrders.length === 0}>
-                Delete {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
+                {t("Delete")} {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
               </option>
-              <option value="col_manager">Columns Manager</option>
+              <option value="col_manager">{t("Columns Manager")}</option>
             </select>
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
               ▼
@@ -259,7 +261,7 @@ export default function OrdersView({
             className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none font-sans"
           >
             <Plus size={15} />
-            New Order
+            {t("New Order")}
           </button>
         </>
       )}
@@ -271,7 +273,7 @@ export default function OrdersView({
       
       {/* 1. STANDARDIZED PAGE HEADER */}
       <PageHeader 
-        title={editingOrder ? (editingOrder.id ? `Order: ${editingOrder.doc_number}` : "New Order") : "Orders"}
+        title={editingOrder ? (editingOrder.id ? `${t("Order")}: ${editingOrder.doc_number}` : t("New Order")) : t("Orders")}
 
         onBack={editingOrder ? () => setEditingOrder(null) : undefined}
         backButtonId="order-form-back-arrow"
@@ -309,19 +311,19 @@ export default function OrdersView({
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 idPrefix="orders-search"
-                searchPlaceholder="Search dispatches by supplier trade name, legal entity, or document coordinate..."
+                searchPlaceholder={t("Search dispatches by supplier trade name, legal entity, or document coordinate...")}
                 filters={[
                   {
-                    label: "Status",
+                    label: t("Status"),
                     value: selectedStatus,
                     onChange: setSelectedStatus,
-                    placeholder: "All Statuses",
+                    placeholder: t("All Statuses"),
                     options: [
-                      { value: "registered", label: "Registered" },
-                      { value: "driver_assigned", label: "Driver Assigned" },
-                      { value: "picked_up", label: "Picked Up" },
-                      { value: "completed", label: "Completed" },
-                      { value: "cancelled", label: "Cancelled" }
+                      { value: "registered", label: t("Registered") },
+                      { value: "driver_assigned", label: t("Driver Assigned") },
+                      { value: "picked_up", label: t("Picked Up") },
+                      { value: "completed", label: t("Completed") },
+                      { value: "cancelled", label: t("Cancelled") }
                     ]
                   }
                 ]}
@@ -392,10 +394,10 @@ export default function OrdersView({
           setDeleteConfirmDocNum(null);
         }}
         onConfirm={confirmDelete}
-        title="Cancel & Delete Order?"
+        title={t("Cancel & Delete Order?")}
         message={
           <span>
-            Are you sure you want to completely cancel and soft delete high-priority order dispatch <strong>"{deleteConfirmDocNum}"</strong>? It will hide from the logs.
+            {t("Are you sure you want to completely cancel and soft delete high-priority order dispatch")} <strong>"{deleteConfirmDocNum}"</strong>? {t("They will hide from the UI immediately.")}
           </span>
         }
       />
@@ -408,9 +410,9 @@ export default function OrdersView({
               <Trash2 size={24} />
             </div>
             <div>
-              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">Confirm Bulk Orders Deleted</h4>
+              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">{t("Confirm Bulk Orders Deleted")}</h4>
               <p className="text-[11.5px] text-gray-450 mt-2 font-sans leading-normal">
-                Are you sure you want to soft delete <strong>{selectedOrders.length} selected orders</strong>? They will hide from the UI immediately.
+                {t("Are you sure you want to soft delete")} <strong>{selectedOrders.length} {t("selected orders")}</strong>? {t("They will hide from the UI immediately.")}
               </p>
             </div>
             <div className="flex gap-2 font-sans pt-2">
@@ -419,14 +421,14 @@ export default function OrdersView({
                 onClick={() => setShowBulkDeleteConfirm(false)}
                 className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl cursor-pointer"
               >
-                No, Keep Them
+                {t("No, Keep Them")}
               </button>
               <button
                 type="button"
                 onClick={handleBulkDeleteExecute}
                 className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-black text-white rounded-xl cursor-pointer"
               >
-                Yes, Delete
+                {t("Yes, Delete")}
               </button>
             </div>
           </div>

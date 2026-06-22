@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Communication, Vendor, User } from '../../types';
 import { Plus, Trash2, X, Check, Edit3 } from 'lucide-react';
-import { LANG } from '../../utils/lang';
+import { LANG, t } from '../../utils/lang';
 import PeriodFilter from '../PeriodFilter';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
@@ -106,7 +106,7 @@ export default function CommunicationsView({
   const handleSaveAll = () => {
     if (!editingComm) return;
     if (!editingComm.comment.trim()) {
-      alert('Please enter a comment');
+      alert(t('Please enter a comment'));
       return;
     }
 
@@ -195,12 +195,12 @@ export default function CommunicationsView({
 
   const columnMap: Record<string, ColumnConfig<Communication>> = {
     date_time: {
-      header: 'Date & Time',
+      header: t('Date & Time'),
       key: 'date_time',
       render: (comm) => new Date(comm.date_time).toLocaleString('en-US')
     },
     type: {
-      header: 'Type',
+      header: t('Type'),
       key: 'type',
       render: (comm) => {
         const styleMap: Record<string, string> = {
@@ -209,9 +209,9 @@ export default function CommunicationsView({
           task: 'bg-blue-50 text-blue-800 border-blue-105',
         };
         const labelMap: Record<string, string> = {
-          action: 'Action',
-          reminder: 'Reminder',
-          task: 'Task',
+          action: t('Action'),
+          reminder: t('Reminder'),
+          task: t('Task'),
         };
         const statusClass = styleMap[comm.type] || 'bg-slate-50 text-slate-700 border-slate-100';
         const label = labelMap[comm.type] || comm.type;
@@ -223,28 +223,28 @@ export default function CommunicationsView({
       }
     },
     vendor_name: {
-      header: 'Supplier / Subject',
+      header: t('Supplier / Subject'),
       key: 'vendor_name',
       render: (comm) => {
         const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-        return suppObj ? suppObj.trade_name : (comm.vendor_name || 'Supplier');
+        return suppObj ? suppObj.trade_name : (comm.vendor_name || t('Supplier'));
       }
     },
     user_name: {
-      header: 'Operator / User',
+      header: t('Operator / User'),
       key: 'user_name',
       render: (comm) => {
         const empObj = employees.find(e => e.id === comm.user_id);
-        return empObj ? empObj.name : (comm.user_name || 'Manager');
+        return empObj ? empObj.name : (comm.user_name || t('Manager'));
       }
     },
     comment: {
-      header: 'Interaction Comment',
+      header: t('Interaction Comment'),
       key: 'comment',
       render: (comm) => comm.comment
     },
     responsible_user_id: {
-      header: 'Responsible User',
+      header: t('Responsible User'),
       key: 'responsible_user_id',
       render: (comm) => {
         if (comm.type !== 'task' || !comm.responsible_user_id) return <span className="text-gray-400">-</span>;
@@ -253,17 +253,17 @@ export default function CommunicationsView({
       }
     },
     task_status: {
-      header: 'Task Status',
+      header: t('Task Status'),
       key: 'task_status',
       render: (comm) => {
         if (comm.type !== 'task' || !comm.task_status) return <span className="text-gray-400">-</span>;
         const labelMap: Record<string, string> = {
-          pending: 'Pending',
-          in_progress: 'In Progress',
-          completed: 'Completed',
+          pending: t('Pending'),
+          in_progress: t('In Progress'),
+          completed: t('Completed'),
         };
         const styleMap: Record<string, string> = {
-          pending: 'bg-rose-50 text-rose-800 border-rose-100',
+          pending: 'bg-rose-50 text-rose-850 border-rose-100',
           in_progress: 'bg-indigo-50 text-indigo-850 border-indigo-100',
           completed: 'bg-emerald-50 text-emerald-850 border-emerald-100'
         };
@@ -275,7 +275,7 @@ export default function CommunicationsView({
       }
     },
     reminder_time: {
-      header: 'Reminder Time',
+      header: t('Reminder Time'),
       key: 'reminder_time',
       render: (comm) => comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('en-US') : '-'
     }
@@ -285,7 +285,7 @@ export default function CommunicationsView({
 
   // Prepend select checkboxes column
   columns.push({
-    header: 'Sel',
+    header: '',
     key: 'select',
     className: 'w-12 text-center',
     render: (comm) => {
@@ -321,7 +321,7 @@ export default function CommunicationsView({
         columns.push(columnMap[col.id]);
       } else {
         columns.push({
-          header: col.label,
+          header: t(col.label),
           key: col.id,
           render: (item: any) => item[col.id] ?? '-'
         });
@@ -345,11 +345,11 @@ export default function CommunicationsView({
           }}
           className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
         >
-          <option value="" disabled hidden>Actions</option>
+          <option value="" disabled hidden>{t("Actions")}</option>
           <option value="delete" disabled={selectedComms.length === 0}>
-            Delete {selectedComms.length > 0 ? `(${selectedComms.length})` : ''}
+            {t("Delete")} {selectedComms.length > 0 ? `(${selectedComms.length})` : ''}
           </option>
-          <option value="col_manager">Columns Manager</option>
+          <option value="col_manager">{t("Columns Manager")}</option>
         </select>
         <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
           ▼
@@ -362,7 +362,7 @@ export default function CommunicationsView({
         className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer select-none"
       >
         <Plus size={15} />
-        New Communication
+        {t("New Communication")}
       </button>
     </>
   );
@@ -372,7 +372,7 @@ export default function CommunicationsView({
       
       {/* Header */}
       <PageHeader 
-        title="Communications" 
+        title={t("Communications")} 
         actions={headerActions}
       />
 
@@ -388,7 +388,7 @@ export default function CommunicationsView({
         {/* Type Filter */}
         <div className="relative w-full md:w-auto min-w-[140px]">
           <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-            Type
+            {t("Type")}
           </span>
           <select
             value={typeFilter}
@@ -402,10 +402,10 @@ export default function CommunicationsView({
             }}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
-            <option value="">All Types</option>
-            <option value="action">Action</option>
-            <option value="reminder">Reminder</option>
-            <option value="task">Task</option>
+            <option value="">{t("All Types")}</option>
+            <option value="action">{t("Action")}</option>
+            <option value="reminder">{t("Reminder")}</option>
+            <option value="task">{t("Task")}</option>
           </select>
         </div>
 
@@ -415,14 +415,14 @@ export default function CommunicationsView({
             {/* Responsible User Filter */}
             <div className="relative w-full md:w-auto min-w-[140px]">
               <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-[#3182ce] bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                Responsible
+                {t("Responsible")}
               </span>
               <select
                 value={taskResponsibleFilter}
                 onChange={(e) => setTaskResponsibleFilter(e.target.value)}
                 className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-blue-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
               >
-                <option value="">All Responsible</option>
+                <option value="">{t("All Responsible")}</option>
                 {uniqueUsers.map((u) => (
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
@@ -432,17 +432,17 @@ export default function CommunicationsView({
             {/* Task Status Filter */}
             <div className="relative w-full md:w-auto min-w-[145px]">
               <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-[#3182ce] bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                Task Status
+                {t("Task Status")}
               </span>
               <select
                 value={taskStatusFilter}
                 onChange={(e) => setTaskStatusFilter(e.target.value)}
                 className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-blue-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
               >
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
+                <option value="">{t("All Statuses")}</option>
+                <option value="pending">{t("Pending")}</option>
+                <option value="in_progress">{t("In Progress")}</option>
+                <option value="completed">{t("Completed")}</option>
               </select>
             </div>
           </>
@@ -451,14 +451,14 @@ export default function CommunicationsView({
         {/* User Filter */}
         <div className="relative w-full md:w-auto min-w-[140px]">
           <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-            User
+            {t("User")}
           </span>
           <select
             value={userFilter}
             onChange={(e) => setUserFilter(e.target.value)}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
-            <option value="">All Users</option>
+            <option value="">{t("All Users")}</option>
             {uniqueUsers.map((u) => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
@@ -471,7 +471,7 @@ export default function CommunicationsView({
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             idPrefix="input-comm-search"
-            searchPlaceholder="Search communications logs..."
+            searchPlaceholder={t("Search communications logs...")}
           />
         </div>
       </div>
@@ -481,7 +481,7 @@ export default function CommunicationsView({
         data={filtered}
         columns={columns}
         onRowClick={startEdit}
-        emptyMessage="No communication records found."
+        emptyMessage={t("No communication records found.")}
       />
 
       {/* FORM DIALOG */}
@@ -489,29 +489,29 @@ export default function CommunicationsView({
         <FormModal
           isOpen={!!editingComm}
           onClose={() => setEditingComm(null)}
-          title="New Communication"
+          title={isNew ? t('New Communication') : t('Edit Communication')}
           maxWidthClass="max-w-md"
           onCancel={() => setEditingComm(null)}
           onSave={handleSaveAll}
-          saveLabel={isNew ? 'Add Communication' : 'Save Communication'}
+          saveLabel={isNew ? t('Add Communication') : t('Save Communication')}
           onDelete={!isNew ? () => {
             if (editingComm) {
               setDeleteConfirmId(editingComm.id);
               setEditingComm(null);
             }
           } : undefined}
-          deleteLabel="Delete"
+          deleteLabel={t("Delete")}
         >
           <div className="space-y-4">
             <FormInput
-              label="Date & Time *"
+              label={t("Date & Time *")}
               type="datetime-local"
               value={editingComm.date_time}
               onChange={(e) => setEditingComm({...editingComm, date_time: e.target.value})}
             />
 
             <FormSelect
-              label="Interaction Type"
+              label={t("Interaction Type")}
               value={editingComm.type}
               onChange={(e) => {
                 const nextType = e.target.value as any;
@@ -523,13 +523,13 @@ export default function CommunicationsView({
                 });
               }}
             >
-              <option value="action">Action</option>
-              <option value="reminder">Reminder</option>
-              <option value="task">Task</option>
+              <option value="action">{t("Action")}</option>
+              <option value="reminder">{t("Reminder")}</option>
+              <option value="task">{t("Task")}</option>
             </FormSelect>
 
             <FormSelect
-              label="User Rep *"
+              label={t("User Rep *")}
               value={editingComm.user_id}
               onChange={(e) => setEditingComm({...editingComm, user_id: e.target.value})}
             >
@@ -541,31 +541,31 @@ export default function CommunicationsView({
             {editingComm.type === 'task' && (
               <div className="grid grid-cols-2 gap-3">
                 <FormSelect
-                  label="Responsible User *"
+                  label={t("Responsible User *")}
                   value={editingComm.responsible_user_id || ''}
                   onChange={(e) => setEditingComm({...editingComm, responsible_user_id: e.target.value})}
                 >
-                  <option value="">Select Employee</option>
+                  <option value="">{t("Select Employee")}</option>
                   {employees.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </FormSelect>
 
                 <FormSelect
-                  label="Task Status *"
+                  label={t("Task Status *")}
                   value={editingComm.task_status || 'pending'}
                   onChange={(e) => setEditingComm({...editingComm, task_status: e.target.value as any})}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
+                  <option value="pending">{t("Pending")}</option>
+                  <option value="in_progress">{t("In Progress")}</option>
+                  <option value="completed">{t("Completed")}</option>
                 </FormSelect>
               </div>
             )}
 
             {editingComm.type === 'reminder' && (
               <FormInput
-                label="Reminder Due Time"
+                label={t("Reminder Due Time")}
                 type="datetime-local"
                 value={editingComm.reminder_time || ''}
                 onChange={(e) => setEditingComm({...editingComm, reminder_time: e.target.value})}
@@ -573,10 +573,10 @@ export default function CommunicationsView({
             )}
 
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">Supplier *</span>
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Supplier *")}</span>
               <input
                 type="text"
-                placeholder="Type to search supplier..."
+                placeholder={t("Type to search supplier...")}
                 value={vendorSearch}
                 onChange={(e) => {
                   setVendorSearch(e.target.value);
@@ -603,7 +603,7 @@ export default function CommunicationsView({
                         onClick={() => {
                           setEditingComm(prev => prev ? { ...prev, vendor_id: s.id } : null);
                           setVendorSearch(s.trade_name);
-                          setShowVendorSuggestions(false);
+                           setShowVendorSuggestions(false);
                         }}
                         className="px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left transition duration-100"
                       >
@@ -617,10 +617,10 @@ export default function CommunicationsView({
             </div>
 
             <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">Comment *</span>
+              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Comment *")}</span>
               <textarea 
                 rows={4}
-                placeholder="e.g. Phone call completed, promised dispatch on Monday..."
+                placeholder={t("e.g. Phone call completed, promised dispatch on Monday...")}
                 value={editingComm.comment}
                 onChange={(e) => setEditingComm({...editingComm, comment: e.target.value})}
                 className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
@@ -640,8 +640,8 @@ export default function CommunicationsView({
             setDeleteConfirmId(null);
           }
         }}
-        title="Delete Log Entry"
-        message="Are you sure you want to delete this communication log entry? This operation is permanent."
+        title={t("Delete Log Entry")}
+        message={t("Are you sure you want to delete this communication log entry? This operation is permanent.")}
       />
 
       {/* BULK DELETE CONFIRMATION MODAL */}
@@ -652,9 +652,9 @@ export default function CommunicationsView({
               <Trash2 size={24} />
             </div>
             <div>
-              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">Confirm Bulk Logs Deleted</h4>
+              <h4 className="text-sm font-bold text-gray-900 uppercase tracking-widest leading-none">{t("Confirm Bulk Logs Deleted")}</h4>
               <p className="text-[11.5px] text-gray-455 mt-2 font-sans leading-normal">
-                Are you sure you want to permanently delete <strong>{selectedComms.length} selected communication entries</strong>? This cannot be undone.
+                {t("Are you sure you want to permanently delete")} <strong>{selectedComms.length} {t("selected communication entries")}</strong>? {t("This cannot be undone.")}
               </p>
             </div>
             <div className="flex gap-2 font-sans pt-2">
@@ -663,14 +663,14 @@ export default function CommunicationsView({
                 onClick={() => setShowBulkDeleteConfirm(false)}
                 className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl cursor-pointer"
               >
-                No, Keep Them
+                {t("No, Keep Them")}
               </button>
               <button
                 type="button"
                 onClick={handleBulkDeleteExecute}
-                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-black text-white rounded-xl cursor-pointer"
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-bold text-white rounded-xl cursor-pointer"
               >
-                Yes, Delete
+                {t("Yes, Delete")}
               </button>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { FormInput, FormSelect } from '../FormInput';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
+import { t } from '../../utils/lang';
 
 interface Props {
   trucks: Vehicle[];
@@ -124,14 +125,14 @@ export default function VehiclesSettingView({
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <PageHeader title="Vehicles" />
+      <PageHeader title={t("Vehicles")} />
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 w-full">
         {activeTrucks.map((truck) => {
-          const assignedDriver = employees.find(e => e.id === truck.driver_id)?.name || 'None';
-          const assignedCompanion = employees.find(e => e.id === truck.companion_id)?.name || 'None';
-          const assignedWarehouse = warehouses.find(w => w.id === truck.warehouse_id)?.name || 'Unassigned';
+          const assignedDriver = employees.find(e => e.id === truck.driver_id)?.name || t('None');
+          const assignedCompanion = employees.find(e => e.id === truck.companion_id)?.name || t('None');
+          const assignedWarehouse = warehouses.find(w => w.id === truck.warehouse_id)?.name || t('Unassigned');
 
           return (
             <button
@@ -153,20 +154,20 @@ export default function VehiclesSettingView({
                 </div>
 
                 <div>
-                  <h4 className="font-extrabold text-sm text-gray-850 font-sans truncate">
+                  <h4 className="font-extrabold text-sm text-gray-855 font-sans truncate">
                     {truck.model}
                   </h4>
                   <div className="text-[10px] text-gray-405 font-sans mt-1.5 space-y-0.5">
-                    <p className="truncate">City: <strong className="text-gray-700">{truck.city || 'Unassigned'}</strong></p>
-                    <p className="truncate">Warehouse: <strong className="text-emerald-800 font-bold">{assignedWarehouse}</strong></p>
-                    <p className="truncate">Driver: <strong className="text-gray-700">{assignedDriver}</strong></p>
-                    <p className="truncate">Companion: <strong className="text-gray-655">{assignedCompanion}</strong></p>
+                    <p className="truncate">{t("City")}: <strong className="text-gray-700">{truck.city || t('Unassigned')}</strong></p>
+                    <p className="truncate">{t("Warehouse")}: <strong className="text-emerald-800 font-bold">{assignedWarehouse}</strong></p>
+                    <p className="truncate">{t("Driver")}: <strong className="text-gray-700">{assignedDriver}</strong></p>
+                    <p className="truncate">{t("Companion")}: <strong className="text-gray-655">{assignedCompanion}</strong></p>
                   </div>
                 </div>
               </div>
 
               <span className="text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity mt-2 block">
-                Manage Asset &rarr;
+                {t("Manage Asset")} &rarr;
               </span>
             </button>
           );
@@ -182,7 +183,7 @@ export default function VehiclesSettingView({
             <Plus size={20} />
           </div>
           <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
-            Add New Vehicle
+            {t("Add New Vehicle")}
           </span>
         </button>
       </div>
@@ -192,41 +193,41 @@ export default function VehiclesSettingView({
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={selectedTruck ? 'Vehicle Specifications' : 'Add Vehicle to Fleet'}
+        title={selectedTruck ? t('Vehicle Specifications') : t('Add Vehicle to Fleet')}
         maxWidthClass="max-w-md"
         onDelete={selectedTruck ? triggerDeleteTruck : undefined}
-        deleteLabel="Delete"
+        deleteLabel={t("Delete")}
         onCancel={() => setIsModalOpen(false)}
         onSave={handleSave}
-        saveLabel="Save Changes"
+        saveLabel={t("Save Changes")}
       >
         <div className="space-y-4">
           <FormInput
-            label="License Plate Number *"
+            label={`${t("License Plate Number")} *`}
             type="text"
             fontClass="font-mono"
             value={tPlate}
             onChange={(e) => setTPlate(formatLicensePlate(e.target.value))}
             disabled={false}
-            placeholder="e.g. AA-123-BB"
+            placeholder={t("e.g. AA-123-BB")}
             className="disabled:bg-slate-50 disabled:text-gray-500"
           />
 
           <FormInput
-            label="Vehicle Brand / Model *"
+            label={`${t("Vehicle Brand / Model")} *`}
             type="text"
             value={tModel}
             onChange={(e) => setTModel(e.target.value)}
-            placeholder="e.g. Mercedes Sprinter"
+            placeholder={t("e.g. Mercedes Sprinter")}
           />
 
           {/* City Dropdown Selection Filter */}
           <FormSelect
-            label="City / Region"
+            label={t("City / Region")}
             value={tCity}
             onChange={(e) => setTCity(e.target.value)}
           >
-            <option value="">Select a City</option>
+            <option value="">{t("Select a City")}</option>
             {cities.map(city => (
               <option key={city.id} value={city.name}>{city.name}</option>
             ))}
@@ -234,18 +235,18 @@ export default function VehiclesSettingView({
 
           {/* Warehouse Dropdown */}
           <FormSelect
-            label="Assigned Warehouse"
+            label={t("Assigned Warehouse")}
             value={tWarehouseId}
             onChange={(e) => setTWarehouseId(e.target.value)}
           >
-            <option value="">Select a Warehouse</option>
+            <option value="">{t("Select a Warehouse")}</option>
             {warehouses.map(wh => (
               <option key={wh.id} value={wh.id}>{wh.name}</option>
             ))}
           </FormSelect>
 
           <FormSelect
-            label="Assigned Default Driver *"
+            label={`${t("Assigned Default Driver")} *`}
             value={tDriver}
             onChange={(e) => setTDriver(e.target.value)}
           >
@@ -256,13 +257,13 @@ export default function VehiclesSettingView({
           </FormSelect>
 
           <FormSelect
-            label="Assigned Co-Driver / Companion"
+            label={t("Assigned Co-Driver / Companion")}
             value={tCompanion}
             onChange={(e) => setTCompanion(e.target.value)}
           >
             <option value="" hidden></option>
             {employees.filter(e => e.role !== 'driver').map(e => (
-              <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
+              <option key={e.id} value={e.id}>{e.name} ({t(e.role)})</option>
             ))}
           </FormSelect>
         </div>
@@ -273,10 +274,10 @@ export default function VehiclesSettingView({
         isOpen={showConfirmDelete}
         onClose={() => setShowConfirmDelete(false)}
         onConfirm={handleConfirmDeleteTruck}
-        title="Decommission vehicle?"
+        title={t("Decommission vehicle?")}
         message={
           <span>
-            Are you sure you want to delete vehicle license plate <strong>"{truckToDelete}"</strong>? This will mark it as soft-deleted and prevent active log assignments.
+            {t("Are you sure you want to delete vehicle license plate")} <strong>"{truckToDelete}"</strong>? {t("This will mark it as soft-deleted and prevent active log assignments.")}
           </span>
         }
       />

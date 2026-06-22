@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, User, Order, Vendor, Warehouse } from '../../types';
 import { FormSelect } from '../FormInput';
+import { t } from '../../utils/lang';
 
 interface AssignDriverModalProps {
   isOpen: boolean;
@@ -63,39 +64,39 @@ export default function AssignDriverModal({
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-6 space-y-4">
-        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">Assign Driver ({orders.length} orders)</h3>
+        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">{t("Assign Driver")} ({orders.length} {t("orders")})</h3>
         
         <div className="space-y-4">
           <FormSelect
-            label="Driver"
+            label={t("Driver")}
             value={selectedDriverId}
             onChange={(e) => setSelectedDriverId(e.target.value)}
           >
-            <option value="">Select Driver</option>
+            <option value="">{t("Select Driver")}</option>
             {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </FormSelect>
           
           <FormSelect
-            label="Vehicle"
+            label={t("Vehicle")}
             value={selectedTruckPlate}
             onChange={(e) => setSelectedTruckPlate(e.target.value)}
           >
-            <option value="">Select Vehicle</option>
-            {trucks.map(t => <option key={t.plate_number} value={t.plate_number}>{t.model} ({t.plate_number})</option>)}
+            <option value="">{t("Select Vehicle")}</option>
+            {trucks.map(tOption => <option key={tOption.plate_number} value={tOption.plate_number}>{tOption.model} ({tOption.plate_number})</option>)}
           </FormSelect>
           
           <FormSelect
-            label="Companion"
+            label={t("Companion")}
             value={selectedCompanionId}
             onChange={(e) => setSelectedCompanionId(e.target.value)}
           >
-            <option value="">Select Companion</option>
+            <option value="">{t("Select Companion")}</option>
             {companions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </FormSelect>
         </div>
 
         <div className="flex gap-2 pt-4">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100">{t("Cancel")}</button>
           <button 
             onClick={() => {
               onSave(selectedDriverId, selectedCompanionId, selectedTruckPlate);
@@ -103,7 +104,7 @@ export default function AssignDriverModal({
             }}
             className="flex-1 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900"
           >
-            Assign
+            {t("Assign")}
           </button>
         </div>
       </div>

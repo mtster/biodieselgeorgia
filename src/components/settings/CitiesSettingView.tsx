@@ -5,6 +5,7 @@ import { FormInput } from '../FormInput';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
+import { t } from '../../utils/lang';
 
 interface Props {
   cities: City[];
@@ -86,7 +87,7 @@ export default function CitiesSettingView({
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
       {/* 1. STANDARDIZED PAGE HEADER */}
-      <PageHeader title="Cities" />
+      <PageHeader title={t("Cities")} />
 
       {/* Grid of Cities including the "+ Add New Window" */}
       <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 w-full">
@@ -108,12 +109,12 @@ export default function CitiesSettingView({
                     {city.name}
                   </h4>
                   <p className="text-[11px] font-mono text-gray-450 mt-1">
-                    {count} {count === 1 ? 'District' : 'Districts'} Active
+                    {count} {t("districts active")}
                   </p>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                Configure Cards &rarr;
+                {t("Configure Cards")} &rarr;
               </span>
             </button>
           );
@@ -129,7 +130,7 @@ export default function CitiesSettingView({
             <Plus size={20} />
           </div>
           <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
-            Add New City
+            {t("Add New City")}
           </span>
         </button>
       </div>
@@ -138,29 +139,29 @@ export default function CitiesSettingView({
       <FormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={selectedCity ? 'City Details' : 'Create New City'}
+        title={selectedCity ? t('City Details') : t('Create New City')}
         maxWidthClass="max-w-lg"
         onDelete={selectedCity ? triggerDeleteCity : undefined}
-        deleteLabel="Delete"
+        deleteLabel={t("Delete")}
         onCancel={() => setIsModalOpen(false)}
         onSave={handleSave}
-        saveLabel="Save Changes"
+        saveLabel={t("Save Changes")}
       >
         <div className="space-y-5">
           {/* City Name Form field */}
           <FormInput
-            label="City *"
+            label={`${t("City")} *`}
             type="text"
             value={cityNameInput}
             onChange={(e) => setCityNameInput(e.target.value)}
-            placeholder="e.g. Tbilisi"
+            placeholder={t("e.g. Tbilisi")}
           />
 
           {/* Districts inline sub-management if City exists */}
           {selectedCity && (
             <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/50 space-y-3">
               <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">
-                Districts
+                {t("Districts")}
               </h4>
 
               <div className="flex gap-2">
@@ -168,7 +169,7 @@ export default function CitiesSettingView({
                   type="text"
                   value={newDistrictName}
                   onChange={(e) => setNewDistrictName(e.target.value)}
-                  placeholder="New district name..."
+                  placeholder={t("New district name...")}
                   className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 bg-white"
                 />
                 <button 
@@ -176,7 +177,7 @@ export default function CitiesSettingView({
                   type="button"
                   className="px-3.5 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
                 >
-                  Add
+                  {t("Add")}
                 </button>
               </div>
 
@@ -195,7 +196,7 @@ export default function CitiesSettingView({
                 ))}
                 {districts.filter(d => d.city_id === selectedCity.id).length === 0 && (
                   <p className="text-[10px] text-gray-405 font-sans italic text-center py-2">
-                    No districts registered yet.
+                    {t("No districts registered yet.")}
                   </p>
                 )}
               </div>
@@ -209,10 +210,10 @@ export default function CitiesSettingView({
         isOpen={showConfirmDelete}
         onClose={() => setShowConfirmDelete(false)}
         onConfirm={handleConfirmDeleteCity}
-        title="Delete City?"
+        title={t("Delete City?")}
         message={
           <span>
-            Are you sure you want to delete city <strong>"{cityToDelete?.name}"</strong>? It will hide it from the UI immediately. This action is soft-deleted in the database.
+            {t("Are you sure you want to delete city")} <strong>"{cityToDelete?.name}"</strong>? {t("It will hide it from the UI immediately. This action is soft-deleted in the database.")}
           </span>
         }
       />
