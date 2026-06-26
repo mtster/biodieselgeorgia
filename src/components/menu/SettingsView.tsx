@@ -3,7 +3,7 @@ import {
   Users, MapPin, Truck, History, Database, ArrowLeft, ShieldAlert 
 } from 'lucide-react';
 import { 
-  User, City, District, Vehicle as TruckType, ChangeHistory, Warehouse
+  User, City, District, Vehicle as TruckType, ChangeHistory, Warehouse, Direction
 } from '../../types';
 
 import UsersView from './UsersView';
@@ -27,6 +27,7 @@ interface SettingsProps {
   onSaveTruck: (t: TruckType) => void;
   onDeleteTruck: (plate: string) => void;
   warehouses: Warehouse[];
+  directions: Direction[];
   changeHistory: ChangeHistory[];
   onRevertChange: (log: ChangeHistory) => Promise<boolean>;
   loadMore: () => Promise<void>;
@@ -49,6 +50,7 @@ export default function SettingsView({
   onSaveTruck,
   onDeleteTruck,
   warehouses,
+  directions,
   changeHistory,
   onRevertChange,
   loadMore,
@@ -134,6 +136,7 @@ export default function SettingsView({
         employees={users}
         cities={cities}
         warehouses={warehouses}
+        directions={directions}
         onSaveTruck={onSaveTruck}
         onDeleteTruck={onDeleteTruck}
         onBack={() => setActiveSubTab(null)}

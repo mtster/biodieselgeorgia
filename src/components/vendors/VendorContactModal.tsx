@@ -39,7 +39,7 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
 
   const handleSave = () => {
     if (!contactName.trim() || !contactPhone.trim()) {
-      alert("Please fill in contact name and phone number");
+      alert(t("Please fill in contact name and phone number"));
       return;
     }
     onSave({
@@ -54,13 +54,13 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
     <FormModal
       isOpen={isOpen}
       onClose={onClose}
-      title={activeContact ? 'Edit Contact Person' : 'Add Contact Person'}
+      title={activeContact ? t('Edit Contact Person') : t('Add Contact Person')}
       maxWidthClass="max-w-sm"
       onDelete={activeContact ? () => onDelete(activeContact.id) : undefined}
-      deleteLabel="Delete"
+      deleteLabel={t("Delete")}
       onCancel={onClose}
       onSave={handleSave}
-      saveLabel="Confirm"
+      saveLabel={t("Confirm")}
     >
       <div className="space-y-3.5">
         <FormInput
@@ -78,17 +78,17 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           onChange={(e) => setContactPhone(formatPhone(e.target.value))}
         />
         <FormSelect
-          label="Position / Role"
+          label={t("Position / Role")}
           value={contactPos}
           onChange={(e) => setContactPos(e.target.value as any)}
         >
-          <option value="accountant">Accountant</option>
-          <option value="director">Director/Owner</option>
-          <option value="operator">Operations Mgr</option>
-          <option value="other">Other Position</option>
+          <option value="accountant">{t("Accountant")}</option>
+          <option value="director">{t("Director/Owner")}</option>
+          <option value="operator">{t("Operations Mgr")}</option>
+          <option value="other">{t("Other Position")}</option>
         </FormSelect>
         <FormInput
-          label="Short Note (e.g. call instructions)"
+          label={t("Short Note (e.g. call instructions)")}
           type="text"
           value={contactNote}
           onChange={(e) => setContactNote(e.target.value)}

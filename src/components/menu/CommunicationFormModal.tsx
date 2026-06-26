@@ -1,0 +1,189 @@
+import React, { useState, useEffect } from 'react';
+import { Communication, User, Vendor } from '../../types';
+import FormModal from '../FormModal';
+import { FormInput, FormSelect } from '../FormInput';
+import { t } from '../../utils/lang';
+
+interface CommunicationFormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  editingComm: Communication | null;
+  isNew: boolean;
+  employees: User[];
+  suppliers: Vendor[];
+  onSave: (finalComm: Communication) => void;
+  onDelete?: () => void;
+}
+
+export default function CommunicationFormModal({
+  isOpen,
+  onClose,
+  editingComm,
+  isNew,
+  employees,
+  suppliers,
+  onSave,
+  onDelete
+}: CommunicationFormModalProps) {
+  const [localComm, setLocalComm] = useState<Communication | null>(null);
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && editingComm) {
+      setLocalComm({ ...editingComm });
+      const suppObj = suppliers.find(s => s.id === editingComm.vendor_id);
+      setVendorSearch(suppObj ? suppObj.trade_name : '');
+    } else {
+      setLocalComm(null);
+      setVendorSearch('');
+    }
+    setShowVendorSuggestions(false);
+  }, [isOpen, editingComm, suppliers]);
+
+  if (!localComm) return null;
+
+  const handleSaveLocal = () => {
+    onSave(localComm);
+  };
+
+  return (
+    <FormModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isNew ? t('New Communication') : t('Edit Communication')}
+      maxWidthClass="max-w-md"
+      onCancel={onClose}
+      onSave={handleSaveLocal}
+      saveLabel={isNew ? t('Add Communication') : t('Save Communication')}
+      onDelete={!isNew ? onDelete : undefined}
+      deleteLabel={t("Delete")}
+    >
+      <div className="space-y-4">
+        <FormInput
+          label={t("Date & Time *")}
+          type="datetime-local"
+          value={localComm.date_time}
+          onChange={(e) => setLocalComm({...localComm, date_time: e.target.value})}
+        />
+
+        <FormSelect
+          label={t("Interaction Type")}
+          value={localComm.type}
+          onChange={(e) => {
+            const nextType = e.target.value as any;
+            setLocalComm({
+              ...localComm,
+              type: nextType,
+              task_status: nextType === 'task' ? (localComm.task_status || 'pending') : undefined,
+              responsible_user_id: nextType === 'task' ? (localComm.responsible_user_id || employees[0]?.id || '') : undefined
+            });
+          }}
+        >
+          <option value="action">{t("Action")}</option>
+          <option value="reminder">{t("Reminder")}</option>
+          <option value="task">{t("Task")}</option>
+        </FormSelect>
+
+        <FormSelect
+          label={t("User Rep *")}
+          value={localComm.user_id}
+          onChange={(e) => setLocalComm({...localComm, user_id: e.target.value})}
+        >
+          {employees.map(u => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </FormSelect>
+
+        {localComm.type === 'task' && (
+          <div className="grid grid-cols-2 gap-3">
+            <FormSelect
+              label={t("Responsible User *")}
+              value={localComm.responsible_user_id || ''}
+              onChange={(e) => setLocalComm({...localComm, responsible_user_id: e.target.value})}
+            >
+              <option value="">{t("Select Employee")}</option>
+              {employees.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </FormSelect>
+
+            <FormSelect
+              label={t("Task Status *")}
+              value={localComm.task_status || 'pending'}
+              onChange={(e) => setLocalComm({...localComm, task_status: e.target.value as any})}
+            >
+              <option value="pending">{t("Pending")}</option>
+              <option value="in_progress">{t("In Progress")}</option>
+              <option value="completed">{t("Completed")}</option>
+            </FormSelect>
+          </div>
+        )}
+
+        {localComm.type === 'reminder' && (
+          <FormInput
+            label={t("Reminder Due Time")}
+            type="datetime-local"
+            value={localComm.reminder_time || ''}
+            onChange={(e) => setLocalComm({...localComm, reminder_time: e.target.value})}
+          />
+        )}
+
+        <div className="relative">
+          <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Supplier *")}</span>
+          <input
+            type="text"
+            placeholder={t("Type to search supplier...")}
+            value={vendorSearch}
+            onChange={(e) => {
+              setVendorSearch(e.target.value);
+              setShowVendorSuggestions(true);
+              if (e.target.value === '') {
+                setLocalComm(prev => prev ? { ...prev, vendor_id: '' } : null);
+              }
+            }}
+            onFocus={() => setShowVendorSuggestions(true)}
+            className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
+          />
+          {showVendorSuggestions && (
+            <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 divide-y divide-gray-50">
+              {suppliers
+                .filter(s => {
+                  const searchStr = vendorSearch.toLowerCase();
+                  return s.trade_name.toLowerCase().includes(searchStr) || 
+                         s.company_name.toLowerCase().includes(searchStr) || 
+                         s.id_code.toLowerCase().includes(searchStr);
+                })
+                .map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      setLocalComm(prev => prev ? { ...prev, vendor_id: s.id } : null);
+                      setVendorSearch(s.trade_name);
+                      setShowVendorSuggestions(false);
+                    }}
+                    className="px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left transition duration-100"
+                  >
+                    <p className="text-xs font-bold text-gray-800">{s.trade_name}</p>
+                    <p className="text-[9px] text-gray-400 font-mono mt-0.5">{s.company_name}</p>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+        </div>
+
+        <div className="relative">
+          <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Comment *")}</span>
+          <textarea 
+            rows={4}
+            placeholder={t("e.g. Phone call completed, promised dispatch on Monday...")}
+            value={localComm.comment}
+            onChange={(e) => setLocalComm({...localComm, comment: e.target.value})}
+            className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
+          />
+        </div>
+      </div>
+    </FormModal>
+  );
+}

@@ -39,6 +39,14 @@ CREATE TABLE IF NOT EXISTS public.districts (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 2b. Directions
+CREATE TABLE IF NOT EXISTS public.directions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 3. Warehouses
 CREATE TABLE IF NOT EXISTS public.warehouses (
     id TEXT PRIMARY KEY,
@@ -80,6 +88,7 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
 -- Apply non-destructive updates to public.vehicles table if it pre-exists
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
 
 -- 6. Vendors
 CREATE TABLE IF NOT EXISTS public.vendors (
@@ -116,6 +125,10 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active'
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS last_pickup_date TIMESTAMPTZ;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS average_interval_days INT DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS vada INT DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_planned BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday TEXT DEFAULT NULL;
 
 -- 7. Orders
 CREATE TABLE IF NOT EXISTS public.orders (
@@ -249,6 +262,7 @@ CREATE TRIGGER on_auth_user_created
 -- Enable RLS on all tables
 ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.districts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.directions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.warehouses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
@@ -262,6 +276,7 @@ ALTER TABLE public.change_history ENABLE ROW LEVEL SECURITY;
 -- Instead, check user identity via auth.uid() or verify attributes in the auth.jwt().
 DROP POLICY IF EXISTS "Authenticated full access on cities" ON public.cities;
 DROP POLICY IF EXISTS "Authenticated full access on districts" ON public.districts;
+DROP POLICY IF EXISTS "Authenticated full access on directions" ON public.directions;
 DROP POLICY IF EXISTS "Authenticated full access on warehouses" ON public.warehouses;
 DROP POLICY IF EXISTS "Authenticated full access on vehicles" ON public.vehicles;
 DROP POLICY IF EXISTS "Authenticated full access on vendors" ON public.vendors;
@@ -271,6 +286,7 @@ DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.ch
 
 CREATE POLICY "Authenticated full access on cities" ON public.cities FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on districts" ON public.districts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated full access on directions" ON public.directions FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on warehouses" ON public.warehouses FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on vehicles" ON public.vehicles FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on vendors" ON public.vendors FOR ALL TO authenticated USING (true) WITH CHECK (true);

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Communication, Vendor, User } from '../../types';
-import { Plus, Trash2, X, Check, Edit3 } from 'lucide-react';
-import { LANG, t } from '../../utils/lang';
+import { Plus, Trash2 } from 'lucide-react';
+import { t } from '../../utils/lang';
 import PeriodFilter from '../PeriodFilter';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
-import { StandardTable, ColumnConfig } from '../StandardTable';
+import { StandardTable } from '../StandardTable';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
-import FormModal from '../FormModal';
-import { FormInput, FormSelect } from '../FormInput';
+import CommunicationFormModal from './CommunicationFormModal';
+import { getCommunicationsColumns } from '../communications/communicationsColumns';
 
 const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'date_time', label: 'Date & Time', visible: true },
@@ -24,7 +24,6 @@ const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'reminder_time', label: 'Reminder Time', visible: true }
 ];
 
-
 interface Props {
   communications: Communication[];
   suppliers: Vendor[];
@@ -38,8 +37,17 @@ export default function CommunicationsView({
   communications, suppliers, employees, currentEmployee, onSave, onDelete 
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(endOfMonth.getDate())}`;
+  });
   
   // Selection and Bulk Actions State
   const [selectedComms, setSelectedComms] = useState<string[]>([]);
@@ -56,10 +64,6 @@ export default function CommunicationsView({
   const [userFilter, setUserFilter] = useState('');
   const [taskResponsibleFilter, setTaskResponsibleFilter] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('');
-
-  // Auto-complete suppliers state in communications form modal
-  const [vendorSearch, setVendorSearch] = useState('');
-  const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
 
   // Columns Manager State
   const [isColModalOpen, setIsColModalOpen] = useState(false);
@@ -86,15 +90,11 @@ export default function CommunicationsView({
     };
     setEditingComm(defaultComm);
     setIsNew(true);
-    const suppObj = suppliers.find(s => s.id === defaultComm.vendor_id);
-    setVendorSearch(suppObj ? suppObj.trade_name : '');
   };
 
   const startEdit = (comm: Communication) => {
     setEditingComm({ ...comm });
     setIsNew(false);
-    const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-    setVendorSearch(suppObj ? suppObj.trade_name : '');
   };
 
   const handleBulkDeleteExecute = () => {
@@ -105,43 +105,30 @@ export default function CommunicationsView({
     setShowBulkDeleteConfirm(false);
   };
 
-  const handleSaveAll = () => {
-    if (!editingComm) return;
-    if (!editingComm.comment.trim()) {
+  const handleSaveAll = (payload: Communication) => {
+    if (!payload.comment.trim()) {
       alert(t('Please enter a comment'));
       return;
     }
 
-    const supplierObj = suppliers.find(s => s.id === editingComm.vendor_id);
-    const employeeObj = employees.find(e => e.id === editingComm.user_id);
-    const responsibleObj = employees.find(e => e.id === editingComm.responsible_user_id);
+    const supplierObj = suppliers.find(s => s.id === payload.vendor_id);
+    const employeeObj = employees.find(e => e.id === payload.user_id);
+    const responsibleObj = employees.find(e => e.id === payload.responsible_user_id);
     const defaultContactId = supplierObj?.contacts?.[0]?.id || '';
     const defaultContactName = supplierObj?.contacts?.[0]?.name || '';
 
     const final: Communication = {
-      ...editingComm,
+      ...payload,
       vendor_name: supplierObj?.trade_name || '',
       user_name: employeeObj?.name || currentEmployee.name,
       responsible_user_name: responsibleObj?.name || '',
-      vendor_contact_id: editingComm.vendor_contact_id || defaultContactId,
+      vendor_contact_id: payload.vendor_contact_id || defaultContactId,
       vendor_contact_name: defaultContactName
     };
 
     onSave(final);
     setEditingComm(null);
   };
-
-  const uniqueSuppliers = Array.from(
-    new Map(
-      communications
-        .map(c => {
-          const supp = suppliers.find(s => s.id === c.vendor_id);
-          if (!supp) return null;
-          return [supp.id, { id: supp.id, trade_name: supp.trade_name }];
-        })
-        .filter((item): item is [string, { id: string; trade_name: string }] => item !== null)
-    ).values()
-  );
 
   const uniqueUsers = Array.from(
     new Map(
@@ -195,157 +182,13 @@ export default function CommunicationsView({
     return true;
   });
 
-  const columnMap: Record<string, ColumnConfig<Communication>> = {
-    date_time: {
-      header: t('Date & Time'),
-      key: 'date_time',
-      render: (comm) => new Date(comm.date_time).toLocaleString('en-US')
-    },
-    type: {
-      header: t('Type'),
-      key: 'type',
-      render: (comm) => {
-        const styleMap: Record<string, string> = {
-          action: 'bg-emerald-50 text-emerald-800 border-emerald-100',
-          reminder: 'bg-amber-50 text-amber-800 border-amber-100',
-          task: 'bg-blue-50 text-blue-800 border-blue-105',
-        };
-        const labelMap: Record<string, string> = {
-          action: t('Action'),
-          reminder: t('Reminder'),
-          task: t('Task'),
-        };
-        const statusClass = styleMap[comm.type] || 'bg-slate-50 text-slate-700 border-slate-100';
-        const label = labelMap[comm.type] || comm.type;
-        return (
-          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold tracking-wide ${statusClass}`}>
-            {label}
-          </span>
-        );
-      }
-    },
-    vendor_name: {
-      header: t('Supplier / Subject'),
-      key: 'vendor_name',
-      render: (comm) => {
-        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-        return suppObj ? suppObj.trade_name : (comm.vendor_name || t('Supplier'));
-      }
-    },
-    company_name: {
-      header: t('Company Name'),
-      key: 'company_name',
-      render: (comm) => {
-        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-        return suppObj ? suppObj.company_name : '-';
-      }
-    },
-    id_code: {
-      header: t('Identification Code'),
-      key: 'id_code',
-      render: (comm) => {
-        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-        return suppObj ? suppObj.id_code : '-';
-      }
-    },
-    user_name: {
-      header: t('Operator / User'),
-      key: 'user_name',
-      render: (comm) => {
-        const empObj = employees.find(e => e.id === comm.user_id);
-        return empObj ? empObj.name : (comm.user_name || t('Manager'));
-      }
-    },
-    comment: {
-      header: t('Interaction Comment'),
-      key: 'comment',
-      render: (comm) => comm.comment
-    },
-    responsible_user_id: {
-      header: t('Responsible User'),
-      key: 'responsible_user_id',
-      render: (comm) => {
-        if (comm.type !== 'task' || !comm.responsible_user_id) return <span className="text-gray-400">-</span>;
-        const emp = employees.find(e => e.id === comm.responsible_user_id);
-        return emp ? <span className="font-medium text-blue-600">{emp.name}</span> : <span className="text-gray-400">-</span>;
-      }
-    },
-    task_status: {
-      header: t('Task Status'),
-      key: 'task_status',
-      render: (comm) => {
-        if (comm.type !== 'task' || !comm.task_status) return <span className="text-gray-400">-</span>;
-        const labelMap: Record<string, string> = {
-          pending: t('Pending'),
-          in_progress: t('In Progress'),
-          completed: t('Completed'),
-        };
-        const styleMap: Record<string, string> = {
-          pending: 'bg-rose-50 text-rose-850 border-rose-100',
-          in_progress: 'bg-indigo-50 text-indigo-850 border-indigo-100',
-          completed: 'bg-emerald-50 text-emerald-850 border-emerald-100'
-        };
-        return (
-          <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wide uppercase ${styleMap[comm.task_status] || 'bg-slate-50 text-slate-700'}`}>
-            {labelMap[comm.task_status] || comm.task_status}
-          </span>
-        );
-      }
-    },
-    reminder_time: {
-      header: t('Reminder Time'),
-      key: 'reminder_time',
-      render: (comm) => comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('en-US') : '-'
-    }
-  };
-
-  const columns: ColumnConfig<Communication>[] = [];
-
-  // Prepend select checkboxes column
-  columns.push({
-    header: '',
-    key: 'select',
-    className: 'w-12 text-center',
-    render: (comm) => {
-      const isChecked = selectedComms.includes(comm.id);
-      return (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedComms.includes(comm.id)) {
-                setSelectedComms(selectedComms.filter(id => id !== comm.id));
-              } else {
-                setSelectedComms([...selectedComms, comm.id]);
-              }
-            }}
-            className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
-              isChecked
-                ? 'border-emerald-600 bg-emerald-600 text-white'
-                : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}
-          >
-            {isChecked && <Check size={11} strokeWidth={3.5} />}
-          </button>
-        </div>
-      );
-    }
-  });
-
-  // Map configured visible columns
-  managedCols.forEach((col) => {
-    if (col.visible) {
-      if (columnMap[col.id]) {
-        columns.push(columnMap[col.id]);
-      } else {
-        columns.push({
-          header: t(col.label),
-          key: col.id,
-          render: (item: any) => item[col.id] ?? '-'
-        });
-      }
-    }
-  });
+  const columns = getCommunicationsColumns({
+    suppliers,
+    employees,
+    currentEmployee,
+    selectedComms,
+    setSelectedComms
+  }, managedCols);
 
   const headerActions = (
     <>
@@ -361,7 +204,7 @@ export default function CommunicationsView({
             }
             e.target.value = ''; // Reset select trigger
           }}
-          className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
+          className="px-3.5 py-2.5 pr-8 bg-slate-100/60 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
         >
           <option value="" disabled hidden>{t("Actions")}</option>
           <option value="delete" disabled={selectedComms.length === 0}>
@@ -502,151 +345,21 @@ export default function CommunicationsView({
         emptyMessage={t("No communication records found.")}
       />
 
-      {/* FORM DIALOG */}
-      {editingComm && (
-        <FormModal
-          isOpen={!!editingComm}
-          onClose={() => setEditingComm(null)}
-          title={isNew ? t('New Communication') : t('Edit Communication')}
-          maxWidthClass="max-w-md"
-          onCancel={() => setEditingComm(null)}
-          onSave={handleSaveAll}
-          saveLabel={isNew ? t('Add Communication') : t('Save Communication')}
-          onDelete={!isNew ? () => {
-            if (editingComm) {
-              setDeleteConfirmId(editingComm.id);
-              setEditingComm(null);
-            }
-          } : undefined}
-          deleteLabel={t("Delete")}
-        >
-          <div className="space-y-4">
-            <FormInput
-              label={t("Date & Time *")}
-              type="datetime-local"
-              value={editingComm.date_time}
-              onChange={(e) => setEditingComm({...editingComm, date_time: e.target.value})}
-            />
-
-            <FormSelect
-              label={t("Interaction Type")}
-              value={editingComm.type}
-              onChange={(e) => {
-                const nextType = e.target.value as any;
-                setEditingComm({
-                  ...editingComm,
-                  type: nextType,
-                  task_status: nextType === 'task' ? (editingComm.task_status || 'pending') : undefined,
-                  responsible_user_id: nextType === 'task' ? (editingComm.responsible_user_id || employees[0]?.id || '') : undefined
-                });
-              }}
-            >
-              <option value="action">{t("Action")}</option>
-              <option value="reminder">{t("Reminder")}</option>
-              <option value="task">{t("Task")}</option>
-            </FormSelect>
-
-            <FormSelect
-              label={t("User Rep *")}
-              value={editingComm.user_id}
-              onChange={(e) => setEditingComm({...editingComm, user_id: e.target.value})}
-            >
-              {employees.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </FormSelect>
-
-            {editingComm.type === 'task' && (
-              <div className="grid grid-cols-2 gap-3">
-                <FormSelect
-                  label={t("Responsible User *")}
-                  value={editingComm.responsible_user_id || ''}
-                  onChange={(e) => setEditingComm({...editingComm, responsible_user_id: e.target.value})}
-                >
-                  <option value="">{t("Select Employee")}</option>
-                  {employees.map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </FormSelect>
-
-                <FormSelect
-                  label={t("Task Status *")}
-                  value={editingComm.task_status || 'pending'}
-                  onChange={(e) => setEditingComm({...editingComm, task_status: e.target.value as any})}
-                >
-                  <option value="pending">{t("Pending")}</option>
-                  <option value="in_progress">{t("In Progress")}</option>
-                  <option value="completed">{t("Completed")}</option>
-                </FormSelect>
-              </div>
-            )}
-
-            {editingComm.type === 'reminder' && (
-              <FormInput
-                label={t("Reminder Due Time")}
-                type="datetime-local"
-                value={editingComm.reminder_time || ''}
-                onChange={(e) => setEditingComm({...editingComm, reminder_time: e.target.value})}
-              />
-            )}
-
-            <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Supplier *")}</span>
-              <input
-                type="text"
-                placeholder={t("Type to search supplier...")}
-                value={vendorSearch}
-                onChange={(e) => {
-                  setVendorSearch(e.target.value);
-                  setShowVendorSuggestions(true);
-                  if (e.target.value === '') {
-                    setEditingComm(prev => prev ? { ...prev, vendor_id: '' } : null);
-                  }
-                }}
-                onFocus={() => setShowVendorSuggestions(true)}
-                className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
-              />
-              {showVendorSuggestions && (
-                <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 divide-y divide-gray-50">
-                  {suppliers
-                    .filter(s => {
-                      const searchStr = vendorSearch.toLowerCase();
-                      return s.trade_name.toLowerCase().includes(searchStr) || 
-                             s.company_name.toLowerCase().includes(searchStr) || 
-                             s.id_code.toLowerCase().includes(searchStr);
-                    })
-                    .map(s => (
-                      <div
-                        key={s.id}
-                        onClick={() => {
-                          setEditingComm(prev => prev ? { ...prev, vendor_id: s.id } : null);
-                          setVendorSearch(s.trade_name);
-                           setShowVendorSuggestions(false);
-                        }}
-                        className="px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left transition duration-100"
-                      >
-                        <p className="text-xs font-bold text-gray-800">{s.trade_name}</p>
-                        <p className="text-[9px] text-gray-400 font-mono mt-0.5">{s.company_name}</p>
-                      </div>
-                    ))
-                  }
-                </div>
-              )}
-            </div>
-
-            <div className="relative">
-              <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Comment *")}</span>
-              <textarea 
-                rows={4}
-                placeholder={t("e.g. Phone call completed, promised dispatch on Monday...")}
-                value={editingComm.comment}
-                onChange={(e) => setEditingComm({...editingComm, comment: e.target.value})}
-                className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
-              />
-            </div>
-          </div>
-        </FormModal>
-      )}
+      <CommunicationFormModal
+        isOpen={!!editingComm}
+        onClose={() => setEditingComm(null)}
+        editingComm={editingComm}
+        isNew={isNew}
+        employees={employees}
+        suppliers={suppliers}
+        onSave={handleSaveAll}
+        onDelete={() => {
+          if (editingComm) {
+            setDeleteConfirmId(editingComm.id);
+            setEditingComm(null);
+          }
+        }}
+      />
 
       {/* DELETE CONFIRMATION MODAL */}
       <ConfirmDeleteModal 

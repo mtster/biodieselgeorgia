@@ -3,24 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  User, Vendor, Order, Communication, Vehicle as Truck, 
-  ChangeHistory, Warehouse, City, District 
-} from './types';
+import React from 'react';
+import { useAppData } from './hooks/useAppData';
 import { t } from './utils/lang';
-import { 
-  getUsers, saveUser, deleteUser,
-  getVendors, saveVendor, deleteVendor,
-  getOrders, saveOrder, deleteOrder,
-  getCommunications, saveCommunication, deleteCommunication,
-  getVehicles as getTrucks, saveVehicle as saveTruck, deleteVehicle as deleteTruck,
-  getChangeHistory,
-  getWarehouses, saveWarehouse, deleteWarehouse,
-  getCities, saveCity, deleteCity,
-  getDistricts, saveDistrict, deleteDistrict,
-  resetSystemDatabase, isSupabaseConfigured, supabase, revertChange
-} from './lib/db';
 
 // Modular view components
 import LoginView from './components/menu/LoginView';
@@ -32,436 +17,61 @@ import OrdersView from './components/menu/OrdersView';
 import UsersView from './components/menu/UsersView';
 import ReportsView from './components/menu/ReportsView';
 import CitiesSettingView from './components/settings/CitiesSettingView';
+import DirectionsSettingView from './components/settings/DirectionsSettingView';
 import VehiclesSettingView from './components/settings/VehiclesSettingView';
 import WarehousesSettingView from './components/settings/WarehousesSettingView';
 import HistoryView from './components/menu/HistoryView';
 import MobileLogisticsView from './components/menu/MobileLogisticsView';
 import Sidebar from './components/menu/Sidebar';
 
-// Relational deletion validators
-import { 
-  checkSupplierDeletion, 
-  checkUserDeletion, 
-  checkCityDeletion, 
-  checkVehicleDeletion, 
-  checkWarehouseDeletion 
-} from './utils/deletionValidation';
-
-// Icons for Left Sidebar pairing
-import { 
-  Leaf, LayoutDashboard, BarChart3, Building2, MessageSquare, 
-  ShoppingBag, Users, FileText, Database, Settings, History, 
-  Globe, LogOut, Info, ShieldCheck, ChevronRight, Menu, X
-} from 'lucide-react';
+import { Leaf, Menu } from 'lucide-react';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const currentUserRef = useRef<User | null>(null);
-
-  useEffect(() => {
-    currentUserRef.current = currentUser;
-  }, [currentUser]);
-
-  const [deleteAlertMessage, setDeleteAlertMessage] = useState<string | null>(null);
-  
-  // Database Live Models
-  const [users, setUsers] = useState<User[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [communications, setCommunications] = useState<Communication[]>([]);
-  const [trucks, setTrucks] = useState<Truck[]>([]);
-  const [changeHistory, setChangeHistory] = useState<ChangeHistory[]>([]);
-  const [historyOffset, setHistoryOffset] = useState(0);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-
-  // System status
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showStructureDesc, setShowStructureDesc] = useState(false);
-
-  // Sync data function
-  const refreshAllData = async () => {
-    try {
-      const usrs = await getUsers();
-      const vnds = await getVendors();
-      const ords = await getOrders();
-      const comms = await getCommunications();
-      const trks = await getTrucks();
-      const hist = await getChangeHistory(50, 0); // initial load
-      setHistoryOffset(0);
-      const whs = await getWarehouses();
-      const cts = await getCities();
-      const dsts = await getDistricts();
-
-      setUsers(usrs);
-      setVendors(vnds);
-      setOrders(ords);
-      setCommunications(comms);
-      setTrucks(trks);
-      setChangeHistory(hist);
-      setWarehouses(whs);
-      setCities(cts);
-      setDistricts(dsts);
-    } catch (e) {
-      console.error('Error synchronizing database:', e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLoadMoreHistory = async () => {
-    setIsLoadingMore(true);
-    try {
-      const nextOffset = historyOffset + 50;
-      const moreHist = await getChangeHistory(50, nextOffset);
-      if (moreHist && moreHist.length > 0) {
-        setChangeHistory(prev => [...prev, ...moreHist]);
-        setHistoryOffset(nextOffset);
-      }
-    } catch (e) {
-      console.error('Error fetching more history:', e);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    if (currentUser) {
-      refreshAllData();
-    }
-  }, [currentUser]);
-
-  // Read Supabase auth session on boot
-  useEffect(() => {
-    const initAuth = async () => {
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            let dbUser: any = null;
-            const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
-            if (session.access_token && useProxy) {
-              try {
-                const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
-                  headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                  }
-                });
-                if (res.ok) {
-                  const profiles = await res.json();
-                  if (profiles && profiles.length > 0) {
-                    dbUser = profiles[0];
-                  }
-                }
-              } catch (err) {
-                console.warn('Failed to load profile via proxy', err);
-              }
-            }
-
-            if (!dbUser) {
-              const { data: directUser } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('email', session.user.email)
-                .single();
-              dbUser = directUser;
-            }
-              
-            if (dbUser) {
-              if (dbUser.is_blocked) {
-                await supabase.auth.signOut();
-                setCurrentUser(null);
-                alert(t('Your user account has been blocked by administrators.'));
-              } else {
-                setCurrentUser(dbUser);
-              }
-            } else {
-              // Auto-create matching user database record
-              const newUser: User = {
-                id: session.user.id,
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Administrator',
-                email: session.user.email || '',
-                personal_id: session.user.user_metadata?.personal_id || '12345678901',
-                phone: session.user.user_metadata?.phone || '599112233',
-                role: (session.user.user_metadata?.role as any) || 'admin',
-                privileges: session.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
-                is_blocked: false,
-                created_at: new Date().toISOString()
-              };
-              await supabase.from('profiles').insert([newUser]);
-              setCurrentUser(newUser);
-            }
-          } else {
-            setIsLoading(false);
-          }
-        } catch (e) {
-          console.error('Initial load of active session failed:', e);
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-      }
-    };
-    initAuth();
-  }, []);
-
-  // Sync session changes from Supabase Live Subscriptions
-  useEffect(() => {
-    if (isSupabaseConfigured && supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          if (currentUserRef.current && currentUserRef.current.id === session.user.id) {
-            // Already logged in in active state, skip redundant profile refetching and DB calls
-            return;
-          }
-          try {
-            let dbUser: any = null;
-            const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
-            if (session?.access_token && useProxy) {
-              try {
-                const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
-                  headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                  }
-                });
-                if (res.ok) {
-                  const profiles = await res.json();
-                  if (profiles && profiles.length > 0) {
-                    dbUser = profiles[0];
-                  }
-                }
-              } catch (err) {
-                console.warn('Live Event: Failed to load profile via proxy', err);
-              }
-            }
-
-            if (!dbUser) {
-              const { data: directUser } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('email', session.user.email)
-                .single();
-              dbUser = directUser;
-            }
-
-            if (dbUser) setCurrentUser(dbUser);
-          } catch (err) {
-            console.error('Live Event login sync error:', err);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setCurrentUser(null);
-        }
-      });
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, []);
-
-  // Operations
-  const handleUserSave = async (user: User) => {
-    try {
-      await saveUser(user, currentUser?.name || 'System');
-      const updatedUsers = await getUsers();
-      setUsers(updatedUsers);
-      if (currentUser && user.id === currentUser.id) {
-        setCurrentUser(updatedUsers.find(u => u.id === user.id) || null);
-      }
-    } catch (e: any) {
-      console.error('Error saving user:', e);
-      alert(`⚠️ Authentication / Sync Error: ${e.message || 'Check your permissions.'}\nCould not add or update this user in the Auth database.`);
-    }
-  };
-
-  const handleUserDelete = async (id: string, name: string) => {
-    const errorMsg = checkUserDeletion(id, name, orders, vendors);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-
-    if (confirm(`Are you sure you want to delete user: ${name}?`)) {
-      try {
-        await deleteUser(id, name, currentUser?.name || 'System');
-        await refreshAllData();
-      } catch (e: any) {
-        console.error('Error deleting user:', e);
-        alert(`⚠️ Delete Error: ${e.message || 'Permissions denied.'}`);
-      }
-    }
-  };
-
-  const handleVendorSave = async (vnd: Vendor) => {
-    try {
-      await saveVendor(vnd, currentUser?.name || 'System');
-      await refreshAllData();
-    } catch (e: any) {
-      console.error('Error saving supplier:', e);
-      alert(`⚠️ Supplier Save Error: ${e.message || 'Check connection / permissions.'}`);
-    }
-  };
-
-  const handleVendorDelete = async (id: string, tradeName: string) => {
-    const errorMsg = checkSupplierDeletion(id, tradeName, orders);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-    try {
-      await deleteVendor(id, tradeName, currentUser?.name || 'System');
-      await refreshAllData();
-    } catch (e: any) {
-      console.error('Error deleting supplier:', e);
-      alert(`⚠️ Supplier Delete Error: ${e.message || 'Check permissions.'}`);
-    }
-  };
-
-  const handleOrderSave = async (ord: Order) => {
-    try {
-      await saveOrder(ord, currentUser?.name || 'System');
-      await refreshAllData();
-    } catch (e: any) {
-      console.error('Error saving order:', e);
-      alert(`⚠️ Order Save Error: ${e.message || 'Check connection / permissions.'}`);
-    }
-  };
-
-  const handleOrderDelete = async (id: string, docNum: string) => {
-    try {
-      await deleteOrder(id, docNum, currentUser?.name || 'System');
-      await refreshAllData();
-    } catch (e: any) {
-      console.error('Error deleting order:', e);
-      alert(`⚠️ Order Delete Error: ${e.message || 'Check permissions.'}`);
-    }
-  };
-
-  const handleCommunicationSave = async (comm: Communication) => {
-    await saveCommunication(comm, currentUser?.name || 'System');
-    await refreshAllData();
-  };
-
-  const handleCommunicationDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this record?')) {
-      await deleteCommunication(id, currentUser?.name || 'System');
-      await refreshAllData();
-    }
-  };
-
-  // Lookups updates
-  const handleSaveCity = async (c: City) => {
-    await saveCity(c, currentUser?.name || 'System');
-    await refreshAllData();
-  };
-  const handleDeleteCity = async (id: string, name: string) => {
-    const errorMsg = checkCityDeletion(id, name, vendors);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-    if (confirm(`Delete city ${name}?`)) {
-      await deleteCity(id, name, currentUser?.name || 'System');
-      await refreshAllData();
-    }
-  };
-
-  const handleSaveDistrict = async (d: District) => {
-    await saveDistrict(d, currentUser?.name || 'System');
-    await refreshAllData();
-  };
-  const handleDeleteDistrict = async (id: string, name: string) => {
-    if (confirm(`Delete district ${name}?`)) {
-      await deleteDistrict(id, name, currentUser?.name || 'System');
-      await refreshAllData();
-    }
-  };
-
-  const handleSaveTruck = async (t: Truck) => {
-    await saveTruck(t, currentUser?.name || 'System');
-    await refreshAllData();
-  };
-  const handleDeleteTruck = async (plate: string) => {
-    const errorMsg = checkVehicleDeletion(plate, orders);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-    if (confirm(`Are you sure you want to delete vehicle (${plate})?`)) {
-      await deleteTruck(plate, currentUser?.name || 'System');
-      await refreshAllData();
-    }
-  };
-
-  const handleAddCityDirect = async (name: string) => {
-    const newCity: City = {
-      id: '',
-      name
-    };
-    await handleSaveCity(newCity);
-  };
-
-  const handleAddDistrictDirect = async (cityId: string, name: string) => {
-    const newDst: District = {
-      id: '',
-      city_id: cityId,
-      name
-    };
-    await handleSaveDistrict(newDst);
-  };
-
-  const handleAddWarehouseDirect = async (name: string) => {
-    const newWh: Warehouse = {
-      id: '',
-      name
-    };
-    await saveWarehouse(newWh, currentUser?.name || 'System');
-    await refreshAllData();
-  };
-
-  const handleSaveWarehouse = async (wh: Warehouse) => {
-    await saveWarehouse(wh, currentUser?.name || 'System');
-    await refreshAllData();
-  };
-
-  const handleDeleteWarehouse = async (id: string, name: string) => {
-    const errorMsg = checkWarehouseDeletion(id, name, vendors, orders);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-    if (confirm(`Are you sure you want to permanently delete warehouse "${name}"?`)) {
-      await deleteWarehouse(id, name, currentUser?.name || 'System');
-      await refreshAllData();
-    }
-  };
-
-  const handleRevertChange = async (log: ChangeHistory): Promise<boolean> => {
-    try {
-      const success = await revertChange(log, currentUser?.name || 'System');
-      if (success) {
-        await refreshAllData();
-      }
-      return success;
-    } catch (e) {
-      console.error('Rollback error:', e);
-      return false;
-    }
-  };
-
-  const handleLogOut = async () => {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.error('Supabase sign-out failed:', err);
-      }
-    }
-    setCurrentUser(null);
-  };
+  const {
+    currentUser,
+    setCurrentUser,
+    deleteAlertMessage,
+    setDeleteAlertMessage,
+    users,
+    vendors,
+    orders,
+    communications,
+    trucks,
+    changeHistory,
+    isLoadingMore,
+    warehouses,
+    cities,
+    districts,
+    directions,
+    isLoading,
+    activeTab,
+    setActiveTab,
+    mobileMenuOpen,
+    setMobileMenuOpen,
+    handleLoadMoreHistory,
+    handleUserSave,
+    handleUserDelete,
+    handleVendorSave,
+    handleVendorDelete,
+    handleOrderSave,
+    handleOrderDelete,
+    handleCommunicationSave,
+    handleCommunicationDelete,
+    handleSaveCity,
+    handleDeleteCity,
+    handleSaveDistrict,
+    handleDeleteDistrict,
+    handleSaveDirection,
+    handleDeleteDirection,
+    handleSaveTruck,
+    handleDeleteTruck,
+    handleAddCityDirect,
+    handleAddDistrictDirect,
+    handleAddWarehouseDirect,
+    handleSaveWarehouse,
+    handleDeleteWarehouse,
+    handleLogOut
+  } = useAppData();
 
   if (isLoading) {
     return (
@@ -576,6 +186,7 @@ export default function App() {
                 users={users}
                 cities={cities}
                 districts={districts}
+                directions={directions}
                 currentUser={currentUser}
                 onSave={handleVendorSave}
                 onDelete={handleVendorDelete}
@@ -644,12 +255,22 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'directions' && (
+              <DirectionsSettingView 
+                directions={directions}
+                onSaveDirection={handleSaveDirection}
+                onDeleteDirection={handleDeleteDirection}
+                onBack={() => setActiveTab('dashboard')}
+              />
+            )}
+
             {activeTab === 'vehicles' && (
               <VehiclesSettingView 
                 trucks={trucks}
                 employees={users}
                 cities={cities}
                 warehouses={warehouses}
+                directions={directions}
                 onSaveTruck={handleSaveTruck}
                 onDeleteTruck={handleDeleteTruck}
                 onBack={() => setActiveTab('dashboard')}

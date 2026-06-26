@@ -1,13 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { t } from '../../utils/lang';
 import { 
-  Vendor, VendorContact, VendorComment, 
-  Warehouse, User, City, District, Communication 
+  Vendor, Warehouse, User, City, District, Communication, Direction 
 } from '../../types';
-import { 
-  Search, Plus, Edit3, Trash2, FileSpreadsheet, 
-  MessageSquare, ArrowLeft
-} from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 // Modular child components
 import VendorForm from '../vendors/VendorForm';
@@ -27,6 +23,8 @@ const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'price_per_liter', label: 'Rate (₾)', visible: true },
   { id: 'working_hours', label: 'Working Hours', visible: true },
   { id: 'location', label: 'Location', visible: true },
+  { id: 'direction', label: 'Direction', visible: true },
+  { id: 'vada', label: 'Vada', visible: true },
   { id: 'barrels_amount', label: 'Barrels Amount', visible: true },
   { id: 'company_code', label: 'Assigned Code', visible: true },
   { id: 'primary_contact', label: 'Primary Contact', visible: true },
@@ -43,6 +41,7 @@ interface Props {
   users: User[];
   cities: City[];
   districts: District[];
+  directions: Direction[];
   currentUser: User;
   onSave: (vendor: Vendor) => void;
   onDelete: (id: string, tradeName: string) => void;
@@ -57,7 +56,7 @@ interface Props {
 }
 
 export default function VendorsView({ 
-  vendors, warehouses, users, cities, districts, 
+  vendors, warehouses, users, cities, districts, directions,
   currentUser, onSave, onDelete,
   communications = [], onSaveCommunication, onDeleteCommunication
 }: Props) {
@@ -66,16 +65,15 @@ export default function VendorsView({
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedSalesManager, setSelectedSalesManager] = useState('');
   const [selectedOperationManager, setSelectedOperationManager] = useState('');
+  const [selectedDirection, setSelectedDirection] = useState('');
   
   // Active edit state (On-screen form)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [importText, setImportText] = useState('');
 
   // Read-only and bulk-delete selection states
   const [isReadOnly, setIsReadOnly] = useState(false);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
@@ -110,27 +108,20 @@ export default function VendorsView({
   // Action triggers for child forms
   const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
   
-  const lastScrolledVendorId = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (editingVendor) {
-      const currentId = editingVendor.id || 'new';
-      if (lastScrolledVendorId.current !== currentId) {
-        lastScrolledVendorId.current = currentId;
-        const mainElement = document.querySelector('main');
-        if (mainElement) {
-          mainElement.scrollTop = 0;
-        }
+  const scrollMainToTop = () => {
+    setTimeout(() => {
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        mainElement.scrollTop = 0;
       }
-    } else {
-      lastScrolledVendorId.current = null;
-    }
-  }, [editingVendor?.id]);
+    }, 0);
+  };
 
   const startEdit = (vendor: Vendor, readOnly = false) => {
     setEditingVendor(JSON.parse(JSON.stringify(vendor)));
     setIsNew(false);
     setIsReadOnly(readOnly);
+    scrollMainToTop();
   };
 
   const startNew = () => {
@@ -156,6 +147,7 @@ export default function VendorsView({
     setEditingVendor(defaultVendor);
     setIsNew(true);
     setIsReadOnly(false);
+    scrollMainToTop();
   };
 
   const handleBulkDeleteExecute = () => {
@@ -164,61 +156,12 @@ export default function VendorsView({
       onDelete(id, vend?.trade_name || '');
     });
     setSelectedVendors([]);
-    setIsSelectionMode(false);
     setShowBulkDeleteConfirm(false);
   };
 
   const handleSaveFromForm = (payload: Vendor) => {
     onSave(payload);
     setEditingVendor(null);
-  };
-
-  const handleImportExcel = () => {
-    if (!importText.trim()) return;
-    const lines = importText.split('\n');
-    let count = 0;
-
-    lines.forEach(line => {
-      const parts = line.split(/[\t,]+/);
-      if (parts.length >= 2) {
-        const trName = parts[0]?.trim();
-        const legName = parts[1]?.trim() || trName;
-        const taxVal = parts[2]?.trim() || '204857392';
-
-        if (trName) {
-          const mockV: Vendor = {
-            id: '',
-            id_code: taxVal,
-            company_name: legName,
-            trade_name: trName,
-            company_code: taxVal,
-            bank_account: 'GE80TB0000000' + Math.floor(1000000000 + Math.random() * 9000000000),
-            city: cities[0]?.name || 'Tbilisi',
-            district: districts.filter(d => d.city_id === cities[0]?.id)[0]?.name || 'Saburtalo',
-            address: 'Imported address coordinates',
-            price_per_liter: 1.40,
-            warehouse_id: warehouses[0]?.id || '',
-            manager_id: currentUser.id,
-            operator_id: currentUser.id,
-            contacts: [],
-            comments: [{
-              id: 'comm-imp',
-              comment: 'Bulk imported entry successfully added.',
-              date: new Date().toISOString(),
-              user_name: currentUser.name
-            }],
-            working_hours: '09:00 - 18:00',
-            created_at: new Date().toISOString()
-          };
-          onSave(mockV);
-          count++;
-        }
-      }
-    });
-
-    setIsImporting(false);
-    setImportText('');
-    alert(`Successfully processed and imported ${count} supplier records.`);
   };
 
   const filteredVendors = vendors.filter(v => {
@@ -234,8 +177,9 @@ export default function VendorsView({
 
     const matchesSalesManager = !selectedSalesManager || v.manager_id === selectedSalesManager;
     const matchesOperationManager = !selectedOperationManager || v.operator_id === selectedOperationManager;
+    const matchesDirection = !selectedDirection || v.direction_id === selectedDirection;
 
-    return matchesSearch && matchesCity && matchesDistrict && matchesSalesManager && matchesOperationManager;
+    return matchesSearch && matchesCity && matchesDistrict && matchesSalesManager && matchesOperationManager && matchesDirection;
   });
 
   const askDelete = (id: string, name: string) => {
@@ -341,6 +285,7 @@ export default function VendorsView({
           users={users}
           cities={cities}
           districts={districts}
+          directions={directions}
           currentUser={currentUser}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingVendor(null)}
@@ -348,6 +293,7 @@ export default function VendorsView({
           communications={communications}
           onSaveCommunication={onSaveCommunication}
           onDeleteCommunication={onDeleteCommunication}
+          isReadOnly={isReadOnly}
         />
       ) : (
         <div className="space-y-6 text-left">
@@ -397,6 +343,13 @@ export default function VendorsView({
                 placeholder: t("All Operation Managers"),
                 options: users
                   .map(u => ({ value: u.id, label: u.name }))
+              },
+              {
+                label: t("Directions"),
+                value: selectedDirection,
+                onChange: setSelectedDirection,
+                placeholder: t("All Directions"),
+                options: directions.map(d => ({ value: d.id, label: d.name }))
               }
             ]}
           />
@@ -404,6 +357,7 @@ export default function VendorsView({
           <VendorsList 
             filteredVendors={filteredVendors} 
             users={users} 
+            directions={directions}
             startEdit={startEdit} 
             askDelete={askDelete}
             selectedVendors={selectedVendors}

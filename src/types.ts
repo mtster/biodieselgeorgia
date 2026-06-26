@@ -68,6 +68,10 @@ export interface Vendor {
   created_at: string;
   last_pickup_date?: string;
   average_interval_days?: number;
+  direction_id?: string;      // მიმართულება
+  vada?: number;              // ვადა
+  is_planned?: boolean;       // გეგმიური
+  planned_weekday?: string;   // კვირის დღე
 }
 
 export type OrderStatus = 'registered' | 'driver_assigned' | 'picked_up' | 'completed' | 'cancelled'; // რეგისტრირებული, მძღოლი მიმაგრებული, აყვანილი, დასრულებული, გაუქმებული
@@ -128,9 +132,16 @@ export interface Truck {
   is_deleted?: boolean;
   city?: string;              // ქალაქი
   warehouse_id?: string;      // საწყობი
+  direction_id?: string;      // მიმართულება
 }
 
 export type Vehicle = Truck;
+
+export interface Direction {
+  id: string;
+  name: string;
+  is_deleted?: boolean;
+}
 
 export interface ChangeHistory {
   id: string;

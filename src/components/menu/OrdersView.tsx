@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Order, Vendor, Warehouse, User, Truck } from '../../types';
 import { getSMSLogs } from '../../lib/db';
-import { 
-  Plus, Search, Trash2
-} from 'lucide-react';
-
+import { Plus, Trash2 } from 'lucide-react';
 import { t } from '../../utils/lang';
 
 import PeriodFilter from '../PeriodFilter';
@@ -105,22 +102,14 @@ export default function OrdersView({
   // Action triggers for child forms
   const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
 
-  const lastScrolledOrderId = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (editingOrder) {
-      const currentId = editingOrder.id || 'new';
-      if (lastScrolledOrderId.current !== currentId) {
-        lastScrolledOrderId.current = currentId;
-        const mainElement = document.querySelector('main');
-        if (mainElement) {
-          mainElement.scrollTop = 0;
-        }
+  const scrollMainToTop = () => {
+    setTimeout(() => {
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        mainElement.scrollTop = 0;
       }
-    } else {
-      lastScrolledOrderId.current = null;
-    }
-  }, [editingOrder?.id]);
+    }, 0);
+  };
 
   const loadSMSLogs = async () => {
     const data = await getSMSLogs();
@@ -154,11 +143,13 @@ export default function OrdersView({
     };
     setEditingOrder(defaultOrder);
     setIsNew(true);
+    scrollMainToTop();
   };
 
   const startEdit = (ord: Order) => {
     setEditingOrder(JSON.parse(JSON.stringify(ord)));
     setIsNew(false);
+    scrollMainToTop();
   };
 
   const handleBulkDeleteExecute = () => {
@@ -230,17 +221,13 @@ export default function OrdersView({
             />
           )}
           <button 
-            onClick={() => {
-              formRef.current?.fillDummy();
-            }}
+            onClick={() => formRef.current?.fillDummy()}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
           >
             {t("Fill Dummy")}
           </button>
           <button 
-            onClick={() => {
-              formRef.current?.save();
-            }}
+            onClick={() => formRef.current?.save()}
             className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
           >
             {t("Save")}
@@ -300,7 +287,6 @@ export default function OrdersView({
       {/* 1. STANDARDIZED PAGE HEADER */}
       <PageHeader 
         title={editingOrder ? (editingOrder.id ? `${t("Order")}: ${editingOrder.doc_number}` : t("New Order")) : t("Orders")}
-
         onBack={editingOrder ? () => setEditingOrder(null) : undefined}
         backButtonId="order-form-back-arrow"
         actions={headerActions}
@@ -437,7 +423,7 @@ export default function OrdersView({
             </div>
             <div>
               <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">{t("Confirm Bulk Orders Deleted")}</h4>
-              <p className="text-[11.5px] text-gray-450 mt-2 font-sans leading-normal">
+              <p className="text-[11.5px] text-gray-455 mt-2 font-sans leading-normal">
                 {t("Are you sure you want to soft delete")} <strong>{selectedOrders.length} {t("selected orders")}</strong>? {t("They will hide from the UI immediately.")}
               </p>
             </div>

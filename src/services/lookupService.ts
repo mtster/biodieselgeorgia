@@ -1,16 +1,17 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Warehouse, City, District } from '../types';
+import { Warehouse, City, District, Direction } from '../types';
 import { trackChange } from './historyService';
 import { 
-  KEY_WAREHOUSES, KEY_CITIES, KEY_DISTRICTS, 
+  KEY_WAREHOUSES, KEY_CITIES, KEY_DISTRICTS, KEY_DIRECTIONS,
   getLocal, setLocal 
 } from './localStorage';
 
-export { KEY_WAREHOUSES, KEY_CITIES, KEY_DISTRICTS };
+export { KEY_WAREHOUSES, KEY_CITIES, KEY_DISTRICTS, KEY_DIRECTIONS };
 
 export const DEFAULT_WAREHOUSES: Warehouse[] = [];
 export const DEFAULT_CITIES: City[] = [];
 export const DEFAULT_DISTRICTS: District[] = [];
+export const DEFAULT_DIRECTIONS: Direction[] = [];
 
 // 1. Warehouses
 export async function getWarehouses(): Promise<Warehouse[]> {
@@ -185,5 +186,65 @@ export async function deleteDistrict(id: string, name: string, loggerName: strin
   const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
   setLocal(KEY_DISTRICTS, list.filter(item => item.id !== id));
   await trackChange(loggerName, 'District deleted', 'Name', name, '');
+  return true;
+}
+
+// 4. Directions
+export async function getDirections(): Promise<Direction[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('directions').select('*').order('name');
+      if (!error && data) {
+        return data.filter((d: any) => !d.is_deleted);
+      }
+    } catch (e) {
+      console.warn('Supabase getDirections failed', e);
+    }
+  }
+  return getLocal<Direction[]>(KEY_DIRECTIONS, DEFAULT_DIRECTIONS).filter(item => !item.is_deleted);
+}
+
+export async function saveDirection(dir: Direction, loggerName: string): Promise<Direction> {
+  const isNew = !dir.id;
+  const finalDir = {
+    ...dir,
+    id: isNew ? 'dir-' + Math.random().toString(36).substring(2, 9) : dir.id
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (isNew) {
+        await supabase.from('directions').insert([finalDir]);
+      } else {
+        await supabase.from('directions').update(finalDir).eq('id', finalDir.id);
+      }
+    } catch (e) {
+      console.error('Supabase saveDirection failed', e);
+    }
+  }
+
+  const list = getLocal<Direction[]>(KEY_DIRECTIONS, DEFAULT_DIRECTIONS);
+  if (isNew) {
+    setLocal(KEY_DIRECTIONS, [...list, finalDir]);
+    await trackChange(loggerName, 'Direction added', 'Name', '', finalDir.name);
+  } else {
+    setLocal(KEY_DIRECTIONS, list.map(item => item.id === finalDir.id ? finalDir : item));
+    await trackChange(loggerName, 'Direction updated', 'Name', '', finalDir.name);
+  }
+  return finalDir;
+}
+
+export async function deleteDirection(id: string, name: string, loggerName: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('directions').update({ is_deleted: true }).eq('id', id);
+    } catch (e) {
+      console.error('Supabase deleteDirection failed', e);
+    }
+  }
+
+  const list = getLocal<Direction[]>(KEY_DIRECTIONS, DEFAULT_DIRECTIONS);
+  setLocal(KEY_DIRECTIONS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
+  await trackChange(loggerName, 'Direction deleted', 'Name', name, '');
   return true;
 }

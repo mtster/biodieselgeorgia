@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { VendorComment } from '../../types';
 import { X, Trash2 } from 'lucide-react';
+import { t } from '../../utils/lang';
 import FormModal from '../FormModal';
 
 interface Props {
@@ -35,20 +36,20 @@ export default function VendorCommentModal({ isOpen, onClose, activeComment, onS
     <FormModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Comment"
+      title={t("Comment")}
       maxWidthClass="max-w-sm"
       onDelete={activeComment ? () => onDelete(activeComment.id) : undefined}
-      deleteLabel="Delete"
+      deleteLabel={t("Delete")}
       onCancel={onClose}
       onSave={handleSave}
-      saveLabel="Submit"
+      saveLabel={t("Submit")}
     >
       <div className="space-y-1.5">
         <textarea 
           rows={4}
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
-          placeholder="Write specific supplier memo here..."
+          placeholder={t("Write specific supplier memo here...")}
           className="w-full p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
         ></textarea>
       </div>

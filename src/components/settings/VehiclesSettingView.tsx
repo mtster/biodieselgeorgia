@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Vehicle, User, City, Warehouse } from '../../types';
-import { Plus, Trash2, Truck as TruckIcon, X } from 'lucide-react';
-import { FormInput, FormSelect } from '../FormInput';
+import { Vehicle, User, City, Warehouse, Direction } from '../../types';
+import { Plus } from 'lucide-react';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
-import FormModal from '../FormModal';
+import VehicleCard from './VehicleCard';
+import VehicleFormModal from './VehicleFormModal';
 import { t } from '../../utils/lang';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   employees: User[];
   cities: City[];
   warehouses: Warehouse[];
+  directions: Direction[];
   onSaveTruck: (t: Vehicle) => void;
   onDeleteTruck: (plate: string) => void;
   onBack: () => void;
@@ -22,87 +23,21 @@ export default function VehiclesSettingView({
   employees,
   cities = [],
   warehouses = [],
+  directions = [],
   onSaveTruck,
   onDeleteTruck,
   onBack
 }: Props) {
   const [selectedTruck, setSelectedTruck] = useState<Vehicle | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Field values
-  const [tPlate, setTPlate] = useState('');
-  const [tModel, setTModel] = useState('');
-  const [tDriver, setTDriver] = useState('');
-  const [tCompanion, setTCompanion] = useState('');
-  const [tCity, setTCity] = useState('');
-  const [tWarehouseId, setTWarehouseId] = useState('');
-
-  // Confirmation state
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [truckToDelete, setTruckToDelete] = useState<string | null>(null);
 
   const activeTrucks = trucks.filter(t => !t.is_deleted);
 
-  // Georgian plate conversion helper
-  const ge2en: Record<string, string> = { 
-    'ა':'A', 'ბ':'B', 'გ':'G', 'დ':'D', 'ე':'E', 'ვ':'V', 'ზ':'Z', 
-    'თ':'T', 'ი':'I', 'კ':'K', 'ლ':'L', 'მ':'M', 'ნ':'N', 'ო':'O', 
-    'პ':'P', 'ჟ':'J', 'რ':'R', 'ს':'S', 'ტ':'T', 'უ':'U', 'ფ':'F', 
-    'ქ':'Q', 'ღ':'R', 'ყ':'Y', 'შ':'S', 'ჩ':'C', 'ც':'C', 'ძ':'Z', 
-    'წ':'W', 'ჭ':'C', 'ხ':'X', 'ჯ':'J', 'ჰ':'H' 
-  };
-
-  const formatLicensePlate = (val: string) => {
-    let mapped = val.toUpperCase().split('').map(c => ge2en[c] || c).join('');
-    let clean = mapped.replace(/[^A-Z0-9]/g, '');
-    let res = '';
-    let let1 = clean.substring(0, 2).replace(/[^A-Z]/g, '');
-    let num = clean.substring(let1.length, let1.length + 3).replace(/[^0-9]/g, '');
-    let let2 = clean.substring(let1.length + num.length, let1.length + num.length + 2).replace(/[^A-Z]/g, '');
-    
-    if (let1) res += let1;
-    if (let1.length === 2 && (num || val.endsWith('-'))) res += '-';
-    if (num) res += num;
-    if (num.length === 3 && (let2 || (val.endsWith('-') && clean.length === 5))) res += '-';
-    if (let2) res += let2;
-    return res;
-  };
-
   const handleOpenTruck = (truck: Vehicle | null) => {
     setSelectedTruck(truck);
-    setTPlate(truck ? truck.plate_number : '');
-    setTModel(truck ? truck.model : '');
-    setTDriver(truck ? truck.driver_id || '' : '');
-    setTCompanion(truck ? truck.companion_id || '' : '');
-    setTCity(truck ? truck.city || '' : '');
-    setTWarehouseId(truck ? truck.warehouse_id || '' : '');
-    setShowConfirmDelete(false);
     setIsModalOpen(true);
-  };
-
-  const handleSave = () => {
-    if (!tPlate.trim() || !tModel.trim()) {
-      alert('Please enter license plate and model name.');
-      return;
-    }
-
-    const driverObj = employees.find(e => e.id === tDriver);
-    const companionObj = employees.find(e => e.id === tCompanion);
-
-    onSaveTruck({
-      plate_number: tPlate.trim(),
-      model: tModel.trim(),
-      driver_id: tDriver,
-      driver_name: driverObj?.name || '',
-      companion_id: tCompanion,
-      companion_name: companionObj?.name || '',
-      city: tCity,
-      warehouse_id: tWarehouseId,
-      is_deleted: false
-    });
-
-    setIsModalOpen(false);
-    setSelectedTruck(null);
   };
 
   const triggerDeleteTruck = () => {
@@ -129,49 +64,15 @@ export default function VehiclesSettingView({
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 w-full">
-        {activeTrucks.map((truck) => {
-          const assignedDriver = employees.find(e => e.id === truck.driver_id)?.name || t('None');
-          const assignedCompanion = employees.find(e => e.id === truck.companion_id)?.name || t('None');
-          const assignedWarehouse = warehouses.find(w => w.id === truck.warehouse_id)?.name || t('Unassigned');
-
-          return (
-            <button
-              key={truck.plate_number}
-              onClick={() => handleOpenTruck(truck)}
-              type="button"
-              className="group bg-white p-5 rounded-2xl border border-gray-100 hover:border-emerald-600 hover:shadow-md transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[160px]"
-            >
-              <div className="space-y-2.5 w-full">
-                {/* Styled License Plate */}
-                <div className="flex items-center justify-between">
-                  <div className="inline-flex items-center border border-gray-400 bg-white rounded px-2 py-0.5 font-mono font-extrabold text-[11px] shadow-2xs">
-                    <div className="w-1.5 h-3 bg-blue-700 mr-1 rounded-xs"></div>
-                    <span className="text-gray-900 tracking-wider font-extrabold">{truck.plate_number}</span>
-                  </div>
-                  <div className="text-gray-400 group-hover:text-amber-800 transition-colors">
-                    <TruckIcon size={16} />
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-extrabold text-sm text-gray-855 font-sans truncate">
-                    {truck.model}
-                  </h4>
-                  <div className="text-[10px] text-gray-405 font-sans mt-1.5 space-y-0.5">
-                    <p className="truncate">{t("City")}: <strong className="text-gray-700">{truck.city || t('Unassigned')}</strong></p>
-                    <p className="truncate">{t("Warehouse")}: <strong className="text-emerald-800 font-bold">{assignedWarehouse}</strong></p>
-                    <p className="truncate">{t("Driver")}: <strong className="text-gray-700">{assignedDriver}</strong></p>
-                    <p className="truncate">{t("Companion")}: <strong className="text-gray-655">{assignedCompanion}</strong></p>
-                  </div>
-                </div>
-              </div>
-
-              <span className="text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity mt-2 block">
-                {t("Manage Asset")} &rarr;
-              </span>
-            </button>
-          );
-        })}
+        {activeTrucks.map((truck) => (
+          <VehicleCard
+            key={truck.plate_number}
+            truck={truck}
+            employees={employees}
+            warehouses={warehouses}
+            onOpen={handleOpenTruck}
+          />
+        ))}
 
         {/* Plus card */}
         <button
@@ -188,86 +89,20 @@ export default function VehiclesSettingView({
         </button>
       </div>
 
-      {/* Main modal */}
-      {/* Main editor Popup Modal */}
-      <FormModal
+      <VehicleFormModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={selectedTruck ? t('Vehicle Specifications') : t('Add Vehicle to Fleet')}
-        maxWidthClass="max-w-md"
-        onDelete={selectedTruck ? triggerDeleteTruck : undefined}
-        deleteLabel={t("Delete")}
-        onCancel={() => setIsModalOpen(false)}
-        onSave={handleSave}
-        saveLabel={t("Save Changes")}
-      >
-        <div className="space-y-4">
-          <FormInput
-            label={`${t("License Plate Number")} *`}
-            type="text"
-            fontClass="font-mono"
-            value={tPlate}
-            onChange={(e) => setTPlate(formatLicensePlate(e.target.value))}
-            disabled={false}
-            placeholder={t("e.g. AA-123-BB")}
-            className="disabled:bg-slate-50 disabled:text-gray-500"
-          />
-
-          <FormInput
-            label={`${t("Vehicle Brand / Model")} *`}
-            type="text"
-            value={tModel}
-            onChange={(e) => setTModel(e.target.value)}
-            placeholder={t("e.g. Mercedes Sprinter")}
-          />
-
-          {/* City Dropdown Selection Filter */}
-          <FormSelect
-            label={t("City / Region")}
-            value={tCity}
-            onChange={(e) => setTCity(e.target.value)}
-          >
-            <option value="">{t("Select a City")}</option>
-            {cities.map(city => (
-              <option key={city.id} value={city.name}>{city.name}</option>
-            ))}
-          </FormSelect>
-
-          {/* Warehouse Dropdown */}
-          <FormSelect
-            label={t("Assigned Warehouse")}
-            value={tWarehouseId}
-            onChange={(e) => setTWarehouseId(e.target.value)}
-          >
-            <option value="">{t("Select a Warehouse")}</option>
-            {warehouses.map(wh => (
-              <option key={wh.id} value={wh.id}>{wh.name}</option>
-            ))}
-          </FormSelect>
-
-          <FormSelect
-            label={`${t("Assigned Default Driver")} *`}
-            value={tDriver}
-            onChange={(e) => setTDriver(e.target.value)}
-          >
-            <option value="" hidden></option>
-            {employees.filter(e => e.role === 'driver').map(e => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </FormSelect>
-
-          <FormSelect
-            label={t("Assigned Co-Driver / Companion")}
-            value={tCompanion}
-            onChange={(e) => setTCompanion(e.target.value)}
-          >
-            <option value="" hidden></option>
-            {employees.filter(e => e.role !== 'driver').map(e => (
-              <option key={e.id} value={e.id}>{e.name} ({t(e.role)})</option>
-            ))}
-          </FormSelect>
-        </div>
-      </FormModal>
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedTruck(null);
+        }}
+        selectedTruck={selectedTruck}
+        employees={employees}
+        cities={cities}
+        warehouses={warehouses}
+        directions={directions}
+        onSaveTruck={onSaveTruck}
+        onDeleteTruck={triggerDeleteTruck}
+      />
 
       {/* Decommission Modal confirmation overlays */}
       <ConfirmDeleteModal
@@ -281,7 +116,6 @@ export default function VehiclesSettingView({
           </span>
         }
       />
-
     </div>
   );
 }

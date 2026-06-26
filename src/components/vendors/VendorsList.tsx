@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Vendor, User, VendorComment, Communication } from '../../types';
+import { Vendor, User, VendorComment, Communication, Direction } from '../../types';
 import { t } from '../../utils/lang';
 import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
+import VendorsTooltip from './VendorsTooltip';
 
 interface Props {
   filteredVendors: Vendor[];
   users: User[];
+  directions: Direction[];
   startEdit: (vendor: Vendor, readOnly?: boolean) => void;
   askDelete: (id: string, name: string) => void;
   selectedVendors: string[];
@@ -19,6 +21,7 @@ interface Props {
 export default function VendorsList({
   filteredVendors,
   users,
+  directions = [],
   startEdit,
   selectedVendors = [],
   setSelectedVendors,
@@ -92,6 +95,19 @@ export default function VendorsList({
         const text = `${vendor.city} (${vendor.district}), ${vendor.address}`;
         return <div className="truncate" title={text}>{text}</div>
       }
+    },
+    direction: {
+      header: t('Direction'),
+      key: 'direction_id',
+      render: (vendor) => {
+        const d = directions.find(dir => dir.id === vendor.direction_id);
+        return d ? d.name : '-';
+      }
+    },
+    vada: {
+      header: t('Vada'),
+      key: 'vada',
+      render: (vendor) => vendor.vada || '-'
     },
     barrels_amount: {
       header: t('Barrels Amount'),
@@ -292,38 +308,12 @@ export default function VendorsList({
         emptyMessage={t("No supplier data matches current search criteria.")}
       />
 
-      {hoveredTooltip && hoveredTooltip.items.length > 0 && hoveredTooltip.rect && (() => {
-        const tooltipWidth = 320;
-        const estimatedLeft = hoveredTooltip.rect.left + (hoveredTooltip.rect.width / 2) - (tooltipWidth / 2);
-        const maxLeft = typeof window !== 'undefined' ? window.innerWidth - tooltipWidth - 16 : 800;
-        const clampedLeft = Math.max(16, Math.min(estimatedLeft, maxLeft));
-
-        return (
-          <div 
-            style={{
-              position: 'fixed',
-              top: hoveredTooltip.rect.top < 220 
-                ? `${hoveredTooltip.rect.top + hoveredTooltip.rect.height + 8}px` 
-                : `${hoveredTooltip.rect.top - 8}px`,
-              left: `${clampedLeft}px`,
-              ...(hoveredTooltip.rect.top >= 220 ? { transform: 'translateY(-100%)' } : {})
-            }}
-            className="w-80 bg-white border border-slate-200 text-slate-800 rounded-xl p-3.5 shadow-xl text-[12px] leading-relaxed z-50 space-y-2 pointer-events-none select-none transition-all duration-150"
-          >
-            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 select-text">
-              {hoveredTooltip.items.map(item => (
-                <div key={item.key} className="border-b border-gray-100 last:border-0 pb-1.5 last:pb-0 font-sans">
-                  <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold mb-0.5 font-sans">
-                    <span className="text-emerald-800 font-sans">{item.author}</span>
-                    <span>{item.date}</span>
-                  </div>
-                  <p className="font-sans text-gray-750 break-words">{item.content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {hoveredTooltip && (
+        <VendorsTooltip
+          items={hoveredTooltip.items}
+          rect={hoveredTooltip.rect}
+        />
+      )}
     </>
   );
 }

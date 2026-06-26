@@ -7,6 +7,7 @@ export const KEY_CHANGE_HISTORY = 'biodiesel_change_history_v2';
 export const KEY_WAREHOUSES = 'biodiesel_warehouses_v2';
 export const KEY_CITIES = 'biodiesel_cities_v2';
 export const KEY_DISTRICTS = 'biodiesel_districts_v2';
+export const KEY_DIRECTIONS = 'biodiesel_directions_v2';
 
 export function getLocal<T>(key: string, preset: T): T {
   const data = localStorage.getItem(key);
@@ -35,6 +36,7 @@ export function resetSystemDatabase(): void {
   localStorage.removeItem(KEY_WAREHOUSES);
   localStorage.removeItem(KEY_CITIES);
   localStorage.removeItem(KEY_DISTRICTS);
+  localStorage.removeItem(KEY_DIRECTIONS);
   localStorage.removeItem('biodiesel_sms_logs');
   localStorage.removeItem('biodiesel_notifications');
 }

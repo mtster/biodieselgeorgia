@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Leaf, LayoutDashboard, BarChart3, Building2, MessageSquare, 
   ShoppingBag, Users, FileText, Globe, History, Settings, LogOut, X, Menu,
-  ChevronDown, ChevronRight, Truck
+  ChevronDown, ChevronRight, Truck, Route
 } from 'lucide-react';
 import { User } from '../../types';
 import { t } from '../../utils/lang';
@@ -26,11 +26,11 @@ export default function Sidebar({
 }: SidebarProps) {
   
   const [settingsOpen, setSettingsOpen] = useState(
-    ['users', 'cities', 'vehicles', 'warehouses', 'history'].includes(activeTab)
+    ['users', 'cities', 'directions', 'vehicles', 'warehouses', 'history'].includes(activeTab)
   );
 
   useEffect(() => {
-    if (['users', 'cities', 'vehicles', 'warehouses', 'history'].includes(activeTab)) {
+    if (['users', 'cities', 'directions', 'vehicles', 'warehouses', 'history'].includes(activeTab)) {
       setSettingsOpen(true);
     }
   }, [activeTab]);
@@ -52,6 +52,7 @@ export default function Sidebar({
   const settingsSubItems = [
     { id: 'users', name: 'Users', icon: <Users size={18} /> },
     { id: 'cities', name: 'Cities', icon: <Globe size={18} /> },
+    { id: 'directions', name: 'Directions', icon: <Route size={18} /> },
     { id: 'vehicles', name: 'Vehicles', icon: <Truck size={18} /> },
     { id: 'warehouses', name: 'Warehouses', icon: <Building2 size={18} /> },
     { id: 'history', name: 'Changes History', icon: <History size={18} /> },
@@ -120,7 +121,7 @@ export default function Sidebar({
               type="button"
               onClick={() => setSettingsOpen(!settingsOpen)}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
-                ['users', 'cities', 'vehicles', 'warehouses', 'history'].includes(activeTab)
+                ['users', 'cities', 'directions', 'vehicles', 'warehouses', 'history'].includes(activeTab)
                   ? 'text-white font-extrabold bg-slate-800/40' 
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}

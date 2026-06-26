@@ -76,6 +76,7 @@ export function cleanVendorDbPayload(vendor: any): any {
     warehouse_id: vendor.warehouse_id || null,
     manager_id: isValidUuid(managerId) ? managerId : null,
     operator_id: isValidUuid(operatorId) ? operatorId : null,
+    direction_id: vendor.direction_id || null,
     working_hours: vendor.working_hours || '',
     contacts: Array.isArray(vendor.contacts) ? vendor.contacts : [],
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
