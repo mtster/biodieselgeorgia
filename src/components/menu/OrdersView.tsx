@@ -52,8 +52,17 @@ export default function OrdersView({
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(endOfMonth.getDate())}`;
+  });
 
   // Active form management
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -95,6 +104,23 @@ export default function OrdersView({
 
   // Action triggers for child forms
   const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
+
+  const lastScrolledOrderId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (editingOrder) {
+      const currentId = editingOrder.id || 'new';
+      if (lastScrolledOrderId.current !== currentId) {
+        lastScrolledOrderId.current = currentId;
+        const mainElement = document.querySelector('main');
+        if (mainElement) {
+          mainElement.scrollTop = 0;
+        }
+      }
+    } else {
+      lastScrolledOrderId.current = null;
+    }
+  }, [editingOrder?.id]);
 
   const loadSMSLogs = async () => {
     const data = await getSMSLogs();

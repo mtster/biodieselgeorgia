@@ -82,6 +82,18 @@ export default function VendorImportModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Local copies of lookups to survive in-session updates
+  const [localCities, setLocalCities] = useState<City[]>(cities);
+  const [localDistricts, setLocalDistricts] = useState<District[]>(districts);
+
+  useEffect(() => {
+    setLocalCities(cities);
+  }, [cities]);
+
+  useEffect(() => {
+    setLocalDistricts(districts);
+  }, [districts]);
+
   // Parsed sheet rows
   const [rawRows, setRawRows] = useState<any[]>([]);
 
@@ -250,8 +262,8 @@ export default function VendorImportModal({
         const sheetManagers = Array.from(new Set(parsedRowsClean.map(r => r.manager).filter(Boolean))) as string[];
 
         // Map lowercases for matching checks
-        const dbCitiesLower = cities.map(c => c.name.trim().toLowerCase());
-        const dbDistrictsLower = districts.map(d => d.name.trim().toLowerCase());
+        const dbCitiesLower = localCities.map(c => c.name.trim().toLowerCase());
+        const dbDistrictsLower = localDistricts.map(d => d.name.trim().toLowerCase());
         const dbUsersLower = users.map(u => u.name.trim().toLowerCase());
 
         const missingC = sheetCities.filter(sc => !dbCitiesLower.includes(sc.trim().toLowerCase()));
@@ -264,13 +276,13 @@ export default function VendorImportModal({
 
         // Pre-build default resolutions (for existing lookup items mapping)
         const initCityMap: Record<string, string> = {};
-        cities.forEach(c => {
+        localCities.forEach(c => {
           initCityMap[c.name.trim().toLowerCase()] = c.id;
           initCityMap[c.name.trim()] = c.id;
         });
 
         const initDistrictMap: Record<string, string> = {};
-        districts.forEach(d => {
+        localDistricts.forEach(d => {
           initDistrictMap[d.name.trim().toLowerCase()] = d.id;
           initDistrictMap[d.name.trim()] = d.id;
         });
@@ -367,18 +379,23 @@ export default function VendorImportModal({
       setProgressMsg('პარალელურად იქმნება ახალი ქალაქები და უბნები...');
       try {
         // A. Save Missing Cities if any
+        const newCitiesList: City[] = [];
         for (const cityName of missingCities) {
           const savedC = await saveCity({
             id: '',
             name: cityName,
-            is_deleted: false,
-            created_at: new Date().toISOString()
+            is_deleted: false
           }, currentUser.name);
           resolvedCityIds[cityName.trim().toLowerCase()] = savedC.id;
           resolvedCityIds[cityName.trim()] = savedC.id;
+          newCitiesList.push(savedC);
+        }
+        if (newCitiesList.length > 0) {
+          setLocalCities(prev => [...prev, ...newCitiesList]);
         }
 
         // B. Save Missing Districts if any
+        const newDistrictsList: District[] = [];
         for (const distInfo of missingDistricts) {
           // Wait, find city ID of parent
           const parentCityLower = distInfo.city.trim().toLowerCase();
@@ -388,12 +405,15 @@ export default function VendorImportModal({
             const savedD = await saveDistrict({
               id: '',
               city_id: cityId,
-              name: distInfo.district,
-              created_at: new Date().toISOString()
+              name: distInfo.district
             }, currentUser.name);
             resolvedDistrictIds[distInfo.district.trim().toLowerCase()] = savedD.id;
             resolvedDistrictIds[distInfo.district.trim()] = savedD.id;
+            newDistrictsList.push(savedD);
           }
+        }
+        if (newDistrictsList.length > 0) {
+          setLocalDistricts(prev => [...prev, ...newDistrictsList]);
         }
       } catch (e) {
         console.error('Error auto-creating locations:', e);
@@ -472,8 +492,8 @@ export default function VendorImportModal({
         }));
 
         // Request Supabase Edge Function directly
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+        const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
+        const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
 
         const res = await fetch(`${supabaseUrl}/functions/v1/import-excel`, {
           method: 'POST',
@@ -508,10 +528,10 @@ export default function VendorImportModal({
 
           // Build clean entities mapped
           const mappedCityId = cityIdMap[row.city.trim().toLowerCase()] || cityIdMap[row.city.trim()] || '';
-          const mappedCityName = cities.find(c => c.id === mappedCityId)?.name || row.city || 'Tbilisi';
+          const mappedCityName = localCities.find(c => c.id === mappedCityId)?.name || row.city || 'Tbilisi';
 
           const mappedDistrictId = districtIdMap[row.district.trim().toLowerCase()] || districtIdMap[row.district.trim()] || '';
-          const mappedDistrictName = districts.find(d => d.id === mappedDistrictId)?.name || row.district || 'Saburtalo';
+          const mappedDistrictName = localDistricts.find(d => d.id === mappedDistrictId)?.name || row.district || 'Saburtalo';
 
           const mappedManagerId = managerIdMap[row.manager.trim().toLowerCase()] || managerIdMap[row.manager.trim()] || currentUser.id;
 
@@ -580,7 +600,7 @@ export default function VendorImportModal({
         {/* HEADER AREA */}
         <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
           <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
-            ექსელის ფაილის იმპორტი სისტემაში
+            მონაცემების იმპორტი ექსელიდან
           </h3>
           <button 
             onClick={onClose} 
@@ -646,7 +666,7 @@ export default function VendorImportModal({
                   disabled={!file}
                   className="px-6 py-2 bg-emerald-800 hover:bg-emerald-950 disabled:bg-gray-100 disabled:text-gray-400 active:bg-emerald-900 text-white rounded-xl text-xs font-black transition flex items-center gap-1 cursor-pointer"
                 >
-                  იმპორტის შემოწმება (Run Pre-Flight Scan)
+                  იმპორტის შემოწმება
                   <ChevronRight size={14} className="mt-0.5" />
                 </button>
               </div>
@@ -674,7 +694,7 @@ export default function VendorImportModal({
                   <div className="flex items-start gap-3">
                     <MapPin className="text-amber-800 shrink-0 mt-0.5 animate-bounce" size={18} />
                     <div className="font-sans">
-                      <h4 className="font-extrabold text-xs text-amber-950">ლოკაციების სინქრონიზაცია (Cities & Districts Resolver)</h4>
+                      <h4 className="font-extrabold text-xs text-amber-950">ლოკაციების სინქრონიზაცია</h4>
                       <p className="text-[11px] text-amber-800 mt-0.5">Excel-ში აღმოჩნდა ქალაქები ან უბნები, რომლებიც არ არსებობს საწყის მონაცემებში. გსურთ მათი ავტომატურად დამატება ბაზაში?</p>
                     </div>
                   </div>
@@ -700,14 +720,14 @@ export default function VendorImportModal({
                       onClick={() => handleResolveAndProceedList(false)}
                       className="px-4 py-1.5 bg-white border border-amber-200 hover:bg-amber-100 text-amber-950 rounded-xl text-[11.5px] font-bold"
                     >
-                      ლინკის გარეშე იმპორტი (Skip Mapping)
+                      ლინკის გარეშე იმპორტი
                     </button>
                     <button 
                       type="button"
                       onClick={() => handleResolveAndProceedList(true)}
                       className="px-5 py-1.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white rounded-xl text-[11.5px] font-black transition"
                     >
-                      ავტო-შექმნა და გაგრძელება (Auto-Create & Proceed)
+                      ავტო-შექმნა და გაგრძელება
                     </button>
                   </div>
                 </div>
@@ -720,7 +740,7 @@ export default function VendorImportModal({
                     <Users className="text-blue-800 shrink-0 mt-0.5" size={18} />
                     <div className="font-sans">
                       <h4 className="font-extrabold text-xs text-blue-950">
-                        მენეჯერის დამატება (Register Missing Manager) — [{currentManagerIdx + 1} / {missingManagers.length}]
+                        მენეჯერის დამატება — [{currentManagerIdx + 1} / {missingManagers.length}]
                       </h4>
                       <p className="text-[11px] text-blue-800 mt-0.5">
                         შემოწმებისას აღმოჩნდა მენეჯერი <strong className="text-blue-950 underline">{missingManagers[currentManagerIdx]}</strong>, რომლის ანგარიშიც არ ირიცხება ბაზაში. გთხოვთ შექმნათ მომხმარებლის პროფილი:
@@ -730,7 +750,7 @@ export default function VendorImportModal({
 
                   <div className="grid grid-cols-2 gap-3.5 bg-white/75 p-4 rounded-xl border border-blue-100">
                     <div>
-                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">სახელი (Full Name)</label>
+                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">სახელი</label>
                       <input 
                         type="text" 
                         value={managerForm.name} 
@@ -739,7 +759,7 @@ export default function VendorImportModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">ელ.ფოსტა (Email)</label>
+                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">ელ.ფოსტა</label>
                       <input 
                         type="email" 
                         value={managerForm.email} 
@@ -748,7 +768,7 @@ export default function VendorImportModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">პირადი ID (Personal 11-digit ID)</label>
+                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">პირადი ID</label>
                       <input 
                         type="text" 
                         value={managerForm.personal_id} 
@@ -758,7 +778,7 @@ export default function VendorImportModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">ტელეფონი (Phone)</label>
+                      <label className="block text-[10.5px] font-bold text-blue-900 mb-1">ტელეფონი</label>
                       <input 
                         type="text" 
                         value={managerForm.phone} 
@@ -783,7 +803,7 @@ export default function VendorImportModal({
                         onClick={handleSkipAllManagersAndProceed}
                         className="px-4 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-xs font-bold transition cursor-pointer"
                       >
-                        ყველას გამოტოვება (Skip Remaining ({missingManagers.length - currentManagerIdx}))
+                        ყველას გამოტოვება ({missingManagers.length - currentManagerIdx})
                       </button>
                       <button 
                         type="button"
@@ -792,7 +812,7 @@ export default function VendorImportModal({
                         className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-black transition flex items-center gap-1 cursor-pointer"
                       >
                         {isCreatingManager ? <Loader2 className="animate-spin" size={13} /> : <Check size={13} />}
-                        პროფილის შექმნა და გაგრძელება (Register profile)
+                        პროფილის შექმნა და გაგრძელება
                       </button>
                     </div>
                   </div>
@@ -806,7 +826,7 @@ export default function VendorImportModal({
                     <CheckCircle size={22} className="animate-bounce" />
                   </div>
                   <div className="space-y-1">
-                    <h5 className="font-black text-sm text-gray-800">იდენტიფიცირება დასრულებულია (Resolving Complete!)</h5>
+                    <h5 className="font-black text-sm text-gray-800">იდენტიფიცირება დასრულებულია</h5>
                     <p className="text-xs text-gray-500">ყველა საჭირო ახალი მენეჯერი და ლოკაცია მზადაა დასაკავშირებლად.</p>
                   </div>
                   <button 
@@ -814,7 +834,7 @@ export default function VendorImportModal({
                     onClick={handleAcceptManagersAndImport}
                     className="px-6 py-2 bg-emerald-800 hover:bg-emerald-950 text-white font-black rounded-xl text-xs transition"
                   >
-                    იმპორტის დაწყება (Start Extracting & Importing Rows)
+                    იმპორტის დაწყება
                   </button>
                 </div>
               )}
@@ -827,7 +847,7 @@ export default function VendorImportModal({
               <div className="flex items-center gap-2.5 justify-center">
                 <Loader2 className="animate-spin text-emerald-700" size={24} />
                 <h4 className="font-extrabold text-xs text-emerald-950 font-sans uppercase tracking-wider">
-                  სმარტ-იმპორტის მუშავება (Smart Parsing in Loops of 50)...
+                  მონაცემების იმპორტი (50-იანი პაკეტებით)...
                 </h4>
               </div>
 
@@ -887,7 +907,7 @@ export default function VendorImportModal({
                   onClick={onClose}
                   className="px-6 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-black transition shadow-sm"
                 >
-                  დახურვა (Close window)
+                  დახურვა
                 </button>
               </div>
             </div>

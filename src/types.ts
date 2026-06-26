@@ -24,6 +24,7 @@ export interface User {
   privileges: string[]; // ოპერაციების პრივილეგიები
   edit_permissions?: EditPermissions;
   is_deleted?: boolean;
+  is_blocked?: boolean;
   created_at?: string;
   warehouse_id?: string;      // საწყობი
 }

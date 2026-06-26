@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Vendor, User, VendorComment } from '../../types';
+import { Vendor, User, VendorComment, Communication } from '../../types';
 import { t } from '../../utils/lang';
 import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
@@ -13,6 +13,7 @@ interface Props {
   selectedVendors: string[];
   setSelectedVendors: React.Dispatch<React.SetStateAction<string[]>>;
   managedCols: ManagedColumn[];
+  communications: Communication[];
 }
 
 export default function VendorsList({
@@ -21,10 +22,11 @@ export default function VendorsList({
   startEdit,
   selectedVendors = [],
   setSelectedVendors,
-  managedCols = []
+  managedCols = [],
+  communications = []
 }: Props) {
-  const [hoveredComments, setHoveredComments] = useState<{
-    comments: VendorComment[];
+  const [hoveredTooltip, setHoveredTooltip] = useState<{
+    items: { key: string; author: string; date: string; content: string }[];
     rect: { top: number; left: number; width: number; height: number } | null;
   } | null>(null);
 
@@ -45,12 +47,14 @@ export default function VendorsList({
     trade_name: {
       header: t('Trade Name'),
       key: 'trade_name',
-      render: (vendor) => vendor.trade_name
+      className: 'min-w-[150px] max-w-[200px]',
+      render: (vendor) => <div className="truncate" title={vendor.trade_name}>{vendor.trade_name}</div>
     },
     id_code: {
       header: t('Taxation ID'),
       key: 'id_code',
-      render: (vendor) => vendor.id_code
+      className: 'min-w-[100px] max-w-[150px]',
+      render: (vendor) => <div className="truncate" title={vendor.id_code}>{vendor.id_code}</div>
     },
     status: {
       header: t('Status'),
@@ -77,12 +81,17 @@ export default function VendorsList({
     working_hours: {
       header: t('Working Hours'),
       key: 'working_hours',
-      render: (vendor) => vendor.working_hours
+      className: 'min-w-[100px] max-w-[150px]',
+      render: (vendor) => <div className="truncate" title={vendor.working_hours}>{vendor.working_hours}</div>
     },
     location: {
       header: t('Location'),
       key: 'location',
-      render: (vendor) => `${vendor.city} (${vendor.district}), ${vendor.address}`
+      className: 'min-w-[150px] max-w-[250px]',
+      render: (vendor) => {
+        const text = `${vendor.city} (${vendor.district}), ${vendor.address}`;
+        return <div className="truncate" title={text}>{text}</div>
+      }
     },
     barrels_amount: {
       header: t('Barrels Amount'),
@@ -97,44 +106,63 @@ export default function VendorsList({
     primary_contact: {
       header: t('Primary Contact'),
       key: 'primary_contact',
+      className: 'min-w-[150px] max-w-[200px]',
       render: (vendor) => {
         const defaultContact = (vendor.contacts || []).find(c => c.is_default);
-        return defaultContact ? `${defaultContact.name} (${defaultContact.phone})` : t('No Contact');
+        const text = defaultContact ? `${defaultContact.name} (${defaultContact.phone})` : t('No Contact');
+        return <div className="truncate" title={text}>{text}</div>
       }
     },
     additional_contacts: {
       header: t('Additional Contacts'),
       key: 'additional_contacts',
+      className: 'min-w-[150px] max-w-[200px]',
       render: (vendor) => {
         const additionalContacts = (vendor.contacts || []).filter(c => !c.is_default && c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
-        return additionalContacts.length > 0
+        const text = additionalContacts.length > 0
           ? additionalContacts.map(c => `${c.name} (${c.phone})`).join(', ')
           : '-';
+        return <div className="truncate" title={text}>{text}</div>
       }
     },
     manager: {
       header: t('Sales Manager'),
       key: 'manager',
-      render: (vendor) => users.find(u => u.id === vendor.manager_id)?.name || '-'
+      className: 'min-w-[100px]',
+      render: (vendor) => <div className="truncate" title={users.find(u => u.id === vendor.manager_id)?.name || ''}>{users.find(u => u.id === vendor.manager_id)?.name || '-'}</div>
     },
     dispatcher: {
       header: t('Operation Manager'),
       key: 'dispatcher',
-      render: (vendor) => users.find(u => u.id === vendor.operator_id)?.name || '-'
+      className: 'min-w-[100px]',
+      render: (vendor) => <div className="truncate" title={users.find(u => u.id === vendor.operator_id)?.name || ''}>{users.find(u => u.id === vendor.operator_id)?.name || '-'}</div>
     },
-    comments: {
-      header: t('Memos / Internal Notes'),
-      key: 'comments',
+    communications: {
+      header: t('Communications'),
+      key: 'communications',
+      className: 'min-w-[150px] max-w-[200px]',
       render: (vendor) => {
-        const latestComment = vendor.comments && vendor.comments.length > 0 ? vendor.comments[0] : null;
+        const vendorComms = (communications || [])
+          .filter(c => c.vendor_id === vendor.id && !c.is_deleted)
+          .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime());
+
+        const latestComm = vendorComms[0];
         return (
           <div
-            className="truncate max-w-[150px]"
+            className="truncate max-w-full text-slate-750 font-sans cursor-pointer"
             onMouseEnter={(e) => {
-              if (vendor.comments && vendor.comments.length > 0) {
+              if (vendorComms.length > 0) {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setHoveredComments({
-                  comments: vendor.comments,
+                setHoveredTooltip({
+                  items: vendorComms.map(c => {
+                    const matchedUser = users.find(u => u.id === c.user_id);
+                    return {
+                      key: c.id,
+                      author: matchedUser?.name || c.user_name || t('System'),
+                      date: new Date(c.date_time).toLocaleDateString() + ' ' + (c.date_time.includes('T') ? c.date_time.split('T')[1].substring(0, 5) : ''),
+                      content: c.comment
+                    };
+                  }),
                   rect: {
                     top: rect.top,
                     left: rect.left,
@@ -144,9 +172,44 @@ export default function VendorsList({
                 });
               }
             }}
-            onMouseLeave={() => setHoveredComments(null)}
+            onMouseLeave={() => setHoveredTooltip(null)}
           >
-            {latestComment ? latestComment.comment : t('No comments')}
+            {latestComm ? latestComm.comment : '-'}
+          </div>
+        );
+      }
+    },
+    comments: {
+      header: t('Memos / Internal Notes'),
+      key: 'comments',
+      className: 'min-w-[150px] max-w-[200px]',
+      render: (vendor) => {
+        const latestComment = vendor.comments && vendor.comments.length > 0 ? vendor.comments[0] : null;
+        return (
+          <div
+            className="truncate max-w-full font-sans cursor-pointer"
+            onMouseEnter={(e) => {
+              if (vendor.comments && vendor.comments.length > 0) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setHoveredTooltip({
+                  items: vendor.comments.map(c => ({
+                    key: c.id,
+                    author: c.user_name || 'System',
+                    date: new Date(c.date).toLocaleDateString(),
+                    content: c.comment
+                  })),
+                  rect: {
+                    top: rect.top,
+                    left: rect.left,
+                    width: rect.width,
+                    height: rect.height,
+                  }
+                });
+              }
+            }}
+            onMouseLeave={() => setHoveredTooltip(null)}
+          >
+            {latestComment ? latestComment.comment : '-'}
           </div>
         );
       }
@@ -159,11 +222,11 @@ export default function VendorsList({
   columns.push({
     header: '',
     key: 'select',
-    className: 'w-12 text-center',
+    className: 'w-12 text-center sticky left-0 z-30 bg-slate-50',
     render: (vendor) => {
       const isChecked = selectedVendors.includes(vendor.id);
       return (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-center sticky left-0 z-30 bg-white">
           <button
             type="button"
             onClick={() => toggleSelect(vendor.id)}
@@ -229,9 +292,9 @@ export default function VendorsList({
         emptyMessage={t("No supplier data matches current search criteria.")}
       />
 
-      {hoveredComments && hoveredComments.comments.length > 0 && hoveredComments.rect && (() => {
+      {hoveredTooltip && hoveredTooltip.items.length > 0 && hoveredTooltip.rect && (() => {
         const tooltipWidth = 320;
-        const estimatedLeft = hoveredComments.rect.left + (hoveredComments.rect.width / 2) - (tooltipWidth / 2);
+        const estimatedLeft = hoveredTooltip.rect.left + (hoveredTooltip.rect.width / 2) - (tooltipWidth / 2);
         const maxLeft = typeof window !== 'undefined' ? window.innerWidth - tooltipWidth - 16 : 800;
         const clampedLeft = Math.max(16, Math.min(estimatedLeft, maxLeft));
 
@@ -239,22 +302,22 @@ export default function VendorsList({
           <div 
             style={{
               position: 'fixed',
-              top: hoveredComments.rect.top < 220 
-                ? `${hoveredComments.rect.top + hoveredComments.rect.height + 8}px` 
-                : `${hoveredComments.rect.top - 8}px`,
+              top: hoveredTooltip.rect.top < 220 
+                ? `${hoveredTooltip.rect.top + hoveredTooltip.rect.height + 8}px` 
+                : `${hoveredTooltip.rect.top - 8}px`,
               left: `${clampedLeft}px`,
-              ...(hoveredComments.rect.top >= 220 ? { transform: 'translateY(-100%)' } : {})
+              ...(hoveredTooltip.rect.top >= 220 ? { transform: 'translateY(-100%)' } : {})
             }}
             className="w-80 bg-white border border-slate-200 text-slate-800 rounded-xl p-3.5 shadow-xl text-[12px] leading-relaxed z-50 space-y-2 pointer-events-none select-none transition-all duration-150"
           >
             <div className="space-y-2 max-h-40 overflow-y-auto pr-1 select-text">
-              {hoveredComments.comments.map(c => (
-                <div key={c.id} className="border-b border-gray-100 last:border-0 pb-1.5 last:pb-0 font-sans">
+              {hoveredTooltip.items.map(item => (
+                <div key={item.key} className="border-b border-gray-100 last:border-0 pb-1.5 last:pb-0 font-sans">
                   <div className="flex justify-between items-center text-[9px] text-slate-400 font-bold mb-0.5 font-sans">
-                    <span className="text-emerald-800 font-sans">{c.user_name}</span>
-                    <span>{new Date(c.date).toLocaleString()}</span>
+                    <span className="text-emerald-800 font-sans">{item.author}</span>
+                    <span>{item.date}</span>
                   </div>
-                  <p className="font-sans text-gray-750 break-words">{c.comment}</p>
+                  <p className="font-sans text-gray-750 break-words">{item.content}</p>
                 </div>
               ))}
             </div>

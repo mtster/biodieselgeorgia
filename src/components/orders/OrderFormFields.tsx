@@ -39,7 +39,7 @@ export default function OrderFormFields({
   return (
     <div className="space-y-6 text-left">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">{t("Core Transaction Details")}</span>
+        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">{t("Core Transaction Details")}</span>
         
         {/* Supplier Autocomplete Input - Notch styling */}
         <SupplierAutocomplete 
@@ -198,8 +198,39 @@ export default function OrderFormFields({
 
       {/* Crew and Fleet Dispatch Assignments */}
       <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 pb-16">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b pb-2">{t("Operations Vehicle Crew")}</span>
+        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">{t("Operations Vehicle Crew")}</span>
         
+        {/* Truck asset */}
+        <FormSelect
+          label={`${t("Assigned Vehicle Plate Asset")} *`}
+          value={editingOrder.truck_plate}
+          onChange={(e) => {
+            const plate = e.target.value;
+            const truck = trucks.find(t => t.plate_number === plate);
+            setEditingOrder(prev => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                truck_plate: plate,
+                ...(truck ? {
+                  driver_id: truck.driver_id || prev.driver_id,
+                  companion_id: truck.companion_id || prev.companion_id
+                } : {})
+              };
+            });
+            if (fieldErrors.truck_plate) setFieldErrors(prev => ({ ...prev, truck_plate: '' }));
+            if (truck && truck.driver_id) {
+              if (fieldErrors.driver_id) setFieldErrors(prev => ({ ...prev, driver_id: '' }));
+            }
+          }}
+          error={fieldErrors.truck_plate}
+        >
+          <option value="" disabled></option>
+          {trucks.map(t => (
+            <option key={t.plate_number} value={t.plate_number}>{t.plate_number} ({t.model})</option>
+          ))}
+        </FormSelect>
+
         {/* Driver select */}
         <FormSelect
           label={`${t("Assigned Fleet Driver")} *`}
@@ -218,29 +249,13 @@ export default function OrderFormFields({
 
         {/* Co-Driver helper select */}
         <FormSelect
-          label={t("Operations Dispatcher / Co-Driver Helper")}
+          label={t("Assistant")}
           value={editingOrder.companion_id}
           onChange={(e) => setEditingOrder(prev => prev ? { ...prev, companion_id: e.target.value } : null)}
         >
           <option value=""></option>
           {employees.map(e => (
             <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
-          ))}
-        </FormSelect>
-
-        {/* Truck asset */}
-        <FormSelect
-          label={`${t("Assigned Vehicle Plate Asset")} *`}
-          value={editingOrder.truck_plate}
-          onChange={(e) => {
-            setEditingOrder(prev => prev ? { ...prev, truck_plate: e.target.value } : null);
-            if (fieldErrors.truck_plate) setFieldErrors(prev => ({ ...prev, truck_plate: '' }));
-          }}
-          error={fieldErrors.truck_plate}
-        >
-          <option value="" disabled></option>
-          {trucks.map(t => (
-            <option key={t.plate_number} value={t.plate_number}>{t.plate_number} ({t.model})</option>
           ))}
         </FormSelect>
       </div>

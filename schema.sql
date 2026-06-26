@@ -16,9 +16,13 @@ DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-    CREATE TYPE public.user_role AS ENUM ('admin', 'manager', 'driver', 'vendor');
+    CREATE TYPE public.user_role AS ENUM ('admin', 'manager', 'driver', 'vendor', 'assistant', 'warehouse_manager');
   END IF;
 END$$;
+
+-- Add values if not exists to handle cases where the type already pre-existed without these values
+ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'assistant';
+ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'warehouse_manager';
 
 -- 1. Cities
 CREATE TABLE IF NOT EXISTS public.cities (
@@ -53,12 +57,14 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     privileges TEXT[] DEFAULT '{}'::TEXT[],
     edit_permissions JSONB DEFAULT '{}'::JSONB,
     is_deleted BOOLEAN DEFAULT FALSE,
+    is_blocked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Apply non-destructive updates to public.profiles table if it pre-exists
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
 
 -- 5. Vehicles
 CREATE TABLE IF NOT EXISTS public.vehicles (

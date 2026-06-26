@@ -172,7 +172,13 @@ export default function App() {
             }
               
             if (dbUser) {
-              setCurrentUser(dbUser);
+              if (dbUser.is_blocked) {
+                await supabase.auth.signOut();
+                setCurrentUser(null);
+                alert(t('Your user account has been blocked by administrators.'));
+              } else {
+                setCurrentUser(dbUser);
+              }
             } else {
               // Auto-create matching user database record
               const newUser: User = {
@@ -183,6 +189,7 @@ export default function App() {
                 phone: session.user.user_metadata?.phone || '599112233',
                 role: (session.user.user_metadata?.role as any) || 'admin',
                 privileges: session.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
+                is_blocked: false,
                 created_at: new Date().toISOString()
               };
               await supabase.from('profiles').insert([newUser]);

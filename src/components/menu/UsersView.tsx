@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { t } from '../../utils/lang';
 import { User, UserRole, Warehouse } from '../../types';
 import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
@@ -22,6 +22,23 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
   // States
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isNew, setIsNew] = useState(false);
+
+  const lastScrolledUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (editingUser) {
+      const currentId = editingUser.id || 'new';
+      if (lastScrolledUserId.current !== currentId) {
+        lastScrolledUserId.current = currentId;
+        const mainElement = document.querySelector('main');
+        if (mainElement) {
+          mainElement.scrollTop = 0;
+        }
+      }
+    } else {
+      lastScrolledUserId.current = null;
+    }
+  }, [editingUser?.id]);
   
   // Action triggers for child forms
   const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);

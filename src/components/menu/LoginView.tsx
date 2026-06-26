@@ -79,6 +79,12 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           }
 
           if (dbUser) {
+            if (dbUser.is_blocked) {
+              await supabase.auth.signOut();
+              setErrorMsg(t('Your user account has been blocked by administrators.'));
+              setLoading(false);
+              return;
+            }
             onLoginSuccess(dbUser);
           } else {
             // Setup a fallback User object if they are logged in via Supabase Auth
@@ -90,6 +96,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               phone: data.user.user_metadata?.phone || '599112233',
               role: (data.user.user_metadata?.role as any) || 'admin',
               privileges: data.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
+              is_blocked: false,
               created_at: new Date().toISOString()
             };
 
@@ -102,7 +109,11 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         // Fallback to local storage matching
         const matched = users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase() && (u.password === password || password === 'admin123'));
         if (matched) {
-          onLoginSuccess(matched);
+          if (matched.is_blocked) {
+            setErrorMsg(t('Your user account has been blocked by administrators.'));
+          } else {
+            onLoginSuccess(matched);
+          }
         } else {
           setErrorMsg(t('Incorrect email or password'));
         }

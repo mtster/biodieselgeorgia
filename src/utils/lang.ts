@@ -71,6 +71,20 @@ export const LANG = {
 };
 
 const GEORGIAN_DICTIONARY: Record<string, string> = {
+  "Management Panel": "მართვის პანელი",
+  "Here you can manage suppliers, plan collection orders, monitor warehouse balances and view detailed analytics.": "აქ შეგიძლიათ მართოთ მომწოდებლები, დაგეგმოთ შეკვეთები, აკონტროლოთ საწყობის ნაშთები და იხილოთ დეტალური ანალიტიკა.",
+  "Total Volume (Actual)": "ჯამური მოცულობა (ფაქტობრივი)",
+  "Drivers": "მძღოლები",
+  "Latest Active Orders": "უახლესი აქტიური შეკვეთები",
+  "View All": "ყველას ნახვა",
+  "Qty": "რაოდენობა",
+  "Operations Status": "ოპერაციების სტატუსი",
+  "Total Vehicles:": "ტრანსპორტის რაოდენობა:",
+  "Active Locations:": "აქტიური ლოკაციები:",
+  "Collected Oil:": "შეგროვებული ზეთი:",
+  "The system automatically notifies the accountant once the driver completes an order.": "სისტემა ავტომატურად აცნობებს ბუღალტერს, როგორც კი მძღოლი დაასრულებს შეკვეთას.",
+  "Unspecified": "არ არის მითითებული",
+  "Unknown Supplier": "უცნობი მომწოდებელი",
   // General Buttons & Actions
   "Save": "შენახვა",
   "Save Changes": "ცვლილებების შენახვა",
@@ -154,6 +168,8 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Add Comment": "კომენტარის დამატება",
   "Save Comment": "კომენტარის შენახვა",
   "No comments": "კომენტარები არ არის",
+  "No communications": "კომუნიკაციები არ არის",
+  "System": "სისტემა",
   "Discard Comment": "კომენტარის წაშლა",
   "Are you sure you want to discard this comment?": "დარწმუნებული ხართ, რომ გსურთ ამ კომენტარის წაშლა?",
 
@@ -539,11 +555,12 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Assistant": "ასისტენტი",
   "Supplier (Vendor)": "მომწოდებელი (Vendor)",
   "Role": "როლი",
+  "Blocked": "დაბლოკილი",
+  "Your user account has been blocked by administrators.": "თქვენი მომხმარებელი დაბლოკილია ადმინისტრატორის მიერ.",
   "Unknown": "უცნობი",
   "User Management": "მომხმარებლების მართვა",
   "Assigned Tasks Only": "მხოლოდ მინიჭებული დავალებები",
   "Analytics": "ანალიტიკა",
-  "Reports": "რეპორტები",
 };
 
 export function t(key: string): string {

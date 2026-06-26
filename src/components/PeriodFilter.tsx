@@ -81,6 +81,10 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
     return presets;
   };
 
+  const isPresetSelected = (pStart: Date, pEnd: Date) => {
+    return cleanStartDate === formatDate(pStart) && cleanEndDate === formatDate(pEnd);
+  };
+
   return (
     <div ref={containerRef} className="flex items-center gap-2 relative">
       <div className="relative w-full md:w-auto min-w-[140px]">
@@ -90,13 +94,17 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
 
       <button
         onClick={() => setShowPresets(!showPresets)}
-        className="p-2 text-emerald-800 hover:bg-emerald-50 rounded-lg transition"
+        className={`p-2 rounded-lg transition flex items-center justify-center ${
+          cleanStartDate || cleanEndDate
+            ? 'text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 shadow-sm font-semibold'
+            : 'text-emerald-800 hover:bg-emerald-50'
+        }`}
       >
         <Calendar size={20} />
       </button>
 
       {showPresets && (
-        <div className="absolute top-full left-12 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 w-48 p-2 space-y-1">
+        <div className="absolute top-full left-12 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 w-52 p-2.5 space-y-1.5">
           <button
             onClick={() => {
               setStartDate('');
@@ -108,15 +116,22 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
             {t("Clear Dates")}
           </button>
           <div className="border-t border-gray-100 my-1"></div>
-          {getPresetDates().map(p => (
-            <button
-              key={p.label}
-              onClick={() => handleApplyPreset(p.start, p.end)}
-              className="w-full text-left px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-emerald-50 rounded-lg transition hover:text-emerald-850"
-            >
-              {t(p.label)}
-            </button>
-          ))}
+          {getPresetDates().map(p => {
+            const selected = isPresetSelected(p.start, p.end);
+            return (
+              <button
+                key={p.label}
+                onClick={() => handleApplyPreset(p.start, p.end)}
+                className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition ${
+                  selected
+                    ? 'font-bold bg-emerald-600 text-white'
+                    : 'font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-850'
+                }`}
+              >
+                {t(p.label)}
+              </button>
+            );
+          })}
         </div>
       )}
 

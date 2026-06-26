@@ -65,6 +65,7 @@ export default function VendorForm({
 
   // Communication modal open state
   const [isCommModalOpen, setIsCommModalOpen] = useState(false);
+  const [isCommDeleteModalOpen, setIsCommDeleteModalOpen] = useState(false);
   const [activeComm, setActiveComm] = useState<Communication | null>(null);
 
   useEffect(() => {
@@ -613,6 +614,20 @@ export default function VendorForm({
         onConfirm={() => commentDeleteId && handleRemoveComment(commentDeleteId)}
         title={t("Discard Comment?")}
         message={t("Are you sure you want to discard this comment?")}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={isCommDeleteModalOpen}
+        onClose={() => setIsCommDeleteModalOpen(false)}
+        onConfirm={() => {
+          if (activeComm && onDeleteCommunication) {
+            onDeleteCommunication(activeComm.id);
+          }
+          setIsCommDeleteModalOpen(false);
+          setActiveComm(null);
+        }}
+        title={t("Delete Communication?")}
+        message={t("Are you sure you want to delete this communication record?")}
       />
 
       <VendorContactModal

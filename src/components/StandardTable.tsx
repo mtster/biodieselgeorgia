@@ -48,8 +48,8 @@ export function StandardTable<T>({
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col relative">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
+        <table className="w-full text-left border-collapse">                
+          <thead className="sticky top-0 z-20">
             <tr className="select-none">
               {columns.map((col, idx) => (
                 <th

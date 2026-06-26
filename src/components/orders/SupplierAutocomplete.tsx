@@ -71,7 +71,11 @@ export default function SupplierAutocomplete({
                 <div
                   key={s.id}
                   onClick={() => {
-                    setEditingOrder(prev => prev ? { ...prev, vendor_id: s.id } : null);
+                    setEditingOrder(prev => prev ? { 
+                      ...prev, 
+                      vendor_id: s.id,
+                      warehouse_id: s.warehouse_id || prev.warehouse_id
+                    } : null);
                     setVendorSearch(s.trade_name);
                     setShowVendorSuggestions(false);
                   }}

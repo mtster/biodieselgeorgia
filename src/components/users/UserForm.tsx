@@ -56,6 +56,12 @@ export default function UserForm({
       editPermissionPages.forEach(p => {
         defaultEditPerms[p.id] = { add: false, edit: false, delete: false };
       });
+      if (editingUser.privileges?.includes('Reports')) {
+        const reportRows = ['report_suppliers', 'report_regions', 'report_managers', 'report_turnover', 'report_last_deliveries'];
+        reportRows.forEach(id => {
+          defaultEditPerms[id] = { add: true, edit: true, delete: true };
+        });
+      }
       setEditingUser({
         ...editingUser,
         edit_permissions: defaultEditPerms
@@ -95,18 +101,30 @@ export default function UserForm({
     };
 
     // Sync to edit permissions
+    const currentPerms = updated.edit_permissions || {};
+    const newPerms = { ...currentPerms };
     const pageId = privilegeToPageMap[priv];
+
     if (pageId) {
-      const currentPerms = updated.edit_permissions || {};
-      const newPerms = { ...currentPerms };
       newPerms[pageId] = { 
         add: !isChecked, 
         edit: !isChecked, 
         delete: !isChecked 
       };
-      updated.edit_permissions = newPerms;
     }
 
+    if (priv === 'Reports') {
+      const reportRows = ['report_suppliers', 'report_regions', 'report_managers', 'report_turnover', 'report_last_deliveries'];
+      reportRows.forEach(id => {
+        newPerms[id] = {
+          add: !isChecked,
+          edit: !isChecked,
+          delete: !isChecked
+        };
+      });
+    }
+
+    updated.edit_permissions = newPerms;
     setEditingUser(updated);
   };
 
@@ -295,6 +313,10 @@ export default function UserForm({
                   autoEditPerms[pageId] = { add: true, edit: true, delete: true };
                 }
               });
+              const reportRows = ['report_suppliers', 'report_regions', 'report_managers', 'report_turnover', 'report_last_deliveries'];
+              reportRows.forEach(id => {
+                autoEditPerms[id] = { add: true, edit: true, delete: true };
+              });
             } else if (role === 'manager') {
               autoPrivileges = ['Dashboard', 'Suppliers', 'Communications', 'Orders', 'Reports', 'Cities', 'Vehicles', 'Warehouses'];
               autoPrivileges.forEach(priv => {
@@ -302,6 +324,10 @@ export default function UserForm({
                 if (pageId) {
                   autoEditPerms[pageId] = { add: true, edit: true, delete: true };
                 }
+              });
+              const reportRows = ['report_suppliers', 'report_regions', 'report_managers', 'report_turnover', 'report_last_deliveries'];
+              reportRows.forEach(id => {
+                autoEditPerms[id] = { add: true, edit: true, delete: true };
               });
             } else if (role === 'driver') {
               autoPrivileges = ['Dashboard', 'Orders'];
@@ -336,6 +362,21 @@ export default function UserForm({
           <option value="assistant">{t("Assistant")}</option>
           <option value="driver">{t("Driver")}</option>
           <option value="vendor">{t("Supplier (Vendor)")}</option>
+        </FormSelect>
+
+        <FormSelect
+          label={t("Status *")}
+          value={editingUser.is_blocked ? 'blocked' : 'active'}
+          onChange={(e) => {
+            const blockedState = e.target.value === 'blocked';
+            setEditingUser({
+              ...editingUser,
+              is_blocked: blockedState
+            });
+          }}
+        >
+          <option value="active">{t("Active")}</option>
+          <option value="blocked">{t("Blocked")}</option>
         </FormSelect>
 
         <FormSelect
@@ -402,8 +443,20 @@ export default function UserForm({
             </div>
 
             {/* Rows */}
-            <div className="divide-y divide-gray-100">
-              {editPermissionPages.map((page) => {
+            <div className="divide-y divide-gray-100 font-sans">
+              {(() => {
+                const visiblePages = [...editPermissionPages];
+                if (editingUser.privileges?.includes('Reports')) {
+                  visiblePages.push(
+                    { id: 'report_suppliers', label: 'Delivered Orders by Suppliers' },
+                    { id: 'report_regions', label: 'Delivered Orders by Regions' },
+                    { id: 'report_managers', label: 'Delivered Orders by Managers' },
+                    { id: 'report_turnover', label: 'Tanks Turnover by Suppliers' },
+                    { id: 'report_last_deliveries', label: 'Last Deliveries Tracker' }
+                  );
+                }
+                return visiblePages;
+              })().map((page) => {
                 const perms = (editingUser.edit_permissions || {})[page.id] || { add: false, edit: false, delete: false };
                 return (
                   <div key={page.id} className="grid grid-cols-12 px-4 py-2.5 items-center">

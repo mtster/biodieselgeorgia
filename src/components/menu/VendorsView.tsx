@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { t } from '../../utils/lang';
 import { 
   Vendor, VendorContact, VendorComment, 
@@ -33,6 +33,7 @@ const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'additional_contacts', label: 'Additional Contacts', visible: true },
   { id: 'manager', label: 'Sales Manager', visible: true },
   { id: 'dispatcher', label: 'Operation Manager', visible: true },
+  { id: 'communications', label: 'Communications', visible: true },
   { id: 'comments', label: 'Memos / Internal Notes', visible: true }
 ];
 
@@ -108,6 +109,23 @@ export default function VendorsView({
 
   // Action triggers for child forms
   const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
+  
+  const lastScrolledVendorId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (editingVendor) {
+      const currentId = editingVendor.id || 'new';
+      if (lastScrolledVendorId.current !== currentId) {
+        lastScrolledVendorId.current = currentId;
+        const mainElement = document.querySelector('main');
+        if (mainElement) {
+          mainElement.scrollTop = 0;
+        }
+      }
+    } else {
+      lastScrolledVendorId.current = null;
+    }
+  }, [editingVendor?.id]);
 
   const startEdit = (vendor: Vendor, readOnly = false) => {
     setEditingVendor(JSON.parse(JSON.stringify(vendor)));
@@ -391,6 +409,7 @@ export default function VendorsView({
             selectedVendors={selectedVendors}
             setSelectedVendors={setSelectedVendors} 
             managedCols={managedCols}
+            communications={communications}
           />
         </div>
       )}

@@ -15,6 +15,8 @@ const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'date_time', label: 'Date & Time', visible: true },
   { id: 'type', label: 'Type', visible: true },
   { id: 'vendor_name', label: 'Supplier / Subject', visible: true },
+  { id: 'company_name', label: 'Company Name', visible: true },
+  { id: 'id_code', label: 'Identification Code', visible: true },
   { id: 'user_name', label: 'Operator / User', visible: true },
   { id: 'comment', label: 'Interaction Comment', visible: true },
   { id: 'responsible_user_id', label: 'Responsible User', visible: true },
@@ -228,6 +230,22 @@ export default function CommunicationsView({
       render: (comm) => {
         const suppObj = suppliers.find(s => s.id === comm.vendor_id);
         return suppObj ? suppObj.trade_name : (comm.vendor_name || t('Supplier'));
+      }
+    },
+    company_name: {
+      header: t('Company Name'),
+      key: 'company_name',
+      render: (comm) => {
+        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
+        return suppObj ? suppObj.company_name : '-';
+      }
+    },
+    id_code: {
+      header: t('Identification Code'),
+      key: 'id_code',
+      render: (comm) => {
+        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
+        return suppObj ? suppObj.id_code : '-';
       }
     },
     user_name: {

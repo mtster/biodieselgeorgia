@@ -128,14 +128,14 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-gray-800">
-                          {supplierObj ? supplierObj.trade_name : (order.vendor_name || 'Unknown Supplier')}
+                          {supplierObj ? supplierObj.trade_name : (order.vendor_name || t('Unknown Supplier'))}
                         </span>
                         <span className="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
                           {order.doc_number}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-450 font-sans">
-                        {t("Warehouse")}: {order.warehouse_name || 'Unspecified'} • {t("Qty")}: {order.qty_requested} L.
+                        {t("Warehouse")}: {order.warehouse_name || t('Unspecified')} • {t("Qty")}: {order.qty_requested} L.
                       </p>
                     </div>
                     <div>
