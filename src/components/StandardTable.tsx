@@ -75,16 +75,24 @@ export function StandardTable<T>({
                     isClickable ? 'cursor-pointer hover:bg-slate-50/80' : ''
                   } ${customRowClass}`}
                 >
-                  {columns.map((col, colIdx) => (
-                    <td
-                      key={col.key || colIdx}
-                      className={`py-3.5 px-4 whitespace-nowrap text-xs font-sans text-gray-700 leading-normal ${
-                        col.className || ''
-                      }`}
-                    >
-                      {col.render ? col.render(item) : (item as any)[col.key] ?? '-'}
-                    </td>
-                  ))}
+                  {columns.map((col, colIdx) => {
+                    const isSelectCol = col.key === 'select';
+                    return (
+                      <td
+                        key={col.key || colIdx}
+                        onClick={(e) => {
+                          if (isSelectCol) {
+                            e.stopPropagation();
+                          }
+                        }}
+                        className={`py-3.5 px-4 whitespace-nowrap text-xs font-sans text-gray-700 leading-normal ${
+                          isSelectCol ? 'bg-slate-50/80 hover:bg-slate-50/80 cursor-default' : ''
+                        } ${col.className || ''}`}
+                      >
+                        {col.render ? col.render(item) : (item as any)[col.key] ?? '-'}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}

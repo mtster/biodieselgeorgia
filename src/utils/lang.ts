@@ -113,8 +113,9 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Settings": "პარამეტრები",
   "Users": "მომხმარებლები",
   "Cities": "ქალაქები",
-  "Directions": "მიმართულებები",
-  "mimartulebebi": "მიმართულებები",
+  "Directions": "მიმართულება",
+  "mimartulebebi": "მიმართულება",
+  "mimartuleba": "მიმართულება",
   "vada": "ვადა (დღეები)",
   "Vada": "ვადა (დღეები)",
   "Direction is required.": "მიმართულება სავალდებულოა",
@@ -592,6 +593,13 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "User Management": "მომხმარებლების მართვა",
   "Assigned Tasks Only": "მხოლოდ მინიჭებული დავალებები",
   "Analytics": "ანალიტიკა",
+  "Location Parameters": "ლოკაციის პარამეტრები",
+  "Management & Operations": "მართვა და ოპერაციები",
+  "zednadebit raodenoba": "ზედნადებით რაოდენობა",
+  "Waybill Quantity": "ზედნადებით რაოდენობა",
+  "Delete Column?": "წავშალოთ სვეტი?",
+  "Are you sure you want to delete this custom column? This will remove it from the table.": "დარწმუნებული ხართ, რომ გსურთ ამ სვეტის წაშლა? ეს მას ცხრილიდანაც წაშლის.",
+  "Custom": "დამატებითი",
 };
 
 export function t(key: string): string {

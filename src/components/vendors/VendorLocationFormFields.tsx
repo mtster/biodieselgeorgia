@@ -82,7 +82,7 @@ export default function VendorLocationFormFields({
         />
 
         <FormSelect
-          label={t("mimartulebebi *")}
+          label={t("mimartuleba *")}
           value={editingVendor.direction_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, direction_id: e.target.value } : null);

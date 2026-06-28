@@ -16,7 +16,8 @@ import {
   getCities, saveCity, deleteCity,
   getDistricts, saveDistrict, deleteDistrict,
   getDirections, saveDirection, deleteDirection,
-  resetSystemDatabase, isSupabaseConfigured, supabase, revertChange
+  resetSystemDatabase, isSupabaseConfigured, supabase, revertChange,
+  createDatabaseOrderColumn
 } from '../lib/db';
 import { 
   checkSupplierDeletion, 
@@ -54,6 +55,9 @@ export function useAppData() {
   // Sync data function
   const refreshAllData = async () => {
     try {
+      if (isSupabaseConfigured && supabase) {
+        await createDatabaseOrderColumn('waybill_qty');
+      }
       const usrs = await getUsers();
       const vnds = await getVendors();
       const ords = await getOrders();

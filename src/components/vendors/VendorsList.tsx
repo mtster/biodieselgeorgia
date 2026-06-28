@@ -242,7 +242,7 @@ export default function VendorsList({
     render: (vendor) => {
       const isChecked = selectedVendors.includes(vendor.id);
       return (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-center sticky left-0 z-30 bg-white">
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-center sticky left-0 z-30 bg-transparent">
           <button
             type="button"
             onClick={() => toggleSelect(vendor.id)}

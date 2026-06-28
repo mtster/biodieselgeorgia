@@ -89,9 +89,6 @@ export default function DirectionsSettingView({
                   </h4>
                 </div>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("Configure Cards")} &rarr;
-              </span>
             </button>
           );
         })}

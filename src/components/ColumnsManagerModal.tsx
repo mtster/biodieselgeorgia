@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, Plus, Check } from 'lucide-react';
+import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { t } from '../utils/lang';
 
 export interface ManagedColumn {
@@ -28,6 +28,7 @@ export default function ColumnsManagerModal({
 }: ColumnsManagerModalProps) {
   const [tempColumns, setTempColumns] = useState<ManagedColumn[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [colToDelete, setColToDelete] = useState<string | null>(null);
   
   // Custom Column adding states
   const [isAdding, setIsAdding] = useState(false);
@@ -39,6 +40,7 @@ export default function ColumnsManagerModal({
       setTempColumns([...columns]);
       setIsAdding(false);
       setNewColName('');
+      setColToDelete(null);
     }
   }, [isOpen, columns]);
 
@@ -104,15 +106,6 @@ export default function ColumnsManagerModal({
   const handleSave = () => {
     onSave(tempColumns);
     onClose();
-  };
-
-  const handleResetToDefault = () => {
-    // Revert Columns settings to defaults where everything is toggled on and naturally arranged
-    const resetList = defaultColumns.map(col => ({
-      ...col,
-      visible: true
-    }));
-    setTempColumns(resetList);
   };
 
   return (
@@ -204,23 +197,30 @@ export default function ColumnsManagerModal({
                   />
                   <span className={`text-xs font-semibold font-sans ${col.visible ? 'text-gray-700' : 'text-gray-400 line-through'}`}>
                     {t(col.label)}
-                    {col.isCustom && <span className="ml-1.5 text-[8px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded font-mono uppercase">custom</span>}
+                    {col.isCustom && <span className="ml-1.5 text-[8px] bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded font-mono uppercase">{t("Custom")}</span>}
                   </span>
                 </div>
+
+                {col.isCustom && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setColToDelete(col.id);
+                    }}
+                    className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                    title={t("Delete")}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Footer with Reset to Defaults on left and action buttons on right */}
-        <div className="border-t border-gray-100 pt-4 mt-4 flex items-center justify-between shrink-0">
-          <button
-            type="button"
-            onClick={handleResetToDefault}
-            className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer"
-          >
-            {t("Default")}
-          </button>
+        {/* Footer with action buttons on right */}
+        <div className="border-t border-gray-100 pt-4 mt-4 flex items-center justify-end shrink-0">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -240,6 +240,38 @@ export default function ColumnsManagerModal({
         </div>
 
       </div>
+
+      {colToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl p-5 max-w-sm w-full shadow-lg border border-gray-100 space-y-4">
+            <h4 className="text-sm font-bold text-gray-850 uppercase tracking-widest font-sans">
+              {t("Delete Column?")}
+            </h4>
+            <p className="text-xs text-gray-600">
+              {t("Are you sure you want to delete this custom column? This will remove it from the table.")}
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setColToDelete(null)}
+                className="px-3.5 py-1.5 border border-gray-200 rounded-lg text-[11px] font-bold text-gray-700 hover:bg-slate-50 transition cursor-pointer"
+              >
+                {t("Cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTempColumns(prev => prev.filter(c => c.id !== colToDelete));
+                  setColToDelete(null);
+                }}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+              >
+                {t("Delete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

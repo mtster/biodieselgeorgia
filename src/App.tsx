@@ -16,6 +16,7 @@ import CommunicationsView from './components/menu/CommunicationsView';
 import OrdersView from './components/menu/OrdersView';
 import UsersView from './components/menu/UsersView';
 import ReportsView from './components/menu/ReportsView';
+import ContactsView from './components/menu/ContactsView';
 import CitiesSettingView from './components/settings/CitiesSettingView';
 import DirectionsSettingView from './components/settings/DirectionsSettingView';
 import VehiclesSettingView from './components/settings/VehiclesSettingView';
@@ -72,6 +73,8 @@ export default function App() {
     handleDeleteWarehouse,
     handleLogOut
   } = useAppData();
+
+  const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
 
   if (isLoading) {
     return (
@@ -196,6 +199,19 @@ export default function App() {
                 communications={communications}
                 onSaveCommunication={handleCommunicationSave}
                 onDeleteCommunication={handleCommunicationDelete}
+                initialVendorId={selectedContactVendorId}
+                onClearInitialVendorId={() => setSelectedContactVendorId(undefined)}
+              />
+            )}
+
+            {activeTab === 'contacts' && (
+              <ContactsView
+                vendors={vendors}
+                onSaveVendor={handleVendorSave}
+                onContactClick={(vendorId) => {
+                  setSelectedContactVendorId(vendorId);
+                  setActiveTab('vendors');
+                }}
               />
             )}
 

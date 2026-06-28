@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { t } from '../../utils/lang';
 import { 
   Vendor, Warehouse, User, City, District, Communication, Direction 
@@ -53,12 +53,15 @@ interface Props {
   communications?: Communication[];
   onSaveCommunication?: (comm: Communication) => Promise<void> | void;
   onDeleteCommunication?: (id: string) => Promise<void> | void;
+  initialVendorId?: string;
+  onClearInitialVendorId?: () => void;
 }
 
 export default function VendorsView({ 
   vendors, warehouses, users, cities, districts, directions,
   currentUser, onSave, onDelete,
-  communications = [], onSaveCommunication, onDeleteCommunication
+  communications = [], onSaveCommunication, onDeleteCommunication,
+  initialVendorId, onClearInitialVendorId
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
@@ -69,6 +72,22 @@ export default function VendorsView({
   
   // Active edit state (On-screen form)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+
+  // Auto-open vendor form if initialVendorId is supplied
+  useEffect(() => {
+    if (initialVendorId) {
+      const v = vendors.find(v => v.id === initialVendorId);
+      if (v) {
+        setEditingVendor(v);
+        setIsNew(false);
+      }
+    }
+  }, [initialVendorId, vendors]);
+
+  const handleCloseForm = () => {
+    setEditingVendor(null);
+    onClearInitialVendorId?.();
+  };
   const [isNew, setIsNew] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -161,7 +180,7 @@ export default function VendorsView({
 
   const handleSaveFromForm = (payload: Vendor) => {
     onSave(payload);
-    setEditingVendor(null);
+    handleCloseForm();
   };
 
   const filteredVendors = vendors.filter(v => {
@@ -191,7 +210,7 @@ export default function VendorsView({
     if (deleteConfirmId) {
       onDelete(deleteConfirmId, deleteConfirmName || '');
       if (editingVendor?.id === deleteConfirmId) {
-        setEditingVendor(null);
+        handleCloseForm();
       }
     }
     setDeleteConfirmId(null);
@@ -271,7 +290,7 @@ export default function VendorsView({
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
       <PageHeader 
         title={t("Suppliers")}
-        onBack={editingVendor ? () => setEditingVendor(null) : undefined}
+        onBack={editingVendor ? handleCloseForm : undefined}
         backButtonId="vendor-form-back-arrow"
         actions={headerActions}
       />
@@ -288,7 +307,7 @@ export default function VendorsView({
           directions={directions}
           currentUser={currentUser}
           onSave={handleSaveFromForm}
-          onCancel={() => setEditingVendor(null)}
+          onCancel={handleCloseForm}
           formRef={formRef}
           communications={communications}
           onSaveCommunication={onSaveCommunication}

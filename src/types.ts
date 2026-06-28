@@ -97,6 +97,7 @@ export interface Order {
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
   fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
+  waybill_qty?: number;       // ზედნადებით რაოდენობა
   note?: string;              // შენიშვნა
   tanks_to_leave: number;     // დასატოვებელი ავზები რაოდ
   tanks_to_bring: number;     // წამოსაღები ავზების რაოდ

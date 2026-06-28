@@ -143,14 +143,16 @@ export default function OrderFormFields({
           <option value="cancelled">{t("Cancelled")}</option>
         </FormSelect>
 
-        {/* Fact & Volumetric Parameters (Only for Completed Orders) */}
-        {editingOrder.status === 'completed' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white border border-emerald-100 rounded-2xl p-6 animate-in slide-in-from-top-3 duration-150">
+        {/* Fact & Volumetric Parameters (Always visible regardless of status) */}
+        <div className="bg-white border border-emerald-100 rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-3 duration-150">
+          <span className="text-xs font-black uppercase text-emerald-850 tracking-wider block border-b border-gray-100 pb-2">
+            {t("Factual Details")} {editingOrder.status === 'completed' && " *"}
+          </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormInput
-              label={`${t("Fact QTY (L)")} *`}
+              label={`${t("Fact QTY (L)")}${editingOrder.status === 'completed' ? ' *' : ''}`}
               type="number"
               step="0.01"
-              required
               fontClass="font-mono font-bold"
               value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
               onChange={(e) => {
@@ -161,24 +163,33 @@ export default function OrderFormFields({
             />
 
             <FormInput
-              label={`${t("Fact Tank Dropoff")} *`}
+              label={t("Fact Tank Dropoff")}
               type="number"
-              required
               fontClass="font-mono"
               value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
               onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
             />
 
             <FormInput
-              label={`${t("Fact Tank Pickup")} *`}
+              label={t("Fact Tank Pickup")}
               type="number"
-              required
               fontClass="font-mono"
               value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
               onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
             />
           </div>
-        )}
+
+          <div className="border-t border-gray-100 pt-4">
+            <FormInput
+              label={t("zednadebit raodenoba")}
+              type="number"
+              step="0.01"
+              fontClass="font-mono"
+              value={editingOrder.waybill_qty === undefined || editingOrder.waybill_qty === null ? '' : editingOrder.waybill_qty}
+              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, waybill_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
+            />
+          </div>
+        </div>
 
         {/* Dynamic Custom Fields from Columns Manager */}
         <DynamicCustomFields

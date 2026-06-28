@@ -153,7 +153,7 @@ export default function VehicleFormModal({
         </FormSelect>
 
         <FormSelect
-          label={t("mimartulebebi")}
+          label={t("mimartuleba")}
           value={tDirectionId}
           onChange={(e) => setTDirectionId(e.target.value)}
         >

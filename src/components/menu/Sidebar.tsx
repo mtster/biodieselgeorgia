@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Leaf, LayoutDashboard, BarChart3, Building2, MessageSquare, 
   ShoppingBag, Users, FileText, Globe, History, Settings, LogOut, X, Menu,
-  ChevronDown, ChevronRight, Truck, Route
+  ChevronDown, ChevronRight, Truck, Route, BookOpen
 } from 'lucide-react';
 import { User } from '../../types';
 import { t } from '../../utils/lang';
@@ -40,12 +40,16 @@ export default function Sidebar({
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { id: 'vendors', name: 'Suppliers', icon: <Building2 size={18} /> },
+    { id: 'contacts', name: 'Contacts', icon: <BookOpen size={18} /> },
     { id: 'communications', name: 'Communications', icon: <MessageSquare size={18} /> },
     { id: 'orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
     { id: 'reports', name: 'Reports', icon: <FileText size={18} /> },
   ].filter(item => {
     if (isAdmin) return true;
     if (!currentUser || !currentUser.privileges) return true;
+    if (item.id === 'contacts') {
+      return currentUser.privileges.includes('Suppliers');
+    }
     return currentUser.privileges.includes(item.name);
   });
 
