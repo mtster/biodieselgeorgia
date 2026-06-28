@@ -1,17 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Vendor, VendorContact } from '../../types';
-import { BookOpen, Search, Plus, Building2, User2, Phone, Briefcase } from 'lucide-react';
+import { 
+  User, Vendor, VendorContact, Warehouse, City, 
+  District, Communication, Direction 
+} from '../../types';
+import { Search, Plus, Building2, User2, Phone } from 'lucide-react';
 import { t, formatPhone } from '../../utils/lang';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
+import VendorForm from '../vendors/VendorForm';
 
 interface ContactsViewProps {
   vendors: Vendor[];
   onSaveVendor: (vendor: Vendor) => void | Promise<void>;
   onContactClick: (vendorId: string) => void;
+
+  // Needed for rendering VendorForm inline
+  warehouses: Warehouse[];
+  users: User[];
+  cities: City[];
+  districts: District[];
+  directions: Direction[];
+  currentUser: User;
+  communications?: Communication[];
+  onSaveCommunication?: (comm: Communication) => Promise<void> | void;
+  onDeleteCommunication?: (id: string) => Promise<void> | void;
 }
 
 interface ContactRow {
@@ -26,9 +41,23 @@ interface ContactRow {
   vendor: Vendor;
 }
 
-export default function ContactsView({ vendors, onSaveVendor, onContactClick }: ContactsViewProps) {
+export default function ContactsView({ 
+  vendors, 
+  onSaveVendor, 
+  onContactClick,
+  warehouses,
+  users,
+  cities,
+  districts,
+  directions,
+  currentUser,
+  communications = [],
+  onSaveCommunication,
+  onDeleteCommunication
+}: ContactsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedVendorForForm, setSelectedVendorForForm] = useState<Vendor | null>(null);
 
   // Modal fields
   const [selectedVendorId, setSelectedVendorId] = useState('');
@@ -52,6 +81,16 @@ export default function ContactsView({ vendors, onSaveVendor, onContactClick }: 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Sync selectedVendorForForm if vendors list is updated in App level
+  useEffect(() => {
+    if (selectedVendorForForm) {
+      const updated = vendors.find(v => v.id === selectedVendorForForm.id);
+      if (updated) {
+        setSelectedVendorForForm(updated);
+      }
+    }
+  }, [vendors, selectedVendorForForm]);
 
   // Filter out soft-deleted vendors
   const activeVendors = vendors.filter(v => !v.is_deleted);
@@ -94,20 +133,20 @@ export default function ContactsView({ vendors, onSaveVendor, onContactClick }: 
     return name.includes(vendorSearchQuery.toLowerCase());
   });
 
-  // Define columns
+  // Define columns with logical max-width constraints to prevent wide stretching
   const columns: ColumnConfig<ContactRow>[] = [
     {
-      header: t('Contact Name *'),
+      header: t('Contact Name'),
       key: 'name',
-      className: 'font-bold text-gray-900',
+      className: 'text-gray-700 max-w-[180px] truncate',
       render: (row) => (
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+        <div className="flex items-center gap-2 truncate">
+          <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
             <User2 size={14} />
           </div>
-          <div>
-            <span className="block font-semibold text-gray-800">{row.name}</span>
-            {row.note && <span className="block text-[10px] text-gray-400 font-normal">{row.note}</span>}
+          <div className="min-w-0 flex-1 truncate text-left">
+            <span className="block text-gray-700 font-medium truncate">{row.name}</span>
+            {row.note && <span className="block text-[10px] text-gray-400 font-normal truncate">{row.note}</span>}
           </div>
         </div>
       )
@@ -115,6 +154,7 @@ export default function ContactsView({ vendors, onSaveVendor, onContactClick }: 
     {
       header: t('Position / Role'),
       key: 'position',
+      className: 'text-gray-700 max-w-[140px] truncate',
       render: (row) => {
         const positions: Record<string, string> = {
           accountant: t('Accountant'),
@@ -122,35 +162,35 @@ export default function ContactsView({ vendors, onSaveVendor, onContactClick }: 
           operator: t('Operations Mgr'),
           other: t('Other Position')
         };
-        return <span className="font-semibold">{positions[row.position] || t('Other Position')}</span>;
+        return <span className="text-gray-700 font-medium truncate">{positions[row.position] || t('Other Position')}</span>;
       }
     },
     {
-      header: t('Mobile Phone Number *'),
+      header: t('Mobile Phone Number'),
       key: 'phone',
-      className: 'font-mono text-gray-800 font-bold',
+      className: 'font-mono text-gray-700 max-w-[140px] truncate',
       render: (row) => (
-        <div className="flex items-center gap-1.5">
-          <Phone size={12} className="text-gray-400" />
-          <span>{row.phone}</span>
+        <div className="flex items-center gap-1.5 truncate">
+          <Phone size={12} className="text-gray-400 shrink-0" />
+          <span className="truncate">{row.phone}</span>
         </div>
       )
     },
     {
       header: t('Company Name'),
       key: 'company_name',
-      className: 'font-medium text-slate-700',
+      className: 'text-gray-700 max-w-[180px] truncate',
       render: (row) => (
-        <div className="flex items-center gap-2">
-          <Building2 size={13} className="text-gray-400" />
-          <span>{row.company_name}</span>
+        <div className="flex items-center gap-2 truncate">
+          <Building2 size={13} className="text-gray-400 shrink-0" />
+          <span className="truncate">{row.company_name}</span>
         </div>
       )
     },
     {
       header: t('Company Code'),
       key: 'company_code',
-      className: 'font-mono text-gray-500 text-xs'
+      className: 'font-mono text-gray-500 text-xs max-w-[120px] truncate'
     }
   ];
 
@@ -203,37 +243,154 @@ export default function ContactsView({ vendors, onSaveVendor, onContactClick }: 
     }
   };
 
+  // Cursor and backspace preservation handlers for phone input
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const val = input.value;
+    const start = input.selectionStart || 0;
+
+    const beforeCursor = val.slice(0, start);
+    const digitsBefore = beforeCursor.replace(/[^0-9+]/g, '').length;
+
+    const formatted = formatPhone(val);
+    setContactPhone(formatted);
+
+    setTimeout(() => {
+      let newPos = 0;
+      let digitCount = 0;
+      for (let i = 0; i < formatted.length; i++) {
+        if (formatted[i] !== ' ') {
+          digitCount++;
+        }
+        if (digitCount === digitsBefore) {
+          newPos = i + 1;
+          break;
+        }
+      }
+      input.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      const input = e.currentTarget;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+
+      if (start === end && start !== null && start > 0) {
+        const val = input.value;
+        const charToLeft = val[start - 1];
+
+        if (charToLeft === ' ') {
+          e.preventDefault();
+
+          let deleteIdx = start - 1;
+          while (deleteIdx >= 0 && val[deleteIdx] === ' ') {
+            deleteIdx--;
+          }
+
+          if (deleteIdx >= 0) {
+            const newVal = val.slice(0, deleteIdx) + val.slice(deleteIdx + 1);
+            const formatted = formatPhone(newVal);
+
+            const digitsBefore = val.slice(0, deleteIdx).replace(/[^0-9+]/g, '').length;
+            setContactPhone(formatted);
+
+            setTimeout(() => {
+              let newPos = 0;
+              let digitCount = 0;
+              for (let i = 0; i < formatted.length; i++) {
+                if (formatted[i] !== ' ') {
+                  digitCount++;
+                }
+                if (digitCount === digitsBefore) {
+                  newPos = i + 1;
+                  break;
+                }
+              }
+              input.setSelectionRange(newPos, newPos);
+            }, 0);
+          }
+        }
+      }
+    }
+  };
+
+  // Render the breadcrumb title if editing a vendor directly inline
+  const pageTitle = selectedVendorForForm ? (
+    <div className="flex items-center gap-1.5 md:gap-2 flex-wrap text-sm md:text-base">
+      <span className="text-gray-500 font-semibold">{t("Contacts")}</span>
+      <span className="text-gray-450 font-medium">&gt;</span>
+      <span className="text-emerald-850 font-bold">
+        {t("Supplier")}: <span className="underline">{selectedVendorForForm.trade_name || selectedVendorForForm.company_name}</span>
+      </span>
+    </div>
+  ) : (
+    t("Contacts")
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Contacts"
-        subtitle="View and manage centralized contact directory across suppliers"
+        title={pageTitle}
+        onBack={selectedVendorForForm ? () => setSelectedVendorForForm(null) : undefined}
         actions={
-          <button
-            onClick={handleAddClick}
-            type="button"
-            className="p-2.5 px-4 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black rounded-xl cursor-pointer flex items-center justify-center gap-2 transition duration-150 select-none shadow-sm"
-          >
-            <Plus size={15} strokeWidth={2.5} />
-            <span>{t("Add Contact")}</span>
-          </button>
+          !selectedVendorForForm && (
+            <button
+              onClick={handleAddClick}
+              type="button"
+              className="p-2.5 px-4 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black rounded-xl cursor-pointer flex items-center justify-center gap-2 transition duration-150 select-none shadow-sm"
+            >
+              <Plus size={15} strokeWidth={2.5} />
+              <span>{t("Add Contact")}</span>
+            </button>
+          )
         }
       />
 
-      <div className="bg-slate-50/50 border border-gray-100 p-4 rounded-2xl">
-        <CentralSearchBar
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder={t("Search contact name, phone or company...")}
-        />
-      </div>
+      {selectedVendorForForm ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-1">
+          <VendorForm
+            editingVendor={selectedVendorForForm}
+            setEditingVendor={setSelectedVendorForForm}
+            warehouses={warehouses}
+            users={users}
+            cities={cities}
+            districts={districts}
+            directions={directions}
+            currentUser={currentUser}
+            onSave={async (updatedVendor) => {
+              await onSaveVendor(updatedVendor);
+              setSelectedVendorForForm(null); // Return to contacts list upon save
+            }}
+            onCancel={() => setSelectedVendorForForm(null)}
+            communications={communications}
+            onSaveCommunication={onSaveCommunication}
+            onDeleteCommunication={onDeleteCommunication}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Plain search bar without any enclosing box styled outline */}
+          <CentralSearchBar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder={t("Search contact name, phone or company...")}
+          />
 
-      <StandardTable
-        data={filteredContacts}
-        columns={columns}
-        onRowClick={(row) => onContactClick(row.vendor_id)}
-        emptyMessage="No contacts recorded"
-      />
+          <StandardTable
+            data={filteredContacts}
+            columns={columns}
+            onRowClick={(row) => {
+              const matchedVendor = activeVendors.find(v => v.id === row.vendor_id);
+              if (matchedVendor) {
+                setSelectedVendorForForm(matchedVendor);
+              }
+            }}
+            emptyMessage="No contacts recorded"
+          />
+        </>
+      )}
 
       {/* ADD CONTACT MODAL WITH INTEGRATED SUPPLIER TYPE SEARCH */}
       <FormModal
@@ -263,7 +420,6 @@ export default function ContactsView({ vendors, onSaveVendor, onContactClick }: 
                 onChange={(e) => {
                   setVendorSearchQuery(e.target.value);
                   setIsVendorDropdownOpen(true);
-                  // Reset selection if query changes unless matched
                   if (selectedVendorId) {
                     const matched = activeVendors.find(v => (v.trade_name || v.company_name || '').toLowerCase() === e.target.value.toLowerCase());
                     if (!matched) setSelectedVendorId('');
@@ -319,7 +475,8 @@ export default function ContactsView({ vendors, onSaveVendor, onContactClick }: 
             value={contactPhone}
             fontClass="font-mono font-bold"
             onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
-            onChange={(e) => setContactPhone(formatPhone(e.target.value))}
+            onChange={handlePhoneChange}
+            onKeyDown={handlePhoneKeyDown}
           />
 
           <FormSelect

@@ -212,6 +212,15 @@ export default function App() {
                   setSelectedContactVendorId(vendorId);
                   setActiveTab('vendors');
                 }}
+                warehouses={warehouses}
+                users={users}
+                cities={cities}
+                districts={districts}
+                directions={directions}
+                currentUser={currentUser}
+                communications={communications}
+                onSaveCommunication={handleCommunicationSave}
+                onDeleteCommunication={handleCommunicationDelete}
               />
             )}
 

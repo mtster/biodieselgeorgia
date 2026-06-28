@@ -35,6 +35,78 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
     }
   }, [isOpen, activeContact]);
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const val = input.value;
+    const start = input.selectionStart || 0;
+
+    const beforeCursor = val.slice(0, start);
+    const digitsBefore = beforeCursor.replace(/[^0-9+]/g, '').length;
+
+    const formatted = formatPhone(val);
+    setContactPhone(formatted);
+
+    setTimeout(() => {
+      let newPos = 0;
+      let digitCount = 0;
+      for (let i = 0; i < formatted.length; i++) {
+        if (formatted[i] !== ' ') {
+          digitCount++;
+        }
+        if (digitCount === digitsBefore) {
+          newPos = i + 1;
+          break;
+        }
+      }
+      input.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      const input = e.currentTarget;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+
+      if (start === end && start !== null && start > 0) {
+        const val = input.value;
+        const charToLeft = val[start - 1];
+
+        if (charToLeft === ' ') {
+          e.preventDefault();
+
+          let deleteIdx = start - 1;
+          while (deleteIdx >= 0 && val[deleteIdx] === ' ') {
+            deleteIdx--;
+          }
+
+          if (deleteIdx >= 0) {
+            const newVal = val.slice(0, deleteIdx) + val.slice(deleteIdx + 1);
+            const formatted = formatPhone(newVal);
+
+            const digitsBefore = val.slice(0, deleteIdx).replace(/[^0-9+]/g, '').length;
+            setContactPhone(formatted);
+
+            setTimeout(() => {
+              let newPos = 0;
+              let digitCount = 0;
+              for (let i = 0; i < formatted.length; i++) {
+                if (formatted[i] !== ' ') {
+                  digitCount++;
+                }
+                if (digitCount === digitsBefore) {
+                  newPos = i + 1;
+                  break;
+                }
+              }
+              input.setSelectionRange(newPos, newPos);
+            }, 0);
+          }
+        }
+      }
+    }
+  };
+
   if (!isOpen) return null;
 
   const handleSave = () => {
@@ -69,13 +141,14 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           value={contactName}
           onChange={(e) => setContactName(e.target.value)}
         />
-        <FormInput
+         <FormInput
           label={t("Mobile Phone Number *")}
           type="text"
           value={contactPhone}
           fontClass="font-mono"
           onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
-          onChange={(e) => setContactPhone(formatPhone(e.target.value))}
+          onChange={handlePhoneChange}
+          onKeyDown={handlePhoneKeyDown}
         />
         <FormSelect
           label={t("Position / Role")}

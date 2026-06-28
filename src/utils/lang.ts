@@ -141,6 +141,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Legal/Registered Name (Company Name)": "იურიდიული სახელი",
   "Identification Code": "საიდენტიფიკაციო კოდი",
   "Code": "კოდი",
+  "Company Code": "კომპანიის კოდი",
   "Phone": "ტელეფონი",
   "Address": "მისამართი",
   "Status": "სტატუსი",

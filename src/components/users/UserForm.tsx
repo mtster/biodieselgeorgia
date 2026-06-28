@@ -69,6 +69,80 @@ export default function UserForm({
     }
   }, [editingUser, setEditingUser, isNew]);
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const val = input.value;
+    const start = input.selectionStart || 0;
+
+    const beforeCursor = val.slice(0, start);
+    const digitsBefore = beforeCursor.replace(/[^0-9+]/g, '').length;
+
+    const formatted = formatPhone(val);
+    setEditingUser(prev => prev ? { ...prev, phone: formatted } : null);
+    if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
+
+    setTimeout(() => {
+      let newPos = 0;
+      let digitCount = 0;
+      for (let i = 0; i < formatted.length; i++) {
+        if (formatted[i] !== ' ') {
+          digitCount++;
+        }
+        if (digitCount === digitsBefore) {
+          newPos = i + 1;
+          break;
+        }
+      }
+      input.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      const input = e.currentTarget;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+
+      if (start === end && start !== null && start > 0) {
+        const val = input.value;
+        const charToLeft = val[start - 1];
+
+        if (charToLeft === ' ') {
+          e.preventDefault();
+
+          let deleteIdx = start - 1;
+          while (deleteIdx >= 0 && val[deleteIdx] === ' ') {
+            deleteIdx--;
+          }
+
+          if (deleteIdx >= 0) {
+            const newVal = val.slice(0, deleteIdx) + val.slice(deleteIdx + 1);
+            const formatted = formatPhone(newVal);
+
+            const digitsBefore = val.slice(0, deleteIdx).replace(/[^0-9+]/g, '').length;
+            setEditingUser(prev => prev ? { ...prev, phone: formatted } : null);
+            if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
+
+            setTimeout(() => {
+              let newPos = 0;
+              let digitCount = 0;
+              for (let i = 0; i < formatted.length; i++) {
+                if (formatted[i] !== ' ') {
+                  digitCount++;
+                }
+                if (digitCount === digitsBefore) {
+                  newPos = i + 1;
+                  break;
+                }
+              }
+              input.setSelectionRange(newPos, newPos);
+            }, 0);
+          }
+        }
+      }
+    }
+  };
+
   useImperativeHandle(formRef, () => ({
     save: handleSaveAll,
     fillDummy: fillDummyUser
@@ -290,10 +364,8 @@ export default function UserForm({
           onFocus={(e) => { 
             if (!editingUser.phone) setEditingUser({...editingUser, phone: '+995 '});
           }}
-          onChange={(e) => {
-            setEditingUser({...editingUser, phone: formatPhone(e.target.value)});
-            if (fieldErrors.phone) setFieldErrors(prev => ({ ...prev, phone: '' }));
-          }}
+          onChange={handlePhoneChange}
+          onKeyDown={handlePhoneKeyDown}
           error={fieldErrors.phone}
         />
 

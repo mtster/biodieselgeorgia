@@ -144,10 +144,7 @@ export default function OrderFormFields({
         </FormSelect>
 
         {/* Fact & Volumetric Parameters (Always visible regardless of status) */}
-        <div className="bg-white border border-emerald-100 rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-3 duration-150">
-          <span className="text-xs font-black uppercase text-emerald-850 tracking-wider block border-b border-gray-100 pb-2">
-            {t("Factual Details")} {editingOrder.status === 'completed' && " *"}
-          </span>
+        <div className="space-y-4 animate-in slide-in-from-top-3 duration-150">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormInput
               label={`${t("Fact QTY (L)")}${editingOrder.status === 'completed' ? ' *' : ''}`}
@@ -179,7 +176,7 @@ export default function OrderFormFields({
             />
           </div>
 
-          <div className="border-t border-gray-100 pt-4">
+          <div>
             <FormInput
               label={t("zednadebit raodenoba")}
               type="number"
