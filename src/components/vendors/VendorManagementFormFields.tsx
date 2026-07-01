@@ -102,6 +102,48 @@ export default function VendorManagementFormFields({
           })()}
         </FormSelect>
       </div>
+
+      {/* Automated / Scheduled Order Section */}
+      <div className="border-t border-gray-100 pt-5 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+        <div className="flex items-center gap-3 bg-slate-50 p-3.5 rounded-xl border border-gray-100 h-[50px]">
+          <input
+            id="is_planned_toggle"
+            type="checkbox"
+            checked={!!editingVendor.is_planned}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setEditingVendor(prev => prev ? { 
+                ...prev, 
+                is_planned: checked,
+                planned_weekday: checked ? (prev.planned_weekday || 'monday') : null 
+              } : null);
+            }}
+            className="w-4.5 h-4.5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
+          />
+          <label htmlFor="is_planned_toggle" className="text-xs font-bold uppercase text-gray-500 tracking-wider cursor-pointer select-none">
+            {t("gegmiuri")}
+          </label>
+        </div>
+
+        {editingVendor.is_planned && (
+          <FormSelect
+            label={t("Day of the week *")}
+            value={editingVendor.planned_weekday || 'monday'}
+            onChange={(e) => {
+              const val = e.target.value;
+              setEditingVendor(prev => prev ? { ...prev, planned_weekday: val } : null);
+            }}
+          >
+            <option value="monday">{t("monday")}</option>
+            <option value="tuesday">{t("tuesday")}</option>
+            <option value="wednesday">{t("wednesday")}</option>
+            <option value="thursday">{t("thursday")}</option>
+            <option value="friday">{t("friday")}</option>
+            <option value="saturday">{t("saturday")}</option>
+            <option value="sunday">{t("sunday")}</option>
+          </FormSelect>
+        )}
+      </div>
     </div>
   );
 }

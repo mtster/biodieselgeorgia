@@ -322,6 +322,7 @@ CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL T
 -- Indices for high-speed performance
 CREATE INDEX IF NOT EXISTS idx_districts_city_id ON public.districts (city_id);
 CREATE INDEX IF NOT EXISTS idx_vendors_company_code ON public.vendors (company_code);
+CREATE INDEX IF NOT EXISTS idx_vendors_planning ON public.vendors (is_planned, planned_weekday) WHERE is_planned = true AND is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_orders_doc_number ON public.orders (doc_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
 CREATE INDEX IF NOT EXISTS idx_communications_vendor ON public.communications (vendor_id);
