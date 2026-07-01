@@ -23,9 +23,11 @@ export function decodeProfile(p: any): User {
   if (!p) return p;
   const edit_permissions = p.edit_permissions || {};
   const warehouse_id = p.warehouse_id || edit_permissions.warehouse_id || '';
+  const vendor_id = p.vendor_id || edit_permissions.vendor_id || '';
   return {
     ...p,
-    warehouse_id: warehouse_id || undefined
+    warehouse_id: warehouse_id || undefined,
+    vendor_id: vendor_id || undefined
   };
 }
 
@@ -82,7 +84,9 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             personal_id: user.personal_id,
             phone: user.phone,
             role: user.role,
-            privileges: user.privileges
+            privileges: user.privileges,
+            warehouse_id: user.warehouse_id,
+            vendor_id: user.vendor_id
           })
         });
 
@@ -202,9 +206,12 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             role: user.role,
             privileges: user.privileges,
             is_blocked: user.is_blocked || false,
+            warehouse_id: user.warehouse_id || null,
+            vendor_id: user.vendor_id || null,
             edit_permissions: {
               ...(user.edit_permissions || {}),
-              warehouse_id: user.warehouse_id
+              warehouse_id: user.warehouse_id,
+              vendor_id: user.vendor_id
             }
           })
           .eq('id', user.id);

@@ -10,6 +10,7 @@ interface Props {
   isNew: boolean;
   currentUser: User;
   warehouses: Warehouse[];
+  suppliers?: any[];
   onSave: (user: User) => void;
   onCancel: () => void;
   formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
@@ -44,6 +45,7 @@ export default function UserForm({
   isNew,
   currentUser,
   warehouses,
+  suppliers = [],
   onSave,
   onCancel,
   formRef
@@ -250,6 +252,10 @@ export default function UserForm({
 
     if (!editingUser.role) {
       errs.role = 'Please select a system Role / Designation.';
+    }
+
+    if (editingUser.role === 'vendor' && !editingUser.vendor_id) {
+      errs.vendor_id = 'Please select a Supplier.';
     }
 
     if (isNew && (!editingUser.password || editingUser.password.length < 6)) {
@@ -466,6 +472,26 @@ export default function UserForm({
             <option key={wh.id} value={wh.id}>{wh.name}</option>
           ))}
         </FormSelect>
+
+        {editingUser.role === 'vendor' && (
+          <FormSelect
+            label={t("Assigned Supplier *")}
+            value={editingUser.vendor_id || ''}
+            onChange={(e) => {
+              setEditingUser({
+                ...editingUser,
+                vendor_id: e.target.value || undefined
+              });
+              if (fieldErrors.vendor_id) setFieldErrors(prev => ({ ...prev, vendor_id: '' }));
+            }}
+            error={fieldErrors.vendor_id}
+          >
+            <option value="">{t("Select a Supplier")}</option>
+            {suppliers.map(s => (
+              <option key={s.id} value={s.id}>{s.trade_name || s.company_name}</option>
+            ))}
+          </FormSelect>
+        )}
 
         {/* Menu Permissions card with beautiful iOS slider toggles */}
         <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl space-y-4">

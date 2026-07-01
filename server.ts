@@ -66,7 +66,7 @@ async function startServer() {
         return res.status(403).json({ error: "Access denied: Only Administrators can create users." });
       }
 
-      const { email, password, name, personal_id, phone, role, privileges } = req.body;
+      const { email, password, name, personal_id, phone, role, privileges, warehouse_id, vendor_id } = req.body;
 
       if (!email || !password || !name || !personal_id || !phone || !role) {
         return res.status(400).json({ error: "All required fields (email, password, name, personal_id, phone, role) must be provided." });
@@ -84,6 +84,8 @@ async function startServer() {
           phone,
           role,
           privileges,
+          warehouse_id,
+          vendor_id,
         },
       });
 
@@ -92,7 +94,15 @@ async function startServer() {
       }
 
       // The postgres trigger automatically creates the row in public.profiles.
-      // Let's retrieve this record to ensure it is returned successfully.
+      // Let's update that profile record with any optional fields like warehouse_id or vendor_id.
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          warehouse_id: warehouse_id || null,
+          vendor_id: vendor_id || null
+        })
+        .eq("id", adminData.user.id);
+
       const { data: profile, error: profileError } = await supabaseAdmin
         .from("profiles")
         .select("*")
@@ -109,6 +119,8 @@ async function startServer() {
           phone,
           role,
           privileges,
+          warehouse_id,
+          vendor_id,
           created_at: adminData.user.created_at,
         },
       });

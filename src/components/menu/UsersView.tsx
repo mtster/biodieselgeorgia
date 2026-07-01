@@ -12,11 +12,12 @@ interface Props {
   users: User[];
   currentUser: User;
   warehouses: Warehouse[];
+  suppliers?: any[];
   onSave: (user: User) => void;
   onDelete: (id: string, name: string) => void;
 }
 
-export default function UsersView({ users, currentUser, warehouses, onSave, onDelete }: Props) {
+export default function UsersView({ users, currentUser, warehouses, suppliers = [], onSave, onDelete }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   
   // States
@@ -162,6 +163,7 @@ export default function UsersView({ users, currentUser, warehouses, onSave, onDe
           isNew={isNew}
           currentUser={currentUser}
           warehouses={warehouses}
+          suppliers={suppliers}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingUser(null)}
           formRef={formRef}

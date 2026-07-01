@@ -27,6 +27,7 @@ export interface User {
   is_blocked?: boolean;
   created_at?: string;
   warehouse_id?: string;      // საწყობი
+  vendor_id?: string;         // მომწოდებელი (Vendor ID for supplier role)
 }
 
 export interface VendorContact {

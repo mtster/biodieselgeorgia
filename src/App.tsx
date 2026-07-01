@@ -23,6 +23,7 @@ import VehiclesSettingView from './components/settings/VehiclesSettingView';
 import WarehousesSettingView from './components/settings/WarehousesSettingView';
 import HistoryView from './components/menu/HistoryView';
 import MobileLogisticsView from './components/menu/MobileLogisticsView';
+import SupplierView from './components/menu/SupplierView';
 import Sidebar from './components/menu/Sidebar';
 
 import { Leaf, Menu } from 'lucide-react';
@@ -107,6 +108,19 @@ export default function App() {
         warehouses={warehouses}
         employees={users}
         trucks={trucks}
+        onSaveOrder={handleOrderSave}
+        onLogOut={handleLogOut}
+      />
+    );
+  }
+
+  // If role is 'vendor', route them to the supplier dashboard interface
+  if (currentUser.role === 'vendor') {
+    return (
+      <SupplierView 
+        currentUser={currentUser}
+        orders={orders}
+        warehouses={warehouses}
         onSaveOrder={handleOrderSave}
         onLogOut={handleLogOut}
       />
@@ -253,6 +267,7 @@ export default function App() {
                 users={users}
                 currentUser={currentUser}
                 warehouses={warehouses}
+                suppliers={vendors}
                 onSave={handleUserSave}
                 onDelete={handleUserDelete}
               />
