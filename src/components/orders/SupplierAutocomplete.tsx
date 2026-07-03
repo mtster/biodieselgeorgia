@@ -26,7 +26,7 @@ export default function SupplierAutocomplete({
   return (
     <div className="relative" id="vendor-autocomplete-container">
       <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 font-sans ${fieldErrors.vendor_id ? 'text-red-500' : 'text-gray-400'}`}>
-        {t("Supplier / Vendor Restaurant")} *
+        {t("Supplier")} *
       </span>
       <input
         type="text"
@@ -82,7 +82,7 @@ export default function SupplierAutocomplete({
                   className="px-3.5 py-2.5 hover:bg-slate-50 cursor-pointer text-left transition duration-100"
                 >
                   <p className="text-xs font-bold text-gray-800">{s.trade_name}</p>
-                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">{s.company_name} (ID: {s.id_code})</p>
+                  <p className="text-[10px] text-gray-500 font-medium mt-0.5">{s.company_name} {s.address ? `(${s.address})` : ''}</p>
                 </div>
               ))
             }

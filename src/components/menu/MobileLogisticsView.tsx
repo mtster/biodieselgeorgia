@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Order, Vendor, Warehouse, Truck } from '../../types';
+import { formatDateTime } from '../../utils/lang';
 import { 
   LogOut, Leaf, Phone, MapPin, Navigation, 
   CheckCircle2, ClipboardList, Fuel, Package, TruckIcon, AlertCircle 
@@ -375,7 +376,7 @@ export default function MobileLogisticsView({
 
                     {order.pickup_date_time && (
                       <p className="text-[9px] text-gray-400 text-right mt-1">
-                        Completed: {new Date(order.pickup_date_time).toLocaleString()}
+                        Completed: {formatDateTime(order.pickup_date_time)}
                       </p>
                     )}
                   </div>

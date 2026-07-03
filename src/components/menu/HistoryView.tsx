@@ -4,7 +4,7 @@ import PageHeader from '../PageHeader';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
-import { t } from '../../utils/lang';
+import { t, formatDateTime } from '../../utils/lang';
 
 interface Props {
   history: ChangeHistory[];
@@ -85,7 +85,7 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
     {
       header: t('Date & Time'),
       key: 'date_time',
-      render: (log) => new Date(log.date_time).toLocaleString('en-US')
+      render: (log) => formatDateTime(log.date_time)
     },
     {
       header: t('User'),

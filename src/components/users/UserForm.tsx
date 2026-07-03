@@ -439,7 +439,6 @@ export default function UserForm({
           <option value="warehouse_manager">{t("Warehouse Manager")}</option>
           <option value="assistant">{t("Assistant")}</option>
           <option value="driver">{t("Driver")}</option>
-          <option value="vendor">{t("Supplier (Vendor)")}</option>
         </FormSelect>
 
         <FormSelect

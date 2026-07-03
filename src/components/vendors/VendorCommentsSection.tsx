@@ -1,5 +1,5 @@
 import React from 'react';
-import { t } from '../../utils/lang';
+import { t, formatDate } from '../../utils/lang';
 import { VendorComment } from '../../types';
 import AddButton from '../AddButton';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
@@ -35,7 +35,7 @@ export default function VendorCommentsSection({
             <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5 text-xs text-left">
               <div className="flex justify-between text-[10px] text-gray-400 font-sans font-bold">
                 <span className="text-emerald-700 font-extrabold">{c.user_name}</span>
-                <span>{new Date(c.date).toLocaleDateString()}</span>
+                <span>{formatDate(c.date)}</span>
               </div>
               <div className="flex justify-between items-start gap-4">
                 <p className="text-gray-700 font-medium leading-relaxed font-sans select-all flex-grow">{c.comment}</p>

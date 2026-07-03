@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Order, Vendor, Warehouse, User, Truck } from '../../types';
+import { Order, Vendor, Warehouse, User, Truck, Direction } from '../../types';
 import { getSMSLogs } from '../../lib/db';
 import { Plus, Trash2 } from 'lucide-react';
 import { t } from '../../utils/lang';
@@ -29,7 +29,15 @@ const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'fact_tank_dropoff', label: 'Fact Tank Dropoff', visible: true },
   { id: 'tanks_to_bring', label: 'Pickup Tanks', visible: true },
   { id: 'fact_tank_pickup', label: 'Fact Tank Pickup', visible: true },
-  { id: 'note', label: 'Comment', visible: true }
+  { id: 'note', label: 'Comment', visible: true },
+  { id: 'address', label: 'Address', visible: true },
+  { id: 'direction', label: 'Direction', visible: true },
+  { id: 'city', label: 'City', visible: true },
+  { id: 'district', label: 'District', visible: true },
+  { id: 'truck_plate', label: 'Vehicle', visible: true },
+  { id: 'driver_id', label: 'Driver', visible: true },
+  { id: 'companion_id', label: 'Assistant', visible: true },
+  { id: 'contacts', label: 'Contacts', visible: true }
 ];
 
 interface Props {
@@ -38,13 +46,14 @@ interface Props {
   warehouses: Warehouse[];
   employees: User[];
   trucks: Truck[];
+  directions: Direction[];
   currentEmployee: User;
   onSave: (order: Order) => void;
   onDelete: (id: string, docNum: string) => void;
 }
 
 export default function OrdersView({ 
-  orders, suppliers, warehouses, employees, trucks, 
+  orders, suppliers, warehouses, employees, trucks, directions,
   currentEmployee, onSave, onDelete 
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -348,6 +357,7 @@ export default function OrdersView({
             suppliers={suppliers} 
             warehouses={warehouses}
             employees={employees}
+            directions={directions}
             startEdit={startEdit} 
             askDelete={askDelete}
             selectedOrders={selectedOrders}

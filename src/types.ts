@@ -73,6 +73,8 @@ export interface Vendor {
   vada?: number;              // ვადა
   is_planned?: boolean;       // გეგმიური
   planned_weekday?: string;   // კვირის დღე
+  user_id?: string;           // მომხმარებლის ID
+  username?: string;          // მომხმარებლის სახელი
 }
 
 export type OrderStatus = 'registered' | 'driver_assigned' | 'picked_up' | 'completed' | 'cancelled'; // რეგისტრირებული, მძღოლი მიმაგრებული, აყვანილი, დასრულებული, გაუქმებული

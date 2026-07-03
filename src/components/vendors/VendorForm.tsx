@@ -4,6 +4,25 @@ import {
   Vendor, VendorContact, VendorComment, 
   Warehouse, User, City, District, Communication, Direction 
 } from '../../types';
+import { saveUser } from '../../services/userService';
+
+function getCleanUsername(u: string | undefined): string {
+  if (!u) return '';
+  const trimmed = u.trim();
+  if (trimmed.endsWith('@biodiesel.ge')) {
+    return trimmed.substring(0, trimmed.length - '@biodiesel.ge'.length);
+  }
+  return trimmed;
+}
+
+function getEmailFromUsername(u: string): string {
+  const trimmed = u.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('@')) {
+    return trimmed;
+  }
+  return `${trimmed}@biodiesel.ge`;
+}
 
 import VendorFormFields from './VendorFormFields';
 import VendorContactsSection from './VendorContactsSection';
@@ -56,6 +75,13 @@ export default function VendorForm({
   onDeleteCommunication
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [usernameInput, setUsernameInput] = useState(() => getCleanUsername(editingVendor.username));
+  const [passwordInput, setPasswordInput] = useState('');
+
+  useEffect(() => {
+    setUsernameInput(getCleanUsername(editingVendor.username));
+    setPasswordInput('');
+  }, [editingVendor.id, editingVendor.username]);
 
   // Contacts helper states
   const [tempContacts, setTempContacts] = useState<VendorContact[]>([]);
@@ -179,7 +205,7 @@ export default function VendorForm({
     }
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     const errs: Record<string, string> = {};
 
     if (!editingVendor.trade_name.trim()) {
@@ -228,6 +254,21 @@ export default function VendorForm({
       errs.contacts = 'At least one contact must be added.';
     }
 
+    const cleanCurrentUsername = getCleanUsername(editingVendor.username || '');
+    const isUsernameChanged = usernameInput.trim() !== cleanCurrentUsername;
+    const hasExistingUser = !!editingVendor.user_id;
+
+    let needsUserCreationOrUpdate = false;
+    if (usernameInput.trim() || passwordInput.trim()) {
+      if (!usernameInput.trim()) {
+        errs.username = t('Username is required when password is provided.');
+      } else if (!passwordInput.trim() && (!hasExistingUser || isUsernameChanged)) {
+        errs.password = t('Password is required when username is provided or changed.');
+      } else {
+        needsUserCreationOrUpdate = true;
+      }
+    }
+
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
       return;
@@ -235,13 +276,59 @@ export default function VendorForm({
 
     setFieldErrors({});
 
-    const payload: Vendor = {
-      ...editingVendor,
-      company_code: editingVendor.company_code || editingVendor.id_code,
-      contacts: tempContacts
+    const executeSaveInBackground = async () => {
+      let finalUserId = editingVendor.user_id || '';
+      let finalUsername = editingVendor.username || '';
+
+      if (needsUserCreationOrUpdate) {
+        try {
+          const email = getEmailFromUsername(usernameInput);
+          const pregeneratedVendorId = editingVendor.id || ('vendor-' + Math.random().toString(36).substring(2, 9));
+
+          const userPayload: User = {
+            id: editingVendor.user_id || '',
+            name: editingVendor.trade_name,
+            personal_id: editingVendor.id_code,
+            email: email,
+            password: passwordInput.trim() ? passwordInput.trim() : undefined,
+            phone: tempContacts.find(c => c.is_default)?.phone || editingVendor.id_code || '599000000',
+            role: 'vendor',
+            privileges: [],
+            vendor_id: pregeneratedVendorId
+          };
+
+          const savedUserResult = await saveUser(userPayload, currentUser.name || 'System');
+          finalUserId = savedUserResult.id;
+          finalUsername = usernameInput.trim();
+          
+          editingVendor.id = pregeneratedVendorId;
+        } catch (e: any) {
+          console.error('Error creating/updating supplier account:', e);
+          alert(`${t('Failed to create or update supplier login account')}: ${e.message}`);
+          return;
+        }
+      } else if (!usernameInput.trim() && !passwordInput.trim()) {
+        // If cleared, unlink the account
+        finalUserId = '';
+        finalUsername = '';
+      }
+
+      const payload: Vendor = {
+        ...editingVendor,
+        company_code: editingVendor.company_code || editingVendor.id_code,
+        contacts: tempContacts,
+        user_id: finalUserId || undefined,
+        username: finalUsername || undefined
+      };
+
+      onSave(payload);
     };
 
-    onSave(payload);
+    // Trigger saving asynchronously in the background
+    executeSaveInBackground();
+
+    // Close the form instantly in the UI
+    onCancel();
   };
 
   const fillDummyData = () => {
@@ -348,6 +435,41 @@ export default function VendorForm({
             currentUser={currentUser}
           />
 
+          {/* Supplier Login Account Fields */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4 text-left">
+            <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">
+              {t("Supplier Login Account")}
+            </span>
+            <p className="text-xs text-gray-400 italic">
+              {t("Either both fields must be filled to create/edit an account, or both must be empty to save without/delete access.")}
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label={t("Username")}
+                type="text"
+                fontClass="font-mono"
+                placeholder={t("e.g. gio.samxaradze")}
+                value={usernameInput}
+                onChange={(e) => {
+                  setUsernameInput(e.target.value);
+                  if (fieldErrors.username) setFieldErrors(prev => ({ ...prev, username: '' }));
+                }}
+                error={fieldErrors.username}
+              />
+              <FormInput
+                label={t("Password")}
+                type="password"
+                placeholder={editingVendor.user_id ? t("Leave blank to keep existing password") : t("Enter password")}
+                value={passwordInput}
+                onChange={(e) => {
+                  setPasswordInput(e.target.value);
+                  if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
+                }}
+                error={fieldErrors.password}
+              />
+            </div>
+          </div>
+
           {/* Contacts & Comments Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-0">
             <VendorContactsSection
@@ -444,15 +566,16 @@ export default function VendorForm({
         users={users}
         tempContacts={tempContacts}
         editingVendor={editingVendor}
-        onSaveCommunication={async (payload) => {
+        onSaveCommunication={(payload) => {
           if (onSaveCommunication) {
-            await onSaveCommunication(payload);
+            onSaveCommunication(payload);
           }
+          setIsCommModalOpen(false);
           setActiveComm(null);
         }}
-        onDeleteCommunication={onDeleteCommunication ? async (id) => {
-          await onDeleteCommunication(id);
-          setActiveComm(null);
+        onDeleteCommunication={onDeleteCommunication ? (id) => {
+          setIsCommModalOpen(false);
+          setIsCommDeleteModalOpen(true);
         } : undefined}
       />
     </div>

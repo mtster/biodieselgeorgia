@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Communication, User, Vendor } from '../../types';
 import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
@@ -15,6 +15,51 @@ interface CommunicationFormModalProps {
   onDelete?: () => void;
 }
 
+const toDisplayDateTime = (val: string | undefined | null): string => {
+  if (!val) return '';
+  if (/^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}$/.test(val)) return val;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+const toLocalDatetimeValue = (isoString: string | undefined | null): string => {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day}T${h}:${min}`;
+};
+
+const fromLocalDatetimeValue = (localString: string): string => {
+  if (!localString) return '';
+  const d = new Date(localString);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString();
+};
+
+const toDbDateTime = (val: string): string => {
+  if (!val) return '';
+  const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})$/);
+  if (match) {
+    const [_, d, m, y, h, min] = match;
+    const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), parseInt(h), parseInt(min));
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toISOString();
+    }
+  }
+  return val;
+};
+
 export default function CommunicationFormModal({
   isOpen,
   onClose,
@@ -28,6 +73,21 @@ export default function CommunicationFormModal({
   const [localComm, setLocalComm] = useState<Communication | null>(null);
   const [vendorSearch, setVendorSearch] = useState('');
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+  const [localReminderTime, setLocalReminderTime] = useState('');
+
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setShowVendorSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen && editingComm) {
@@ -41,10 +101,25 @@ export default function CommunicationFormModal({
     setShowVendorSuggestions(false);
   }, [isOpen, editingComm, suppliers]);
 
+  useEffect(() => {
+    if (localComm && localComm.reminder_time) {
+      setLocalReminderTime(toDisplayDateTime(localComm.reminder_time));
+    } else {
+      setLocalReminderTime('');
+    }
+  }, [localComm?.reminder_time]);
+
   if (!localComm) return null;
 
   const handleSaveLocal = () => {
-    onSave(localComm);
+    let final = { ...localComm };
+    if (final.type === 'reminder' && localReminderTime) {
+      const dbVal = toDbDateTime(localReminderTime);
+      if (dbVal && !isNaN(new Date(dbVal).getTime())) {
+        final.reminder_time = dbVal;
+      }
+    }
+    onSave(final);
   };
 
   return (
@@ -60,12 +135,49 @@ export default function CommunicationFormModal({
       deleteLabel={t("Delete")}
     >
       <div className="space-y-4">
-        <FormInput
-          label={t("Date & Time *")}
-          type="datetime-local"
-          value={localComm.date_time}
-          onChange={(e) => setLocalComm({...localComm, date_time: e.target.value})}
-        />
+        <div className="relative" ref={wrapperRef}>
+          <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Supplier *")}</span>
+          <input
+            type="text"
+            placeholder=""
+            value={vendorSearch}
+            onChange={(e) => {
+              setVendorSearch(e.target.value);
+              setShowVendorSuggestions(true);
+              if (e.target.value === '') {
+                setLocalComm(prev => prev ? { ...prev, vendor_id: '' } : null);
+              }
+            }}
+            onFocus={() => setShowVendorSuggestions(true)}
+            className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
+          />
+          {showVendorSuggestions && (
+            <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 divide-y divide-gray-50">
+              {suppliers
+                .filter(s => {
+                  const searchStr = vendorSearch.toLowerCase();
+                  return s.trade_name.toLowerCase().includes(searchStr) || 
+                         s.company_name.toLowerCase().includes(searchStr) || 
+                         s.id_code.toLowerCase().includes(searchStr);
+                })
+                .map(s => (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      setLocalComm(prev => prev ? { ...prev, vendor_id: s.id } : null);
+                      setVendorSearch(s.trade_name);
+                      setShowVendorSuggestions(false);
+                    }}
+                    className="px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left transition duration-100"
+                  >
+                    <p className="text-xs font-bold text-gray-800">{s.trade_name}</p>
+                    <p className="text-[9px] text-gray-400 font-mono mt-0.5">{s.company_name}</p>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+        </div>
 
         <FormSelect
           label={t("Interaction Type")}
@@ -124,60 +236,20 @@ export default function CommunicationFormModal({
           <FormInput
             label={t("Reminder Due Time")}
             type="datetime-local"
-            value={localComm.reminder_time || ''}
-            onChange={(e) => setLocalComm({...localComm, reminder_time: e.target.value})}
+            fontClass="font-mono"
+            value={localComm.reminder_time ? toLocalDatetimeValue(localComm.reminder_time) : ''}
+            onChange={(e) => {
+              const isoVal = fromLocalDatetimeValue(e.target.value);
+              setLocalComm(prev => prev ? { ...prev, reminder_time: isoVal } : null);
+            }}
           />
         )}
-
-        <div className="relative">
-          <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Supplier *")}</span>
-          <input
-            type="text"
-            placeholder={t("Type to search supplier...")}
-            value={vendorSearch}
-            onChange={(e) => {
-              setVendorSearch(e.target.value);
-              setShowVendorSuggestions(true);
-              if (e.target.value === '') {
-                setLocalComm(prev => prev ? { ...prev, vendor_id: '' } : null);
-              }
-            }}
-            onFocus={() => setShowVendorSuggestions(true)}
-            className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
-          />
-          {showVendorSuggestions && (
-            <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg z-50 divide-y divide-gray-50">
-              {suppliers
-                .filter(s => {
-                  const searchStr = vendorSearch.toLowerCase();
-                  return s.trade_name.toLowerCase().includes(searchStr) || 
-                         s.company_name.toLowerCase().includes(searchStr) || 
-                         s.id_code.toLowerCase().includes(searchStr);
-                })
-                .map(s => (
-                  <div
-                    key={s.id}
-                    onClick={() => {
-                      setLocalComm(prev => prev ? { ...prev, vendor_id: s.id } : null);
-                      setVendorSearch(s.trade_name);
-                      setShowVendorSuggestions(false);
-                    }}
-                    className="px-3.5 py-2 hover:bg-slate-50 cursor-pointer text-left transition duration-100"
-                  >
-                    <p className="text-xs font-bold text-gray-800">{s.trade_name}</p>
-                    <p className="text-[9px] text-gray-400 font-mono mt-0.5">{s.company_name}</p>
-                  </div>
-                ))
-              }
-            </div>
-          )}
-        </div>
 
         <div className="relative">
           <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Comment *")}</span>
           <textarea 
             rows={4}
-            placeholder={t("e.g. Phone call completed, promised dispatch on Monday...")}
+            placeholder=""
             value={localComm.comment}
             onChange={(e) => setLocalComm({...localComm, comment: e.target.value})}
             className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"

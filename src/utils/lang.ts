@@ -192,6 +192,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "No contacts recorded.": "კონტაქტები არ არის დამატებული",
   "Edit Contact Person": "საკონტაქტო პირის რედაქტირება",
   "Add Contact Person": "საკონტაქტო პირის დამატება",
+  "Contact Person": "კონტაქტი",
   "Confirm": "დადასტურება",
   "Position / Role": "თანამდებობა / როლი",
   "Accountant": "ბუღალტერი",
@@ -371,7 +372,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Sel": "მონ",
 
   // Orders Form Fields captions & validation errors
-  "Core Transaction Details": "ტრანზაქციის ძირითადი დეტალები",
+  "Core Transaction Details": "შეკვეთის ძირითადი დეტალები",
   "Supplier / Vendor Restaurant": "მომწოდებელი / რესტორანი",
   "Document Dispatch ID": "დოკუმენტის კოდი",
   "Order Dispatch Date": "შეკვეთის გატანის თარიღი",
@@ -574,6 +575,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Personal ID": "პირადი ნომერი",
   "Personal ID (11 digits)": "პირადი ნომერი (11 ციფრი)",
   "Email Address": "ელ. ფოსტის მისამართი",
+  "Email or Username": "ელ. ფოსტა ან მომხმარებლის სახელი",
   "Email": "ელ. ფოსტა",
   "Role / Designation": "როლი / დანიშნულება",
   "Assigned Warehouse (Optional)": "მიმაგრებული საწყობი (არასავალდებულო)",
@@ -587,6 +589,15 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Full Name": "სრული სახელი",
   "Password": "პაროლი",
   "Change Password (Optional)": "პაროლის შეცვლა (არასავალდებულო)",
+  "Username": "მომხმარებლის სახელი",
+  "Username / Email": "მომხმარებლის სახელი / ელ.ფოსტა",
+  "Supplier Login Account": "მომწოდებლის მომხმარებლის ანგარიში",
+  "Leave blank to keep existing password": "დატოვეთ ცარიელი არსებული პაროლის შესანარჩუნებლად",
+  "Enter password": "შეიყვანეთ პაროლი",
+  "Either both fields must be filled to create/edit an account, or both must be empty to save without/delete access.": "ანგარიშის შესაქმნელად/რედაქტირებისთვის ორივე ველი უნდა შეივსოს, ან ორივე უნდა იყოს ცარიელი წვდომის გარეშე შესანახად.",
+  "Username is required when password is provided.": "მომხმარებლის სახელი სავალდებულოა პაროლის მითითებისას.",
+  "Password is required when username is provided or changed.": "პაროლი სავალდებულოა მომხმარებლის სახელის მითითებისას ან შეცვლისას.",
+  "Failed to create or update supplier login account": "მომწოდებლის მომხმარებლის ანგარიშის შექმნა ან განახლება ვერ მოხერხდა",
   "All": "ყველა",
   "Remove User?": "წაშალოთ მომხმარებელი?",
   "Are you sure you want to completely delete user account profile for": "დარწმუნებული ხართ, რომ გსურთ სრულად წაშალოთ მომხმარებლის პროფილი: ",
@@ -644,4 +655,26 @@ export function t(key: string): string {
 
   // Fallback to dictionary
   return GEORGIAN_DICTIONARY[key] || key;
+}
+
+export function formatDate(dateString: string | Date | undefined | null): string {
+  if (!dateString) return '-';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '-';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+export function formatDateTime(dateString: string | Date | undefined | null): string {
+  if (!dateString) return '-';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '-';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 }

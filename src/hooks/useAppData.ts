@@ -199,10 +199,8 @@ export function useAppData() {
   };
 
   const handleCommunicationDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this record?')) {
-      await deleteCommunication(id, currentUser?.name || 'System');
-      await refreshAllData();
-    }
+    await deleteCommunication(id, currentUser?.name || 'System');
+    await refreshAllData();
   };
 
   // Lookups updates

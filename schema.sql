@@ -71,7 +71,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- Apply non-destructive updates to public.profiles table if it pre-exists
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS vendor_id TEXT DEFAULT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
 
@@ -114,7 +113,9 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_pickup_date TIMESTAMPTZ,
-    average_interval_days INT DEFAULT 0
+    average_interval_days INT DEFAULT 0,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    username TEXT
 );
 
 -- Apply non-destructive updates to public.vendors table if it pre-exists (prevents schema cache issues)
@@ -130,6 +131,9 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NU
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS vada INT DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_planned BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday TEXT DEFAULT NULL;
+ALTER TABLE public.vendors DROP CONSTRAINT IF EXISTS vendors_user_id_fkey;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS username TEXT;
 
 -- 7. Orders
 CREATE TABLE IF NOT EXISTS public.orders (
@@ -232,7 +236,14 @@ $$ LANGUAGE plpgsql;
 -- Create and configure trigger function to auto insert profile
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_role TEXT;
 BEGIN
+  v_role := COALESCE(new.raw_user_meta_data->>'role', 'admin');
+  IF v_role = 'vendor' THEN
+    RETURN NEW;
+  END IF;
+
   INSERT INTO public.profiles (id, name, personal_id, email, phone, role, privileges)
   VALUES (
     new.id,
@@ -240,7 +251,7 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'personal_id', '12345678901'),
     new.email,
     COALESCE(new.raw_user_meta_data->>'phone', '599112233'),
-    COALESCE(new.raw_user_meta_data->>'role', 'admin')::public.user_role,
+    v_role::public.user_role,
     COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[])
   )
   ON CONFLICT (id) DO UPDATE 

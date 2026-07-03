@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Vendor, User, VendorComment, Communication, Direction } from '../../types';
-import { t } from '../../utils/lang';
+import { t, formatDate, formatDateTime } from '../../utils/lang';
 import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
@@ -175,7 +175,7 @@ export default function VendorsList({
                     return {
                       key: c.id,
                       author: matchedUser?.name || c.user_name || t('System'),
-                      date: new Date(c.date_time).toLocaleDateString() + ' ' + (c.date_time.includes('T') ? c.date_time.split('T')[1].substring(0, 5) : ''),
+                      date: formatDateTime(c.date_time),
                       content: c.comment
                     };
                   }),
@@ -211,7 +211,7 @@ export default function VendorsList({
                   items: vendor.comments.map(c => ({
                     key: c.id,
                     author: c.user_name || 'System',
-                    date: new Date(c.date).toLocaleDateString(),
+                    date: formatDate(c.date),
                     content: c.comment
                   })),
                   rect: {
@@ -273,24 +273,6 @@ export default function VendorsList({
         });
       }
     }
-  });
-
-  // Append action button column at the end
-  columns.push({
-    header: t('Actions'),
-    key: 'actions',
-    className: 'text-right',
-    render: (vendor) => (
-      <div onClick={(e) => e.stopPropagation()} className="flex justify-end gap-1 select-none">
-        <button
-          onClick={() => startEdit(vendor, false)}
-          className="p-1 px-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-          title={t("Edit")}
-        >
-          <Edit3 size={13} />
-        </button>
-      </div>
-    )
   });
 
   const rowClassName = (vendor: Vendor) => {

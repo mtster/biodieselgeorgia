@@ -196,29 +196,31 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           console.warn('Edge Function invoke error, trying direct profiles update:', edgeErr);
         }
 
-        // Always perform direct update in profiles table to preserve privileges and granular edit_permissions mapping
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            name: user.name,
-            personal_id: user.personal_id,
-            phone: user.phone,
-            role: user.role,
-            privileges: user.privileges,
-            is_blocked: user.is_blocked || false,
-            warehouse_id: user.warehouse_id || null,
-            vendor_id: user.vendor_id || null,
-            edit_permissions: {
-              ...(user.edit_permissions || {}),
-              warehouse_id: user.warehouse_id,
-              vendor_id: user.vendor_id
-            }
-          })
-          .eq('id', user.id);
+        if (user.role !== 'vendor') {
+          // Always perform direct update in profiles table to preserve privileges and granular edit_permissions mapping
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              name: user.name,
+              personal_id: user.personal_id,
+              phone: user.phone,
+              role: user.role,
+              privileges: user.privileges,
+              is_blocked: user.is_blocked || false,
+              warehouse_id: user.warehouse_id || null,
+              vendor_id: user.vendor_id || null,
+              edit_permissions: {
+                ...(user.edit_permissions || {}),
+                warehouse_id: user.warehouse_id,
+                vendor_id: user.vendor_id
+              }
+            })
+            .eq('id', user.id);
 
-        if (profileError) {
-          console.warn('Direct profile sync updating failed', profileError);
-          if (!updatedOnEdge) throw profileError;
+          if (profileError) {
+            console.warn('Direct profile sync updating failed', profileError);
+            if (!updatedOnEdge) throw profileError;
+          }
         }
         finalUser = { ...user } as User;
       }

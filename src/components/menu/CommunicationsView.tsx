@@ -84,7 +84,7 @@ export default function CommunicationsView({
       type: 'action',
       reminder_time: undefined,
       user_id: currentEmployee.id,
-      vendor_id: suppliers[0]?.id || '',
+      vendor_id: '',
       vendor_contact_id: '',
       comment: ''
     };

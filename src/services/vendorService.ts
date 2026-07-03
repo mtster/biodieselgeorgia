@@ -82,7 +82,9 @@ export function cleanVendorDbPayload(vendor: any): any {
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
     status: vendor.status || 'Active',
     is_deleted: !!vendor.is_deleted,
-    created_at: vendor.created_at || new Date().toISOString()
+    created_at: vendor.created_at || new Date().toISOString(),
+    user_id: vendor.user_id || null,
+    username: vendor.username || null
   };
 
   // Preserve any custom column fields on the actual DB payload!
@@ -112,7 +114,8 @@ export async function createDatabaseColumn(columnName: string): Promise<void> {
 }
 
 export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
-  const isNew = !vendor.id;
+  const list = getLocal<Vendor[]>(KEY_VENDORS, []);
+  const isNew = !vendor.id || !list.some(v => v.id === vendor.id);
 
   const cleanUserUuid = (val: string | null | undefined): string | null => {
     if (!val) return null;
@@ -150,7 +153,6 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
     }
   }
 
-  const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   if (isNew) {
     setLocal(KEY_VENDORS, [...list, finalVendor]);
     await trackChange(loggerName, 'Vendor created', 'Trade Name', '', finalVendor.trade_name);

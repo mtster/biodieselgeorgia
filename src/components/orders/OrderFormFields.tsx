@@ -36,6 +36,36 @@ export default function OrderFormFields({
   showVendorSuggestions,
   setShowVendorSuggestions
 }: OrderFormFieldsProps) {
+  const toDisplayDate = (val: string | undefined | null): string => {
+    if (!val) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
+    const parts = val.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return val;
+  };
+
+  const toDbDate = (val: string): string => {
+    if (!val) return '';
+    const parts = val.split('/');
+    if (parts.length === 3) {
+      const d = parts[0].padStart(2, '0');
+      const m = parts[1].padStart(2, '0');
+      const y = parts[2];
+      return `${y}-${m}-${d}`;
+    }
+    return val;
+  };
+
+  const [localDate, setLocalDate] = React.useState(() => {
+    return toDisplayDate(editingOrder.order_date);
+  });
+
+  React.useEffect(() => {
+    setLocalDate(toDisplayDate(editingOrder.order_date));
+  }, [editingOrder.order_date]);
+
   return (
     <div className="space-y-6 text-left">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
@@ -86,10 +116,21 @@ export default function OrderFormFields({
           {/* Dispatch Date */}
           <FormInput
             label={`${t("Order Dispatch Date")} *`}
-            type="date"
+            type="text"
             fontClass="font-mono"
-            value={editingOrder.order_date}
-            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, order_date: e.target.value } : null)}
+            placeholder="DD/MM/YYYY"
+            value={localDate}
+            onChange={(e) => {
+              const val = e.target.value;
+              setLocalDate(val);
+              const dbVal = toDbDate(val);
+              if (/^\d{4}-\d{2}-\d{2}$/.test(dbVal) && !isNaN(new Date(dbVal).getTime())) {
+                setEditingOrder(prev => prev ? { ...prev, order_date: dbVal } : null);
+              }
+            }}
+            onBlur={() => {
+              setLocalDate(toDisplayDate(editingOrder.order_date));
+            }}
           />
         </div>
 
@@ -121,27 +162,6 @@ export default function OrderFormFields({
             onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: parseInt(e.target.value) || 0 } : null)}
           />
         </div>
-
-        {/* Status Selector */}
-        <FormSelect
-          label={`${t("Fulfillment Status")} *`}
-          value={editingOrder.status}
-          className="bg-emerald-50 text-emerald-800 font-bold"
-          onChange={(e) => {
-            const statusVal = e.target.value as OrderStatus;
-            setEditingOrder(prev => prev ? {
-              ...prev,
-              status: statusVal,
-              pickup_date_time: statusVal === 'completed' ? new Date().toISOString() : undefined
-            } : null);
-          }}
-        >
-          <option value="registered">{t("Registered")}</option>
-          <option value="driver_assigned">{t("Driver Assigned")}</option>
-          <option value="picked_up">{t("Picked Up")}</option>
-          <option value="completed">{t("Completed")}</option>
-          <option value="cancelled">{t("Cancelled")}</option>
-        </FormSelect>
 
         {/* Fact & Volumetric Parameters (Always visible regardless of status) */}
         <div className="space-y-4 animate-in slide-in-from-top-3 duration-150">
@@ -186,6 +206,27 @@ export default function OrderFormFields({
               onChange={(e) => setEditingOrder(prev => prev ? { ...prev, waybill_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
             />
           </div>
+
+          {/* Status Selector moved below zednadebit raodenoba */}
+          <FormSelect
+            label={`${t("Fulfillment Status")} *`}
+            value={editingOrder.status}
+            className="bg-emerald-50 text-emerald-800 font-bold"
+            onChange={(e) => {
+              const statusVal = e.target.value as OrderStatus;
+              setEditingOrder(prev => prev ? {
+                ...prev,
+                status: statusVal,
+                pickup_date_time: statusVal === 'completed' ? new Date().toISOString() : undefined
+              } : null);
+            }}
+          >
+            <option value="registered">{t("Registered")}</option>
+            <option value="driver_assigned">{t("Driver Assigned")}</option>
+            <option value="picked_up">{t("Picked Up")}</option>
+            <option value="completed">{t("Completed")}</option>
+            <option value="cancelled">{t("Cancelled")}</option>
+          </FormSelect>
         </div>
 
         {/* Dynamic Custom Fields from Columns Manager */}

@@ -1,15 +1,16 @@
 import React from 'react';
-import { Order, Vendor, User, Warehouse } from '../../types';
+import { Order, Vendor, User, Warehouse, Direction } from '../../types';
 import { Edit2, Trash2, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
-import { t } from '../../utils/lang';
+import { t, formatDate, formatDateTime } from '../../utils/lang';
 
 interface Props {
   filteredOrders: Order[];
   suppliers: Vendor[];
   warehouses: Warehouse[];
   employees: User[];
+  directions: Direction[];
   startEdit: (ord: Order, readOnly?: boolean) => void;
   askDelete: (id: string, docNum: string) => void;
   selectedOrders?: string[];
@@ -22,6 +23,7 @@ export default function OrdersList({
   suppliers,
   warehouses,
   employees,
+  directions,
   startEdit,
   askDelete,
   selectedOrders = [],
@@ -46,11 +48,7 @@ export default function OrdersList({
     order_date: {
       header: t('Date'),
       key: 'order_date',
-      render: (ord) => new Date(ord.order_date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      })
+      render: (ord) => formatDate(ord.order_date)
     },
     doc_number: {
       header: t('Doc Num'),
@@ -86,7 +84,7 @@ export default function OrdersList({
     pickup_date_time: {
       header: t('Dispatch Date'),
       key: 'pickup_date_time',
-      render: (ord) => ord.pickup_date_time ? new Date(ord.pickup_date_time).toLocaleString('en-US') : '-'
+      render: (ord) => formatDateTime(ord.pickup_date_time)
     },
     planned: {
       header: t('Planned'),
@@ -122,6 +120,73 @@ export default function OrdersList({
       header: t('Comment'),
       key: 'comment',
       render: (ord) => ord.note || '-'
+    },
+    address: {
+      header: t('Address'),
+      key: 'address',
+      render: (ord) => {
+        const vendor = suppliers.find(s => s.id === ord.vendor_id);
+        return vendor ? vendor.address : '-';
+      }
+    },
+    direction: {
+      header: t('Direction'),
+      key: 'direction',
+      render: (ord) => {
+        const vendor = suppliers.find(s => s.id === ord.vendor_id);
+        if (!vendor || !vendor.direction_id) return '-';
+        const d = directions.find(dir => dir.id === vendor.direction_id);
+        return d ? d.name : '-';
+      }
+    },
+    city: {
+      header: t('City'),
+      key: 'city',
+      render: (ord) => {
+        const vendor = suppliers.find(s => s.id === ord.vendor_id);
+        return vendor ? vendor.city : '-';
+      }
+    },
+    district: {
+      header: t('District'),
+      key: 'district',
+      render: (ord) => {
+        const vendor = suppliers.find(s => s.id === ord.vendor_id);
+        return vendor ? vendor.district : '-';
+      }
+    },
+    truck_plate: {
+      header: t('Vehicle'),
+      key: 'truck_plate',
+      render: (ord) => ord.truck_plate || '-'
+    },
+    driver_id: {
+      header: t('Driver'),
+      key: 'driver_id',
+      render: (ord) => {
+        if (!ord.driver_id) return '-';
+        const emp = employees.find(e => e.id === ord.driver_id);
+        return emp ? emp.name : '-';
+      }
+    },
+    companion_id: {
+      header: t('Assistant'),
+      key: 'companion_id',
+      render: (ord) => {
+        if (!ord.companion_id) return '-';
+        const emp = employees.find(e => e.id === ord.companion_id);
+        return emp ? emp.name : '-';
+      }
+    },
+    contacts: {
+      header: t('Contacts'),
+      key: 'contacts',
+      render: (ord) => {
+        const vendor = suppliers.find(s => s.id === ord.vendor_id);
+        if (!vendor || !vendor.contacts || vendor.contacts.length === 0) return '-';
+        const mainContact = vendor.contacts.find(c => c.is_default) || vendor.contacts[0];
+        return `${mainContact.name} (${mainContact.phone})`;
+      }
     }
   };
 
@@ -131,11 +196,11 @@ export default function OrdersList({
   columns.push({
     header: '',
     key: 'select',
-    className: 'w-12 text-center',
+    className: 'w-12 text-center sticky left-0 z-30 bg-slate-50',
     render: (ord) => {
       const isChecked = selectedOrders.includes(ord.id);
       return (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-center sticky left-0 z-30 bg-transparent">
           <button
             type="button"
             onClick={() => toggleSelect(ord.id)}

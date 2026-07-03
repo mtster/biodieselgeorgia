@@ -1,6 +1,7 @@
 import React from 'react';
 import { Vendor, Order, City, District } from '../../types';
 import { Bell, ShieldAlert, Award, TrendingUp, Compass } from 'lucide-react';
+import { formatDate } from '../../utils/lang';
 
 interface Props {
   suppliers: Vendor[];
@@ -144,7 +145,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
                         </td>
                         <td className="py-3 px-3 text-red-650 font-mono font-bold">
                           {sup.last_pickup_date 
-                            ? new Date(sup.last_pickup_date).toLocaleDateString('en-US') 
+                            ? formatDate(sup.last_pickup_date) 
                             : 'Never'}
                         </td>
                         <td className="py-3 px-3 font-mono font-medium text-gray-550">

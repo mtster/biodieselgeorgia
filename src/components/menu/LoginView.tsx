@@ -30,13 +30,19 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
       return;
     }
 
+    const rawEmail = email.trim();
+    let loginEmail = rawEmail;
+    if (!loginEmail.includes('@')) {
+      loginEmail = `${loginEmail}@biodiesel.ge`;
+    }
+
     setLoading(true);
     setErrorMsg('');
 
     try {
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: loginEmail,
           password: password,
         });
 
@@ -107,7 +113,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
       } else {
         // Fallback to local storage matching
-        const matched = users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase() && (u.password === password || password === 'admin123'));
+        const matched = users.find(u => u.email.trim().toLowerCase() === loginEmail.toLowerCase() && (u.password === password || password === 'admin123'));
         if (matched) {
           if (matched.is_blocked) {
             setErrorMsg(t('Your user account has been blocked by administrators.'));
@@ -154,11 +160,11 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         {/* Real Form using native standard colors */}
         <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">{t("Email Address")}</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">{t("Email or Username")}</label>
             <input 
               id="input-login-email"
-              type="email"
-              placeholder="user@biodiesel.ge"
+              type="text"
+              placeholder="user@biodiesel.ge or username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}

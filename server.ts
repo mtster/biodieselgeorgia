@@ -93,21 +93,25 @@ async function startServer() {
         return res.status(500).json({ error: adminError?.message || "Failed to create user in Auth database" });
       }
 
-      // The postgres trigger automatically creates the row in public.profiles.
-      // Let's update that profile record with any optional fields like warehouse_id or vendor_id.
-      await supabaseAdmin
-        .from("profiles")
-        .update({
-          warehouse_id: warehouse_id || null,
-          vendor_id: vendor_id || null
-        })
-        .eq("id", adminData.user.id);
+      let profile = null;
+      if (role !== "vendor") {
+        // The postgres trigger automatically creates the row in public.profiles.
+        // Let's update that profile record with any optional fields like warehouse_id or vendor_id.
+        await supabaseAdmin
+          .from("profiles")
+          .update({
+            warehouse_id: warehouse_id || null,
+            vendor_id: vendor_id || null
+          })
+          .eq("id", adminData.user.id);
 
-      const { data: profile, error: profileError } = await supabaseAdmin
-        .from("profiles")
-        .select("*")
-        .eq("id", adminData.user.id)
-        .single();
+        const { data: fetchedProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("*")
+          .eq("id", adminData.user.id)
+          .maybeSingle();
+        profile = fetchedProfile;
+      }
 
       res.json({
         success: true,

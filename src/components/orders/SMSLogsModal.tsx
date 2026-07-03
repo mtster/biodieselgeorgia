@@ -1,6 +1,6 @@
 import React from 'react';
 import { MessageSquareCode, X } from 'lucide-react';
-import { t } from '../../utils/lang';
+import { t, formatDateTime } from '../../utils/lang';
 
 interface Props {
   isOpen: boolean;
@@ -33,7 +33,7 @@ export default function SMSLogsModal({ isOpen, onClose, smsLogs }: Props) {
             <div key={sms.id} className="p-3 bg-slate-50 border border-slate-105 rounded-xl space-y-1 text-xs text-left">
               <div className="flex items-center justify-between text-gray-400 text-[10px] font-mono">
                 <span>{sms.recipient}</span>
-                <span>{new Date(sms.date_time).toLocaleString('en-US')}</span>
+                <span>{formatDateTime(sms.date_time)}</span>
               </div>
               <p className="font-medium text-gray-800 font-sans">{sms.message}</p>
               <span className="text-[9px] bg-emerald-50 text-emerald-850 px-1.5 py-0.5 rounded font-mono font-bold w-fit block border border-emerald-100">

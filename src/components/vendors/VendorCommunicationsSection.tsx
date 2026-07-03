@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Communication, Vendor, User } from '../../types';
-import { t } from '../../utils/lang';
+import { t, formatDateTime } from '../../utils/lang';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { MessageSquare, Edit3, Trash2 } from 'lucide-react';
 
@@ -35,11 +35,8 @@ export default function VendorCommunicationsSection({
       header: t('Date & Time'),
       key: 'date_time',
       render: (comm) => {
-        const d = new Date(comm.date_time);
-        return isNaN(d.getTime()) ? (
-          <span className="font-mono text-xs">{comm.date_time}</span>
-        ) : (
-          <span className="font-mono text-xs">{d.toLocaleString()}</span>
+        return (
+          <span className="font-mono text-xs">{formatDateTime(comm.date_time)}</span>
         );
       }
     },

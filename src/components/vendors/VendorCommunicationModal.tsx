@@ -16,6 +16,51 @@ interface Props {
   onDeleteCommunication?: (id: string) => Promise<void> | void;
 }
 
+const toDisplayDateTime = (val: string | undefined | null): string => {
+  if (!val) return '';
+  if (/^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}$/.test(val)) return val;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+const toLocalDatetimeValue = (isoString: string | undefined | null): string => {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day}T${h}:${min}`;
+};
+
+const fromLocalDatetimeValue = (localString: string): string => {
+  if (!localString) return '';
+  const d = new Date(localString);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString();
+};
+
+const toDbDateTime = (val: string): string => {
+  if (!val) return '';
+  const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})$/);
+  if (match) {
+    const [_, d, m, y, h, min] = match;
+    const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), parseInt(h), parseInt(min));
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toISOString();
+    }
+  }
+  return val;
+};
+
 export default function VendorCommunicationModal({
   isOpen,
   onClose,
@@ -27,9 +72,8 @@ export default function VendorCommunicationModal({
   onSaveCommunication,
   onDeleteCommunication
 }: Props) {
-  const [newCommDate, setNewCommDate] = useState(new Date().toISOString().substring(0, 16));
   const [newCommType, setNewCommType] = useState<'action' | 'reminder' | 'task'>('action');
-  const [newCommReminderTime, setNewCommReminderTime] = useState('');
+  const [localReminderTime, setLocalReminderTime] = useState('');
   const [newCommContactId, setNewCommContactId] = useState('');
   const [newCommUserId, setNewCommUserId] = useState(currentUser.id);
   const [newCommComment, setNewCommComment] = useState('');
@@ -40,18 +84,16 @@ export default function VendorCommunicationModal({
   useEffect(() => {
     if (isOpen) {
       if (activeComm) {
-        setNewCommDate(new Date(activeComm.date_time).toISOString().substring(0, 16));
         setNewCommType(activeComm.type);
-        setNewCommReminderTime(activeComm.reminder_time ? new Date(activeComm.reminder_time).toISOString().substring(0, 16) : '');
+        setLocalReminderTime(activeComm.reminder_time || '');
         setNewCommContactId(activeComm.vendor_contact_id || '');
         setNewCommUserId(activeComm.user_id);
         setNewCommComment(activeComm.comment);
         setNewCommResponsibleUserId(activeComm.responsible_user_id || '');
         setNewCommTaskStatus(activeComm.task_status || 'pending');
       } else {
-        setNewCommDate(new Date().toISOString().substring(0, 16));
         setNewCommType('action');
-        setNewCommReminderTime('');
+        setLocalReminderTime('');
         const primary = tempContacts.find(c => c.is_default);
         if (primary) {
           setNewCommContactId(primary.id);
@@ -69,7 +111,7 @@ export default function VendorCommunicationModal({
     }
   }, [isOpen, activeComm, currentUser.id, tempContacts]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editingVendor.id) {
       alert(t("Please save this supplier before logging communication records."));
       return;
@@ -83,11 +125,13 @@ export default function VendorCommunicationModal({
     const assignedUser = users.find(u => u.id === newCommUserId);
     const assignedContact = tempContacts.find(c => c.id === newCommContactId);
 
+    const finalReminderTime = newCommType === 'reminder' && localReminderTime ? localReminderTime : undefined;
+
     const commPayload: Communication = {
       id: activeComm ? activeComm.id : '',
-      date_time: new Date(newCommDate).toISOString(),
+      date_time: activeComm ? activeComm.date_time : new Date().toISOString(),
       type: newCommType,
-      reminder_time: newCommType === 'reminder' && newCommReminderTime ? new Date(newCommReminderTime).toISOString() : undefined,
+      reminder_time: finalReminderTime,
       user_id: newCommUserId,
       user_name: assignedUser ? assignedUser.name : currentUser.name,
       vendor_id: editingVendor.id,
@@ -101,7 +145,8 @@ export default function VendorCommunicationModal({
     };
 
     try {
-      await onSaveCommunication(commPayload);
+      // Save instantly in the background and close modal
+      onSaveCommunication(commPayload);
       onClose();
     } catch (e) {
       console.error(e);
@@ -124,12 +169,6 @@ export default function VendorCommunicationModal({
       saveLabel={activeComm ? t("Save Communication") : t("Add Communication")}
     >
       <div className="space-y-4">
-        <FormInput
-          label={t("Date & Time *")}
-          type="datetime-local"
-          value={newCommDate}
-          onChange={(e) => setNewCommDate(e.target.value)}
-        />
         <div className="grid grid-cols-2 gap-3">
           <FormSelect
             label={t("Type *")}
@@ -179,15 +218,19 @@ export default function VendorCommunicationModal({
 
         {newCommType === 'reminder' && (
           <FormInput
-            label={t("Reminder Due Time *")}
+            label={t("Reminder Due Time")}
             type="datetime-local"
-            value={newCommReminderTime}
-            onChange={(e) => setNewCommReminderTime(e.target.value)}
+            fontClass="font-mono"
+            value={localReminderTime ? toLocalDatetimeValue(localReminderTime) : ''}
+            onChange={(e) => {
+              const isoVal = fromLocalDatetimeValue(e.target.value);
+              setLocalReminderTime(isoVal);
+            }}
           />
         )}
 
         <FormSelect
-          label={t("Supplier")}
+          label={t("Contact Person")}
           value={newCommContactId}
           onChange={(e) => setNewCommContactId(e.target.value)}
         >
@@ -203,7 +246,7 @@ export default function VendorCommunicationModal({
           <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Notes / Discussion Content *")}</span>
           <textarea
             rows={4}
-            placeholder={t("Discussed pricing rate terms / Scheduled upcoming grease pickup...")}
+            placeholder=""
             value={newCommComment}
             onChange={(e) => {
               setNewCommComment(e.target.value);

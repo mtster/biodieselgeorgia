@@ -2,7 +2,7 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { Communication, Vendor, User } from '../../types';
 import { ColumnConfig } from '../StandardTable';
-import { t } from '../../utils/lang';
+import { t, formatDateTime } from '../../utils/lang';
 
 interface ColumnOptions {
   suppliers: Vendor[];
@@ -24,7 +24,7 @@ export function getCommunicationsColumns({
     date_time: {
       header: t('Date & Time'),
       key: 'date_time',
-      render: (comm) => new Date(comm.date_time).toLocaleString('en-US')
+      render: (comm) => formatDateTime(comm.date_time)
     },
     type: {
       header: t('Type'),
@@ -120,7 +120,7 @@ export function getCommunicationsColumns({
     reminder_time: {
       header: t('Reminder Time'),
       key: 'reminder_time',
-      render: (comm) => comm.reminder_time ? new Date(comm.reminder_time).toLocaleString('en-US') : '-'
+      render: (comm) => formatDateTime(comm.reminder_time)
     }
   };
 
@@ -130,11 +130,11 @@ export function getCommunicationsColumns({
   columns.push({
     header: '',
     key: 'select',
-    className: 'w-12 text-center',
+    className: 'w-12 text-center sticky left-0 z-30 bg-slate-50',
     render: (comm) => {
       const isChecked = selectedComms.includes(comm.id);
       return (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-center">
+        <div onClick={(e) => e.stopPropagation()} className="flex justify-center sticky left-0 z-30 bg-transparent">
           <button
             type="button"
             onClick={() => {
