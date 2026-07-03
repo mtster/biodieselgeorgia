@@ -19,6 +19,25 @@ export function useAuth() {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
+            const role = session.user.user_metadata?.role;
+            if (role === 'vendor') {
+              const vendorUser: User = {
+                id: session.user.id,
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
+                email: session.user.email || '',
+                personal_id: session.user.user_metadata?.personal_id || '',
+                phone: session.user.user_metadata?.phone || '',
+                role: 'vendor',
+                privileges: [],
+                is_blocked: false,
+                created_at: session.user.created_at || new Date().toISOString(),
+                vendor_id: session.user.user_metadata?.vendor_id || undefined
+              };
+              setCurrentUser(vendorUser);
+              setIsLoadingAuth(false);
+              return;
+            }
+
             let dbUser: any = null;
             const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
             if (session.access_token && useProxy) {
@@ -97,6 +116,24 @@ export function useAuth() {
             return;
           }
           try {
+            const role = session.user.user_metadata?.role;
+            if (role === 'vendor') {
+              const vendorUser: User = {
+                id: session.user.id,
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
+                email: session.user.email || '',
+                personal_id: session.user.user_metadata?.personal_id || '',
+                phone: session.user.user_metadata?.phone || '',
+                role: 'vendor',
+                privileges: [],
+                is_blocked: false,
+                created_at: session.user.created_at || new Date().toISOString(),
+                vendor_id: session.user.user_metadata?.vendor_id || undefined
+              };
+              setCurrentUser(vendorUser);
+              return;
+            }
+
             let dbUser: any = null;
             const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
             if (session?.access_token && useProxy) {

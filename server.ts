@@ -94,22 +94,23 @@ async function startServer() {
       }
 
       let profile = null;
-      // The postgres trigger automatically creates the row in public.profiles.
-      // Let's update that profile record with any optional fields like warehouse_id or vendor_id.
-      await supabaseAdmin
-        .from("profiles")
-        .update({
-          warehouse_id: warehouse_id || null,
-          vendor_id: vendor_id || null
-        })
-        .eq("id", adminData.user.id);
+      if (role !== "vendor") {
+        // The postgres trigger automatically creates the row in public.profiles.
+        // Let's update that profile record with any optional fields like warehouse_id.
+        await supabaseAdmin
+          .from("profiles")
+          .update({
+            warehouse_id: warehouse_id || null
+          })
+          .eq("id", adminData.user.id);
 
-      const { data: fetchedProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("*")
-        .eq("id", adminData.user.id)
-        .maybeSingle();
-      profile = fetchedProfile;
+        const { data: fetchedProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("*")
+          .eq("id", adminData.user.id)
+          .maybeSingle();
+        profile = fetchedProfile;
+      }
 
       res.json({
         success: true,

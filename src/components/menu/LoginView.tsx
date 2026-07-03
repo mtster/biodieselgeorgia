@@ -53,6 +53,26 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
 
         if (data?.user) {
+          const role = data.user.user_metadata?.role;
+          if (role === 'vendor') {
+            const vendorUser: User = {
+              id: data.user.id,
+              name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Supplier',
+              email: data.user.email || '',
+              personal_id: data.user.user_metadata?.personal_id || '',
+              phone: data.user.user_metadata?.phone || '',
+              role: 'vendor',
+              privileges: [],
+              is_blocked: false,
+              created_at: data.user.created_at || new Date().toISOString(),
+              vendor_id: data.user.user_metadata?.vendor_id || undefined
+            };
+            onLoginSuccess(vendorUser);
+            setErrorMsg('');
+            setLoading(false);
+            return;
+          }
+
           let dbUser: any = null;
           const sessionRes = await supabase.auth.getSession();
           const token = sessionRes.data.session?.access_token;
