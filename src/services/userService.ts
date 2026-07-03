@@ -115,7 +115,9 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               personal_id: user.personal_id,
               phone: user.phone,
               role: user.role,
-              privileges: user.privileges
+              privileges: user.privileges,
+              warehouse_id: user.warehouse_id,
+              vendor_id: user.vendor_id
             })
           });
 
@@ -177,7 +179,9 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                 personal_id: user.personal_id,
                 phone: user.phone,
                 role: user.role,
-                privileges: user.privileges
+                privileges: user.privileges,
+                warehouse_id: user.warehouse_id,
+                vendor_id: user.vendor_id
               })
             });
 

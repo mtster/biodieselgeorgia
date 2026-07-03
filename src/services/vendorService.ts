@@ -67,7 +67,7 @@ export function cleanVendorDbPayload(vendor: any): any {
     id_code: vendor.id_code || '',
     company_name: vendor.company_name || vendor.trade_name || '',
     trade_name: vendor.trade_name || '',
-    company_code: vendor.company_code || vendor.id_code || '',
+    company_code: (vendor.company_code || vendor.id_code || vendor.id || '').trim(),
     bank_account: vendor.bank_account || '',
     city: vendor.city || '',
     district: vendor.district || '',
@@ -115,7 +115,7 @@ export async function createDatabaseColumn(columnName: string): Promise<void> {
 
 export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
-  const isNew = !vendor.id || !list.some(v => v.id === vendor.id);
+  const isNew = !vendor.id;
 
   const cleanUserUuid = (val: string | null | undefined): string | null => {
     if (!val) return null;
@@ -153,9 +153,10 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
     }
   }
 
-  if (isNew) {
-    setLocal(KEY_VENDORS, [...list, finalVendor]);
-    await trackChange(loggerName, 'Vendor created', 'Trade Name', '', finalVendor.trade_name);
+  const existsInLocal = list.some(item => item.id === finalVendor.id);
+  if (isNew || !existsInLocal) {
+    setLocal(KEY_VENDORS, [...list.filter(item => item.id !== finalVendor.id), finalVendor]);
+    await trackChange(loggerName, isNew ? 'Vendor created' : 'Vendor updated', 'Trade Name', '', finalVendor.trade_name);
   } else {
     setLocal(KEY_VENDORS, list.map(item => item.id === finalVendor.id ? finalVendor : item));
     await trackChange(loggerName, 'Vendor updated', 'Trade Name', '', finalVendor.trade_name);
