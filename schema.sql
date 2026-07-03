@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- Apply non-destructive updates to public.profiles table if it pre-exists
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS vendor_id TEXT DEFAULT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
 
@@ -240,11 +241,18 @@ DECLARE
   v_role TEXT;
 BEGIN
   v_role := COALESCE(new.raw_user_meta_data->>'role', 'admin');
-  IF v_role = 'vendor' THEN
-    RETURN NEW;
-  END IF;
 
-  INSERT INTO public.profiles (id, name, personal_id, email, phone, role, privileges)
+  INSERT INTO public.profiles (
+    id, 
+    name, 
+    personal_id, 
+    email, 
+    phone, 
+    role, 
+    privileges, 
+    warehouse_id, 
+    vendor_id
+  )
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
@@ -252,7 +260,9 @@ BEGIN
     new.email,
     COALESCE(new.raw_user_meta_data->>'phone', '599112233'),
     v_role::public.user_role,
-    COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[])
+    COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[]),
+    new.raw_user_meta_data->>'warehouse_id',
+    new.raw_user_meta_data->>'vendor_id'
   )
   ON CONFLICT (id) DO UPDATE 
   SET 
@@ -261,7 +271,9 @@ BEGIN
     phone = EXCLUDED.phone,
     personal_id = EXCLUDED.personal_id,
     role = EXCLUDED.role,
-    privileges = EXCLUDED.privileges;
+    privileges = EXCLUDED.privileges,
+    warehouse_id = COALESCE(EXCLUDED.warehouse_id, public.profiles.warehouse_id),
+    vendor_id = COALESCE(EXCLUDED.vendor_id, public.profiles.vendor_id);
   
   RETURN NEW;
 END;

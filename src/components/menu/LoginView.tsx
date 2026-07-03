@@ -103,7 +103,9 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               role: (data.user.user_metadata?.role as any) || 'admin',
               privileges: data.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
               is_blocked: false,
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
+              warehouse_id: data.user.user_metadata?.warehouse_id || undefined,
+              vendor_id: data.user.user_metadata?.vendor_id || undefined
             };
 
             await supabase.from('profiles').insert([newUser]);
