@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 import { t } from '../utils/lang';
+import { FormInput } from './FormInput';
 
 interface PeriodFilterProps {
   startDate: string;
@@ -87,14 +88,17 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
 
   return (
     <div ref={containerRef} className="flex items-center gap-2 relative">
-      <div className="relative w-full md:w-auto min-w-[140px]">
-        <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">{t("Start Date")}</span>
-        <input type="date" value={cleanStartDate} onChange={(e) => setStartDate(e.target.value)} className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 font-sans h-[38px]" />
-      </div>
+      <FormInput
+        type="date"
+        label="Start Date"
+        value={cleanStartDate}
+        onChange={(e) => setStartDate(e.target.value)}
+        containerClassName="w-full md:w-auto min-w-[140px]"
+      />
 
       <button
         onClick={() => setShowPresets(!showPresets)}
-        className={`p-2 rounded-lg transition flex items-center justify-center ${
+        className={`p-2 rounded-lg transition flex items-center justify-center h-[38px] ${
           cleanStartDate || cleanEndDate
             ? 'text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 shadow-sm font-semibold'
             : 'text-emerald-800 hover:bg-emerald-50'
@@ -135,10 +139,13 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
         </div>
       )}
 
-      <div className="relative w-full md:w-auto min-w-[140px]">
-        <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">{t("End Date")}</span>
-        <input type="date" value={cleanEndDate} onChange={(e) => setEndDate(e.target.value)} className="block w-full py-2 pl-3 pr-3 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 font-sans h-[38px]" />
-      </div>
+      <FormInput
+        type="date"
+        label="End Date"
+        value={cleanEndDate}
+        onChange={(e) => setEndDate(e.target.value)}
+        containerClassName="w-full md:w-auto min-w-[140px]"
+      />
     </div>
   );
 }

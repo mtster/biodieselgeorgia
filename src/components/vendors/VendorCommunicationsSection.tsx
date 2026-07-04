@@ -3,6 +3,7 @@ import { Communication, Vendor, User } from '../../types';
 import { t, formatDateTime } from '../../utils/lang';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { MessageSquare, Edit3, Trash2 } from 'lucide-react';
+import AddButton from '../AddButton';
 
 interface Props {
   communications: Communication[];
@@ -116,22 +117,16 @@ export default function VendorCommunicationsSection({
   const filteredComms = communications.filter(c => c.vendor_id === editingVendor.id && !c.is_deleted);
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4">
-      <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
-        <div>
-          <h4 className="text-xs font-bold uppercase text-gray-800 tracking-wider">
-            {t("Communications")}
-          </h4>
-        </div>
+    <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
+        <span className="text-xs font-bold uppercase text-gray-500 tracking-wider font-sans">
+          {t("Communications")}
+        </span>
         {!isReadOnly && (
-          <button
-            type="button"
+          <AddButton
+            label="Add Communication"
             onClick={onAddComm}
-            className="px-3.5 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-950 border border-emerald-205 rounded-xl text-xs font-bold font-sans cursor-pointer transition-all flex items-center gap-1.5 shadow-3xs"
-          >
-            <MessageSquare size={13} />
-            {t("Add Communication")}
-          </button>
+          />
         )}
       </div>
 

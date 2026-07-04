@@ -6,6 +6,7 @@ export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputEleme
   error?: string;
   fontClass?: string;
   containerClassName?: string;
+  children?: React.ReactNode;
 }
 
 export function FormInput({
@@ -14,6 +15,7 @@ export function FormInput({
   fontClass = 'font-sans',
   containerClassName = '',
   className = '',
+  children,
   ...props
 }: FormInputProps) {
   let finalValue = props.value;
@@ -39,6 +41,7 @@ export function FormInput({
         {...props}
         value={finalValue}
       />
+      {children}
       {error && (
         <p className="text-[10px] text-red-600 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
           {error}

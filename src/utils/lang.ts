@@ -591,7 +591,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Change Password (Optional)": "პაროლის შეცვლა (არასავალდებულო)",
   "Username": "მომხმარებლის სახელი",
   "Username / Email": "მომხმარებლის სახელი / ელ.ფოსტა",
-  "Supplier Login Account": "მომწოდებლის მომხმარებლის ანგარიში",
+  "Supplier Login Account": "მომწოდებლის ანგარიში",
   "Leave blank to keep existing password": "დატოვეთ ცარიელი არსებული პაროლის შესანარჩუნებლად",
   "Enter password": "შეიყვანეთ პაროლი",
   "Either both fields must be filled to create/edit an account, or both must be empty to save without/delete access.": "ანგარიშის შესაქმნელად/რედაქტირებისთვის ორივე ველი უნდა შეივსოს, ან ორივე უნდა იყოს ცარიელი წვდომის გარეშე შესანახად.",

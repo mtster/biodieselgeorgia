@@ -440,15 +440,11 @@ export default function VendorForm({
             <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">
               {t("Supplier Login Account")}
             </span>
-            <p className="text-xs text-gray-400 italic">
-              {t("Either both fields must be filled to create/edit an account, or both must be empty to save without/delete access.")}
-            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormInput
                 label={t("Username")}
                 type="text"
                 fontClass="font-mono"
-                placeholder={t("e.g. gio.samxaradze")}
                 value={usernameInput}
                 onChange={(e) => {
                   setUsernameInput(e.target.value);
@@ -459,7 +455,6 @@ export default function VendorForm({
               <FormInput
                 label={t("Password")}
                 type="password"
-                placeholder={editingVendor.user_id ? t("Leave blank to keep existing password") : t("Enter password")}
                 value={passwordInput}
                 onChange={(e) => {
                   setPasswordInput(e.target.value);

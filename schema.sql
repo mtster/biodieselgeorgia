@@ -240,9 +240,6 @@ DECLARE
   v_role TEXT;
 BEGIN
   v_role := COALESCE(new.raw_user_meta_data->>'role', 'admin');
-  IF v_role = 'vendor' THEN
-    RETURN NEW;
-  END IF;
 
   INSERT INTO public.profiles (
     id, 

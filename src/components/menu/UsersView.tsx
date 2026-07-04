@@ -5,6 +5,8 @@ import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import DeleteButton from '../DeleteButton';
+import AddButton from '../AddButton';
+import { StandardTable, ColumnConfig } from '../StandardTable';
 
 import UserForm from '../users/UserForm';
 
@@ -142,7 +144,66 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
         {t("Save")}
       </button>
     </>
-  ) : undefined;
+  ) : (
+    currentUser.role === 'admin' ? (
+      <button
+        onClick={startNew}
+        className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
+      >
+        <Plus size={15} />
+        {t("Add New User")}
+      </button>
+    ) : undefined
+  );
+
+  const userColumns: ColumnConfig<User>[] = [
+    {
+      header: t("სახელი"),
+      key: 'name',
+      className: 'max-w-[200px] truncate',
+      render: (u) => (
+        <div className="font-bold text-gray-900 truncate" title={u.name}>{u.name}</div>
+      )
+    },
+    {
+      header: t("Role"),
+      key: 'role',
+      className: 'max-w-[150px] truncate',
+      render: (usr) => (
+        <span className={`text-[9px] font-bold tracking-widest uppercase font-mono px-2 py-0.5 inline-block rounded truncate ${
+          usr.role === 'admin' ? 'bg-red-50 text-red-700' :
+          usr.role === 'manager' ? 'bg-indigo-50 text-indigo-700' :
+          usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :
+          'bg-amber-50 text-amber-700'
+        }`} title={usr.role}>
+          {usr.role === 'admin' ? t('Administrator') :
+           usr.role === 'manager' ? t('Manager') :
+           usr.role === 'warehouse_manager' ? t('Warehouse Manager') :
+           usr.role === 'assistant' ? t('Assistant') :
+           usr.role === 'driver' ? t('Driver') :
+           usr.role === 'vendor' ? t('Supplier (Vendor)') : t('Unknown')}
+        </span>
+      )
+    },
+    {
+      header: t("Personal ID"),
+      key: 'personal_id',
+      className: 'max-w-[120px] truncate',
+      render: (u) => <span className="font-mono text-gray-500 text-xs truncate block" title={u.personal_id}>{u.personal_id}</span>
+    },
+    {
+      header: t("Email"),
+      key: 'email',
+      className: 'max-w-[200px] truncate',
+      render: (u) => <span className="font-mono text-gray-500 text-xs truncate block" title={u.email}>{u.email}</span>
+    },
+    {
+      header: t("Phone"),
+      key: 'phone',
+      className: 'max-w-[120px] truncate',
+      render: (u) => <span className="font-mono font-bold text-emerald-900 text-xs truncate block" title={u.phone}>{u.phone}</span>
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -172,99 +233,11 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
         <div className="space-y-6">
 
           {/* List display */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 text-left w-full select-none">
-            {filtered.map((usr) => (
-              <div 
-                key={usr.id}
-                onClick={() => startEdit(usr)}
-                className="bg-white border border-gray-200 hover:border-emerald-500 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4 transition cursor-pointer"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-sm font-black text-gray-800">{usr.name}</h3>
-                      <span className={`text-[9px] font-bold tracking-widest uppercase font-mono px-2 py-0.5 mt-1 inline-block rounded ${
-                        usr.role === 'admin' ? 'bg-red-50 text-red-700' :
-                        usr.role === 'manager' ? 'bg-indigo-50 text-indigo-700' :
-                        usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :
-                        'bg-amber-50 text-amber-700'
-                      }`}>
-                        {usr.role === 'admin' ? t('Administrator') :
-                         usr.role === 'manager' ? t('Manager') :
-                         usr.role === 'warehouse_manager' ? t('Warehouse Manager') :
-                         usr.role === 'assistant' ? t('Assistant') :
-                         usr.role === 'driver' ? t('Driver') :
-                         usr.role === 'vendor' ? t('Supplier (Vendor)') : t('Unknown')}
-                      </span>
-                    </div>
-                    {currentUser.role === 'admin' && (
-                      <div className="flex gap-1 select-none" onClick={(e) => e.stopPropagation()}>
-                        <button 
-                          onClick={() => startEdit(usr)}
-                          className="p-1.5 text-gray-400 hover:text-emerald-750 hover:bg-gray-50 rounded-lg transition cursor-pointer"
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                        {usr.id !== currentUser.id && (
-                          <button 
-                            onClick={() => askDelete(usr.id, usr.name)}
-                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-gray-50 rounded-lg transition cursor-pointer"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="text-[11px] text-gray-500 space-y-1 pt-1 font-sans">
-                    <p><strong>{t("Personal ID")}:</strong> <span className="font-mono">{usr.personal_id}</span></p>
-                    <p><strong>{t("Email")}:</strong> <span className="font-mono">{usr.email}</span></p>
-                    <p><strong>{t("Phone")}:</strong> <span className="font-mono text-emerald-900 font-bold">{usr.phone}</span></p>
-                  </div>
-                </div>
-
-                {/* Privileges indicators */}
-                <div className="pt-2.5 border-t border-gray-100 space-y-1">
-                  <span className="text-[9px] font-black text-gray-400 uppercase block tracking-wider">{t("Privileges")}</span>
-                  <div className="flex flex-wrap gap-1">
-                    {usr.privileges?.includes('All') ? (
-                      <span className="text-[9px] bg-slate-50 text-emerald-800 border-emerald-100 px-1.5 py-0.5 rounded-md font-mono border font-bold">
-                        {t("All")}
-                      </span>
-                    ) : (
-                      usr.privileges?.map((p) => (
-                        <span key={p} className="text-[9px] bg-slate-50 text-gray-650 px-1.5 py-0.5 rounded-md font-mono border font-medium">
-                          {t(p)}
-                        </span>
-                      ))
-                    )}
-                    {(!usr.privileges || usr.privileges.length === 0) && (
-                      <span className="text-[9px] text-gray-400 italic">{t("No custom privileges")}</span>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            ))}
-
-            {/* Plus-Signed Add New User Window Card */}
-            {currentUser.role === 'admin' && (
-              <button
-                onClick={startNew}
-                type="button"
-                className="bg-amber-50/10 border-2 border-dashed border-amber-500/20 hover:border-emerald-600/50 hover:bg-emerald-50/5 p-5 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer group transition-all duration-200"
-              >
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-800 group-hover:text-white transition-all">
-                  <Plus size={20} />
-                </div>
-                <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
-                  {t("Add New User")}
-                </span>
-              </button>
-            )}
-            
-          </div>
+          <StandardTable
+            data={filtered}
+            columns={userColumns}
+            onRowClick={startEdit}
+          />
         </div>
       )}
 
