@@ -241,9 +241,15 @@ export default function UserForm({
       errs.personal_id = 'Personal ID must be exactly 11 digits.';
     }
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!editingUser.email.trim() || !emailRegex.test(editingUser.email.trim())) {
-      errs.email = 'Please provide a valid email address.';
+    const inputEmailOrUser = editingUser.email.trim();
+    if (!inputEmailOrUser) {
+      errs.email = 'Please provide a valid email address or username.';
+    } else {
+      const emailToValidate = inputEmailOrUser.includes('@') ? inputEmailOrUser : `${inputEmailOrUser}@biodiesel.ge`;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailToValidate)) {
+        errs.email = 'Please provide a valid email address or username.';
+      }
     }
 
     if (!editingUser.phone.trim()) {
@@ -283,8 +289,13 @@ export default function UserForm({
       }
     }
 
+    const formattedEmail = editingUser.email.trim().includes('@')
+      ? editingUser.email.trim()
+      : `${editingUser.email.trim()}@biodiesel.ge`;
+
     onSave({
       ...editingUser,
+      email: formattedEmail,
       privileges: finalPrivileges
     });
   };
@@ -335,8 +346,8 @@ export default function UserForm({
         />
 
         <FormInput
-          label={t("Email Address *")}
-          type="email"
+          label={t("Email or Username *")}
+          type="text"
           id="user-email-address"
           fontClass="font-mono"
           value={editingUser.email}
@@ -346,6 +357,8 @@ export default function UserForm({
             if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
           }}
           error={fieldErrors.email}
+          autoComplete="new-password"
+          name="user-email-field"
         />
 
         <FormInput
@@ -359,6 +372,8 @@ export default function UserForm({
             if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
           }}
           error={fieldErrors.password}
+          autoComplete="new-password"
+          name="user-password-field"
         />
 
         <FormInput

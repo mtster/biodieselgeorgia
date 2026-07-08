@@ -51,6 +51,11 @@ export function useAppData() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showStructureDesc, setShowStructureDesc] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title: string; errorMsg: string }>({
+    isOpen: false,
+    title: '',
+    errorMsg: ''
+  });
 
   // Sync data function
   const refreshAllData = async () => {
@@ -126,7 +131,11 @@ export function useAppData() {
       }
     } catch (e: any) {
       console.error('Error saving user:', e);
-      alert(`⚠️ Authentication / Sync Error: ${e.message || 'Check your permissions.'}\nCould not add or update this user in the Auth database.`);
+      setErrorModal({
+        isOpen: true,
+        title: 'Authentication / Sync Error',
+        errorMsg: e.message || 'Check your permissions.'
+      });
     }
   };
 
@@ -143,7 +152,11 @@ export function useAppData() {
         await refreshAllData();
       } catch (e: any) {
         console.error('Error deleting user:', e);
-        alert(`⚠️ Delete Error: ${e.message || 'Permissions denied.'}`);
+        setErrorModal({
+          isOpen: true,
+          title: 'Delete Error',
+          errorMsg: e.message || 'Permissions denied.'
+        });
       }
     }
   };
@@ -154,7 +167,11 @@ export function useAppData() {
       await refreshAllData();
     } catch (e: any) {
       console.error('Error saving supplier:', e);
-      alert(`⚠️ Supplier Save Error: ${e.message || 'Check connection / permissions.'}`);
+      setErrorModal({
+        isOpen: true,
+        title: 'Supplier Save Error',
+        errorMsg: e.message || 'Check connection / permissions.'
+      });
     }
   };
 
@@ -169,7 +186,11 @@ export function useAppData() {
       await refreshAllData();
     } catch (e: any) {
       console.error('Error deleting supplier:', e);
-      alert(`⚠️ Supplier Delete Error: ${e.message || 'Check permissions.'}`);
+      setErrorModal({
+        isOpen: true,
+        title: 'Supplier Delete Error',
+        errorMsg: e.message || 'Check permissions.'
+      });
     }
   };
 
@@ -179,7 +200,11 @@ export function useAppData() {
       await refreshAllData();
     } catch (e: any) {
       console.error('Error saving order:', e);
-      alert(`⚠️ Order Save Error: ${e.message || 'Check connection / permissions.'}`);
+      setErrorModal({
+        isOpen: true,
+        title: 'Order Save Error',
+        errorMsg: e.message || 'Check connection / permissions.'
+      });
     }
   };
 
@@ -189,7 +214,11 @@ export function useAppData() {
       await refreshAllData();
     } catch (e: any) {
       console.error('Error deleting order:', e);
-      alert(`⚠️ Order Delete Error: ${e.message || 'Check permissions.'}`);
+      setErrorModal({
+        isOpen: true,
+        title: 'Order Delete Error',
+        errorMsg: e.message || 'Check permissions.'
+      });
     }
   };
 
@@ -362,6 +391,8 @@ export function useAppData() {
     handleSaveWarehouse,
     handleDeleteWarehouse,
     handleRevertChange,
-    handleLogOut
+    handleLogOut,
+    errorModal,
+    setErrorModal
   };
 }

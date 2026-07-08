@@ -28,6 +28,7 @@ import VendorFormFields from './VendorFormFields';
 import VendorContactsSection from './VendorContactsSection';
 import VendorCommentsSection from './VendorCommentsSection';
 import VendorContactModal from './VendorContactModal';
+import BeautifulErrorModal from '../BeautifulErrorModal';
 import VendorCommentModal from './VendorCommentModal';
 import VendorCommunicationModal from './VendorCommunicationModal';
 import VendorCommunicationsSection from './VendorCommunicationsSection';
@@ -75,6 +76,11 @@ export default function VendorForm({
   onDeleteCommunication
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title: string; errorMsg: string }>({
+    isOpen: false,
+    title: '',
+    errorMsg: ''
+  });
   const [usernameInput, setUsernameInput] = useState(() => getCleanUsername(editingVendor.username));
   const [passwordInput, setPasswordInput] = useState('');
 
@@ -304,7 +310,11 @@ export default function VendorForm({
           editingVendor.id = pregeneratedVendorId;
         } catch (e: any) {
           console.error('Error creating/updating supplier account:', e);
-          alert(`${t('Failed to create or update supplier login account')}: ${e.message}`);
+          setErrorModal({
+            isOpen: true,
+            title: 'Failed to create or update supplier login account',
+            errorMsg: e.message || 'Unknown error'
+          });
           return;
         }
       } else if (!usernameInput.trim() && !passwordInput.trim()) {
@@ -451,6 +461,8 @@ export default function VendorForm({
                   if (fieldErrors.username) setFieldErrors(prev => ({ ...prev, username: '' }));
                 }}
                 error={fieldErrors.username}
+                autoComplete="new-password"
+                name="vendor-username-field"
               />
               <FormInput
                 label={t("Password")}
@@ -461,6 +473,8 @@ export default function VendorForm({
                   if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
                 }}
                 error={fieldErrors.password}
+                autoComplete="new-password"
+                name="vendor-password-field"
               />
             </div>
           </div>
@@ -572,6 +586,13 @@ export default function VendorForm({
           setIsCommModalOpen(false);
           setIsCommDeleteModalOpen(true);
         } : undefined}
+      />
+
+      <BeautifulErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
+        title={errorModal.title}
+        errorMsg={errorModal.errorMsg}
       />
     </div>
   );

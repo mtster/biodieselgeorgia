@@ -6,6 +6,7 @@
 import React from 'react';
 import { useAppData } from './hooks/useAppData';
 import { t } from './utils/lang';
+import BeautifulErrorModal from './components/BeautifulErrorModal';
 
 // Modular view components
 import LoginView from './components/menu/LoginView';
@@ -72,7 +73,9 @@ export default function App() {
     handleAddWarehouseDirect,
     handleSaveWarehouse,
     handleDeleteWarehouse,
-    handleLogOut
+    handleLogOut,
+    errorModal,
+    setErrorModal
   } = useAppData();
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
@@ -362,6 +365,13 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <BeautifulErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
+        title={errorModal.title}
+        errorMsg={errorModal.errorMsg}
+      />
 
     </div>
   );

@@ -63,6 +63,11 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
 
   if (isSupabaseConfigured && supabase) {
     try {
+      const useProxy = typeof window !== 'undefined' && 
+        !window.location.hostname.includes('vercel.app') && 
+        !window.location.hostname.includes('github.dev') && 
+        !window.location.hostname.includes('gitpod.io');
+
       if (isNew) {
         // Send a call to full-stack Express Admin user creation API
         const sessionRes = await supabase.auth.getSession();
@@ -71,31 +76,40 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           throw new Error('Not authenticated on client');
         }
 
-        const res = await fetch('/api/create-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            email: user.email,
-            password: user.password || 'Georgia2026!',
-            name: user.name,
-            personal_id: user.personal_id,
-            phone: user.phone,
-            role: user.role,
-            privileges: user.privileges,
-            warehouse_id: user.warehouse_id,
-            vendor_id: user.vendor_id
-          })
-        });
-
         let resData: any = null;
-        if (res.ok) {
-          resData = await res.json();
-        } else {
-          console.warn('Express /api/create-user failed, trying Supabase Edge function fallback with direct secure fetch API...');
-          
+
+        if (useProxy) {
+          try {
+            const res = await fetch('/api/create-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                email: user.email,
+                password: user.password || 'Georgia2026!',
+                name: user.name,
+                personal_id: user.personal_id,
+                phone: user.phone,
+                role: user.role,
+                privileges: user.privileges,
+                warehouse_id: user.warehouse_id,
+                vendor_id: user.vendor_id
+              })
+            });
+
+            if (res.ok) {
+              resData = await res.json();
+            } else {
+              console.warn('Express /api/create-user failed, trying Supabase Edge function fallback...');
+            }
+          } catch (err) {
+            console.warn('Express /api/create-user endpoint hit failed, trying Supabase Edge function fallback...', err);
+          }
+        }
+
+        if (!resData) {
           const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
           const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
           const functionUrl = `${supabaseUrl}/functions/v1/create-user`;
@@ -265,25 +279,32 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
         throw new Error('Not authenticated on client');
       }
 
-      let deletedOnExpress = false;
-      try {
-        const res = await fetch('/api/delete-user', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ id })
-        });
+      const useProxy = typeof window !== 'undefined' && 
+        !window.location.hostname.includes('vercel.app') && 
+        !window.location.hostname.includes('github.dev') && 
+        !window.location.hostname.includes('gitpod.io');
 
-        if (res.ok) {
-          deletedOnExpress = true;
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          console.warn('Express delete-user failed:', errData.error || 'Unknown error');
+      let deletedOnExpress = false;
+      if (useProxy) {
+        try {
+          const res = await fetch('/api/delete-user', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id })
+          });
+
+          if (res.ok) {
+            deletedOnExpress = true;
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            console.warn('Express delete-user failed:', errData.error || 'Unknown error');
+          }
+        } catch (err) {
+          console.warn('Express /api/delete-user endpoint is missing/failed, invoking Edge function...', err);
         }
-      } catch (err) {
-        console.warn('Express /api/delete-user endpoint is missing/failed, invoking Edge function...', err);
       }
 
       if (!deletedOnExpress) {
