@@ -24,7 +24,7 @@ const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'working_hours', label: 'Working Hours', visible: true },
   { id: 'location', label: 'Location', visible: true },
   { id: 'direction', label: 'Direction', visible: true },
-  { id: 'vada', label: 'Vada', visible: true },
+  { id: 'overdue_threshold_days', label: 'overdue_threshold_days', visible: true },
   { id: 'barrels_amount', label: 'Barrels Amount', visible: true },
   { id: 'company_code', label: 'Assigned Code', visible: true },
   { id: 'primary_contact', label: 'Primary Contact', visible: true },
@@ -72,6 +72,7 @@ export default function VendorsView({
   
   // Active edit state (On-screen form)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [isFormSaving, setIsFormSaving] = useState(false);
 
   // Auto-open vendor form if initialVendorId is supplied
   useEffect(() => {
@@ -242,9 +243,16 @@ export default function VendorsView({
             />
           )}
           <button 
-            onClick={() => formRef.current?.save()}
-            className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-bold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+            onClick={() => !isFormSaving && formRef.current?.save()}
+            disabled={isFormSaving}
+            className={`px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-bold rounded-xl text-xs shadow-xs transition cursor-pointer select-none inline-flex items-center gap-1.5 ${isFormSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
+            {isFormSaving && (
+              <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
             {t("Save")}
           </button>
         </>
@@ -320,6 +328,7 @@ export default function VendorsView({
           onSaveCommunication={onSaveCommunication}
           onDeleteCommunication={onDeleteCommunication}
           isReadOnly={isReadOnly}
+          onSavingStateChange={setIsFormSaving}
         />
       ) : (
         <div className="space-y-6 text-left">

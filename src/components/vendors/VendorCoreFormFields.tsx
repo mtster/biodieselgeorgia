@@ -37,7 +37,7 @@ export default function VendorCoreFormFields({
         />
 
         <FormInput
-          label={t("Legal/Registered Name (Company Name) *")}
+          label={t("Legal/Registered Name (Company Name)")}
           type="text"
           value={editingVendor.company_name}
           onChange={(e) => {
@@ -50,7 +50,7 @@ export default function VendorCoreFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label={t("Identification Code *")}
+          label={t("Identification Code")}
           type="text"
           fontClass="font-mono"
           value={editingVendor.id_code}
@@ -62,7 +62,7 @@ export default function VendorCoreFormFields({
         />
 
         <FormInput
-          label={t("Code *")}
+          label={t("Code")}
           type="text"
           fontClass="font-mono"
           value={editingVendor.company_code || ''}
@@ -72,7 +72,7 @@ export default function VendorCoreFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label={t("Base Price per Litre (₾) *")}
+          label={t("Base Price per Litre (₾)")}
           type="number"
           step="0.01"
           fontClass="font-mono"
@@ -100,7 +100,7 @@ export default function VendorCoreFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label={t("IBAN / Bank Account *")}
+          label={t("IBAN / Bank Account")}
           type="text"
           fontClass="font-mono"
           value={editingVendor.bank_account}

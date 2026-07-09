@@ -6,7 +6,7 @@
 import React from 'react';
 import { useAppData } from './hooks/useAppData';
 import { t } from './utils/lang';
-import BeautifulErrorModal from './components/BeautifulErrorModal';
+import ErrorModal from './components/ErrorModal';
 
 // Modular view components
 import LoginView from './components/menu/LoginView';
@@ -79,6 +79,13 @@ export default function App() {
   } = useAppData();
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
+  const mainRef = React.useRef<HTMLElement>(null);
+
+  React.useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   if (isLoading) {
     return (
@@ -165,7 +172,7 @@ export default function App() {
         </header>
 
         {/* Content viewport */}
-        <main className="flex-1 overflow-y-auto px-4 md:px-6 pb-16 pt-0 md:pt-0">
+        <main ref={mainRef} className="flex-1 overflow-y-auto px-4 md:px-6 pb-16 pt-0 md:pt-0">
           <div className="w-full">
             {activeTab === 'dashboard' && (
               <DashboardView 
@@ -366,7 +373,7 @@ export default function App() {
         </div>
       )}
 
-      <BeautifulErrorModal
+      <ErrorModal
         isOpen={errorModal.isOpen}
         onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
         title={errorModal.title}

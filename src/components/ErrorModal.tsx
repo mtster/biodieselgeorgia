@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { t } from '../utils/lang';
 
-interface BeautifulErrorModalProps {
+interface ErrorModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -14,10 +14,66 @@ export function translateSupabaseErrorToGeorgian(errorMsg: string): string {
   
   const msgLower = errorMsg.toLowerCase();
   
+  // 1. Check Not-Null violations first using regex to preserve column and relation names
+  const notNullRegex = /null value in column "([^"]+)"(?: of relation "([^"]+)")? violates not-null constraint/i;
+  const notNullMatch = errorMsg.match(notNullRegex);
+  if (notNullMatch) {
+    const col = notNullMatch[1];
+    const rel = notNullMatch[2] || '';
+    return `მონაცემის შენახვა ვერ მოხერხდა: სავალდებულო ველი "${col}"${rel ? ` ცხრილში "${rel}"` : ''} არის ცარიელი (null).`;
+  }
+  
+  // Specific Database Foreign Key Constraints
+  if (msgLower.includes("orders_truck_plate_fkey")) {
+    return "მითითებული ტრანსპორტის ნომერი ვერ მოიძებნა ტრანსპორტის ბაზაში.";
+  }
+  if (msgLower.includes("orders_driver_id_fkey")) {
+    return "მითითებული მძღოლი ვერ მოიძებნა თანამშრომლების ბაზაში.";
+  }
+  if (msgLower.includes("orders_companion_id_fkey")) {
+    return "მითითებული დამხმარე ვერ მოიძებნა თანამშრომლების ბაზაში.";
+  }
+  if (msgLower.includes("orders_vendor_id_fkey")) {
+    return "მითითებული მომწოდებელი ვერ მოიძებნა მომწოდებლების ბაზაში.";
+  }
+  if (msgLower.includes("orders_warehouse_id_fkey")) {
+    return "მითითებული საწყობი ვერ მოიძებნა საწყობების ბაზაში.";
+  }
+  
+  // Regex for general violates foreign key constraint
+  const fkRegex = /violates foreign key constraint "([^"]+)" of relation "([^"]+)"/i;
+  const fkMatch = errorMsg.match(fkRegex);
+  if (fkMatch) {
+    const constraint = fkMatch[1];
+    const rel = fkMatch[2];
+    return `მონაცემების შენახვა ვერ მოხერხდა კავშირის შეზღუდვის გამო: დაკავშირებული ჩანაწერი არ არსებობს (შეზღუდვა "${constraint}" ცხრილში "${rel}").`;
+  }
+
+  if (msgLower.includes("violates foreign key constraint") || msgLower.includes("foreign key violation") || msgLower.includes("foreign_key_violation")) {
+    return "მონაცემების შენახვა ვერ მოხერხდა კავშირის შეზღუდვის გამო (მითითებული დაკავშირებული მონაცემი არ არსებობს შესაბამის ბაზაში).";
+  }
+  
+  // Regex for unique constraint duplicate values
+  const uniqueRegex = /duplicate key value violates unique constraint "([^"]+)"/i;
+  const uniqueMatch = errorMsg.match(uniqueRegex);
+  if (uniqueMatch) {
+    const constraint = uniqueMatch[1];
+    if (constraint.includes("plate_number") || constraint.includes("license_plate")) {
+      return "ეს სახელმწიფო ნომერი უკვე რეგისტრირებულია სხვა ტრანსპორტზე.";
+    }
+    return `ეს ჩანაწერი უკვე არსებობს ბაზაში (დუბლირების შეზღუდვის დარღვევა: "${constraint}").`;
+  }
+
+  if (msgLower.includes("unique constraint") || msgLower.includes("unique_violation") || msgLower.includes("already exists")) {
+    if (msgLower.includes("plate_number") || msgLower.includes("license_plate")) {
+      return "ეს სახელმწიფო ნომერი უკვე რეგისტრირებულია სხვა ტრანსპორტზე.";
+    }
+    return "ეს ჩანაწერი უკვე არსებობს ბაზაში (დუბლირების შეზღუდვის დარღვევა).";
+  }
+
   if (
     msgLower.includes("already been registered") || 
     msgLower.includes("already registered") || 
-    msgLower.includes("already exists") ||
     msgLower.includes("user_already_exists")
   ) {
     return "მომხმარებელი ამ ელ-ფოსტით ან სახელით უკვე რეგისტრირებულია სისტემაში.";
@@ -66,15 +122,15 @@ export function translateSupabaseErrorToGeorgian(errorMsg: string): string {
   }
 
   // Fallback default message in Georgian
-  return "ოპერაცია ვერ შესრულდა სერვერის შეცდომის გამო.";
+  return `ოპერაცია ვერ შესრულდა სერვერის შეცდომის გამო (${errorMsg}).`;
 }
 
-export default function BeautifulErrorModal({
+export default function ErrorModal({
   isOpen,
   onClose,
   title,
   errorMsg
-}: BeautifulErrorModalProps) {
+}: ErrorModalProps) {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
 
   if (!isOpen) return null;

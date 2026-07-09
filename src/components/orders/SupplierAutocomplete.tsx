@@ -43,12 +43,12 @@ export default function SupplierAutocomplete({
         onFocus={() => setShowVendorSuggestions(true)}
         className={`block w-full px-3.5 py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans relative ${
           fieldErrors.vendor_id 
-            ? 'border-red-500 bg-red-50/10 focus:border-red-650 focus:ring-red-650 text-red-900' 
+            ? 'border-red-500 bg-red-50/10 focus:border-red-500 focus:ring-red-500 text-red-900' 
             : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
         }`}
       />
       {fieldErrors.vendor_id && (
-        <p className="text-[10px] text-red-650 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+        <p className="text-[10px] text-red-500 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
           {fieldErrors.vendor_id}
         </p>
       )}
@@ -65,7 +65,8 @@ export default function SupplierAutocomplete({
                 const searchStr = vendorSearch.toLowerCase();
                 return s.trade_name.toLowerCase().includes(searchStr) || 
                        s.company_name.toLowerCase().includes(searchStr) || 
-                       s.id_code.toLowerCase().includes(searchStr);
+                       s.id_code.toLowerCase().includes(searchStr) ||
+                       (s.address && s.address.toLowerCase().includes(searchStr));
               })
               .map(s => (
                 <div
@@ -90,7 +91,8 @@ export default function SupplierAutocomplete({
               const searchStr = vendorSearch.toLowerCase();
               return s.trade_name.toLowerCase().includes(searchStr) || 
                      s.company_name.toLowerCase().includes(searchStr) || 
-                     s.id_code.toLowerCase().includes(searchStr);
+                     s.id_code.toLowerCase().includes(searchStr) ||
+                     (s.address && s.address.toLowerCase().includes(searchStr));
             }).length === 0 && (
               <div className="px-3.5 py-3 text-xs text-gray-400 italic">{t("No suppliers found matching")} "{vendorSearch}"</div>
             )}

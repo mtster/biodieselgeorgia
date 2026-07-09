@@ -70,7 +70,7 @@ export interface Vendor {
   last_pickup_date?: string;
   average_interval_days?: number;
   direction_id?: string;      // მიმართულება
-  vada?: number;              // ვადა
+  overdue_threshold_days?: number | null; // ვადა (დღეები)
   is_planned?: boolean;       // გეგმიური
   planned_weekday?: string;   // კვირის დღე
   user_id?: string;           // მომხმარებლის ID
@@ -106,6 +106,9 @@ export interface Order {
   tanks_to_bring: number;     // წამოსაღები ავზების რაოდ
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
   is_deleted?: boolean;
+  contact_id?: string;
+  contact_name?: string;
+  contact_phone?: string;
 }
 
 export interface Communication {

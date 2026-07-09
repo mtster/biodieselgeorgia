@@ -44,7 +44,7 @@ export default function VendorContactsSection({
                   {c.name}
                 </span>
                 <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold">
-                  {c.position}
+                  {t(c.position)}
                 </span>
                 <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-2">
                   <Phone size={10} /> {c.phone}

@@ -88,7 +88,7 @@ export default function VendorLocationFormFields({
             setEditingVendor(prev => prev ? { ...prev, direction_id: e.target.value } : null);
             if (fieldErrors.direction_id) setFieldErrors(prev => ({ ...prev, direction_id: '' }));
           }}
-          error={fieldErrors.direction_id ? t("Direction is required.") : undefined}
+          error={fieldErrors.direction_id}
         >
           <option value="" hidden></option>
           {directions.map(d => (
@@ -99,18 +99,18 @@ export default function VendorLocationFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label={t("vada")}
+          label={t("overdue_threshold_days")}
           type="text"
           placeholder="e.g. 14"
-          value={editingVendor.vada !== undefined && editingVendor.vada !== null ? String(editingVendor.vada) : ''}
+          value={editingVendor.overdue_threshold_days !== undefined && editingVendor.overdue_threshold_days !== null ? String(editingVendor.overdue_threshold_days) : ''}
           onChange={(e) => {
             const val = e.target.value;
             if (val === '') {
-              setEditingVendor(prev => prev ? { ...prev, vada: undefined } : null);
+              setEditingVendor(prev => prev ? { ...prev, overdue_threshold_days: null } : null);
             } else {
               const parsed = parseInt(val, 10);
               if (!isNaN(parsed)) {
-                setEditingVendor(prev => prev ? { ...prev, vada: parsed } : null);
+                setEditingVendor(prev => prev ? { ...prev, overdue_threshold_days: parsed } : null);
               }
             }
           }}

@@ -51,33 +51,19 @@ export default function OrderForm({
     const errs: Record<string, string> = {};
 
     if (!editingOrder.vendor_id) {
-      errs.vendor_id = t('Please select a Supplier / Vendor.');
+      errs.vendor_id = 'გთხოვთ აირჩიოთ მომწოდებელი.';
     }
     if (!editingOrder.warehouse_id) {
-      errs.warehouse_id = t('Please select a Base Destination Warehouse.');
+      errs.warehouse_id = 'გთხოვთ აირჩიოთ დანიშნულების საწყობი.';
     }
-    if (!editingOrder.doc_number.trim()) {
-      errs.doc_number = t('Document dispatch number is required.');
+    if (editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null || isNaN(editingOrder.tanks_to_bring)) {
+      errs.tanks_to_bring = 'კასრების წამოღება სავალდებულოა.';
     }
-    if (editingOrder.status !== 'registered' && editingOrder.status !== 'cancelled') {
-      if (!editingOrder.driver_id) {
-        errs.driver_id = t('Please select an Assigned Fleet Driver.');
-      }
-      if (!editingOrder.truck_plate) {
-        errs.truck_plate = t('Please select an Assigned Vehicle.');
-      }
+    if (editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null || isNaN(editingOrder.tanks_to_leave)) {
+      errs.tanks_to_leave = 'კასრების დატოვება სავალდებულოა.';
     }
-
-    // Build pickup date/time ISO values if completed
-    let finalOrder = { ...editingOrder };
-    if (finalOrder.status === 'completed') {
-      if (!finalOrder.pickup_date_time) {
-        finalOrder.pickup_date_time = new Date().toISOString();
-      }
-
-      if (finalOrder.fact_qty === undefined || finalOrder.fact_qty <= 0) {
-        errs.fact_qty = t('Please specify Actual Volume Received (Liters) for completed orders.');
-      }
+    if (!editingOrder.contact_id) {
+      errs.contact_id = 'გთხოვთ აირჩიოთ კონტაქტი.';
     }
 
     if (Object.keys(errs).length > 0) {
@@ -86,6 +72,14 @@ export default function OrderForm({
     }
 
     setFieldErrors({});
+
+    // Build pickup date/time ISO values if completed
+    let finalOrder = { ...editingOrder };
+    if (finalOrder.status === 'completed') {
+      if (!finalOrder.pickup_date_time) {
+        finalOrder.pickup_date_time = new Date().toISOString();
+      }
+    }
 
     const supplierObj = suppliers.find(s => s.id === finalOrder.vendor_id);
     const warehouseObj = warehouses.find(w => w.id === finalOrder.warehouse_id);

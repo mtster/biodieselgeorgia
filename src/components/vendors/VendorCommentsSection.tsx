@@ -52,7 +52,7 @@ export default function VendorCommentsSection({
                     type="button"
                     onClick={() => onRemoveComment(c.id)}
                     className="p-1 px-1.5 text-gray-400 hover:text-red-700 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
-                    title={t("Discard")}
+                    title={t("Delete")}
                   >
                     <Trash2 size={13} />
                   </button>

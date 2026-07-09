@@ -128,7 +128,7 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS last_pickup_date TIMESTAMPTZ
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS average_interval_days INT DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS vada INT DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS overdue_threshold_days INT DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_planned BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday TEXT DEFAULT NULL;
 ALTER TABLE public.vendors DROP CONSTRAINT IF EXISTS vendors_user_id_fkey;
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     vendor_id TEXT REFERENCES public.vendors(id) ON DELETE CASCADE,
     warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL,
     note TEXT,                               -- General Notes
-    qty_requested NUMERIC(12, 2) NOT NULL,   -- Requested Liters
+    qty_requested NUMERIC(12, 2),            -- Requested Liters
     tanks_to_leave INT NOT NULL DEFAULT 0,   -- Tanks to Leave
     tanks_to_bring INT NOT NULL DEFAULT 0,   -- Tanks to Retrieve
     pickup_date_time TIMESTAMPTZ,            -- Retrieve Date and Time
@@ -165,6 +165,10 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_qty NUMERIC(12, 2) DEFAU
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_tank_dropoff INT DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_tank_pickup INT DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS waybill_qty NUMERIC(12, 2) DEFAULT 0.00;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_id TEXT DEFAULT NULL;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_name TEXT DEFAULT NULL;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_phone TEXT DEFAULT NULL;
+ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
 
 -- Safe update of the status CHECK constraint if it exists
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;
@@ -345,6 +349,7 @@ CREATE INDEX IF NOT EXISTS idx_vendors_company_code ON public.vendors (company_c
 CREATE INDEX IF NOT EXISTS idx_vendors_planning ON public.vendors (is_planned, planned_weekday) WHERE is_planned = true AND is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_orders_doc_number ON public.orders (doc_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_date_desc ON public.orders (vendor_id, order_date DESC) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_communications_vendor ON public.communications (vendor_id);
 CREATE INDEX IF NOT EXISTS idx_change_history_date ON public.change_history (date_time DESC);
 

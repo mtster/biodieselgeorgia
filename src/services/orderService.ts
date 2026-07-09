@@ -56,6 +56,7 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
       dbOrder.operator_id = isValidUuid(dbOrder.operator_id) ? dbOrder.operator_id : null;
       dbOrder.driver_id = isValidUuid(dbOrder.driver_id) ? dbOrder.driver_id : null;
       dbOrder.companion_id = isValidUuid(dbOrder.companion_id) ? dbOrder.companion_id : null;
+      dbOrder.truck_plate = typeof dbOrder.truck_plate === 'string' && dbOrder.truck_plate.trim() !== "" ? dbOrder.truck_plate : null;
 
       if (isNew) {
         const { error } = await supabase.from('orders').insert([dbOrder]);

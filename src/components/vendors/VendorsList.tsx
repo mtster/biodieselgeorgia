@@ -104,10 +104,10 @@ export default function VendorsList({
         return d ? d.name : '-';
       }
     },
-    vada: {
-      header: t('Vada'),
-      key: 'vada',
-      render: (vendor) => vendor.vada || '-'
+    overdue_threshold_days: {
+      header: t('overdue_threshold_days'),
+      key: 'overdue_threshold_days',
+      render: (vendor) => vendor.overdue_threshold_days || '-'
     },
     barrels_amount: {
       header: t('Barrels Amount'),

@@ -84,7 +84,10 @@ export function cleanVendorDbPayload(vendor: any): any {
     is_deleted: !!vendor.is_deleted,
     created_at: vendor.created_at || new Date().toISOString(),
     user_id: vendor.user_id || null,
-    username: vendor.username || null
+    username: vendor.username || null,
+    overdue_threshold_days: (vendor.overdue_threshold_days === undefined || vendor.overdue_threshold_days === null || vendor.overdue_threshold_days === '') ? null : Number(vendor.overdue_threshold_days),
+    is_planned: vendor.is_planned !== undefined ? !!vendor.is_planned : false,
+    planned_weekday: vendor.planned_weekday || null
   };
 
   // Preserve any custom column fields on the actual DB payload!

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../../types';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Phone } from 'lucide-react';
 import SupplierAutocomplete from './SupplierAutocomplete';
 import { FormInput, FormSelect } from '../FormInput';
 import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
@@ -36,35 +36,6 @@ export default function OrderFormFields({
   showVendorSuggestions,
   setShowVendorSuggestions
 }: OrderFormFieldsProps) {
-  const toDisplayDate = (val: string | undefined | null): string => {
-    if (!val) return '';
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
-    const parts = val.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return val;
-  };
-
-  const toDbDate = (val: string): string => {
-    if (!val) return '';
-    const parts = val.split('/');
-    if (parts.length === 3) {
-      const d = parts[0].padStart(2, '0');
-      const m = parts[1].padStart(2, '0');
-      const y = parts[2];
-      return `${y}-${m}-${d}`;
-    }
-    return val;
-  };
-
-  const [localDate, setLocalDate] = React.useState(() => {
-    return toDisplayDate(editingOrder.order_date);
-  });
-
-  React.useEffect(() => {
-    setLocalDate(toDisplayDate(editingOrder.order_date));
-  }, [editingOrder.order_date]);
 
   return (
     <div className="space-y-6 text-left">
@@ -99,13 +70,48 @@ export default function OrderFormFields({
           ))}
         </FormSelect>
 
+        {/* Contact Dropdown & Contact Card details */}
+        {(() => {
+          const selectedSupplier = suppliers.find(s => s.id === editingOrder.vendor_id);
+          const contactsList = selectedSupplier ? (selectedSupplier.contacts || []) : [];
+          const selectedContact = contactsList.find(c => c.id === editingOrder.contact_id);
+
+          return (
+            <div className="space-y-3">
+              <FormSelect
+                label={`${t("Contact")} *`}
+                value={editingOrder.contact_id || ''}
+                onChange={(e) => {
+                  const cid = e.target.value;
+                  const cont = contactsList.find(c => c.id === cid);
+                  setEditingOrder(prev => prev ? { 
+                    ...prev, 
+                    contact_id: cid,
+                    contact_name: cont?.name || '',
+                    contact_phone: cont?.phone || ''
+                  } : null);
+                  if (fieldErrors.contact_id) setFieldErrors(prev => ({ ...prev, contact_id: '' }));
+                }}
+                error={fieldErrors.contact_id}
+              >
+                <option value="" disabled>{t("Select contact...")}</option>
+                {contactsList.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} - {t(c.position)} ({c.phone})
+                  </option>
+                ))}
+              </FormSelect>
+            </div>
+          );
+        })()}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Document ID */}
           <FormInput
-            label={`${t("Document Dispatch ID")} *`}
+            label={t("Document Dispatch ID")}
             type="text"
             fontClass="font-mono font-bold"
-            value={editingOrder.doc_number}
+            value={editingOrder.doc_number || ''}
             onChange={(e) => {
               setEditingOrder(prev => prev ? { ...prev, doc_number: e.target.value } : null);
               if (fieldErrors.doc_number) setFieldErrors(prev => ({ ...prev, doc_number: '' }));
@@ -113,61 +119,67 @@ export default function OrderFormFields({
             error={fieldErrors.doc_number}
           />
 
-          {/* Dispatch Date */}
+          {/* Dispatch Date using software native date picker */}
           <FormInput
-            label={`${t("Order Dispatch Date")} *`}
-            type="text"
-            fontClass="font-mono"
-            placeholder="DD/MM/YYYY"
-            value={localDate}
+            label={t("Order Dispatch Date")}
+            type="date"
+            fontClass="font-mono font-bold"
+            value={editingOrder.order_date ? editingOrder.order_date.substring(0, 10) : ''}
             onChange={(e) => {
-              const val = e.target.value;
-              setLocalDate(val);
-              const dbVal = toDbDate(val);
-              if (/^\d{4}-\d{2}-\d{2}$/.test(dbVal) && !isNaN(new Date(dbVal).getTime())) {
-                setEditingOrder(prev => prev ? { ...prev, order_date: dbVal } : null);
-              }
-            }}
-            onBlur={() => {
-              setLocalDate(toDisplayDate(editingOrder.order_date));
+              const val = e.target.value; // YYYY-MM-DD
+              setEditingOrder(prev => prev ? { ...prev, order_date: val } : null);
             }}
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        {/* Row 1: Planned (Gegmiuri) - wamogeba then datoveba */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Planned Volume */}
           <FormInput
             label={t("Planned QTY (L)")}
             type="number"
             fontClass="font-mono"
-            value={editingOrder.qty_requested || ''}
-            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, qty_requested: parseFloat(e.target.value) || 0 } : null)}
+            value={editingOrder.qty_requested === undefined || editingOrder.qty_requested === null ? '' : editingOrder.qty_requested}
+            onChange={(e) => {
+              const val = e.target.value;
+              setEditingOrder(prev => prev ? { ...prev, qty_requested: val === '' ? undefined as any : parseFloat(val) } : null);
+            }}
           />
 
-          {/* Tanks dropoff */}
+          {/* Tanks Pickup */}
           <FormInput
-            label={t("Tanks Dropoff")}
+            label={`${t("Tanks Pickup")} *`}
             type="number"
             fontClass="font-mono"
-            value={editingOrder.tanks_to_leave}
-            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_leave: parseInt(e.target.value) || 0 } : null)}
+            value={editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null ? '' : editingOrder.tanks_to_bring}
+            onChange={(e) => {
+              const val = e.target.value;
+              setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: val === '' ? undefined as any : parseInt(val, 10) } : null);
+              if (fieldErrors.tanks_to_bring) setFieldErrors(prev => ({ ...prev, tanks_to_bring: '' }));
+            }}
+            error={fieldErrors.tanks_to_bring}
           />
 
-          {/* Tanks pickup */}
+          {/* Tanks Dropoff */}
           <FormInput
-            label={t("Tanks Pickup")}
+            label={`${t("Tanks Dropoff")} *`}
             type="number"
             fontClass="font-mono"
-            value={editingOrder.tanks_to_bring}
-            onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: parseInt(e.target.value) || 0 } : null)}
+            value={editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null ? '' : editingOrder.tanks_to_leave}
+            onChange={(e) => {
+              const val = e.target.value;
+              setEditingOrder(prev => prev ? { ...prev, tanks_to_leave: val === '' ? undefined as any : parseInt(val, 10) } : null);
+              if (fieldErrors.tanks_to_leave) setFieldErrors(prev => ({ ...prev, tanks_to_leave: '' }));
+            }}
+            error={fieldErrors.tanks_to_leave}
           />
         </div>
 
-        {/* Fact & Volumetric Parameters (Always visible regardless of status) */}
+        {/* Row 2: Factual (Faqtobrivi) - non-mandatory, wamogeba then datoveba */}
         <div className="space-y-4 animate-in slide-in-from-top-3 duration-150">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormInput
-              label={`${t("Fact QTY (L)")}${editingOrder.status === 'completed' ? ' *' : ''}`}
+              label={t("Fact QTY (L)")}
               type="number"
               step="0.01"
               fontClass="font-mono font-bold"
@@ -180,19 +192,19 @@ export default function OrderFormFields({
             />
 
             <FormInput
-              label={t("Fact Tank Dropoff")}
-              type="number"
-              fontClass="font-mono"
-              value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-            />
-
-            <FormInput
               label={t("Fact Tank Pickup")}
               type="number"
               fontClass="font-mono"
               value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
               onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+            />
+
+            <FormInput
+              label={t("Fact Tank Dropoff")}
+              type="number"
+              fontClass="font-mono"
+              value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
+              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
             />
           </div>
 
@@ -251,7 +263,7 @@ export default function OrderFormFields({
         
         {/* Truck asset */}
         <FormSelect
-          label={`${t("Assigned Vehicle Plate Asset")} *`}
+          label={t("Assigned Vehicle Plate Asset")}
           value={editingOrder.truck_plate}
           onChange={(e) => {
             const plate = e.target.value;
@@ -282,7 +294,7 @@ export default function OrderFormFields({
 
         {/* Driver select */}
         <FormSelect
-          label={`${t("Assigned Fleet Driver")} *`}
+          label={t("Assigned Fleet Driver")}
           value={editingOrder.driver_id}
           onChange={(e) => {
             setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null);

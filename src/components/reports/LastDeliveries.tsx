@@ -23,24 +23,24 @@ export default function LastDeliveries({
   // 1. Fetch completed orders
   const completedOrders = orders.filter(o => o.status === 'completed' && !o.is_deleted);
 
-  // 2. Map all active suppliers to find their last completed delivery
+  // 2. Map all active suppliers with overdue_threshold_days to find if they are overdue
   const deliveryRows = suppliers
-    .filter(s => !s.is_deleted)
+    .filter(s => !s.is_deleted && s.overdue_threshold_days !== null && s.overdue_threshold_days !== undefined && s.overdue_threshold_days > 0)
     .map(s => {
       const sOrders = completedOrders.filter(o => o.vendor_id === s.id);
       
-      // Sort orders by date descending to find the last one
+      // Sort orders by order_date descending to find the last one
       const sortedOrders = [...sOrders].sort((a, b) => {
-        const d1 = a.pickup_date_time || a.order_date;
-        const d2 = b.pickup_date_time || b.order_date;
+        const d1 = a.order_date;
+        const d2 = b.order_date;
         return new Date(d2).getTime() - new Date(d1).getTime();
       });
 
       const lastOrder = sortedOrders[0];
-      const lastDateStr = lastOrder ? (lastOrder.pickup_date_time || lastOrder.order_date) : '';
+      const lastDateStr = lastOrder ? lastOrder.order_date : '';
       const finalDeliveryDate = lastDateStr ? lastDateStr.split('T')[0] : t('No deliveries');
 
-      let daysAgo: number | string = '-';
+      let daysAgo: number | null = null;
       if (lastDateStr) {
         const lastDate = new Date(lastDateStr.split('T')[0]);
         const today = new Date();
@@ -56,6 +56,9 @@ export default function LastDeliveries({
       const managerObj = users.find(u => u.id === s.manager_id);
       const managerName = managerObj ? managerObj.name : t('Unassigned');
 
+      const threshold = s.overdue_threshold_days || 0;
+      const overdueDays = daysAgo !== null ? daysAgo - threshold : -1;
+
       return {
         id: s.id,
         id_code: s.id_code || 'N/A',
@@ -67,8 +70,12 @@ export default function LastDeliveries({
         status: s.status || 'Active',
         finalDeliveryDate,
         daysAgo,
+        overdueDays,
+        threshold,
       };
     })
+    // Only display overdue suppliers (who had last order at least threshold days ago)
+    .filter(row => row.daysAgo !== null && row.overdueDays >= 0)
     // Apply search filter
     .filter(row => {
       if (searchTerm) {
@@ -86,12 +93,14 @@ export default function LastDeliveries({
       return true;
     });
 
+  // Sort by overdueDays descending (highest to top, lowest to bottom)
+  const sortedDeliveryRows = [...deliveryRows].sort((a, b) => b.overdueDays - a.overdueDays);
+
   // Calculate metrics for summary row
-  const totalSuppliers = deliveryRows.length;
-  const validDaysAgoRows = deliveryRows.filter(r => typeof r.daysAgo === 'number');
-  const avgDaysAgo =
-    validDaysAgoRows.length > 0
-      ? Math.round(validDaysAgoRows.reduce((sum, r) => sum + (r.daysAgo as number), 0) / validDaysAgoRows.length)
+  const totalSuppliers = sortedDeliveryRows.length;
+  const avgOverdueDays =
+    totalSuppliers > 0
+      ? Math.round(sortedDeliveryRows.reduce((sum, r) => sum + r.overdueDays, 0) / totalSuppliers)
       : 0;
 
   return (
@@ -137,12 +146,12 @@ export default function LastDeliveries({
                   {t("Final Delivery Date")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  {t("Days Ago")}
+                  {t("Days Overdue")}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {deliveryRows.map((row) => (
+              {sortedDeliveryRows.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
                   <td className="py-3.5 px-4 font-mono font-semibold text-gray-500">
                     {row.id_code}
@@ -177,12 +186,12 @@ export default function LastDeliveries({
                     {row.finalDeliveryDate}
                   </td>
                   <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-800">
-                    {typeof row.daysAgo === 'number' ? `${row.daysAgo} ${t('days')}` : t(row.daysAgo)}
+                    {row.overdueDays} {t('days')}
                   </td>
                 </tr>
               ))}
 
-              {deliveryRows.length === 0 && (
+              {sortedDeliveryRows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="text-center py-20 text-xs text-gray-400 italic">
                     {t("No matching supplier records found for last deliveries.")}
@@ -191,7 +200,7 @@ export default function LastDeliveries({
               )}
 
               {/* SUMMARY ROW */}
-              {deliveryRows.length > 0 && (
+              {sortedDeliveryRows.length > 0 && (
                 <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
                     {t("TOTAL SUMMARY")}
@@ -201,7 +210,7 @@ export default function LastDeliveries({
                   </td>
                   <td colSpan={4} className="py-4 px-4"></td>
                   <td className="py-4 px-4 text-right font-mono text-sm text-emerald-950">
-                    {t("Avg:")} {avgDaysAgo} {t("days")}
+                    {t("Avg:")} {avgOverdueDays} {t("days")}
                   </td>
                 </tr>
               )}

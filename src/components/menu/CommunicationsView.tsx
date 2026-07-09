@@ -268,6 +268,9 @@ export default function CommunicationsView({
             <option value="reminder">{t("Reminder")}</option>
             <option value="task">{t("Task")}</option>
           </select>
+          <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+            ▼
+          </span>
         </div>
 
         {/* Task-specific Filters */}
@@ -288,6 +291,9 @@ export default function CommunicationsView({
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
+              <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+                ▼
+              </span>
             </div>
 
             {/* Task Status Filter */}
@@ -305,6 +311,9 @@ export default function CommunicationsView({
                 <option value="in_progress">{t("In Progress")}</option>
                 <option value="completed">{t("Completed")}</option>
               </select>
+              <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+                ▼
+              </span>
             </div>
           </>
         )}
@@ -324,6 +333,9 @@ export default function CommunicationsView({
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
           </select>
+          <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
+            ▼
+          </span>
         </div>
 
         {/* Text Search */}

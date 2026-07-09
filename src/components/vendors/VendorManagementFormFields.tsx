@@ -30,7 +30,7 @@ export default function VendorManagementFormFields({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="relative">
           <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold text-gray-400 bg-white select-none z-10 text-left">
-            {t("Working Hours *")}
+            {t("Working Hours")}
           </span>
           <WorkingHoursInput
             value={editingVendor.working_hours || ''}
@@ -43,7 +43,7 @@ export default function VendorManagementFormFields({
         </div>
 
         <FormSelect
-          label={t("Supplier / Vendor Status *")}
+          label={t("Supplier / Vendor Status")}
           value={editingVendor.status || 'Active'}
           onChange={(e) => {
             const val = e.target.value as any;
@@ -58,7 +58,7 @@ export default function VendorManagementFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormSelect
-          label={t("Sales Manager *")}
+          label={t("Sales Manager")}
           value={editingVendor.manager_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, manager_id: e.target.value } : null);
@@ -82,7 +82,7 @@ export default function VendorManagementFormFields({
         </FormSelect>
 
         <FormSelect
-          label={t("Operation Manager *")}
+          label={t("Operation Manager")}
           value={editingVendor.operator_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, operator_id: e.target.value } : null);
@@ -130,7 +130,7 @@ export default function VendorManagementFormFields({
 
         {editingVendor.is_planned && (
           <FormSelect
-            label={t("Day of the week *")}
+            label={t("Day of the week")}
             value={editingVendor.planned_weekday || 'monday'}
             onChange={(e) => {
               const val = e.target.value;

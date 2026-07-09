@@ -17,6 +17,39 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
   const cleanStartDate = startDate && startDate.includes('T') ? startDate.split('T')[0] : startDate;
   const cleanEndDate = endDate && endDate.includes('T') ? endDate.split('T')[0] : endDate;
 
+  // Formatting helpers
+  const toDisplayFormat = (dateVal: string) => {
+    if (!dateVal) return '';
+    const clean = dateVal.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+      const [y, m, d] = clean.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    return dateVal;
+  };
+
+  const toStateFormat = (displayVal: string) => {
+    if (!displayVal) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(displayVal)) {
+      const [d, m, y] = displayVal.split('/');
+      return `${y}-${m}-${d}`;
+    }
+    return displayVal;
+  };
+
+  // Local display states for typing dd/mm/yyyy
+  const [displayStart, setDisplayStart] = useState('');
+  const [displayEnd, setDisplayEnd] = useState('');
+
+  // Sync visual inputs when parent state changes
+  useEffect(() => {
+    setDisplayStart(toDisplayFormat(cleanStartDate));
+  }, [cleanStartDate]);
+
+  useEffect(() => {
+    setDisplayEnd(toDisplayFormat(cleanEndDate));
+  }, [cleanEndDate]);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -71,12 +104,12 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
         { label: 'This Month', start: startOfMonth, end: endOfMonth },
     ];
 
-    // Previous 12 months
+    // Previous 12 months (force 'en-US' locale to output standard English month names translation-safe)
     for (let i = 1; i <= 12; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const start = new Date(d.getFullYear(), d.getMonth(), 1);
         const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        presets.push({ label: d.toLocaleString('default', { month: 'long' }), start, end });
+        presets.push({ label: d.toLocaleString('en-US', { month: 'long' }), start, end });
     }
 
     return presets;
@@ -89,10 +122,32 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
   return (
     <div ref={containerRef} className="flex items-center gap-2 relative">
       <FormInput
-        type="date"
+        type="text"
+        placeholder="DD/MM/YYYY"
         label="Start Date"
-        value={cleanStartDate}
-        onChange={(e) => setStartDate(e.target.value)}
+        value={displayStart}
+        onChange={(e) => {
+          const val = e.target.value;
+          setDisplayStart(val);
+          if (!val) {
+            setStartDate('');
+          } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+            setStartDate(toStateFormat(val));
+          }
+        }}
+        onBlur={() => {
+          if (!displayStart) {
+            setStartDate('');
+          } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(displayStart)) {
+            setStartDate(toStateFormat(displayStart));
+          } else {
+            // Attempt generic parse
+            const d = new Date(displayStart);
+            if (!isNaN(d.getTime())) {
+              setStartDate(formatDate(d));
+            }
+          }
+        }}
         containerClassName="w-full md:w-auto min-w-[140px]"
       />
 
@@ -140,10 +195,32 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
       )}
 
       <FormInput
-        type="date"
+        type="text"
+        placeholder="DD/MM/YYYY"
         label="End Date"
-        value={cleanEndDate}
-        onChange={(e) => setEndDate(e.target.value)}
+        value={displayEnd}
+        onChange={(e) => {
+          const val = e.target.value;
+          setDisplayEnd(val);
+          if (!val) {
+            setEndDate('');
+          } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+            setEndDate(toStateFormat(val));
+          }
+        }}
+        onBlur={() => {
+          if (!displayEnd) {
+            setEndDate('');
+          } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(displayEnd)) {
+            setEndDate(toStateFormat(displayEnd));
+          } else {
+            // Attempt generic parse
+            const d = new Date(displayEnd);
+            if (!isNaN(d.getTime())) {
+              setEndDate(formatDate(d));
+            }
+          }
+        }}
         containerClassName="w-full md:w-auto min-w-[140px]"
       />
     </div>

@@ -28,7 +28,7 @@ import VendorFormFields from './VendorFormFields';
 import VendorContactsSection from './VendorContactsSection';
 import VendorCommentsSection from './VendorCommentsSection';
 import VendorContactModal from './VendorContactModal';
-import BeautifulErrorModal from '../BeautifulErrorModal';
+import ErrorModal from '../ErrorModal';
 import VendorCommentModal from './VendorCommentModal';
 import VendorCommunicationModal from './VendorCommunicationModal';
 import VendorCommunicationsSection from './VendorCommunicationsSection';
@@ -56,6 +56,7 @@ interface Props {
   communications?: Communication[];
   onSaveCommunication?: (comm: Communication) => Promise<void> | void;
   onDeleteCommunication?: (id: string) => Promise<void> | void;
+  onSavingStateChange?: (isSaving: boolean) => void;
 }
 
 export default function VendorForm({
@@ -73,7 +74,8 @@ export default function VendorForm({
   isReadOnly = false,
   communications = [],
   onSaveCommunication,
-  onDeleteCommunication
+  onDeleteCommunication,
+  onSavingStateChange
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title: string; errorMsg: string }>({
@@ -214,50 +216,26 @@ export default function VendorForm({
   const handleSaveAll = async () => {
     const errs: Record<string, string> = {};
 
-    if (!editingVendor.trade_name.trim()) {
-      errs.trade_name = 'Trade / Commercial Name is required.';
-    }
-    if (!editingVendor.company_name.trim()) {
-      errs.company_name = 'Legal Name is required.';
-    }
-    if (!editingVendor.id_code.trim()) {
-      errs.id_code = 'Identification Code is required.';
-    }
-    if (!editingVendor.company_code?.trim()) {
-      errs.company_code = 'Code is required.';
-    }
-    if (!editingVendor.price_per_liter) {
-      errs.price_per_liter = 'Base Price is required.';
-    }
-    if (!editingVendor.working_hours.trim()) {
-      errs.working_hours = 'Working Hours is required.';
-    }
-    if (!editingVendor.bank_account.trim()) {
-      errs.bank_account = 'Bank Account is required.';
+    if (!editingVendor.trade_name || !editingVendor.trade_name.trim()) {
+      errs.trade_name = 'სავაჭრო სახელი სავალდებულოა.';
     }
     if (!editingVendor.city) {
-      errs.city = 'City is required.';
+      errs.city = 'ქალაქი სავალდებულოა.';
     }
     if (!editingVendor.district) {
-      errs.district = 'District is required.';
+      errs.district = 'რაიონი სავალდებულოა.';
     }
-    if (!editingVendor.address.trim()) {
-      errs.address = 'Address is required.';
+    if (!editingVendor.address || !editingVendor.address.trim()) {
+      errs.address = 'ზუსტი მისამართი სავალდებულოა.';
     }
     if (!editingVendor.warehouse_id) {
-      errs.warehouse_id = 'Base warehouse is required.';
-    }
-    if (!editingVendor.manager_id) {
-      errs.manager_id = 'Manager is required.';
-    }
-    if (!editingVendor.operator_id) {
-      errs.operator_id = 'Systems Dispatcher is required.';
+      errs.warehouse_id = 'მინიჭებული საწყობი სავალდებულოა.';
     }
     if (!editingVendor.direction_id) {
-      errs.direction_id = 'Direction is required.';
+      errs.direction_id = 'მიმართულება სავალდებულოა.';
     }
     if (tempContacts.length === 0) {
-      errs.contacts = 'At least one contact must be added.';
+      errs.contacts = 'სულ მცირე ერთი კონტაქტი უნდა იყოს დამატებული.';
     }
 
     const cleanCurrentUsername = getCleanUsername(editingVendor.username || '');
@@ -267,9 +245,9 @@ export default function VendorForm({
     let needsUserCreationOrUpdate = false;
     if (usernameInput.trim() || passwordInput.trim()) {
       if (!usernameInput.trim()) {
-        errs.username = t('Username is required when password is provided.');
+        errs.username = 'მომხმარებლის სახელი სავალდებულოა.';
       } else if (!passwordInput.trim() && (!hasExistingUser || isUsernameChanged)) {
-        errs.password = t('Password is required when username is provided or changed.');
+        errs.password = 'პაროლი სავალდებულოა.';
       } else {
         needsUserCreationOrUpdate = true;
       }
@@ -282,7 +260,8 @@ export default function VendorForm({
 
     setFieldErrors({});
 
-    const executeSaveInBackground = async () => {
+    const executeSave = async () => {
+      onSavingStateChange?.(true);
       let finalUserId = editingVendor.user_id || '';
       let finalUsername = editingVendor.username || '';
 
@@ -293,8 +272,8 @@ export default function VendorForm({
 
           const userPayload: User = {
             id: editingVendor.user_id || '',
-            name: editingVendor.trade_name,
-            personal_id: editingVendor.id_code,
+            name: editingVendor.trade_name || editingVendor.company_name,
+            personal_id: editingVendor.id_code || '11111111111',
             email: email,
             password: passwordInput.trim() ? passwordInput.trim() : undefined,
             phone: tempContacts.find(c => c.is_default)?.phone || editingVendor.id_code || '599000000',
@@ -309,11 +288,12 @@ export default function VendorForm({
           
           editingVendor.id = pregeneratedVendorId;
         } catch (e: any) {
+          onSavingStateChange?.(false);
           console.error('Error creating/updating supplier account:', e);
           setErrorModal({
             isOpen: true,
-            title: 'Failed to create or update supplier login account',
-            errorMsg: e.message || 'Unknown error'
+            title: 'მომხმარებლის ანგარიშის შექმნა/განახლება ვერ მოხერხდა',
+            errorMsg: e.message || 'უცნობი შეცდომა'
           });
           return;
         }
@@ -325,20 +305,29 @@ export default function VendorForm({
 
       const payload: Vendor = {
         ...editingVendor,
-        company_code: editingVendor.company_code || editingVendor.id_code,
+        company_code: editingVendor.company_code || editingVendor.id_code || 'N/A',
         contacts: tempContacts,
         user_id: finalUserId || undefined,
         username: finalUsername || undefined
       };
 
-      onSave(payload);
+      try {
+        await onSave(payload);
+        onSavingStateChange?.(false);
+        // On success, close the form in the UI
+        onCancel();
+      } catch (e: any) {
+        onSavingStateChange?.(false);
+        console.error('Error saving supplier:', e);
+        setErrorModal({
+          isOpen: true,
+          title: 'მომწოდებლის შენახვის შეცდომა',
+          errorMsg: e.message || 'შეამოწმეთ კავშირი ან უფლებები.'
+        });
+      }
     };
 
-    // Trigger saving asynchronously in the background
-    executeSaveInBackground();
-
-    // Close the form instantly in the UI
-    onCancel();
+    executeSave();
   };
 
   const fillDummyData = () => {
@@ -588,7 +577,7 @@ export default function VendorForm({
         } : undefined}
       />
 
-      <BeautifulErrorModal
+      <ErrorModal
         isOpen={errorModal.isOpen}
         onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
         title={errorModal.title}
