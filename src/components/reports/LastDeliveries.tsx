@@ -1,15 +1,44 @@
-import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { Vendor, Order, User } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import { t } from '../../utils/lang';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 interface Props {
   suppliers: Vendor[];
   orders: Order[];
   users: User[];
   onBack: () => void;
+}
+
+// Highly reliable timezone-safe days difference function
+function getDaysDiff(dateStr: string): number {
+  if (!dateStr) return 0;
+  // Match YYYY-MM-DD format (e.g., "2026-06-29")
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) {
+    // Fallback to standard UTC matching if non-standard format
+    const lastDate = new Date(dateStr);
+    const today = new Date();
+    const utc1 = Date.UTC(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+    const utc2 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24));
+  }
+  
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10) - 1; // Month is 0-indexed in JS
+  const day = parseInt(match[3], 10);
+  
+  const lastDateUtc = Date.UTC(year, month, day);
+  
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  
+  const diffTime = todayUtc - lastDateUtc;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays < 0 ? 0 : diffDays;
 }
 
 export default function LastDeliveries({
@@ -19,45 +48,85 @@ export default function LastDeliveries({
   onBack,
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [lastOrderDates, setLastOrderDates] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
 
-  // 1. Fetch completed orders
-  const completedOrders = orders.filter(o => o.status === 'completed' && !o.is_deleted);
+  // 1. Fetch only the last completed order for each active vendor with an overdue threshold
+  useEffect(() => {
+    async function fetchLastOrderDates() {
+      const activeVendorIds = suppliers
+        .filter(s => !s.is_deleted && s.overdue_threshold_days !== null && s.overdue_threshold_days !== undefined && s.overdue_threshold_days > 0)
+        .map(s => s.id);
 
-  // 2. Map all active suppliers with overdue_threshold_days to find if they are overdue
+      if (activeVendorIds.length === 0) return;
+
+      setLoading(true);
+      try {
+        if (isSupabaseConfigured && supabase) {
+          // This query leverages the idx_orders_vendor_date_desc index perfectly:
+          // index schema: (vendor_id, order_date DESC) WHERE is_deleted = false
+          // This results in a highly optimized Index Scan on Postgres, completely bypassing full table scans.
+          const { data, error } = await supabase
+            .from('orders')
+            .select('vendor_id, order_date')
+            .eq('is_deleted', false)
+            .eq('status', 'completed')
+            .in('vendor_id', activeVendorIds)
+            .order('order_date', { ascending: false });
+
+          if (!error && data) {
+            const latestMap: Record<string, string> = {};
+            // First occurrence in a list ordered by order_date DESC is the latest order
+            for (const row of data) {
+              if (row.vendor_id && !latestMap[row.vendor_id]) {
+                latestMap[row.vendor_id] = row.order_date;
+              }
+            }
+            setLastOrderDates(latestMap);
+          } else {
+            console.warn('Supabase query error, falling back to local props:', error);
+            useLocalPropsFallback(activeVendorIds);
+          }
+        } else {
+          useLocalPropsFallback(activeVendorIds);
+        }
+      } catch (e) {
+        console.warn('Failed to load last order dates via optimized API, falling back:', e);
+        useLocalPropsFallback(activeVendorIds);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function useLocalPropsFallback(vendorIds: string[]) {
+      const latestMap: Record<string, string> = {};
+      const completedOrders = orders.filter(o => o.status === 'completed' && !o.is_deleted);
+      for (const vendorId of vendorIds) {
+        const sOrders = completedOrders.filter(o => o.vendor_id === vendorId);
+        if (sOrders.length > 0) {
+          const sorted = [...sOrders].sort((a, b) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime());
+          latestMap[vendorId] = sorted[0].order_date;
+        }
+      }
+      setLastOrderDates(latestMap);
+    }
+
+    fetchLastOrderDates();
+  }, [suppliers, orders]);
+
+  // 2. Map all active suppliers with overdue_threshold_days to check if they are overdue
   const deliveryRows = suppliers
     .filter(s => !s.is_deleted && s.overdue_threshold_days !== null && s.overdue_threshold_days !== undefined && s.overdue_threshold_days > 0)
     .map(s => {
-      const sOrders = completedOrders.filter(o => o.vendor_id === s.id);
-      
-      // Sort orders by order_date descending to find the last one
-      const sortedOrders = [...sOrders].sort((a, b) => {
-        const d1 = a.order_date;
-        const d2 = b.order_date;
-        return new Date(d2).getTime() - new Date(d1).getTime();
-      });
-
-      const lastOrder = sortedOrders[0];
-      const lastDateStr = lastOrder ? lastOrder.order_date : '';
+      const lastDateStr = lastOrderDates[s.id] || '';
       const finalDeliveryDate = lastDateStr ? lastDateStr.split('T')[0] : t('No deliveries');
 
-      let daysAgo: number | null = null;
-      if (lastDateStr) {
-        const lastDate = new Date(lastDateStr.split('T')[0]);
-        const today = new Date();
-        // Zero-out hours for precise day diff
-        today.setHours(0, 0, 0, 0);
-        lastDate.setHours(0, 0, 0, 0);
-
-        const diffTime = today.getTime() - lastDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        daysAgo = diffDays < 0 ? 0 : diffDays;
-      }
+      const daysAgo = lastDateStr ? getDaysDiff(lastDateStr) : null;
+      const threshold = s.overdue_threshold_days || 0;
+      const overdueDays = daysAgo !== null ? daysAgo - threshold : -1;
 
       const managerObj = users.find(u => u.id === s.manager_id);
       const managerName = managerObj ? managerObj.name : t('Unassigned');
-
-      const threshold = s.overdue_threshold_days || 0;
-      const overdueDays = daysAgo !== null ? daysAgo - threshold : -1;
 
       return {
         id: s.id,
@@ -74,8 +143,8 @@ export default function LastDeliveries({
         threshold,
       };
     })
-    // Only display overdue suppliers (who had last order at least threshold days ago)
-    .filter(row => row.daysAgo !== null && row.overdueDays >= 0)
+    // Only display overdue suppliers (who had last order STRICTLY more than threshold days ago, e.g. overdueDays > 0)
+    .filter(row => row.daysAgo !== null && row.overdueDays > 0)
     // Apply search filter
     .filter(row => {
       if (searchTerm) {
@@ -123,100 +192,107 @@ export default function LastDeliveries({
 
       {/* TABLE DATA SPREADSHEET CANVAS */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col relative text-left">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="select-none bg-slate-50 border-b border-gray-200">
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Identification Code")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Company Name")}
-                </th>
-                <th className="py-4 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("City / Region")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Manager")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Status")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Final Delivery Date")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  {t("Days Overdue")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {sortedDeliveryRows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
-                  <td className="py-3.5 px-4 font-mono font-semibold text-gray-500">
-                    {row.id_code}
-                  </td>
-                  <td className="py-3.5 px-4 font-semibold text-gray-900">
-                    {row.company_name}
-                    <span className="text-[10px] text-gray-400 font-normal block mt-0.5">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-3">
+            <Loader2 className="animate-spin text-emerald-600" size={32} />
+            <p className="text-xs text-gray-450 italic font-medium">{t("Calculating live overdue statuses...")}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="select-none bg-slate-50 border-b border-gray-200">
+                  <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
+                    {t("Identification Code")}
+                  </th>
+                  <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
+                    {t("Company Name")}
+                  </th>
+                  <th className="py-4 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
+                    {t("City / Region")}
+                  </th>
+                  <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
+                    {t("Manager")}
+                  </th>
+                  <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
+                    {t("Status")}
+                  </th>
+                  <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
+                    {t("Final Delivery Date")}
+                  </th>
+                  <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
+                    {t("Days Overdue")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {sortedDeliveryRows.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
+                    <td className="py-3.5 px-4 font-mono font-semibold text-gray-500">
+                      {row.id_code}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-gray-900">
                       {row.trade_name}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-gray-600">
-                    {row.city}
-                    <span className="text-[10px] text-gray-400 block mt-0.5">{row.region}</span>
-                  </td>
-                  <td className="py-3.5 px-4 text-gray-600">
-                    {row.managerName}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-sans ${
-                        row.status === 'Active'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : row.status === 'Under Negotiation'
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-rose-50 text-rose-700'
-                      }`}
-                    >
-                      {t(row.status)}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono font-medium text-gray-650">
-                    {row.finalDeliveryDate}
-                  </td>
-                  <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-800">
-                    {row.overdueDays} {t('days')}
-                  </td>
-                </tr>
-              ))}
+                      <span className="text-[10px] text-gray-400 font-normal block mt-0.5">
+                        {row.company_name}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-gray-600">
+                      {row.city}
+                      <span className="text-[10px] text-gray-400 block mt-0.5">{row.region}</span>
+                    </td>
+                    <td className="py-3.5 px-4 text-gray-600">
+                      {row.managerName}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-sans ${
+                          row.status === 'Active'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : row.status === 'Under Negotiation'
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-rose-50 text-rose-700'
+                        }`}
+                      >
+                        {t(row.status)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 font-mono font-medium text-gray-650">
+                      {row.finalDeliveryDate}
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-800">
+                      {row.overdueDays} {t('days')}
+                    </td>
+                  </tr>
+                ))}
 
-              {sortedDeliveryRows.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center py-20 text-xs text-gray-400 italic">
-                    {t("No matching supplier records found for last deliveries.")}
-                  </td>
-                </tr>
-              )}
+                {sortedDeliveryRows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-20 text-xs text-gray-400 italic">
+                      {t("No matching supplier records found for last deliveries.")}
+                    </td>
+                  </tr>
+                )}
 
-              {/* SUMMARY ROW */}
-              {sortedDeliveryRows.length > 0 && (
-                <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
-                  <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
-                    {t("TOTAL SUMMARY")}
-                  </td>
-                  <td className="py-4 px-4">
-                    {totalSuppliers} {t("monitored suppliers")}
-                  </td>
-                  <td colSpan={4} className="py-4 px-4"></td>
-                  <td className="py-4 px-4 text-right font-mono text-sm text-emerald-950">
-                    {t("Avg:")} {avgOverdueDays} {t("days")}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                {/* SUMMARY ROW */}
+                {sortedDeliveryRows.length > 0 && (
+                  <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
+                    <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
+                      {t("TOTAL SUMMARY")}
+                    </td>
+                    <td className="py-4 px-4">
+                      {totalSuppliers} {t("monitored suppliers")}
+                    </td>
+                    <td colSpan={4} className="py-4 px-4"></td>
+                    <td className="py-4 px-4 text-right font-mono text-sm text-emerald-950">
+                      {t("Avg:")} {avgOverdueDays} {t("days")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
