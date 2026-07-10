@@ -168,6 +168,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
       } else {
         // Perform direct update in profiles table AND update auth via Edge function if possible
         let updatedOnEdge = false;
+        let edgeErrorMsg = '';
         try {
           const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
           const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
@@ -207,11 +208,13 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               }
             } else {
               const edgeData = await edgeRes.json().catch(() => ({}));
-              console.warn('Edge Function update failed:', edgeData.error || `${edgeRes.status} ${edgeRes.statusText}`);
+              edgeErrorMsg = edgeData.error || `${edgeRes.status} ${edgeRes.statusText}`;
+              console.warn('Edge Function update failed:', edgeErrorMsg);
             }
           }
         } catch (edgeErr: any) {
           console.warn('Edge Function invoke error, trying direct profiles update:', edgeErr);
+          edgeErrorMsg = edgeErr?.message || String(edgeErr);
         }
 
         if (user.role !== 'vendor') {
@@ -226,7 +229,6 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               privileges: user.privileges,
               is_blocked: user.is_blocked || false,
               warehouse_id: user.warehouse_id || null,
-              vendor_id: user.vendor_id || null,
               edit_permissions: {
                 ...(user.edit_permissions || {}),
                 warehouse_id: user.warehouse_id,
@@ -237,8 +239,17 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
 
           if (profileError) {
             console.warn('Direct profile sync updating failed', profileError);
-            if (!updatedOnEdge) throw profileError;
+            if (!updatedOnEdge) {
+              if (edgeErrorMsg) {
+                throw new Error(edgeErrorMsg);
+              }
+              throw profileError;
+            }
           }
+        }
+
+        if (!updatedOnEdge && edgeErrorMsg) {
+          throw new Error(edgeErrorMsg);
         }
         finalUser = { ...user } as User;
       }
