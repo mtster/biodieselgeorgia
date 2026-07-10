@@ -11,7 +11,7 @@ import { StandardTable, ColumnConfig } from '../StandardTable';
 import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
 import VendorForm from '../vendors/VendorForm';
-import { getContactsPaginated } from '../../services/vendorService';
+import { getVendorContacts } from '../../services/vendorService';
 
 interface ContactsViewProps {
   vendors: Vendor[];
@@ -75,9 +75,7 @@ export default function ContactsView({
   // Pagination states
   const [contactsList, setContactsList] = useState<ContactRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const pageSize = 12;
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -98,11 +96,10 @@ export default function ContactsView({
   const loadContacts = async () => {
     setIsLoading(true);
     try {
-      const offset = (page - 1) * pageSize;
-      const res = await getContactsPaginated(pageSize, offset, searchTerm);
+      const contacts = await getVendorContacts();
       
-      const rows: ContactRow[] = res.contacts.map((c: any) => {
-        const vInfo = c.vendors || vendors.find((v: any) => v.id === c.vendor_id) || {};
+      const rows: ContactRow[] = contacts.map((c: any) => {
+        const vInfo: any = vendors.find((v: any) => v.id === c.vendor_id) || {};
         return {
           id: c.id,
           name: c.name || '',
@@ -116,10 +113,25 @@ export default function ContactsView({
           vendor: vInfo as Vendor
         };
       });
-      setContactsList(rows);
-      setTotalCount(res.totalCount);
+
+      // Filter rows in-memory by search term
+      const term = searchTerm.toLowerCase().trim();
+      const filtered = rows.filter(row => {
+        if (!term) return true;
+        return (
+          row.name.toLowerCase().includes(term) ||
+          row.phone.toLowerCase().includes(term) ||
+          row.company_name.toLowerCase().includes(term) ||
+          row.company_code.toLowerCase().includes(term) ||
+          row.note.toLowerCase().includes(term) ||
+          row.email.toLowerCase().includes(term)
+        );
+      });
+
+      setContactsList(filtered);
+      setTotalCount(filtered.length);
     } catch (err) {
-      console.error('Error loading paginated contacts:', err);
+      console.error('Error loading contacts:', err);
     } finally {
       setIsLoading(false);
     }
@@ -136,13 +148,8 @@ export default function ContactsView({
   }, [vendors, selectedVendorForForm]);
 
   useEffect(() => {
-    // Reset to page 1 on search change
-    setPage(1);
-  }, [searchTerm]);
-
-  useEffect(() => {
     loadContacts();
-  }, [page, searchTerm, vendors]);
+  }, [searchTerm, vendors]);
 
   // Filter suppliers in modal search
   const filteredModalVendors = activeVendors.filter(v => {
@@ -293,11 +300,23 @@ export default function ContactsView({
     }, 0);
   };
 
+  const preventCursorBehindPlus = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    if (input.selectionStart !== null && input.selectionStart < 1) {
+      input.setSelectionRange(1, Math.max(1, input.selectionEnd || 1));
+    }
+  };
+
   const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       const input = e.currentTarget;
       const start = input.selectionStart;
       const end = input.selectionEnd;
+
+      if (start === 1 && end === 1) {
+        e.preventDefault();
+        return;
+      }
 
       if (start === end && start !== null && start > 0) {
         const val = input.value;
@@ -411,33 +430,6 @@ export default function ContactsView({
             }}
             emptyMessage="No contacts recorded"
           />
-
-          {/* Modern Pagination controls styled elegantly */}
-          {totalCount > pageSize && (
-            <div className="flex items-center justify-between border-t border-gray-150 pt-4 px-4 text-xs">
-              <span className="text-gray-500 font-sans">
-                {t("Showing")} <span className="font-extrabold text-gray-800">{Math.min(totalCount, (page - 1) * pageSize + 1)}</span> {t("to")} <span className="font-extrabold text-gray-800">{Math.min(totalCount, page * pageSize)}</span> {t("of")} <span className="font-extrabold text-gray-800">{totalCount}</span> {t("records")}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={page === 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  className="px-3.5 py-1.5 border border-gray-200 rounded-xl font-bold bg-white text-gray-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
-                >
-                  {t("Previous")}
-                </button>
-                <button
-                  type="button"
-                  disabled={page * pageSize >= totalCount}
-                  onClick={() => setPage(p => p + 1)}
-                  className="px-3.5 py-1.5 border border-gray-200 rounded-xl font-bold bg-white text-gray-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
-                >
-                  {t("Next")}
-                </button>
-              </div>
-            </div>
-          )}
         </>
       )}
 
@@ -524,6 +516,9 @@ export default function ContactsView({
             value={contactPhone}
             fontClass="font-mono font-bold"
             onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
+            onSelect={preventCursorBehindPlus}
+            onClick={preventCursorBehindPlus}
+            onTouchEnd={preventCursorBehindPlus}
             onChange={handlePhoneChange}
             onKeyDown={handlePhoneKeyDown}
           />

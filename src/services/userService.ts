@@ -228,10 +228,8 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               role: user.role,
               privileges: user.privileges,
               is_blocked: user.is_blocked || false,
-              warehouse_id: user.warehouse_id || null,
               edit_permissions: {
                 ...(user.edit_permissions || {}),
-                warehouse_id: user.warehouse_id,
                 vendor_id: user.vendor_id
               }
             })

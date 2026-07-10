@@ -70,7 +70,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- Apply non-destructive updates to public.profiles table if it pre-exists
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
 
@@ -269,8 +268,7 @@ BEGIN
     email, 
     phone, 
     role, 
-    privileges, 
-    warehouse_id
+    privileges
   )
   VALUES (
     new.id,
@@ -279,8 +277,7 @@ BEGIN
     new.email,
     COALESCE(new.raw_user_meta_data->>'phone', '599112233'),
     v_role::public.user_role,
-    COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[]),
-    new.raw_user_meta_data->>'warehouse_id'
+    COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[])
   )
   ON CONFLICT (id) DO UPDATE 
   SET 
@@ -289,8 +286,7 @@ BEGIN
     phone = EXCLUDED.phone,
     personal_id = EXCLUDED.personal_id,
     role = EXCLUDED.role,
-    privileges = EXCLUDED.privileges,
-    warehouse_id = COALESCE(EXCLUDED.warehouse_id, public.profiles.warehouse_id);
+    privileges = EXCLUDED.privileges;
   
   RETURN NEW;
 END;

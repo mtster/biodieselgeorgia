@@ -95,15 +95,6 @@ async function startServer() {
 
       let profile = null;
       if (role !== "vendor") {
-        // The postgres trigger automatically creates the row in public.profiles.
-        // Let's update that profile record with any optional fields like warehouse_id.
-        await supabaseAdmin
-          .from("profiles")
-          .update({
-            warehouse_id: warehouse_id || null
-          })
-          .eq("id", adminData.user.id);
-
         const { data: fetchedProfile } = await supabaseAdmin
           .from("profiles")
           .select("*")

@@ -4,9 +4,9 @@
  */
 
 export const formatPhone = (val: string) => {
-  let cleaned = val.replace(/[^0-9+]/g, '');
-  if (!cleaned || cleaned === '+') return '+';
-  if (cleaned[0] !== '+') cleaned = '+' + cleaned;
+  let digits = val.replace(/[^0-9]/g, '');
+  let cleaned = '+' + digits;
+  if (cleaned === '+') return '+';
   
   if (cleaned.startsWith('+995')) {
     let right = cleaned.slice(4);
@@ -178,6 +178,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "saturday": "შაბათი",
   "sunday": "კვირა",
   "Day of the week *": "კვირის დღე *",
+  "Day of the week": "კვირის დღე",
   "Barrels Amount": "კასრების რაოდენობა",
   "Sales Manager": "გაყიდვების მენეჯერი",
   "Operation Manager": "ოპერაციების მენეჯერი",
@@ -319,7 +320,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Showing": "ნაჩვენებია",
   "to": "-",
   "of": "დან",
-  "records": "ჩანაწერი",
+  "records": "ჩანაწერიდან",
   "No records found.": "ჩანაწერები ვერ მოიძებნა.",
   "Previous": "წინა",
   "Next": "შემდეგი",
@@ -623,7 +624,10 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Profile Information": "პროფილის ინფორმაცია",
   "Full Name": "სრული სახელი",
   "Password": "პაროლი",
+  "Password (min. 6 symbols)": "პაროლი (მინ. 6 სიმბოლო)",
+  "Change Password (min. 6 symbols)": "პაროლის შეცვლა (მინ. 6 სიმბოლო)",
   "Change Password (Optional)": "პაროლის შეცვლა (არასავალდებულო)",
+  "Change Password": "პაროლის შეცვლა",
   "Username": "მომხმარებლის სახელი",
   "Username / Email": "მომხმარებლის სახელი / ელ.ფოსტა",
   "Supplier Login Account": "მომწოდებლის ანგარიში",

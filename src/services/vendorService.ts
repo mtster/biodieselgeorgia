@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Vendor, VendorContact } from '../types';
 import { trackChange } from './historyService';
 import { KEY_VENDORS, getLocal, setLocal } from './localStorage';
+import { appCache } from '../utils/cache';
 
 export { KEY_VENDORS };
 
@@ -67,6 +68,7 @@ export async function getVendorContacts(vendorId?: string): Promise<VendorContac
 
 // Save/update all contacts for a specific vendor
 export async function saveVendorContacts(vendorId: string, contacts: VendorContact[]): Promise<void> {
+  appCache.clear('contacts_');
   if (isSupabaseConfigured && supabase) {
     try {
       // Find contacts currently in DB to detect which ones were deleted
@@ -129,6 +131,12 @@ export async function getContactsPaginated(
   offset: number = 0,
   searchTerm: string = ''
 ): Promise<PaginatedContactsResult> {
+  const cacheKey = `contacts_limit_${limit}_offset_${offset}_search_${searchTerm}`;
+  const cached = appCache.get<PaginatedContactsResult>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   if (isSupabaseConfigured && supabase) {
     try {
       // Retrieve the table size instantly with indexed query count
@@ -168,10 +176,12 @@ export async function getContactsPaginated(
             vendor: v ? decodeVendorCustomFields(v) : undefined
           };
         });
-        return {
+        const result = {
           contacts: mapped,
           totalCount: count || 0
         };
+        appCache.set(cacheKey, result);
+        return result;
       } else if (error) {
         console.error('Supabase getContactsPaginated error', error);
       }
@@ -213,10 +223,12 @@ export async function getContactsPaginated(
     return (b.sort_order || 0) - (a.sort_order || 0);
   });
 
-  return {
+  const result = {
     contacts: filtered.slice(offset, offset + limit),
     totalCount: filtered.length
   };
+  appCache.set(cacheKey, result);
+  return result;
 }
 
 export async function getVendors(): Promise<Vendor[]> {
@@ -375,6 +387,7 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
 }
 
 export async function deleteVendor(id: string, tradeName: string, loggerName: string): Promise<boolean> {
+  appCache.clear('contacts_');
   if (isSupabaseConfigured && supabase) {
     try {
       await supabase.from('vendors').update({ is_deleted: true }).eq('id', id);

@@ -454,7 +454,7 @@ export default function VendorForm({
                 name="vendor-username-field"
               />
               <FormInput
-                label={t("Password")}
+                label={t("Password (min. 6 symbols)")}
                 type="password"
                 value={passwordInput}
                 onChange={(e) => {

@@ -7,12 +7,12 @@ import PeriodFilter from '../PeriodFilter';
 import { t, formatDateTime } from '../../utils/lang';
 
 interface Props {
-  history: ChangeHistory[];
-  loadMore: () => Promise<void>;
-  isLoadingMore: boolean;
+  history?: ChangeHistory[];
+  loadMore?: () => Promise<void>;
+  isLoadingMore?: boolean;
 }
 
-export default function HistoryView({ history, loadMore, isLoadingMore }: Props) {
+export default function HistoryView({ history = [] }: Props) {
   // Filter States
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
@@ -30,13 +30,13 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
   const [selectedField, setSelectedField] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Extract unique options from the change log data dynamically
-  const uniqueUsers = Array.from(new Set(history.map(h => h.employee_name).filter(Boolean))).sort();
-  const uniqueOperations = Array.from(new Set(history.map(h => h.operation).filter(Boolean))).sort();
-  const uniqueFields = Array.from(new Set(history.map(h => h.field_name).filter(Boolean))).sort();
+  // Compute dynamic filter dropdown options directly from the history data
+  const uniqueUsers = Array.from(new Set(history.map(d => d.employee_name).filter(Boolean))).sort() as string[];
+  const uniqueOperations = Array.from(new Set(history.map(d => d.operation).filter(Boolean))).sort() as string[];
+  const uniqueFields = Array.from(new Set(history.map(d => d.field_name).filter(Boolean))).sort() as string[];
 
-  const filteredHistory = history.filter(log => {
-    // 1. Period Filter
+  // Filter logs in-memory
+  const filteredLogs = history.filter(log => {
     if (startDate) {
       const start = new Date(startDate);
       start.setHours(0, 0, 0, 0);
@@ -49,24 +49,11 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
       const logDate = new Date(log.date_time);
       if (logDate > end) return false;
     }
+    if (selectedUser && log.employee_name !== selectedUser) return false;
+    if (selectedOperation && log.operation !== selectedOperation) return false;
+    if (selectedField && log.field_name !== selectedField) return false;
 
-    // 2. User Filter
-    if (selectedUser && log.employee_name !== selectedUser) {
-      return false;
-    }
-
-    // 3. Operation Filter
-    if (selectedOperation && log.operation !== selectedOperation) {
-      return false;
-    }
-
-    // 4. Field Filter
-    if (selectedField && log.field_name !== selectedField) {
-      return false;
-    }
-
-    // 5. Search Bar Filter
-    if (searchTerm) {
+    if (searchTerm && searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       const matchUser = log.employee_name?.toLowerCase().includes(term);
       const matchOp = log.operation?.toLowerCase().includes(term);
@@ -77,7 +64,6 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
         return false;
       }
     }
-
     return true;
   });
 
@@ -120,7 +106,7 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
       {/* 1. Header */}
       <PageHeader title={t("Change History")} />
 
-      {/* 2. Seamless Filters Bar (CentralSearchBar + PeriodFilter) with No thick white outline */}
+      {/* 2. Filters Bar */}
       <div className="flex flex-col md:flex-row items-center gap-4 w-full">
         <PeriodFilter 
           startDate={startDate} 
@@ -162,15 +148,12 @@ export default function HistoryView({ history, loadMore, isLoadingMore }: Props)
         </div>
       </div>
 
-      {/* 3. Table element */}
+      {/* 3. Table element with built-in pagination */}
       <div className="space-y-4">
         <StandardTable
-          data={filteredHistory}
+          data={filteredLogs}
           columns={columns}
           emptyMessage={t("No change history logs match current filters.")}
-          onLoadMore={loadMore}
-          hasMore={history.length > 0 && history.length % 50 === 0}
-          isLoading={isLoadingMore}
         />
       </div>
 

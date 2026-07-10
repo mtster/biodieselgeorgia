@@ -99,11 +99,23 @@ export default function UserForm({
     }, 0);
   };
 
+  const preventCursorBehindPlus = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    if (input.selectionStart !== null && input.selectionStart < 1) {
+      input.setSelectionRange(1, Math.max(1, input.selectionEnd || 1));
+    }
+  };
+
   const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       const input = e.currentTarget;
       const start = input.selectionStart;
       const end = input.selectionEnd;
+
+      if (start === 1 && end === 1) {
+        e.preventDefault();
+        return;
+      }
 
       if (start === end && start !== null && start > 0) {
         const val = input.value;
@@ -362,7 +374,7 @@ export default function UserForm({
         />
 
         <FormInput
-          label={isNew ? t('Password (Optional)') : t('Change Password (Optional)')}
+          label={isNew ? t('Password (min. 6 symbols)') : t('Change Password (min. 6 symbols)')}
           type="password"
           id="user-password"
           fontClass="font-mono"
@@ -385,6 +397,9 @@ export default function UserForm({
           onFocus={(e) => { 
             if (!editingUser.phone) setEditingUser({...editingUser, phone: '+995 '});
           }}
+          onSelect={preventCursorBehindPlus}
+          onClick={preventCursorBehindPlus}
+          onTouchEnd={preventCursorBehindPlus}
           onChange={handlePhoneChange}
           onKeyDown={handlePhoneKeyDown}
           error={fieldErrors.phone}
@@ -470,22 +485,6 @@ export default function UserForm({
         >
           <option value="active">{t("Active")}</option>
           <option value="blocked">{t("Blocked")}</option>
-        </FormSelect>
-
-        <FormSelect
-          label={t("Assigned Warehouse (Optional)")}
-          value={editingUser.warehouse_id || ''}
-          onChange={(e) => {
-            setEditingUser({
-              ...editingUser,
-              warehouse_id: e.target.value || undefined
-            });
-          }}
-        >
-          <option value="">{t("Select a Warehouse")}</option>
-          {warehouses.map(wh => (
-            <option key={wh.id} value={wh.id}>{wh.name}</option>
-          ))}
         </FormSelect>
 
         {editingUser.role === 'vendor' && (

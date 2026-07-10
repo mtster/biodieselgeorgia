@@ -65,11 +65,23 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
     }, 0);
   };
 
+  const preventCursorBehindPlus = (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    if (input.selectionStart !== null && input.selectionStart < 1) {
+      input.setSelectionRange(1, Math.max(1, input.selectionEnd || 1));
+    }
+  };
+
   const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
       const input = e.currentTarget;
       const start = input.selectionStart;
       const end = input.selectionEnd;
+
+      if (start === 1 && end === 1) {
+        e.preventDefault();
+        return;
+      }
 
       if (start === end && start !== null && start > 0) {
         const val = input.value;
@@ -151,6 +163,9 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           value={contactPhone}
           fontClass="font-mono"
           onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
+          onSelect={preventCursorBehindPlus}
+          onClick={preventCursorBehindPlus}
+          onTouchEnd={preventCursorBehindPlus}
           onChange={handlePhoneChange}
           onKeyDown={handlePhoneKeyDown}
         />
