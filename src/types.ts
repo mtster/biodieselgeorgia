@@ -32,11 +32,16 @@ export interface User {
 
 export interface VendorContact {
   id: string;
+  vendor_id?: string;
   name: string;
   phone: string;
-  position: 'accountant' | 'director' | 'operator' | 'other'; // ბუღალტერი, დირექტორი, ოპერატორი, სხვა
+  position: 'director' | 'manager' | 'object_number' | 'accountant' | 'cook' | 'other'; // დირექტორი/მფლობელი, მენეჯერი, ობიექტის ნომერი, ბუღალტერი, მზარეული, სხვა თანამდებობა
   note?: string;
+  email?: string;
   is_default: boolean;
+  sort_order?: number;
+  is_deleted?: boolean;
+  created_at?: string;
 }
 
 export interface VendorComment {

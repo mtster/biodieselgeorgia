@@ -11,6 +11,7 @@ import { StandardTable, ColumnConfig } from '../StandardTable';
 import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
 import VendorForm from '../vendors/VendorForm';
+import { getContactsPaginated } from '../../services/vendorService';
 
 interface ContactsViewProps {
   vendors: Vendor[];
@@ -33,8 +34,9 @@ interface ContactRow {
   id: string;
   name: string;
   phone: string;
-  position: 'accountant' | 'director' | 'operator' | 'other';
+  position: 'director' | 'manager' | 'object_number' | 'accountant' | 'cook' | 'other';
   note?: string;
+  email?: string;
   company_name: string;
   company_code: string;
   vendor_id: string;
@@ -66,8 +68,16 @@ export default function ContactsView({
   
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [contactPos, setContactPos] = useState<'accountant' | 'director' | 'operator' | 'other'>('accountant');
+  const [contactPos, setContactPos] = useState<'director' | 'manager' | 'object_number' | 'accountant' | 'cook' | 'other'>('director');
   const [contactNote, setContactNote] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+
+  // Pagination states
+  const [contactsList, setContactsList] = useState<ContactRow[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const pageSize = 12;
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -82,6 +92,39 @@ export default function ContactsView({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Filter out soft-deleted vendors
+  const activeVendors = vendors.filter(v => !v.is_deleted);
+
+  const loadContacts = async () => {
+    setIsLoading(true);
+    try {
+      const offset = (page - 1) * pageSize;
+      const res = await getContactsPaginated(pageSize, offset, searchTerm);
+      
+      const rows: ContactRow[] = res.contacts.map((c: any) => {
+        const vInfo = c.vendors || vendors.find((v: any) => v.id === c.vendor_id) || {};
+        return {
+          id: c.id,
+          name: c.name || '',
+          phone: c.phone || '',
+          position: c.position || 'other',
+          note: c.note || '',
+          email: c.email || '',
+          company_name: vInfo.trade_name || vInfo.company_name || '-',
+          company_code: vInfo.company_code || vInfo.id_code || '-',
+          vendor_id: c.vendor_id || '',
+          vendor: vInfo as Vendor
+        };
+      });
+      setContactsList(rows);
+      setTotalCount(res.totalCount);
+    } catch (err) {
+      console.error('Error loading paginated contacts:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Sync selectedVendorForForm if vendors list is updated in App level
   useEffect(() => {
     if (selectedVendorForForm) {
@@ -92,40 +135,14 @@ export default function ContactsView({
     }
   }, [vendors, selectedVendorForForm]);
 
-  // Filter out soft-deleted vendors
-  const activeVendors = vendors.filter(v => !v.is_deleted);
+  useEffect(() => {
+    // Reset to page 1 on search change
+    setPage(1);
+  }, [searchTerm]);
 
-  // Build the unified contact list
-  const allContacts: ContactRow[] = [];
-  activeVendors.forEach(vendor => {
-    if (vendor.contacts && Array.isArray(vendor.contacts)) {
-      vendor.contacts.forEach((c: VendorContact) => {
-        allContacts.push({
-          id: c.id,
-          name: c.name,
-          phone: c.phone,
-          position: c.position,
-          note: c.note,
-          company_name: vendor.trade_name || vendor.company_name || '-',
-          company_code: vendor.company_code || vendor.id_code || '-',
-          vendor_id: vendor.id,
-          vendor: vendor
-        });
-      });
-    }
-  });
-
-  // Filter contacts based on search query (search name, phone, company name, company code)
-  const filteredContacts = allContacts.filter(row => {
-    const query = searchTerm.toLowerCase();
-    return (
-      row.name.toLowerCase().includes(query) ||
-      row.phone.toLowerCase().includes(query) ||
-      row.company_name.toLowerCase().includes(query) ||
-      row.company_code.toLowerCase().includes(query) ||
-      (row.note || '').toLowerCase().includes(query)
-    );
-  });
+  useEffect(() => {
+    loadContacts();
+  }, [page, searchTerm, vendors]);
 
   // Filter suppliers in modal search
   const filteredModalVendors = activeVendors.filter(v => {
@@ -157,9 +174,11 @@ export default function ContactsView({
       className: 'text-gray-700 max-w-[140px] truncate',
       render: (row) => {
         const positions: Record<string, string> = {
-          accountant: t('Accountant'),
           director: t('Director/Owner'),
-          operator: t('Operations Mgr'),
+          manager: t('Manager'),
+          object_number: t('Object Number'),
+          accountant: t('Accountant'),
+          cook: t('Cook'),
           other: t('Other Position')
         };
         return <span className="text-gray-700 font-medium truncate">{positions[row.position] || t('Other Position')}</span>;
@@ -199,8 +218,9 @@ export default function ContactsView({
     setVendorSearchQuery('');
     setContactName('');
     setContactPhone('');
-    setContactPos('accountant');
+    setContactPos('director');
     setContactNote('');
+    setContactEmail('');
     setIsVendorDropdownOpen(false);
     setIsAddModalOpen(true);
   };
@@ -226,6 +246,7 @@ export default function ContactsView({
       phone: contactPhone.trim(),
       position: contactPos,
       note: contactNote.trim() || undefined,
+      email: contactEmail.trim() || undefined,
       is_default: (targetVendor.contacts || []).length === 0
     };
 
@@ -237,6 +258,7 @@ export default function ContactsView({
     try {
       await onSaveVendor(updatedVendor);
       setIsAddModalOpen(false);
+      loadContacts();
     } catch (err) {
       console.error('Error saving contact:', err);
       alert('შეცდომა კონტაქტის შენახვისას');
@@ -379,7 +401,7 @@ export default function ContactsView({
           />
 
           <StandardTable
-            data={filteredContacts}
+            data={contactsList}
             columns={columns}
             onRowClick={(row) => {
               const matchedVendor = activeVendors.find(v => v.id === row.vendor_id);
@@ -389,6 +411,33 @@ export default function ContactsView({
             }}
             emptyMessage="No contacts recorded"
           />
+
+          {/* Modern Pagination controls styled elegantly */}
+          {totalCount > pageSize && (
+            <div className="flex items-center justify-between border-t border-gray-150 pt-4 px-4 text-xs">
+              <span className="text-gray-500 font-sans">
+                {t("Showing")} <span className="font-extrabold text-gray-800">{Math.min(totalCount, (page - 1) * pageSize + 1)}</span> {t("to")} <span className="font-extrabold text-gray-800">{Math.min(totalCount, page * pageSize)}</span> {t("of")} <span className="font-extrabold text-gray-800">{totalCount}</span> {t("records")}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page === 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className="px-3.5 py-1.5 border border-gray-200 rounded-xl font-bold bg-white text-gray-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
+                >
+                  {t("Previous")}
+                </button>
+                <button
+                  type="button"
+                  disabled={page * pageSize >= totalCount}
+                  onClick={() => setPage(p => p + 1)}
+                  className="px-3.5 py-1.5 border border-gray-200 rounded-xl font-bold bg-white text-gray-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none"
+                >
+                  {t("Next")}
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -479,14 +528,23 @@ export default function ContactsView({
             onKeyDown={handlePhoneKeyDown}
           />
 
+          <FormInput
+            label={t("Email")}
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+          />
+
           <FormSelect
             label={t("Position / Role")}
             value={contactPos}
             onChange={(e) => setContactPos(e.target.value as any)}
           >
-            <option value="accountant">{t("Accountant")}</option>
             <option value="director">{t("Director/Owner")}</option>
-            <option value="operator">{t("Operations Mgr")}</option>
+            <option value="manager">{t("Manager")}</option>
+            <option value="object_number">{t("Object Number")}</option>
+            <option value="accountant">{t("Accountant")}</option>
+            <option value="cook">{t("Cook")}</option>
             <option value="other">{t("Other Position")}</option>
           </FormSelect>
 

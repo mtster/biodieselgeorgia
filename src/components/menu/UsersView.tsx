@@ -176,12 +176,12 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
           usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :
           'bg-amber-50 text-amber-700'
         }`} title={usr.role}>
-          {usr.role === 'admin' ? t('Administrator') :
-           usr.role === 'manager' ? t('Manager') :
-           usr.role === 'warehouse_manager' ? t('Warehouse Manager') :
-           usr.role === 'assistant' ? t('Assistant') :
-           usr.role === 'driver' ? t('Driver') :
-           usr.role === 'vendor' ? t('Supplier (Vendor)') : t('Unknown')}
+          {usr.role === 'admin' ? t('Admin') :
+           usr.role === 'manager' ? t('Purchasing Group Leader') :
+           usr.role === 'warehouse_manager' ? t('Logistics Manager') :
+           usr.role === 'assistant' ? t('Purchasing Manager') :
+           usr.role === 'driver' ? t('Logistics/Driver') :
+           usr.role === 'vendor' ? t('Operator') : t('Unknown')}
         </span>
       )
     },

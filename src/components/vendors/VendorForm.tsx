@@ -481,7 +481,31 @@ export default function VendorForm({
                 }));
                 // Reorder: sort by is_default desc
                 updated.sort((a,b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
-                setTempContacts(updated);
+                // Update sort_orders based on index
+                const reordered = updated.map((c, idx) => ({
+                  ...c,
+                  sort_order: updated.length - idx
+                }));
+                setTempContacts(reordered);
+              }}
+              onReorderContacts={(startIndex, endIndex) => {
+                const updated = [...tempContacts];
+                const [removed] = updated.splice(startIndex, 1);
+                updated.splice(endIndex, 0, removed);
+                
+                // The default/primary contact must always remain at index 0 (top)
+                const defaultIdx = updated.findIndex(c => c.is_default);
+                if (defaultIdx > 0) {
+                  const [defaultContact] = updated.splice(defaultIdx, 1);
+                  updated.unshift(defaultContact);
+                }
+                
+                // Re-assign sort_orders based on position in array
+                const reordered = updated.map((c, idx) => ({
+                  ...c,
+                  sort_order: updated.length - idx
+                }));
+                setTempContacts(reordered);
               }}
               error={fieldErrors.contacts}
             />

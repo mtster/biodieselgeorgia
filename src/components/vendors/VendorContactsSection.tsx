@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { t } from '../../utils/lang';
 import { VendorContact } from '../../types';
 import AddButton from '../AddButton';
-import { Plus, Phone, Star, Pencil } from 'lucide-react';
+import { Plus, Phone, Star, Pencil, GripVertical } from 'lucide-react';
 
 interface VendorContactsSectionProps {
   contacts: VendorContact[];
   onAddContact: () => void;
   onModifyContact: (c: VendorContact) => void;
   onTogglePrimaryContact: (id: string) => void;
+  onReorderContacts: (startIndex: number, endIndex: number) => void;
   error?: string;
 }
 
@@ -17,8 +18,28 @@ export default function VendorContactsSection({
   onAddContact,
   onModifyContact,
   onTogglePrimaryContact,
+  onReorderContacts,
   error
 }: VendorContactsSectionProps) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    
+    onReorderContacts(draggedIndex, index);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
   return (
     <div className={`bg-white p-5 border ${error ? 'border-red-500' : 'border-gray-100'} rounded-2xl flex flex-col justify-between`} id="vendor-extra-contacts">
       <div>
@@ -37,44 +58,65 @@ export default function VendorContactsSection({
         )}
 
         <div className="space-y-2.5 max-h-[224px] overflow-y-auto pr-1">
-          {contacts.map((c) => (
-            <div key={c.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs text-left group">
-              <div className="flex gap-3 items-center">
-                <span className="font-extrabold text-gray-800">
-                  {c.name}
-                </span>
-                <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold">
-                  {t(c.position)}
-                </span>
-                <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-2">
-                  <Phone size={10} /> {c.phone}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 select-none text-right">
-                {/* Star design toggle next to edit button */}
-                <button
-                  type="button"
-                  onClick={() => onTogglePrimaryContact(c.id)}
-                  title={c.is_default ? t("Primary Contact") : t("Mark as Primary")}
-                  className={`p-1.5 transition cursor-pointer rounded-lg hover:bg-slate-100 ${
-                    c.is_default ? 'text-amber-500 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'
-                  }`}
-                >
-                  <Star size={13} fill={c.is_default ? "#fbbf24" : "none"} strokeWidth={2} />
-                </button>
+          {contacts.map((c, index) => {
+            const isDraggable = !c.is_default;
+            return (
+              <div
+                key={c.id}
+                draggable={isDraggable}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs text-left group transition-all duration-200 ${
+                  draggedIndex === index ? 'opacity-40 border-dashed border-emerald-300 bg-emerald-50/20' : ''
+                } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              >
+                <div className="flex gap-2 items-center min-w-0 flex-1">
+                  {isDraggable ? (
+                    <div className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-0.5">
+                      <GripVertical size={14} />
+                    </div>
+                  ) : (
+                    <div className="w-[18px]" /> // Spacer to align
+                  )}
+                  <div className="flex gap-3 items-center truncate">
+                    <span className="font-extrabold text-gray-800 truncate">
+                      {c.name}
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold shrink-0">
+                      {t(c.position)}
+                    </span>
+                    <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-2 shrink-0">
+                      <Phone size={10} /> {c.phone}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 select-none text-right shrink-0">
+                  {/* Star design toggle next to edit button */}
+                  <button
+                    type="button"
+                    onClick={() => onTogglePrimaryContact(c.id)}
+                    title={c.is_default ? t("Primary Contact") : t("Mark as Primary")}
+                    className={`p-1.5 transition cursor-pointer rounded-lg hover:bg-slate-100 ${
+                      c.is_default ? 'text-amber-500 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'
+                    }`}
+                  >
+                    <Star size={13} fill={c.is_default ? "#fbbf24" : "none"} strokeWidth={2} />
+                  </button>
 
-                {/* Sleek borderless pencil edit button */}
-                <button
-                  type="button"
-                  onClick={() => onModifyContact(c)}
-                  className="p-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-                  title={t("Modify")}
-                >
-                  <Pencil size={13} />
-                </button>
+                  {/* Sleek borderless pencil edit button */}
+                  <button
+                    type="button"
+                    onClick={() => onModifyContact(c)}
+                    className="p-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                    title={t("Modify")}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {contacts.length === 0 && !error && (
             <div className="text-center py-10 text-gray-400 text-xs italic font-sans">

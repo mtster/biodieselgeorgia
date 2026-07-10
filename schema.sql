@@ -135,6 +135,23 @@ ALTER TABLE public.vendors DROP CONSTRAINT IF EXISTS vendors_user_id_fkey;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS username TEXT;
 
+-- 6b. Vendor Contacts
+CREATE TABLE IF NOT EXISTS public.vendor_contacts (
+    id TEXT PRIMARY KEY,
+    vendor_id TEXT NOT NULL REFERENCES public.vendors(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    position TEXT NOT NULL,
+    note TEXT,
+    email TEXT,
+    is_default BOOLEAN DEFAULT FALSE,
+    sort_order INT DEFAULT 1,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.vendor_contacts ENABLE ROW LEVEL SECURITY;
+
 -- 7. Orders
 CREATE TABLE IF NOT EXISTS public.orders (
     id TEXT PRIMARY KEY,
@@ -308,6 +325,7 @@ DROP POLICY IF EXISTS "Authenticated full access on vendors" ON public.vendors;
 DROP POLICY IF EXISTS "Authenticated full access on orders" ON public.orders;
 DROP POLICY IF EXISTS "Authenticated full access on communications" ON public.communications;
 DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.change_history;
+DROP POLICY IF EXISTS "Authenticated full access on vendor_contacts" ON public.vendor_contacts;
 
 CREATE POLICY "Authenticated full access on cities" ON public.cities FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on districts" ON public.districts FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -318,6 +336,7 @@ CREATE POLICY "Authenticated full access on vendors" ON public.vendors FOR ALL T
 CREATE POLICY "Authenticated full access on orders" ON public.orders FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on communications" ON public.communications FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Authenticated full access on change_history" ON public.change_history FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated full access on vendor_contacts" ON public.vendor_contacts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- SECURITY DEFINER function to bypass RLS recursion on the profiles table
 CREATE OR REPLACE FUNCTION public.is_admin()
@@ -352,6 +371,9 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
 CREATE INDEX IF NOT EXISTS idx_orders_vendor_date_desc ON public.orders (vendor_id, order_date DESC) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_communications_vendor ON public.communications (vendor_id);
 CREATE INDEX IF NOT EXISTS idx_change_history_date ON public.change_history (date_time DESC);
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_vendor_id ON public.vendor_contacts (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_is_deleted ON public.vendor_contacts (is_deleted);
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_sort_order ON public.vendor_contacts (sort_order);
 
 -- Seeding lookups and base data
 INSERT INTO public.cities (id, name) VALUES 

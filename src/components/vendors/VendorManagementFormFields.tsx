@@ -52,7 +52,9 @@ export default function VendorManagementFormFields({
         >
           <option value="Active">{t("Active")}</option>
           <option value="Under Negotiation">{t("Under Negotiation")}</option>
-          <option value="Cancelled">{t("Cancelled")}</option>
+          <option value="Seasonal">{t("Seasonal")}</option>
+          <option value="Closed">{t("Closed")}</option>
+          <option value="Unclear">{t("Unclear")}</option>
         </FormSelect>
       </div>
 

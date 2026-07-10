@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Vendor } from '../types';
+import { Vendor, VendorContact } from '../types';
 import { trackChange } from './historyService';
 import { KEY_VENDORS, getLocal, setLocal } from './localStorage';
 
@@ -29,18 +29,219 @@ export function decodeVendorCustomFields(vendor: Vendor): Vendor {
   return decoded;
 }
 
+// Fetch all contacts from vendor_contacts table
+export async function getVendorContacts(vendorId?: string): Promise<VendorContact[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let query = supabase.from('vendor_contacts').select('*').eq('is_deleted', false);
+      if (vendorId) {
+        query = query.eq('vendor_id', vendorId);
+      }
+      const { data, error } = await query;
+      if (!error && data) {
+        // Sort according to rule:
+        // 1. is_default / ismain (true first)
+        // 2. descending order of sort_order (highest sort_order is top/latest, 1 is bottom/oldest)
+        return (data as any[]).sort((a, b) => {
+          if (a.is_default && !b.is_default) return -1;
+          if (!a.is_default && b.is_default) return 1;
+          return (b.sort_order || 0) - (a.sort_order || 0);
+        });
+      }
+    } catch (e) {
+      console.warn('Supabase getVendorContacts failed', e);
+    }
+  }
+  // Local fallback
+  const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
+  const filtered = vendorId 
+    ? allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted) 
+    : allContacts.filter(c => !c.is_deleted);
+  
+  return filtered.sort((a, b) => {
+    if (a.is_default && !b.is_default) return -1;
+    if (!a.is_default && b.is_default) return 1;
+    return (b.sort_order || 0) - (a.sort_order || 0);
+  });
+}
+
+// Save/update all contacts for a specific vendor
+export async function saveVendorContacts(vendorId: string, contacts: VendorContact[]): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // Find contacts currently in DB to detect which ones were deleted
+      const { data: currentDb } = await supabase.from('vendor_contacts').select('id').eq('vendor_id', vendorId).eq('is_deleted', false);
+      const incomingIds = contacts.map(c => c.id).filter(Boolean);
+      
+      if (currentDb && currentDb.length > 0) {
+        const deletedIds = currentDb.filter(c => !incomingIds.includes(c.id)).map(c => c.id);
+        if (deletedIds.length > 0) {
+          await supabase.from('vendor_contacts').update({ is_deleted: true }).in('id', deletedIds);
+        }
+      }
+
+      // Upsert current list
+      if (contacts.length > 0) {
+        const payloads = contacts.map((c, idx) => ({
+          id: c.id || 'vc-' + Math.random().toString(36).substring(2, 9),
+          vendor_id: vendorId,
+          name: c.name || '',
+          phone: c.phone || '',
+          position: c.position || 'other',
+          note: c.note || '',
+          email: c.email || '',
+          is_default: !!c.is_default,
+          sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1),
+          is_deleted: false
+        }));
+
+        const { error } = await supabase.from('vendor_contacts').upsert(payloads, { onConflict: 'id' });
+        if (error) {
+          console.error('Supabase saveVendorContacts upsert error:', error);
+          throw error;
+        }
+      }
+    } catch (e) {
+      console.error('Supabase saveVendorContacts failed', e);
+      throw e;
+    }
+  }
+
+  // Local fallback
+  const localContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
+  const otherContacts = localContacts.filter(c => c.vendor_id !== vendorId);
+  const updatedPayloads = contacts.map((c, idx) => ({
+    ...c,
+    vendor_id: vendorId,
+    sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1)
+  }));
+  setLocal('local_vendor_contacts', [...otherContacts, ...updatedPayloads]);
+}
+
+export interface PaginatedContactsResult {
+  contacts: any[];
+  totalCount: number;
+}
+
+// Fetch paginated contacts from vendor_contacts table with relation join to vendors
+export async function getContactsPaginated(
+  limit: number = 12,
+  offset: number = 0,
+  searchTerm: string = ''
+): Promise<PaginatedContactsResult> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // Retrieve the table size instantly with indexed query count
+      let query = supabase
+        .from('vendor_contacts')
+        .select('*, vendors(*)', { count: 'exact' })
+        .eq('is_deleted', false);
+
+      if (searchTerm.trim()) {
+        const term = `%${searchTerm.trim()}%`;
+        // Search across fields
+        query = query.or(`name.ilike.${term},phone.ilike.${term},position.ilike.${term},email.ilike.${term}`);
+      }
+
+      // Always arrange is_default first, then other contacts descending by sort_order
+      query = query
+        .order('is_default', { ascending: false })
+        .order('sort_order', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      const { data, count, error } = await query;
+      if (!error && data) {
+        const mapped = (data as any[]).map(item => {
+          const v = item.vendors;
+          return {
+            id: item.id,
+            vendor_id: item.vendor_id,
+            name: item.name,
+            phone: item.phone,
+            position: item.position,
+            note: item.note,
+            email: item.email,
+            is_default: item.is_default,
+            sort_order: item.sort_order,
+            company_name: v ? (v.trade_name || v.company_name || '-') : '-',
+            company_code: v ? (v.company_code || v.id_code || '-') : '-',
+            vendor: v ? decodeVendorCustomFields(v) : undefined
+          };
+        });
+        return {
+          contacts: mapped,
+          totalCount: count || 0
+        };
+      } else if (error) {
+        console.error('Supabase getContactsPaginated error', error);
+      }
+    } catch (e) {
+      console.warn('Supabase getContactsPaginated failed', e);
+    }
+  }
+
+  // Local fallback
+  const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []).filter(c => !c.is_deleted);
+  const localVendors = getLocal<Vendor[]>(KEY_VENDORS, []).filter(v => !v.is_deleted);
+  
+  const mappedContacts = allContacts.map(c => {
+    const v = localVendors.find(vend => vend.id === c.vendor_id);
+    return {
+      ...c,
+      company_name: v ? (v.trade_name || v.company_name || '-') : '-',
+      company_code: v ? (v.company_code || v.id_code || '-') : '-',
+      vendor: v
+    };
+  });
+
+  const filtered = mappedContacts.filter(c => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(term) ||
+      c.phone.toLowerCase().includes(term) ||
+      (c.email || '').toLowerCase().includes(term) ||
+      c.position.toLowerCase().includes(term) ||
+      c.company_name.toLowerCase().includes(term) ||
+      c.company_code.toLowerCase().includes(term)
+    );
+  });
+
+  filtered.sort((a, b) => {
+    if (a.is_default && !b.is_default) return -1;
+    if (!a.is_default && b.is_default) return 1;
+    return (b.sort_order || 0) - (a.sort_order || 0);
+  });
+
+  return {
+    contacts: filtered.slice(offset, offset + limit),
+    totalCount: filtered.length
+  };
+}
+
 export async function getVendors(): Promise<Vendor[]> {
+  let vendors: Vendor[] = [];
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('vendors').select('*').eq('is_deleted', false).order('trade_name');
       if (!error && data) {
-        return data.map(v => decodeVendorCustomFields(v));
+        vendors = data.map(v => decodeVendorCustomFields(v));
       }
     } catch (e) {
       console.warn('Supabase getVendors failed', e);
     }
   }
-  return getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted).map(v => decodeVendorCustomFields(v));
+  if (vendors.length === 0) {
+    vendors = getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted).map(v => decodeVendorCustomFields(v));
+  }
+
+  // Populate dynamic contacts
+  const allContacts = await getVendorContacts();
+  vendors.forEach(v => {
+    v.contacts = allContacts.filter(c => c.vendor_id === v.id);
+  });
+
+  return vendors;
 }
 
 export function cleanVendorDbPayload(vendor: any): any {
@@ -78,7 +279,7 @@ export function cleanVendorDbPayload(vendor: any): any {
     operator_id: isValidUuid(operatorId) ? operatorId : null,
     direction_id: vendor.direction_id || null,
     working_hours: vendor.working_hours || '',
-    contacts: Array.isArray(vendor.contacts) ? vendor.contacts : [],
+    contacts: [], // Decoupled: keep vendors table's column empty
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
     status: vendor.status || 'Active',
     is_deleted: !!vendor.is_deleted,
@@ -150,10 +351,16 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
         console.error('Supabase upsert error details:', error);
         throw error;
       }
+      
+      // Save contacts to separate table
+      await saveVendorContacts(finalVendor.id, cleanContacts);
     } catch (e) {
       console.error('Supabase saveVendor failed', e);
       throw e;
     }
+  } else {
+    // Local save
+    await saveVendorContacts(finalVendor.id, cleanContacts);
   }
 
   const existsInLocal = list.some(item => item.id === finalVendor.id);
@@ -171,6 +378,8 @@ export async function deleteVendor(id: string, tradeName: string, loggerName: st
   if (isSupabaseConfigured && supabase) {
     try {
       await supabase.from('vendors').update({ is_deleted: true }).eq('id', id);
+      // Soft-delete contacts too
+      await supabase.from('vendor_contacts').update({ is_deleted: true }).eq('vendor_id', id);
     } catch (e) {
       console.error('Supabase deleteVendor failed', e);
     }
@@ -178,6 +387,10 @@ export async function deleteVendor(id: string, tradeName: string, loggerName: st
 
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   setLocal(KEY_VENDORS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
+  
+  const localContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
+  setLocal('local_vendor_contacts', localContacts.map(c => c.vendor_id === id ? { ...c, is_deleted: true } : c));
+  
   await trackChange(loggerName, 'Vendor deleted', 'Trade Name', tradeName, '');
   return true;
 }

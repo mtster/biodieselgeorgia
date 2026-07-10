@@ -16,21 +16,24 @@ interface Props {
 export default function VendorContactModal({ isOpen, onClose, activeContact, onSave, onDelete }: Props) {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  const [contactPos, setContactPos] = useState<'accountant' | 'director' | 'operator' | 'other'>('accountant');
+  const [contactPos, setContactPos] = useState<'director' | 'manager' | 'object_number' | 'accountant' | 'cook' | 'other'>('director');
   const [contactNote, setContactNote] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       if (activeContact) {
         setContactName(activeContact.name);
         setContactPhone(activeContact.phone);
-        setContactPos(activeContact.position);
+        setContactPos(activeContact.position || 'director');
         setContactNote(activeContact.note || '');
+        setContactEmail(activeContact.email || '');
       } else {
         setContactName('');
         setContactPhone('');
-        setContactPos('accountant');
+        setContactPos('director');
         setContactNote('');
+        setContactEmail('');
       }
     }
   }, [isOpen, activeContact]);
@@ -118,7 +121,8 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
       name: contactName,
       phone: contactPhone,
       position: contactPos,
-      note: contactNote
+      note: contactNote,
+      email: contactEmail
     });
   };
 
@@ -150,14 +154,22 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           onChange={handlePhoneChange}
           onKeyDown={handlePhoneKeyDown}
         />
+        <FormInput
+          label={t("Email")}
+          type="email"
+          value={contactEmail}
+          onChange={(e) => setContactEmail(e.target.value)}
+        />
         <FormSelect
           label={t("Position / Role")}
           value={contactPos}
           onChange={(e) => setContactPos(e.target.value as any)}
         >
-          <option value="accountant">{t("Accountant")}</option>
           <option value="director">{t("Director/Owner")}</option>
-          <option value="operator">{t("Operations Mgr")}</option>
+          <option value="manager">{t("Manager")}</option>
+          <option value="object_number">{t("Object Number")}</option>
+          <option value="accountant">{t("Accountant")}</option>
+          <option value="cook">{t("Cook")}</option>
           <option value="other">{t("Other Position")}</option>
         </FormSelect>
         <FormInput

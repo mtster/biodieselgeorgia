@@ -68,7 +68,7 @@ export function useAppData() {
       const ords = await getOrders();
       const comms = await getCommunications();
       const trks = await getTrucks();
-      const hist = await getChangeHistory(1000, 0); // initial load
+      const hist = await getChangeHistory(50, 0); // initial load
       setHistoryOffset(0);
       const whs = await getWarehouses();
       const cts = await getCities();

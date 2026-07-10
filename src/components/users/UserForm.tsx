@@ -264,8 +264,8 @@ export default function UserForm({
       errs.vendor_id = 'Please select a Supplier.';
     }
 
-    if (isNew && (!editingUser.password || editingUser.password.length < 6)) {
-      errs.password = 'Password for new user must be at least 6 characters.';
+    if (isNew && editingUser.password && editingUser.password.length < 6) {
+      errs.password = 'Password must be at least 6 characters if specified.';
     }
 
     if (Object.keys(errs).length > 0) {
@@ -346,7 +346,7 @@ export default function UserForm({
         />
 
         <FormInput
-          label={t("Email or Username *")}
+          label={t("Email Address *")}
           type="text"
           id="user-email-address"
           fontClass="font-mono"
@@ -362,7 +362,7 @@ export default function UserForm({
         />
 
         <FormInput
-          label={isNew ? t('Password *') : t('Change Password (Optional)')}
+          label={isNew ? t('Password (Optional)') : t('Change Password (Optional)')}
           type="password"
           id="user-password"
           fontClass="font-mono"
@@ -390,7 +390,7 @@ export default function UserForm({
           error={fieldErrors.phone}
         />
 
-         <FormSelect
+        <FormSelect
           label={t("Role / Designation *")}
           value={editingUser.role || ''}
           onChange={(e) => {
@@ -449,11 +449,12 @@ export default function UserForm({
           error={fieldErrors.role}
         >
           <option value="" hidden></option>
-          <option value="admin">{t("Administrator (Admin)")}</option>
-          <option value="manager">{t("Manager")}</option>
-          <option value="warehouse_manager">{t("Warehouse Manager")}</option>
-          <option value="assistant">{t("Assistant")}</option>
-          <option value="driver">{t("Driver")}</option>
+          <option value="admin">{t("Admin")}</option>
+          <option value="manager">{t("Purchasing Group Leader")}</option>
+          <option value="assistant">{t("Purchasing Manager")}</option>
+          <option value="vendor">{t("Operator")}</option>
+          <option value="warehouse_manager">{t("Logistics Manager")}</option>
+          <option value="driver">{t("Logistics/Driver")}</option>
         </FormSelect>
 
         <FormSelect
