@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { City, District, Truck, User } from '../../types';
+import { t } from '../../utils/lang';
 import { 
   Plus, Trash2, Check, X, Truck as TruckIcon, 
   MapPin, Landmark, Settings 
@@ -305,9 +306,17 @@ export default function LookupsView({
                   className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
                 >
                   <option value="">-- Select Companion --</option>
-                  {employees.filter(e => e.role !== 'driver').map(e => (
-                    <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
-                  ))}
+                  {employees.filter(e => e.role !== 'driver').map(e => {
+                    const translatedRole = e.role === 'admin' ? t('Admin') :
+                      e.role === 'manager' ? t('Purchasing Group Leader') :
+                      e.role === 'warehouse_manager' ? t('Logistics Manager') :
+                      e.role === 'assistant' ? t('Purchasing Manager') :
+                      e.role === 'driver' ? t('Logistics/Driver') :
+                      e.role === 'vendor' ? t('Operator') : e.role;
+                    return (
+                      <option key={e.id} value={e.id}>{e.name} ({translatedRole})</option>
+                    );
+                  })}
                 </select>
               </div>
 

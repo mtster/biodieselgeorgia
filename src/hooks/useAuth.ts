@@ -3,6 +3,18 @@ import { User } from '../types';
 import { t } from '../utils/lang';
 import { isSupabaseConfigured, supabase } from '../lib/db';
 
+function decodeProfile(p: any): User {
+  if (!p) return p;
+  const edit_permissions = p.edit_permissions || {};
+  const warehouse_id = p.warehouse_id || edit_permissions.warehouse_id || '';
+  const vendor_id = p.vendor_id || edit_permissions.vendor_id || '';
+  return {
+    ...p,
+    warehouse_id: warehouse_id || undefined,
+    vendor_id: vendor_id || undefined
+  };
+}
+
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -73,7 +85,7 @@ export function useAuth() {
                 setCurrentUser(null);
                 alert(t('Your user account has been blocked by administrators.'));
               } else {
-                setCurrentUser(dbUser);
+                setCurrentUser(decodeProfile(dbUser));
               }
             } else {
               // Auto-create matching user database record
@@ -163,7 +175,7 @@ export function useAuth() {
               dbUser = directUser;
             }
 
-            if (dbUser) setCurrentUser(dbUser);
+            if (dbUser) setCurrentUser(decodeProfile(dbUser));
           } catch (err) {
             console.error('Live Event login sync error:', err);
           }

@@ -22,7 +22,7 @@ const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'status', label: 'Status', visible: true },
   { id: 'price_per_liter', label: 'Rate (₾)', visible: true },
   { id: 'working_hours', label: 'Working Hours', visible: true },
-  { id: 'location', label: 'Location', visible: true },
+  { id: 'location', label: 'Address', visible: true },
   { id: 'direction', label: 'Direction', visible: true },
   { id: 'overdue_threshold_days', label: 'overdue_threshold_days', visible: true },
   { id: 'barrels_amount', label: 'Barrels Amount', visible: true },
@@ -408,7 +408,7 @@ export default function VendorsView({
                 >
                   <option value="">{t("All Sales Managers")}</option>
                   {users
-                    .filter(u => u.role === 'manager' || u.role === 'admin')
+                    .filter(u => u.role === 'manager' || u.role === 'admin' || u.role === 'assistant')
                     .map(u => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}

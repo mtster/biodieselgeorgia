@@ -58,6 +58,10 @@ export default function OrdersView({
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedDirection, setSelectedDirection] = useState<string>('');
+  const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -184,6 +188,18 @@ export default function OrdersView({
                           ord.doc_number.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === '' || ord.status === selectedStatus;
     if (!matchesSearch || !matchesStatus) return false;
+
+    // City Filter
+    if (selectedCity && (!supplierObj || supplierObj.city !== selectedCity)) return false;
+
+    // District Filter
+    if (selectedDistrict && (!supplierObj || supplierObj.district !== selectedDistrict)) return false;
+
+    // Direction Filter
+    if (selectedDirection && (!supplierObj || supplierObj.direction_id !== selectedDirection)) return false;
+
+    // Vehicle/Truck Filter
+    if (selectedVehicle && ord.truck_plate !== selectedVehicle) return false;
 
     // Period Filter
     if (startDate) {
@@ -318,37 +334,140 @@ export default function OrdersView({
       ) : (
         <div className="space-y-6 text-left">
           {/* SEARCH & FILTERS CONTROLS */}
-          <div className="flex flex-col md:flex-row items-center gap-4 w-full">
-            <PeriodFilter 
-              startDate={startDate} 
-              setStartDate={setStartDate} 
-              endDate={endDate} 
-              setEndDate={setEndDate} 
-            />
-
-            {/* Text Search & Status Filter */}
-            <div className="flex-1 w-full">
+          <div className="space-y-4 w-full">
+            {/* Search Bar - Full Width on Top */}
+            <div className="w-full">
               <CentralSearchBar 
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 idPrefix="orders-search"
                 searchPlaceholder={t("Search dispatches by supplier trade name, legal entity, or document coordinate...")}
-                filters={[
-                  {
-                    label: t("Status"),
-                    value: selectedStatus,
-                    onChange: setSelectedStatus,
-                    placeholder: t("All Statuses"),
-                    options: [
-                      { value: "registered", label: t("Registered") },
-                      { value: "driver_assigned", label: t("Driver Assigned") },
-                      { value: "picked_up", label: t("Picked Up") },
-                      { value: "completed", label: t("Completed") },
-                      { value: "cancelled", label: t("Cancelled") }
-                    ]
-                  }
-                ]}
               />
+            </div>
+
+            {/* Filter Row */}
+            <div className="flex flex-wrap items-center gap-4 w-full select-none font-sans">
+              {/* Period Filter */}
+              <div className="shrink-0">
+                <PeriodFilter 
+                  startDate={startDate} 
+                  setStartDate={setStartDate} 
+                  endDate={endDate} 
+                  setEndDate={setEndDate} 
+                />
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative w-full md:w-auto min-w-[140px]">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  {t("Status")}
+                </span>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+                >
+                  <option value="">{t("All Statuses")}</option>
+                  <option value="registered">{t("Registered")}</option>
+                  <option value="driver_assigned">{t("Driver Assigned")}</option>
+                  <option value="completed">{t("Completed")}</option>
+                  <option value="uncompleted">{t("uncompleted")}</option>
+                  <option value="cancelled">{t("cancelled")}</option>
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
+              </div>
+
+              {/* City Filter */}
+              <div className="relative w-full md:w-auto min-w-[140px]">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  ქალაქი
+                </span>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => {
+                    setSelectedCity(e.target.value);
+                    setSelectedDistrict(''); // Reset district when city changes
+                  }}
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+                >
+                  <option value="">{t("All Cities")}</option>
+                  {Array.from(new Set(suppliers.map(s => s.city).filter(Boolean))).sort().map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
+              </div>
+
+              {/* District Filter */}
+              <div className="relative w-full md:w-auto min-w-[140px]">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  რაიონი
+                </span>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+                >
+                  <option value="">{t("All Districts")}</option>
+                  {Array.from(
+                    new Set(
+                      suppliers
+                        .filter(s => !selectedCity || s.city === selectedCity)
+                        .map(s => s.district)
+                        .filter(Boolean)
+                    )
+                  ).sort().map(dist => (
+                    <option key={dist} value={dist}>{dist}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
+              </div>
+
+              {/* Direction Filter */}
+              <div className="relative w-full md:w-auto min-w-[140px]">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  მიმართულება
+                </span>
+                <select
+                  value={selectedDirection}
+                  onChange={(e) => setSelectedDirection(e.target.value)}
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+                >
+                  <option value="">{t("All Directions")}</option>
+                  {directions.map(dir => (
+                    <option key={dir.id} value={dir.id}>{dir.name}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
+              </div>
+
+              {/* Vehicle Filter */}
+              <div className="relative w-full md:w-auto min-w-[140px]">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                  მანქანა
+                </span>
+                <select
+                  value={selectedVehicle}
+                  onChange={(e) => setSelectedVehicle(e.target.value)}
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+                >
+                  <option value="">{t("All Vehicles")}</option>
+                  {trucks.map(truck => (
+                    <option key={truck.plate_number} value={truck.plate_number}>{truck.plate_number} ({truck.model})</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
+              </div>
             </div>
           </div>
 

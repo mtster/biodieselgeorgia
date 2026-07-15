@@ -80,9 +80,10 @@ export interface Vendor {
   planned_weekday?: string;   // კვირის დღე
   user_id?: string;           // მომხმარებლის ID
   username?: string;          // მომხმარებლის სახელი
+  email?: string;             // ელ ფოსტა
 }
 
-export type OrderStatus = 'registered' | 'driver_assigned' | 'picked_up' | 'completed' | 'cancelled'; // რეგისტრირებული, მძღოლი მიმაგრებული, აყვანილი, დასრულებული, გაუქმებული
+export type OrderStatus = 'registered' | 'driver_assigned' | 'picked_up' | 'completed' | 'cancelled' | 'uncompleted'; // რეგისტრირებული, მძღოლი მიმაგრებული, აყვანილი, დასრულებული, გაუქმებული
 
 export interface Order {
   id: string;

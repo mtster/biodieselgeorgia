@@ -180,6 +180,7 @@ export default function App() {
                 orders={orders}
                 employees={users}
                 trucks={trucks}
+                communications={communications}
                 onNavigate={(tab) => {
                   if (tab === 'suppliers') {
                     setActiveTab('vendors');

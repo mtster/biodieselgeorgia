@@ -114,10 +114,12 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     last_pickup_date TIMESTAMPTZ,
     average_interval_days INT DEFAULT 0,
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    username TEXT
+    username TEXT,
+    email TEXT
 );
 
 -- Apply non-destructive updates to public.vendors table if it pre-exists (prevents schema cache issues)
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;

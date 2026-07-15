@@ -13,6 +13,30 @@ interface Props {
   currentUser: User;
 }
 
+export function getGeorgianRoleName(role: string | undefined | null): string {
+  if (!role) return '';
+  const r = role.toLowerCase().trim();
+  if (r === 'admin' || r === 'administrator' || r.includes('ადმინ')) {
+    return 'ადმინი';
+  }
+  if (r === 'manager' || r === 'purchasing_group_leader' || r === 'purchasing_leader' || r.includes('ხელმძღვანელი')) {
+    return 'შესყიდვების ჯგუფის ხელმძღვანელი';
+  }
+  if (r === 'assistant' || r === 'purchasing_manager' || r.includes('შესყიდვების მენეჯერი') || r.includes('შესყიდვების მენეჯ')) {
+    return 'შესყიდვების მენეჯერი';
+  }
+  if (r === 'vendor' || r === 'operator' || r.includes('ოპერატორ')) {
+    return 'ოპერატორი';
+  }
+  if (r === 'warehouse_manager' || r === 'logistics_manager' || r.includes('ლოჯისტიკის მენეჯერი')) {
+    return 'ლოჯისტიკის მენეჯერი';
+  }
+  if (r === 'driver' || r === 'logistician_driver' || r.includes('მძღოლი') || r.includes('ლოჯისტი/მძღოლი')) {
+    return 'ლოჯისტი/მძღოლი';
+  }
+  return role;
+}
+
 export default function VendorManagementFormFields({
   editingVendor,
   setEditingVendor,
@@ -21,6 +45,12 @@ export default function VendorManagementFormFields({
   users,
   currentUser
 }: Props) {
+  const isSalesManagerCandidate = (u: User) => {
+    const geo = getGeorgianRoleName(u.role);
+    return geo === 'ადმინი' || geo === 'შესყიდვების ჯგუფის ხელმძღვანელი' || geo === 'შესყიდვების მენეჯერი';
+  };
+
+  const salesManagerCandidates = users.filter(isSalesManagerCandidate);
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5 text-left">
       <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">
@@ -69,16 +99,19 @@ export default function VendorManagementFormFields({
           error={fieldErrors.manager_id}
         >
           <option value="" hidden></option>
-          {users.filter(u => u.role === 'manager' || u.role === 'admin').map(e => (
-            <option key={e.id} value={e.id}>{e.name}</option>
-          ))}
-          {editingVendor.manager_id && !users.filter(u => u.role === 'manager' || u.role === 'admin').some(u => u.id === editingVendor.manager_id) && (() => {
+          {salesManagerCandidates.map(e => {
+            const roleGeo = getGeorgianRoleName(e.role);
+            return (
+              <option key={e.id} value={e.id}>{e.name} ({roleGeo})</option>
+            );
+          })}
+          {editingVendor.manager_id && !salesManagerCandidates.some(u => u.id === editingVendor.manager_id) && (() => {
             const assignedUser = users.find(u => u.id === editingVendor.manager_id);
             return assignedUser ? (
-              <option key={assignedUser.id} value={assignedUser.id}>{assignedUser.name} ({assignedUser.role || 'Ad hoc'})</option>
+              <option key={assignedUser.id} value={assignedUser.id}>{assignedUser.name} ({getGeorgianRoleName(assignedUser.role) || 'Ad hoc'})</option>
             ) : null;
           })()}
-          {users.filter(u => u.role === 'manager' || u.role === 'admin').length === 0 && !editingVendor.manager_id && (
+          {salesManagerCandidates.length === 0 && !editingVendor.manager_id && (
             <option value={currentUser.id}>{currentUser.name} (Ad hoc)</option>
           )}
         </FormSelect>
@@ -93,13 +126,16 @@ export default function VendorManagementFormFields({
           error={fieldErrors.operator_id}
         >
           <option value="" hidden></option>
-          {users.map(e => (
-            <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
-          ))}
+          {users.map(e => {
+            const roleGeo = getGeorgianRoleName(e.role);
+            return (
+              <option key={e.id} value={e.id}>{e.name} ({roleGeo})</option>
+            );
+          })}
           {editingVendor.operator_id && !users.some(u => u.id === editingVendor.operator_id) && (() => {
             const assignedUser = users.find(u => u.id === editingVendor.operator_id);
             return assignedUser ? (
-              <option key={assignedUser.id} value={assignedUser.id}>{assignedUser.name} ({assignedUser.role || 'Ad hoc'})</option>
+              <option key={assignedUser.id} value={assignedUser.id}>{assignedUser.name} ({getGeorgianRoleName(assignedUser.role) || 'Ad hoc'})</option>
             ) : null;
           })()}
         </FormSelect>

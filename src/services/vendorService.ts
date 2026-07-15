@@ -282,6 +282,7 @@ export function cleanVendorDbPayload(vendor: any): any {
     trade_name: vendor.trade_name || '',
     company_code: (vendor.company_code || vendor.id_code || vendor.id || '').trim(),
     bank_account: vendor.bank_account || '',
+    email: vendor.email || '',
     city: vendor.city || '',
     district: vendor.district || '',
     address: vendor.address || '',

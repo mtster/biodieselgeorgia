@@ -446,29 +446,20 @@ export default function ContactsView({
         <div className="space-y-4 text-left">
           {/* Custom Autocompleting Supplier Search Dropdown */}
           <div className="relative" ref={dropdownRef}>
-            <label className="block text-xs font-bold text-gray-500 select-none mb-1.5">
-              {t("Supplier")} *
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
-                <Search size={14} />
-              </span>
-              <input
-                type="text"
-                placeholder={t("Type to search supplier...")}
-                value={vendorSearchQuery}
-                onFocus={() => setIsVendorDropdownOpen(true)}
-                onChange={(e) => {
-                  setVendorSearchQuery(e.target.value);
-                  setIsVendorDropdownOpen(true);
-                  if (selectedVendorId) {
-                    const matched = activeVendors.find(v => (v.trade_name || v.company_name || '').toLowerCase() === e.target.value.toLowerCase());
-                    if (!matched) setSelectedVendorId('');
-                  }
-                }}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-gray-200 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl text-xs font-semibold focus:outline-none transition-all text-gray-900 font-sans"
-              />
-            </div>
+            <FormInput
+              label={`${t("Supplier")} *`}
+              placeholder={t("Type to search supplier...")}
+              value={vendorSearchQuery}
+              onFocus={() => setIsVendorDropdownOpen(true)}
+              onChange={(e) => {
+                setVendorSearchQuery(e.target.value);
+                setIsVendorDropdownOpen(true);
+                if (selectedVendorId) {
+                  const matched = activeVendors.find(v => (v.trade_name || v.company_name || '').toLowerCase() === e.target.value.toLowerCase());
+                  if (!matched) setSelectedVendorId('');
+                }
+              }}
+            />
 
             {isVendorDropdownOpen && (
               <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto divide-y divide-gray-50">

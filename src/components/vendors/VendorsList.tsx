@@ -90,9 +90,9 @@ export default function VendorsList({
       render: (vendor) => <div className="truncate" title={vendor.working_hours}>{vendor.working_hours}</div>
     },
     location: {
-      header: t('Location'),
+      header: t('Address'),
       key: 'location',
-      className: 'min-w-[150px] max-w-[250px]',
+      className: 'min-w-[220px]',
       render: (vendor) => {
         const text = `${vendor.city} (${vendor.district}), ${vendor.address}`;
         return <div className="truncate" title={text}>{text}</div>

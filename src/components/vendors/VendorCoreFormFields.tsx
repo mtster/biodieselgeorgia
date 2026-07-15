@@ -125,6 +125,17 @@ export default function VendorCoreFormFields({
           }}
           error={fieldErrors.bank_account}
         />
+
+        <FormInput
+          label={t("Email")}
+          type="email"
+          value={editingVendor.email || ''}
+          onChange={(e) => {
+            setEditingVendor(prev => prev ? { ...prev, email: e.target.value } : null);
+            if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' }));
+          }}
+          error={fieldErrors.email}
+        />
       </div>
     </div>
   );

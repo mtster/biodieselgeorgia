@@ -9,6 +9,18 @@ interface Props {
   onLoginSuccess: (user: User) => void;
 }
 
+function decodeProfile(p: any): User {
+  if (!p) return p;
+  const edit_permissions = p.edit_permissions || {};
+  const warehouse_id = p.warehouse_id || edit_permissions.warehouse_id || '';
+  const vendor_id = p.vendor_id || edit_permissions.vendor_id || '';
+  return {
+    ...p,
+    warehouse_id: warehouse_id || undefined,
+    vendor_id: vendor_id || undefined
+  };
+}
+
 export default function LoginView({ users, onLoginSuccess }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -111,7 +123,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               setLoading(false);
               return;
             }
-            onLoginSuccess(dbUser);
+            onLoginSuccess(decodeProfile(dbUser));
           } else {
             // Setup a fallback User object if they are logged in via Supabase Auth
             const newUser: User = {

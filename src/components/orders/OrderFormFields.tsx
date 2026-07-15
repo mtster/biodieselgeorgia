@@ -235,9 +235,9 @@ export default function OrderFormFields({
           >
             <option value="registered">{t("Registered")}</option>
             <option value="driver_assigned">{t("Driver Assigned")}</option>
-            <option value="picked_up">{t("Picked Up")}</option>
             <option value="completed">{t("Completed")}</option>
-            <option value="cancelled">{t("Cancelled")}</option>
+            <option value="uncompleted">{t("uncompleted")}</option>
+            <option value="cancelled">{t("cancelled")}</option>
           </FormSelect>
         </div>
 
@@ -315,9 +315,17 @@ export default function OrderFormFields({
           onChange={(e) => setEditingOrder(prev => prev ? { ...prev, companion_id: e.target.value } : null)}
         >
           <option value=""></option>
-          {employees.map(e => (
-            <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
-          ))}
+          {employees.map(e => {
+            const translatedRole = e.role === 'admin' ? t('Admin') :
+              e.role === 'manager' ? t('Purchasing Group Leader') :
+              e.role === 'warehouse_manager' ? t('Logistics Manager') :
+              e.role === 'assistant' ? t('Purchasing Manager') :
+              e.role === 'driver' ? t('Logistics/Driver') :
+              e.role === 'vendor' ? t('Operator') : e.role;
+            return (
+              <option key={e.id} value={e.id}>{e.name} ({translatedRole})</option>
+            );
+          })}
         </FormSelect>
       </div>
     </div>

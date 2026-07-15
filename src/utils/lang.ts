@@ -271,9 +271,9 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Task": "დავალება",
   "Pending": "მოლოდინში",
   "In Progress": "მიმდინარეობს",
-  "Completed": "დასრულებულია",
+  "Completed": "დასრულებული",
   "No previous interactions logged for this supplier": "ამ მომწოდებლისთვის წინა ინტერაქციები არ არის.",
-  "Direct / No contact selected": "პირდაპირები / არჩეული კონტაქტი არ არის",
+  "Direct / No contact selected": "კონტაქტი არ არის არჩეული",
   "Supplier / Subject": "მომწოდებელი / თემა",
   "Operator / User": "ოპერატორი / მომხმარებელი",
   "Interaction Comment": "ინტერაქციის კომენტარი",
@@ -388,8 +388,11 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "registered": "რეგისტრირებული",
   "driver_assigned": "მძღოლი მინიჭებულია",
   "picked_up": "გატანილია",
-  "completed": "დასრულებულია",
+  "completed": "დასრულებული",
   "cancelled": "გაუქმებული",
+  "uncompleted": "დაუსრულებელი",
+  "dausrulebeli": "დაუსრულებელი",
+  "gauqmebuli": "გაუქმებული",
 
   // Orders: Column Headers & Labels
   "Date": "თარიღი",
@@ -590,7 +593,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Tomorrow": "ხვალ",
 
   // Additional translations requested
-  "All Districts": "ყველა რაიონი",
+  "All Districts": "ყველა უბანი",
   "All Sales Managers": "ყველა გაყიდვების მენეჯერი",
   "All Operation Managers": "ყველა ოპერაციების მენეჯერი",
   "Taxation ID": "საიდენტიფიკაციო კოდი",
@@ -660,6 +663,9 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Delete Column?": "წავშალოთ სვეტი?",
   "Are you sure you want to delete this custom column? This will remove it from the table.": "დარწმუნებული ხართ, რომ გსურთ ამ სვეტის წაშლა? ეს მას ცხრილიდანაც წაშლის.",
   "Custom": "დამატებითი",
+  "Reminders": "შეხსენებები",
+  "No reminders for today.": "დღეისთვის შეხსენებები არ არის.",
+  "All Vehicles": "ყველა მანქანა",
 };
 
 export function t(key: string): string {

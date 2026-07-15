@@ -1,5 +1,5 @@
 import React from 'react';
-import { Vendor, Order, User, Truck } from '../../types';
+import { Vendor, Order, User, Truck, Communication } from '../../types';
 import { 
   Building2, ShoppingBag, Truck as TruckIcon, 
   Users, Fuel, Calendar, HelpCircle 
@@ -11,15 +11,24 @@ interface Props {
   orders: Order[];
   employees: User[];   // Pass users from parent App
   trucks: Truck[];
+  communications?: Communication[];
   onNavigate: (tab: string) => void;
 }
 
-export default function DashboardView({ suppliers, orders, employees, trucks, onNavigate }: Props) {
+export default function DashboardView({ suppliers, orders, employees, trucks, communications = [], onNavigate }: Props) {
   const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = orders.filter(o => o.status === 'completed');
   
   const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayReminders = (communications || []).filter(c => 
+    !c.is_deleted && 
+    c.type === 'reminder' && 
+    c.reminder_time &&
+    c.reminder_time.split('T')[0] === todayStr
+  );
 
   return (
     <div className="space-y-6 pt-4 md:pt-6" id="dashboard-view-panel">
@@ -164,32 +173,43 @@ export default function DashboardView({ suppliers, orders, employees, trucks, on
           )}
         </div>
 
-        {/* Quick look status panel */}
+        {/* Reminders panel */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
-          <div className="border-b border-gray-50 pb-3">
-            <h3 className="font-extrabold text-sm text-gray-800">{t("Operations Status")}</h3>
+          <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+            <h3 className="font-extrabold text-sm text-gray-800">{t("Reminders")}</h3>
+            <span className="text-[10px] font-extrabold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full">
+              {todayReminders.length}
+            </span>
           </div>
 
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500 font-medium font-sans">{t("Total Vehicles:")}</span>
-              <span className="font-mono font-bold text-gray-800">{trucks.length}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs font-sans">
-              <span className="text-gray-500 font-medium">{t("Active Locations:")}</span>
-              <span className="font-mono font-bold text-gray-800">
-                {Array.from(new Set(suppliers.map(s => s.city))).length} {t("Cities")}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-xs font-sans">
-              <span className="text-gray-500 font-medium">{t("Collected Oil:")}</span>
-              <span className="font-mono font-bold text-emerald-700">{totalLiters} L.</span>
-            </div>
-            <div className="pt-2 border-t border-gray-50 space-y-1">
-              <p className="text-[10px] text-gray-400 leading-relaxed font-mono">
-                {t("The system automatically notifies the accountant once the driver completes an order.")}
+          <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+            {todayReminders.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-6">
+                {t("No reminders for today.")}
               </p>
-            </div>
+            ) : (
+              todayReminders.map(rem => {
+                const supplier = suppliers.find(s => s.id === rem.vendor_id);
+                const timeStr = rem.reminder_time ? rem.reminder_time.substring(11, 16) : '';
+                return (
+                  <div key={rem.id} className="p-3 bg-rose-50/20 hover:bg-rose-50/40 border border-rose-100/50 rounded-xl space-y-1 transition text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-800 leading-none">
+                        {supplier?.trade_name || rem.vendor_name || t("Direct / General")}
+                      </span>
+                      {timeStr && (
+                        <span className="text-[10px] font-mono font-semibold text-rose-700 bg-rose-100/40 px-1.5 py-0.5 rounded">
+                          {timeStr}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {rem.comment}
+                    </p>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

@@ -124,7 +124,7 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
       <FormInput
         type="text"
         placeholder="DD/MM/YYYY"
-        label="Start Date"
+        label={t("Start Date")}
         value={displayStart}
         onChange={(e) => {
           const val = e.target.value;
@@ -197,7 +197,7 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
       <FormInput
         type="text"
         placeholder="DD/MM/YYYY"
-        label="End Date"
+        label={t("End Date")}
         value={displayEnd}
         onChange={(e) => {
           const val = e.target.value;

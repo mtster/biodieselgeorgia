@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Order, Warehouse, OrderStatus } from '../../types';
-import { t } from '../../utils/lang';
+import { t, formatDate } from '../../utils/lang';
 import { LogOut, Plus, ChevronLeft } from 'lucide-react';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
@@ -22,10 +22,21 @@ export default function SupplierView({
   onSaveOrder,
   onLogOut
 }: SupplierViewProps) {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  const formatDateString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(formatDateString(startOfMonth));
+  const [endDate, setEndDate] = useState(formatDateString(endOfMonth));
 
   // Editing state
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -73,7 +84,7 @@ export default function SupplierView({
     {
       header: "თარიღი",
       key: "order_date",
-      render: (item: Order) => <span className="font-mono font-medium">{item.order_date}</span>
+      render: (item: Order) => <span className="font-mono font-medium">{formatDate(item.order_date)}</span>
     },
     {
       header: "დოკუმენტის კოდი",
@@ -91,16 +102,18 @@ export default function SupplierView({
           label = 'რეგისტრირებული';
         } else if (item.status === 'driver_assigned') {
           bg = 'bg-indigo-50 text-indigo-700 border-indigo-100';
-          label = 'მძღოლი მიმაგრებული';
-        } else if (item.status === 'picked_up') {
-          bg = 'bg-amber-50 text-amber-700 border-amber-100';
-          label = 'აყვანილი';
+          label = 'მძღოლი მინიჭებულია';
         } else if (item.status === 'completed') {
           bg = 'bg-emerald-50 text-emerald-700 border-emerald-100';
           label = 'დასრულებული';
+        } else if (item.status === 'uncompleted') {
+          bg = 'bg-amber-50 text-amber-700 border-amber-100';
+          label = 'დაუსრულებელი';
         } else if (item.status === 'cancelled') {
           bg = 'bg-rose-50 text-rose-700 border-rose-100';
           label = 'გაუქმებული';
+        } else {
+          label = item.status;
         }
         return (
           <span className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${bg} tracking-tight`}>
@@ -143,7 +156,7 @@ export default function SupplierView({
     const newOrder: Order = {
       id: '',
       order_date: new Date().toISOString().split('T')[0],
-      doc_number: '',
+      doc_number: 'DOC-' + Math.floor(100000 + Math.random() * 900000),
       status: 'registered',
       vendor_id: currentUser.vendor_id || '',
       warehouse_id: warehouses[0]?.id || '',
@@ -164,9 +177,6 @@ export default function SupplierView({
     if (!editingOrder) return;
     const errors: Record<string, string> = {};
 
-    if (!editingOrder.doc_number.trim()) {
-      errors.doc_number = "დოკუმენტის კოდი სავალდებულოა";
-    }
     if (!editingOrder.order_date) {
       errors.order_date = "თარიღი სავალდებულოა";
     }
@@ -183,9 +193,9 @@ export default function SupplierView({
       ...editingOrder,
       vendor_id: currentUser.vendor_id || '',
       warehouse_id: editingOrder.warehouse_id || warehouses[0]?.id || '',
-      qty_requested: editingOrder.fact_qty || editingOrder.qty_requested || 0,
-      tanks_to_leave: editingOrder.fact_tank_dropoff || editingOrder.tanks_to_leave || 0,
-      tanks_to_bring: editingOrder.fact_tank_pickup || editingOrder.tanks_to_bring || 0,
+      qty_requested: editingOrder.qty_requested || 0,
+      tanks_to_leave: editingOrder.tanks_to_leave || 0,
+      tanks_to_bring: editingOrder.tanks_to_bring || 0,
     };
 
     onSaveOrder(savedOrder);
@@ -276,56 +286,58 @@ export default function SupplierView({
                   error={fieldErrors.order_date}
                 />
 
-                {/* Doc Number field */}
+                {/* Doc Number field (ReadOnly / Assigned Automatically) */}
                 <FormInput
-                  label="დოკუმენტის კოდი *"
+                  label="დოკუმენტის კოდი"
                   type="text"
-                  fontClass="font-mono font-bold"
+                  fontClass="font-mono font-bold text-slate-500"
                   value={editingOrder.doc_number}
-                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, doc_number: e.target.value } : null)}
-                  error={fieldErrors.doc_number}
+                  onChange={() => {}}
+                  disabled={true}
                 />
 
-                {/* Status field */}
+                {/* Status field (ReadOnly / Not Changeable by Supplier) */}
                 <FormSelect
-                  label="სტატუსი *"
+                  label="შესრულების სტატუსი"
                   value={editingOrder.status}
-                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, status: e.target.value as OrderStatus } : null)}
+                  onChange={() => {}}
+                  disabled={true}
+                  className="bg-slate-50 text-slate-500 font-bold"
                 >
                   <option value="registered">რეგისტრირებული</option>
-                  <option value="driver_assigned">მძღოლი მიმაგრებული</option>
-                  <option value="picked_up">აყვანილი</option>
+                  <option value="driver_assigned">მძღოლი მინიჭებულია</option>
                   <option value="completed">დასრულებული</option>
+                  <option value="uncompleted">დაუსრულებელი</option>
                   <option value="cancelled">გაუქმებული</option>
                 </FormSelect>
 
-                {/* Fact Qty field */}
+                {/* Planned Qty field */}
                 <FormInput
-                  label="ფაქტობრივი რაოდენობა (ლ)"
+                  label="გეგმიური რაოდენობა (ლ)"
                   type="number"
                   step="0.01"
                   fontClass="font-mono font-bold"
-                  value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
-                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
+                  value={editingOrder.qty_requested === undefined || editingOrder.qty_requested === null ? '' : editingOrder.qty_requested}
+                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, qty_requested: e.target.value === '' ? 0 : parseFloat(e.target.value) } : null)}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Fact dropoff field */}
+                  {/* Tanks to leave field */}
                   <FormInput
-                    label="ფაქტობრივი ჩაბარება"
+                    label="დასატოვებელი ავზები"
                     type="number"
                     fontClass="font-mono"
-                    value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
-                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+                    value={editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null ? '' : editingOrder.tanks_to_leave}
+                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_leave: e.target.value === '' ? 0 : parseInt(e.target.value, 10) } : null)}
                   />
 
-                  {/* Fact pickup field */}
+                  {/* Tanks to bring field */}
                   <FormInput
-                    label="ფაქტობრივი წამოღება"
+                    label="წამოსაღები ავზები"
                     type="number"
                     fontClass="font-mono"
-                    value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
-                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+                    value={editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null ? '' : editingOrder.tanks_to_bring}
+                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: e.target.value === '' ? 0 : parseInt(e.target.value, 10) } : null)}
                   />
                 </div>
               </div>
@@ -336,7 +348,6 @@ export default function SupplierView({
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 tracking-tight">შეკვეთები</h2>
-                  <p className="text-xs text-slate-400 font-bold uppercase mt-0.5 tracking-wider font-mono">შეკვეთების სია</p>
                 </div>
 
                 <button
@@ -375,9 +386,9 @@ export default function SupplierView({
                           placeholder: "ყველა სტატუსი",
                           options: [
                             { value: 'registered', label: 'რეგისტრირებული' },
-                            { value: 'driver_assigned', label: 'მძღოლი მიმაგრებული' },
-                            { value: 'picked_up', label: 'აყვანილი' },
+                            { value: 'driver_assigned', label: 'მძღოლი მინიჭებულია' },
                             { value: 'completed', label: 'დასრულებული' },
+                            { value: 'uncompleted', label: 'დაუსრულებელი' },
                             { value: 'cancelled', label: 'გაუქმებული' },
                           ]
                         }
