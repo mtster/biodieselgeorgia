@@ -168,9 +168,9 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
     {
       header: t("Role"),
       key: 'role',
-      className: 'min-w-[200px]',
+      className: 'min-w-[260px]',
       render: (usr) => (
-        <span className={`text-[9px] font-bold tracking-widest uppercase font-mono px-2 py-0.5 inline-block rounded ${
+        <span className={`text-[10px] font-bold tracking-wide uppercase font-sans px-2.5 py-1 inline-block rounded ${
           usr.role === 'admin' ? 'bg-red-50 text-red-700' :
           usr.role === 'manager' ? 'bg-indigo-50 text-indigo-700' :
           usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :

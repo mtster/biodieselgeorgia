@@ -31,25 +31,6 @@ export function useAuth() {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
-            const role = session.user.user_metadata?.role;
-            if (role === 'vendor') {
-              const vendorUser: User = {
-                id: session.user.id,
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
-                email: session.user.email || '',
-                personal_id: session.user.user_metadata?.personal_id || '',
-                phone: session.user.user_metadata?.phone || '',
-                role: 'vendor',
-                privileges: [],
-                is_blocked: false,
-                created_at: session.user.created_at || new Date().toISOString(),
-                vendor_id: session.user.user_metadata?.vendor_id || undefined
-              };
-              setCurrentUser(vendorUser);
-              setIsLoadingAuth(false);
-              return;
-            }
-
             let dbUser: any = null;
             const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
             if (session.access_token && useProxy) {
@@ -88,22 +69,22 @@ export function useAuth() {
                 setCurrentUser(decodeProfile(dbUser));
               }
             } else {
-              // Auto-create matching user database record
-              const newUser: User = {
+              // Fallback to user_metadata
+              const role = session.user.user_metadata?.role || 'vendor';
+              const vendorUser: User = {
                 id: session.user.id,
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Administrator',
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
                 email: session.user.email || '',
-                personal_id: session.user.user_metadata?.personal_id || '12345678901',
-                phone: session.user.user_metadata?.phone || '599112233',
-                role: (session.user.user_metadata?.role as any) || 'admin',
-                privileges: session.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
+                personal_id: session.user.user_metadata?.personal_id || '',
+                phone: session.user.user_metadata?.phone || '',
+                role: role,
+                privileges: session.user.user_metadata?.privileges || [],
                 is_blocked: false,
-                created_at: new Date().toISOString(),
-                warehouse_id: session.user.user_metadata?.warehouse_id || undefined,
-                vendor_id: session.user.user_metadata?.vendor_id || undefined
+                created_at: session.user.created_at || new Date().toISOString(),
+                vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,
+                warehouse_id: session.user.user_metadata?.warehouse_id || session.user.user_metadata?.edit_permissions?.warehouse_id || undefined
               };
-              await supabase.from('profiles').insert([newUser]);
-              setCurrentUser(newUser);
+              setCurrentUser(vendorUser);
             }
           }
         } catch (e) {
@@ -128,24 +109,6 @@ export function useAuth() {
             return;
           }
           try {
-            const role = session.user.user_metadata?.role;
-            if (role === 'vendor') {
-              const vendorUser: User = {
-                id: session.user.id,
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
-                email: session.user.email || '',
-                personal_id: session.user.user_metadata?.personal_id || '',
-                phone: session.user.user_metadata?.phone || '',
-                role: 'vendor',
-                privileges: [],
-                is_blocked: false,
-                created_at: session.user.created_at || new Date().toISOString(),
-                vendor_id: session.user.user_metadata?.vendor_id || undefined
-              };
-              setCurrentUser(vendorUser);
-              return;
-            }
-
             let dbUser: any = null;
             const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
             if (session?.access_token && useProxy) {
@@ -175,7 +138,25 @@ export function useAuth() {
               dbUser = directUser;
             }
 
-            if (dbUser) setCurrentUser(decodeProfile(dbUser));
+            if (dbUser) {
+              setCurrentUser(decodeProfile(dbUser));
+            } else {
+              const role = session.user.user_metadata?.role || 'vendor';
+              const vendorUser: User = {
+                id: session.user.id,
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
+                email: session.user.email || '',
+                personal_id: session.user.user_metadata?.personal_id || '',
+                phone: session.user.user_metadata?.phone || '',
+                role: role,
+                privileges: session.user.user_metadata?.privileges || [],
+                is_blocked: false,
+                created_at: session.user.created_at || new Date().toISOString(),
+                vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,
+                warehouse_id: session.user.user_metadata?.warehouse_id || session.user.user_metadata?.edit_permissions?.warehouse_id || undefined
+              };
+              setCurrentUser(vendorUser);
+            }
           } catch (err) {
             console.error('Live Event login sync error:', err);
           }

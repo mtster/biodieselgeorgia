@@ -15,6 +15,7 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import DeleteButton from '../DeleteButton';
 import { createDatabaseOrderColumn } from '../../services/orderService';
+import { FormSelect } from '../FormInput';
 
 const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'order_date', label: 'Date', visible: true },
@@ -359,7 +360,7 @@ export default function OrdersView({
 
               {/* Status Filter */}
               <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
                   {t("Status")}
                 </span>
                 <select
@@ -381,7 +382,7 @@ export default function OrdersView({
 
               {/* City Filter */}
               <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
                   ქალაქი
                 </span>
                 <select
@@ -404,7 +405,7 @@ export default function OrdersView({
 
               {/* District Filter */}
               <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
                   რაიონი
                 </span>
                 <select
@@ -431,7 +432,7 @@ export default function OrdersView({
 
               {/* Direction Filter */}
               <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
                   მიმართულება
                 </span>
                 <select
@@ -451,7 +452,7 @@ export default function OrdersView({
 
               {/* Vehicle Filter */}
               <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-white select-none z-10 text-left font-sans uppercase tracking-wider">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
                   მანქანა
                 </span>
                 <select

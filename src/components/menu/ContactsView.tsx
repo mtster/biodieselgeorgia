@@ -390,26 +390,24 @@ export default function ContactsView({
       />
 
       {selectedVendorForForm ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-1">
-          <VendorForm
-            editingVendor={selectedVendorForForm}
-            setEditingVendor={setSelectedVendorForForm}
-            warehouses={warehouses}
-            users={users}
-            cities={cities}
-            districts={districts}
-            directions={directions}
-            currentUser={currentUser}
-            onSave={async (updatedVendor) => {
-              await onSaveVendor(updatedVendor);
-              setSelectedVendorForForm(null); // Return to contacts list upon save
-            }}
-            onCancel={() => setSelectedVendorForForm(null)}
-            communications={communications}
-            onSaveCommunication={onSaveCommunication}
-            onDeleteCommunication={onDeleteCommunication}
-          />
-        </div>
+        <VendorForm
+          editingVendor={selectedVendorForForm}
+          setEditingVendor={setSelectedVendorForForm}
+          warehouses={warehouses}
+          users={users}
+          cities={cities}
+          districts={districts}
+          directions={directions}
+          currentUser={currentUser}
+          onSave={async (updatedVendor) => {
+            await onSaveVendor(updatedVendor);
+            setSelectedVendorForForm(null); // Return to contacts list upon save
+          }}
+          onCancel={() => setSelectedVendorForForm(null)}
+          communications={communications}
+          onSaveCommunication={onSaveCommunication}
+          onDeleteCommunication={onDeleteCommunication}
+        />
       ) : (
         <>
           {/* Plain search bar without any enclosing box styled outline */}

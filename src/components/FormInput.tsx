@@ -6,6 +6,7 @@ export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputEleme
   error?: string;
   fontClass?: string;
   containerClassName?: string;
+  labelBgClass?: string;
   children?: React.ReactNode;
 }
 
@@ -15,6 +16,7 @@ export function FormInput({
   fontClass = 'font-sans',
   containerClassName = '',
   className = '',
+  labelBgClass = 'bg-white',
   children,
   ...props
 }: FormInputProps) {
@@ -26,7 +28,7 @@ export function FormInput({
   return (
     <div className={`relative ${containerClassName}`}>
       <span
-        className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left transition-all ${
+        className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold select-none z-10 text-left transition-all ${labelBgClass} ${
           error ? 'text-red-500' : 'text-gray-400'
         }`}
       >
@@ -56,6 +58,7 @@ export interface FormSelectProps extends React.SelectHTMLAttributes<HTMLSelectEl
   error?: string;
   fontClass?: string;
   containerClassName?: string;
+  labelBgClass?: string;
 }
 
 export function FormSelect({
@@ -64,13 +67,14 @@ export function FormSelect({
   fontClass = 'font-sans',
   containerClassName = '',
   className = '',
+  labelBgClass = 'bg-white',
   children,
   ...props
 }: FormSelectProps) {
   return (
     <div className={`relative ${containerClassName}`}>
       <span
-        className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left transition-all ${fontClass} ${
+        className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold select-none z-10 text-left transition-all ${fontClass} ${labelBgClass} ${
           error ? 'text-red-500' : 'text-gray-400'
         }`}
       >

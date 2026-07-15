@@ -17,45 +17,25 @@ interface CommunicationFormModalProps {
 
 const toDisplayDateTime = (val: string | undefined | null): string => {
   if (!val) return '';
-  if (/^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}$/.test(val)) return val;
+  const clean = val.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    const [y, m, d] = clean.split('-');
+    return `${d}/${m}/${y}`;
+  }
   const d = new Date(val);
   if (isNaN(d.getTime())) return val;
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
-
-const toLocalDatetimeValue = (isoString: string | undefined | null): string => {
-  if (!isoString) return '';
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
-  return `${y}-${m}-${day}T${h}:${min}`;
-};
-
-const fromLocalDatetimeValue = (localString: string): string => {
-  if (!localString) return '';
-  const d = new Date(localString);
-  if (isNaN(d.getTime())) return '';
-  return d.toISOString();
+  return `${day}/${month}/${year}`;
 };
 
 const toDbDateTime = (val: string): string => {
   if (!val) return '';
-  const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})$/);
+  const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (match) {
-    const [_, d, m, y, h, min] = match;
-    const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d), parseInt(h), parseInt(min));
-    if (!isNaN(dateObj.getTime())) {
-      return dateObj.toISOString();
-    }
+    const [_, d, m, y] = match;
+    return `${y}-${m}-${d}T12:00:00.000Z`;
   }
   return val;
 };
@@ -197,6 +177,30 @@ export default function CommunicationFormModal({
           <option value="task">{t("Task")}</option>
         </FormSelect>
 
+        {localComm.type === 'reminder' && (
+          <FormInput
+            label="Reminder Due Time"
+            type="text"
+            placeholder="DD/MM/YYYY"
+            fontClass="font-mono"
+            value={localReminderTime}
+            onChange={(e) => {
+              const val = e.target.value;
+              setLocalReminderTime(val);
+              if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+                const dbVal = toDbDateTime(val);
+                setLocalComm(prev => prev ? { ...prev, reminder_time: dbVal } : null);
+              }
+            }}
+            onBlur={() => {
+              if (/^\d{2}\/\d{2}\/\d{4}$/.test(localReminderTime)) {
+                const dbVal = toDbDateTime(localReminderTime);
+                setLocalComm(prev => prev ? { ...prev, reminder_time: dbVal } : null);
+              }
+            }}
+          />
+        )}
+
         <FormSelect
           label={t("User Rep *")}
           value={localComm.user_id}
@@ -232,18 +236,7 @@ export default function CommunicationFormModal({
           </div>
         )}
 
-        {localComm.type === 'reminder' && (
-          <FormInput
-            label={t("Reminder Due Time")}
-            type="datetime-local"
-            fontClass="font-mono"
-            value={localComm.reminder_time ? toLocalDatetimeValue(localComm.reminder_time) : ''}
-            onChange={(e) => {
-              const isoVal = fromLocalDatetimeValue(e.target.value);
-              setLocalComm(prev => prev ? { ...prev, reminder_time: isoVal } : null);
-            }}
-          />
-        )}
+
 
         <div className="relative">
           <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Comment *")}</span>

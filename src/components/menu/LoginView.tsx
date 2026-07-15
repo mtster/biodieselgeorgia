@@ -65,26 +65,6 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
 
         if (data?.user) {
-          const role = data.user.user_metadata?.role;
-          if (role === 'vendor') {
-            const vendorUser: User = {
-              id: data.user.id,
-              name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Supplier',
-              email: data.user.email || '',
-              personal_id: data.user.user_metadata?.personal_id || '',
-              phone: data.user.user_metadata?.phone || '',
-              role: 'vendor',
-              privileges: [],
-              is_blocked: false,
-              created_at: data.user.created_at || new Date().toISOString(),
-              vendor_id: data.user.user_metadata?.vendor_id || undefined
-            };
-            onLoginSuccess(vendorUser);
-            setErrorMsg('');
-            setLoading(false);
-            return;
-          }
-
           let dbUser: any = null;
           const sessionRes = await supabase.auth.getSession();
           const token = sessionRes.data.session?.access_token;
@@ -126,21 +106,24 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             onLoginSuccess(decodeProfile(dbUser));
           } else {
             // Setup a fallback User object if they are logged in via Supabase Auth
+            const role = data.user.user_metadata?.role || 'vendor';
             const newUser: User = {
               id: data.user.id,
-              name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Administrator',
+              name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Supplier',
               email: data.user.email || '',
-              personal_id: data.user.user_metadata?.personal_id || '12345678901',
-              phone: data.user.user_metadata?.phone || '599112233',
-              role: (data.user.user_metadata?.role as any) || 'admin',
-              privileges: data.user.user_metadata?.privileges || ['All', 'Manage', 'Order', 'Reports'],
+              personal_id: data.user.user_metadata?.personal_id || '',
+              phone: data.user.user_metadata?.phone || '',
+              role: role as any,
+              privileges: data.user.user_metadata?.privileges || [],
               is_blocked: false,
-              created_at: new Date().toISOString(),
-              warehouse_id: data.user.user_metadata?.warehouse_id || undefined,
-              vendor_id: data.user.user_metadata?.vendor_id || undefined
+              created_at: data.user.created_at || new Date().toISOString(),
+              warehouse_id: data.user.user_metadata?.warehouse_id || data.user.user_metadata?.edit_permissions?.warehouse_id || undefined,
+              vendor_id: data.user.user_metadata?.vendor_id || data.user.user_metadata?.edit_permissions?.vendor_id || undefined
             };
 
-            await supabase.from('profiles').insert([newUser]);
+            if (role !== 'vendor') {
+              await supabase.from('profiles').insert([newUser]);
+            }
             onLoginSuccess(newUser);
           }
           setErrorMsg('');

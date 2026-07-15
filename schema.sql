@@ -151,6 +151,10 @@ CREATE TABLE IF NOT EXISTS public.vendor_contacts (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Apply non-destructive updates to public.vendor_contacts table if it pre-exists
+ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+
 ALTER TABLE public.vendor_contacts ENABLE ROW LEVEL SECURITY;
 
 -- 7. Orders

@@ -8,9 +8,10 @@ interface PeriodFilterProps {
   setStartDate: (v: string) => void;
   endDate: string;
   setEndDate: (v: string) => void;
+  labelBgClass?: string;
 }
 
-export default function PeriodFilter({ startDate, setStartDate, endDate, setEndDate }: PeriodFilterProps) {
+export default function PeriodFilter({ startDate, setStartDate, endDate, setEndDate, labelBgClass = 'bg-[#f8fafc]' }: PeriodFilterProps) {
   const [showPresets, setShowPresets] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -126,6 +127,7 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
         placeholder="DD/MM/YYYY"
         label={t("Start Date")}
         value={displayStart}
+        labelBgClass={labelBgClass}
         onChange={(e) => {
           const val = e.target.value;
           setDisplayStart(val);
@@ -199,6 +201,7 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
         placeholder="DD/MM/YYYY"
         label={t("End Date")}
         value={displayEnd}
+        labelBgClass={labelBgClass}
         onChange={(e) => {
           const val = e.target.value;
           setDisplayEnd(val);

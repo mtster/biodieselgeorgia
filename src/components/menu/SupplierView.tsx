@@ -42,6 +42,35 @@ export default function SupplierView({
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const toDisplayFormat = (dateVal: string) => {
+    if (!dateVal) return '';
+    const clean = dateVal.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+      const [y, m, d] = clean.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    return dateVal;
+  };
+
+  const toStateFormat = (displayVal: string) => {
+    if (!displayVal) return '';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(displayVal)) {
+      const [d, m, y] = displayVal.split('/');
+      return `${y}-${m}-${d}`;
+    }
+    return displayVal;
+  };
+
+  const [localDateInput, setLocalDateInput] = useState('');
+
+  useEffect(() => {
+    if (editingOrder) {
+      setLocalDateInput(toDisplayFormat(editingOrder.order_date));
+    } else {
+      setLocalDateInput('');
+    }
+  }, [editingOrder]);
+
   // Profile menu popup state
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -177,8 +206,10 @@ export default function SupplierView({
     if (!editingOrder) return;
     const errors: Record<string, string> = {};
 
-    if (!editingOrder.order_date) {
+    if (!localDateInput) {
       errors.order_date = "თარიღი სავალდებულოა";
+    } else if (!/^\d{2}\/\d{2}\/\d{4}$/.test(localDateInput)) {
+      errors.order_date = "ფორმატი არასწორია (დდ/თთ/წწწწ)";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -188,9 +219,12 @@ export default function SupplierView({
 
     setFieldErrors({});
 
+    const updatedDate = toStateFormat(localDateInput);
+
     // Ensure state values are aligned and fallbacks exist
     const savedOrder: Order = {
       ...editingOrder,
+      order_date: updatedDate,
       vendor_id: currentUser.vendor_id || '',
       warehouse_id: editingOrder.warehouse_id || warehouses[0]?.id || '',
       qty_requested: editingOrder.qty_requested || 0,
@@ -279,10 +313,18 @@ export default function SupplierView({
                 {/* Date field */}
                 <FormInput
                   label="თარიღი *"
-                  type="date"
+                  type="text"
+                  placeholder="DD/MM/YYYY"
                   fontClass="font-mono"
-                  value={editingOrder.order_date}
-                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, order_date: e.target.value } : null)}
+                  value={localDateInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLocalDateInput(val);
+                    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+                      const dbVal = toStateFormat(val);
+                      setEditingOrder(prev => prev ? { ...prev, order_date: dbVal } : null);
+                    }
+                  }}
                   error={fieldErrors.order_date}
                 />
 
@@ -369,6 +411,7 @@ export default function SupplierView({
                       setStartDate={setStartDate}
                       endDate={endDate}
                       setEndDate={setEndDate}
+                      labelBgClass="bg-white"
                     />
                   </div>
 
