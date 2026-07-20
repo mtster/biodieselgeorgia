@@ -23,6 +23,9 @@ export default function WarehousesSettingView({
   onDeleteWarehouse,
   onBack
 , currentUser}: Props) {
+  const canAddWarehouse = currentUser?.role === 'admin' || currentUser?.permissions?.['warehouses']?.includes('add');
+  const canDeleteWarehouse = currentUser?.role === 'admin' || currentUser?.permissions?.['warehouses']?.includes('delete');
+
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -104,7 +107,7 @@ export default function WarehousesSettingView({
         ))}
 
         {/* Plus-Signed Add New Warehouse Card */}
-        {(!currentUser || currentUser.role === 'admin' || currentUser.permissions?.['warehouses']?.includes('add')) && (
+        {canAddWarehouse && (
           <button
             onClick={() => handleOpenWarehouse(null)}
             type="button"
@@ -126,7 +129,7 @@ export default function WarehousesSettingView({
         onClose={() => setIsModalOpen(false)}
         title={selectedWarehouse ? t('Warehouse Specifications') : t('Add Warehouse')}
         maxWidthClass="max-w-md"
-        onDelete={selectedWarehouse ? triggerDeleteWarehouse : undefined}
+        onDelete={selectedWarehouse && canDeleteWarehouse ? triggerDeleteWarehouse : undefined}
         deleteLabel={t("Delete")}
         onCancel={() => setIsModalOpen(false)}
         onSave={handleSave}

@@ -23,6 +23,9 @@ export default function DirectionsSettingView({
   onDeleteDirection,
   onBack
 , currentUser}: Props) {
+  const canAddDirection = currentUser?.role === 'admin' || currentUser?.permissions?.['directions']?.includes('add');
+  const canDeleteDirection = currentUser?.role === 'admin' || currentUser?.permissions?.['directions']?.includes('delete');
+
   const [selectedDirection, setSelectedDirection] = useState<Direction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [directionNameInput, setDirectionNameInput] = useState('');
@@ -97,7 +100,7 @@ export default function DirectionsSettingView({
         })}
 
         {/* Plus-Signed Add New Direction Window Card */}
-        {(!currentUser || currentUser.role === 'admin' || currentUser.permissions?.['directions']?.includes('add')) && (
+        {canAddDirection && (
           <button
             onClick={() => handleOpenDirection(null)}
             type="button"
@@ -119,7 +122,7 @@ export default function DirectionsSettingView({
         onClose={() => setIsModalOpen(false)}
         title={selectedDirection ? t('Direction Details') : t('Create New Direction')}
         maxWidthClass="max-w-lg"
-        onDelete={selectedDirection ? triggerDeleteDirection : undefined}
+        onDelete={selectedDirection && canDeleteDirection ? triggerDeleteDirection : undefined}
         deleteLabel={t("Delete")}
         onCancel={() => setIsModalOpen(false)}
         onSave={handleSave}

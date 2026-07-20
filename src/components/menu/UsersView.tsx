@@ -104,9 +104,12 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
     setDeleteConfirmName(null);
   };
 
+  const showSave = isNew ? canAdd : canModify;
+  const showDelete = !isNew && canDelete && editingUser && editingUser.id !== currentUser.id;
+
   const headerActions = editingUser ? (
     <>
-      {!isNew && editingUser && editingUser.id !== currentUser.id && (
+      {showDelete && (
         <DeleteButton
           onClick={() => {
             askDelete(editingUser.id, editingUser.name);
@@ -115,22 +118,26 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
           label="Delete"
         />
       )}
-      <button 
-        onClick={() => {
-          formRef.current?.fillDummy();
-        }}
-        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
-      >
-        {t("Fill Dummy")}
-      </button>
-      <button 
-        onClick={() => {
-          formRef.current?.save();
-        }}
-        className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-      >
-        {t("Save")}
-      </button>
+      {showSave && (
+        <button 
+          onClick={() => {
+            formRef.current?.fillDummy();
+          }}
+          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+        >
+          {t("Fill Dummy")}
+        </button>
+      )}
+      {showSave && (
+        <button 
+          onClick={() => {
+            formRef.current?.save();
+          }}
+          className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+        >
+          {t("Save")}
+        </button>
+      )}
     </>
   ) : (
     canAdd ? (

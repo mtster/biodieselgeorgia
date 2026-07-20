@@ -212,7 +212,7 @@ export default function CommunicationsView({
           className="px-3.5 py-2.5 pr-8 bg-slate-100/60 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
         >
           <option value="" disabled hidden>{t("Actions")}</option>
-          <option value="delete" disabled={selectedComms.length === 0}>
+          <option value="delete" disabled={!canDelete || selectedComms.length === 0}>
             {t("Delete")} {selectedComms.length > 0 ? `(${selectedComms.length})` : ''}
           </option>
           <option value="col_manager">{t("Columns Manager")}</option>
@@ -222,14 +222,16 @@ export default function CommunicationsView({
         </span>
       </div>
 
-      <button 
-        id="btn-add-comm"
-        onClick={startNew}
-        className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer select-none"
-      >
-        <Plus size={15} />
-        {t("New Communication")}
-      </button>
+      {canAdd && (
+        <button 
+          id="btn-add-comm"
+          onClick={startNew}
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition cursor-pointer select-none"
+        >
+          <Plus size={15} />
+          {t("New Communication")}
+        </button>
+      )}
     </>
   );
 

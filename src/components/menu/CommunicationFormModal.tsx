@@ -53,7 +53,6 @@ export default function CommunicationFormModal({
   const [localComm, setLocalComm] = useState<Communication | null>(null);
   const [vendorSearch, setVendorSearch] = useState('');
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
-  const [localReminderTime, setLocalReminderTime] = useState('');
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -81,25 +80,10 @@ export default function CommunicationFormModal({
     setShowVendorSuggestions(false);
   }, [isOpen, editingComm, suppliers]);
 
-  useEffect(() => {
-    if (localComm && localComm.reminder_time) {
-      setLocalReminderTime(toDisplayDateTime(localComm.reminder_time));
-    } else {
-      setLocalReminderTime('');
-    }
-  }, [localComm?.reminder_time]);
-
   if (!localComm) return null;
 
   const handleSaveLocal = () => {
-    let final = { ...localComm };
-    if (final.type === 'reminder' && localReminderTime) {
-      const dbVal = toDbDateTime(localReminderTime);
-      if (dbVal && !isNaN(new Date(dbVal).getTime())) {
-        final.reminder_time = dbVal;
-      }
-    }
-    onSave(final);
+    onSave(localComm);
   };
 
   return (
@@ -180,23 +164,12 @@ export default function CommunicationFormModal({
         {localComm.type === 'reminder' && (
           <FormInput
             label="Reminder Due Time"
-            type="text"
-            placeholder="DD/MM/YYYY"
+            type="date"
             fontClass="font-mono"
-            value={localReminderTime}
+            value={localComm.reminder_time ? localComm.reminder_time.split('T')[0] : ''}
             onChange={(e) => {
               const val = e.target.value;
-              setLocalReminderTime(val);
-              if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
-                const dbVal = toDbDateTime(val);
-                setLocalComm(prev => prev ? { ...prev, reminder_time: dbVal } : null);
-              }
-            }}
-            onBlur={() => {
-              if (/^\d{2}\/\d{2}\/\d{4}$/.test(localReminderTime)) {
-                const dbVal = toDbDateTime(localReminderTime);
-                setLocalComm(prev => prev ? { ...prev, reminder_time: dbVal } : null);
-              }
+              setLocalComm(prev => prev ? { ...prev, reminder_time: val ? `${val}T12:00:00.000Z` : undefined } : null);
             }}
           />
         )}

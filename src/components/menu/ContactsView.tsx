@@ -381,7 +381,7 @@ export default function ContactsView({
         title={pageTitle}
         onBack={selectedVendorForForm ? () => setSelectedVendorForForm(null) : undefined}
         actions={
-          !selectedVendorForForm && (
+          !selectedVendorForForm && canAdd && (
             <button
               onClick={handleAddClick}
               type="button"

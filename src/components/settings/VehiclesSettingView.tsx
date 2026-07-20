@@ -29,6 +29,9 @@ export default function VehiclesSettingView({
   onDeleteTruck,
   onBack
 , currentUser}: Props) {
+  const canAddVehicle = currentUser?.role === 'admin' || currentUser?.permissions?.['vehicles']?.includes('add');
+  const canDeleteVehicle = currentUser?.role === 'admin' || currentUser?.permissions?.['vehicles']?.includes('delete');
+
   const [selectedTruck, setSelectedTruck] = useState<Vehicle | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -76,7 +79,7 @@ export default function VehiclesSettingView({
         ))}
 
         {/* Plus card */}
-        {(!currentUser || currentUser.role === 'admin' || currentUser.permissions?.['vehicles']?.includes('add')) && (
+        {canAddVehicle && (
           <button
             onClick={() => handleOpenTruck(null)}
             type="button"
@@ -104,7 +107,7 @@ export default function VehiclesSettingView({
         warehouses={warehouses}
         directions={directions}
         onSaveTruck={onSaveTruck}
-        onDeleteTruck={triggerDeleteTruck}
+        onDeleteTruck={canDeleteVehicle ? triggerDeleteTruck : undefined}
       />
 
       {/* Decommission Modal confirmation overlays */}

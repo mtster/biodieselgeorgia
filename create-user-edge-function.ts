@@ -66,7 +66,7 @@ serve(async (req) => {
     }
 
     // Parse payload fields
-    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id, is_blocked } = await req.json()
+    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id } = await req.json()
     const perms = permissions || privileges || {};
     
     // Standardize legacy role names to match database constraint
@@ -97,8 +97,7 @@ serve(async (req) => {
           phone,
           role,
           permissions: perms,
-          vendor_id,
-          is_blocked: is_blocked || false
+          vendor_id
         }
       })
 
@@ -157,8 +156,7 @@ serve(async (req) => {
           phone,
           role,
           permissions: perms,
-          vendor_id,
-          is_blocked: is_blocked || false
+          vendor_id
         }
       }
       if (password && password.trim() !== '') {

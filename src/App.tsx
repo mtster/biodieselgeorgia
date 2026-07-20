@@ -125,7 +125,7 @@ export default function App() {
   }
 
   // If role is 'vendor', route them to the supplier dashboard interface
-  if (currentUser.role === 'operator') {
+  if (currentUser.role === 'vendor') {
     return (
       <SupplierView 
         currentUser={currentUser}

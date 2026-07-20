@@ -287,15 +287,13 @@ export default function UserForm({
 
     if (updatedPagePerms.includes(type)) {
       updatedPagePerms = updatedPagePerms.filter(p => p !== type);
-      // If we remove view, we must remove all others
       if (type === 'view') {
-        updatedPagePerms = [];
+        updatedPagePerms = []; // clear all other permissions if view is unchecked
       }
     } else {
       updatedPagePerms.push(type);
-      // If we add something else, ensure view is present
       if (type !== 'view' && !updatedPagePerms.includes('view')) {
-        updatedPagePerms.push('view');
+        updatedPagePerms.push('view'); // ensure view is checked if any other action is checked
       }
     }
 
@@ -454,12 +452,10 @@ export default function UserForm({
                   const perms = isAdmin 
                     ? ['view', 'add', 'modify', 'delete'] 
                     : ((editingUser.permissions || {})[page.id] || []);
-                  
-                  const viewDisabled = isAdmin;
-                  const othersDisabled = isAdmin || (!perms.includes('view') && !isAdmin);
-                  
-                  const viewOpacityClass = viewDisabled ? 'opacity-50 pointer-events-none' : '';
-                  const othersOpacityClass = othersDisabled ? 'opacity-40 pointer-events-none' : '';
+                    
+                  const isViewChecked = perms.includes('view');
+                  const opacityClass = isAdmin ? 'opacity-50 pointer-events-none' : '';
+                  const otherOpacityClass = (isAdmin || !isViewChecked) ? 'opacity-40 cursor-not-allowed bg-slate-50' : 'cursor-pointer';
 
                   return (
                     <div key={page.id} className="grid grid-cols-12 px-4 py-2.5 items-center">
@@ -470,8 +466,8 @@ export default function UserForm({
                         <button
                           type="button"
                           onClick={() => togglePermission(page.id, 'view')}
-                          disabled={viewDisabled}
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${viewOpacityClass} ${
+                          disabled={isAdmin}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${opacityClass} ${
                             perms.includes('view')
                               ? 'border-emerald-600 bg-emerald-600 text-white'
                               : 'border-gray-200 bg-white hover:border-gray-300'
@@ -487,11 +483,11 @@ export default function UserForm({
                           <button
                             type="button"
                             onClick={() => togglePermission(page.id, 'add')}
-                            disabled={othersDisabled}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${othersOpacityClass} ${
+                            disabled={isAdmin || !isViewChecked}
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${otherOpacityClass} ${
                               perms.includes('add')
                                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                                : 'border-gray-200 bg-slate-50 hover:border-gray-300'
+                                : 'border-gray-200 bg-white hover:border-gray-300'
                             }`}
                           >
                             {perms.includes('add') && <Check size={11} strokeWidth={3.5} />}
@@ -505,11 +501,11 @@ export default function UserForm({
                           <button
                             type="button"
                             onClick={() => togglePermission(page.id, 'modify')}
-                            disabled={othersDisabled}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${othersOpacityClass} ${
+                            disabled={isAdmin || !isViewChecked}
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${otherOpacityClass} ${
                               perms.includes('modify')
                                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                                : 'border-gray-200 bg-slate-50 hover:border-gray-300'
+                                : 'border-gray-200 bg-white hover:border-gray-300'
                             }`}
                           >
                             {perms.includes('modify') && <Check size={11} strokeWidth={3.5} />}
@@ -523,11 +519,11 @@ export default function UserForm({
                           <button
                             type="button"
                             onClick={() => togglePermission(page.id, 'delete')}
-                            disabled={othersDisabled}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${othersOpacityClass} ${
+                            disabled={isAdmin || !isViewChecked}
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${otherOpacityClass} ${
                               perms.includes('delete')
                                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                                : 'border-gray-200 bg-slate-50 hover:border-gray-300'
+                                : 'border-gray-200 bg-white hover:border-gray-300'
                             }`}
                           >
                             {perms.includes('delete') && <Check size={11} strokeWidth={3.5} />}

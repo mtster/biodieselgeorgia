@@ -120,22 +120,6 @@ export function useAppData() {
     }
   }, [isLoadingAuth, currentUser]);
 
-  useEffect(() => {
-    if (currentUser && currentUser.role !== 'admin' && activeTab !== 'dashboard') {
-      let mappedTab = activeTab;
-      if (mappedTab === 'lookups') {
-        mappedTab = 'cities';
-      } else if (mappedTab === 'vendors') {
-        mappedTab = 'suppliers';
-      }
-      
-      const hasView = currentUser.permissions?.[mappedTab]?.includes('view');
-      if (!hasView) {
-        setActiveTab('dashboard');
-      }
-    }
-  }, [currentUser, activeTab]);
-
   // Operations
   const handleUserSave = async (user: User) => {
     try {

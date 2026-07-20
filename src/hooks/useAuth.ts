@@ -59,9 +59,9 @@ export function useAuth() {
               
             if (dbUser) {
               if (dbUser.is_blocked) {
+                console.warn('Access denied: User is blocked.');
                 await supabase.auth.signOut();
                 setCurrentUser(null);
-                alert('სისტემაზე წვდომა არ გაქვთ.');
               } else {
                 const secureUser = decodeProfile(dbUser);
                 secureUser.role = session.user.user_metadata?.role || secureUser.role;
@@ -140,15 +140,15 @@ export function useAuth() {
 
             if (dbUser) {
               if (dbUser.is_blocked) {
+                console.warn('Access denied: User is blocked during authentication state sync.');
                 await supabase.auth.signOut();
                 setCurrentUser(null);
-                alert('სისტემაზე წვდომა არ გაქვთ.');
-              } else {
-                const secureUser = decodeProfile(dbUser);
-                secureUser.role = session.user.user_metadata?.role || secureUser.role;
-                secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
-                setCurrentUser(secureUser);
+                return;
               }
+              const secureUser = decodeProfile(dbUser);
+              secureUser.role = session.user.user_metadata?.role || secureUser.role;
+              secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
+              setCurrentUser(secureUser);
             } else {
               const role = session.user.user_metadata?.role || 'vendor';
               const vendorUser: User = {
@@ -196,7 +196,7 @@ export function useAuth() {
         async (payload) => {
           const updatedProfile = payload.new;
           if (updatedProfile.is_blocked) {
-            alert("სისტემაზე წვდომა არ გაქვთ.");
+            console.warn('User has been blocked in real-time. Signing out.');
             await supabase.auth.signOut();
             setCurrentUser(null);
           } else {

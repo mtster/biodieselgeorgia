@@ -280,8 +280,8 @@ export default function VendorsView({
               className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
             >
               <option value="" disabled hidden>{t("Actions")}</option>
-              <option value="import">{t("Import")}</option>
-              <option value="delete" disabled={selectedVendors.length === 0}>
+              <option value="import" disabled={!canAdd}>{t("Import")}</option>
+              <option value="delete" disabled={!canDelete || selectedVendors.length === 0}>
                 {t("Delete")} {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
               </option>
               <option value="col_manager">{t("Columns Manager")}</option>
@@ -291,14 +291,16 @@ export default function VendorsView({
             </span>
           </div>
           
-          <button 
-            id="btn-add-new-vendor"
-            onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
-          >
-            <Plus size={15} />
-            {t("Add Supplier")}
-          </button>
+          {canAdd && (
+            <button 
+              id="btn-add-new-vendor"
+              onClick={startNew}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"
+            >
+              <Plus size={15} />
+              {t("Add Supplier")}
+            </button>
+          )}
         </>
       )}
     </>

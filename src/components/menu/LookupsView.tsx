@@ -29,6 +29,12 @@ export default function LookupsView({
   // Tabs locally within lookups
   const [activeTab, setActiveTab] = useState<'cities' | 'trucks'>('cities');
 
+  const canAddCity = currentEmployee.role === 'admin' || currentEmployee.permissions?.['cities']?.includes('add');
+  const canDeleteCity = currentEmployee.role === 'admin' || currentEmployee.permissions?.['cities']?.includes('delete');
+
+  const canAddVehicle = currentEmployee.role === 'admin' || currentEmployee.permissions?.['vehicles']?.includes('add');
+  const canDeleteVehicle = currentEmployee.role === 'admin' || currentEmployee.permissions?.['vehicles']?.includes('delete');
+
   const currentTab = forcedTab || activeTab;
 
   // Input helpers
@@ -144,37 +150,41 @@ export default function LookupsView({
             </h3>
 
             {/* Save City inline form */}
-            <div className="flex gap-2 items-end">
-              <div className="relative flex-1">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  New City Name
-                </span>
-                <input 
-                  id="input-new-city"
-                  type="text" 
-                  value={newCityName}
-                  onChange={(e) => setNewCityName(e.target.value)}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
-                />
+            {canAddCity && (
+              <div className="flex gap-2 items-end">
+                <div className="relative flex-1">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                    New City Name
+                  </span>
+                  <input 
+                    id="input-new-city"
+                    type="text" 
+                    value={newCityName}
+                    onChange={(e) => setNewCityName(e.target.value)}
+                    className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
+                  />
+                </div>
+                <button 
+                  onClick={handleAddCity}
+                  className="px-4 py-3 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer shrink-0"
+                >
+                  Add
+                </button>
               </div>
-              <button 
-                onClick={handleAddCity}
-                className="px-4 py-3 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer shrink-0"
-              >
-                Add
-              </button>
-            </div>
+            )}
 
             <div className="space-y-1.5 max-h-72 overflow-y-auto">
               {cities.map((city) => (
                 <div key={city.id} className="p-3 bg-slate-50 border rounded-xl flex items-center justify-between text-xs">
                   <span className="font-bold text-gray-800">{city.name}</span>
-                  <button 
-                    onClick={() => onDeleteCity(city.id, city.name)}
-                    className="p-1 hover:text-red-600 hover:bg-white rounded text-gray-400 cursor-pointer"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {canDeleteCity && (
+                    <button 
+                      onClick={() => onDeleteCity(city.id, city.name)}
+                      className="p-1 hover:text-red-600 hover:bg-white rounded text-gray-400 cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -188,39 +198,41 @@ export default function LookupsView({
             </h3>
 
             {/* Save District inline form */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  City Select
-                </span>
-                <select
-                  value={selectedCityId}
-                  onChange={(e) => setSelectedCityId(e.target.value)}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
+            {canAddCity && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                    City Select
+                  </span>
+                  <select
+                    value={selectedCityId}
+                    onChange={(e) => setSelectedCityId(e.target.value)}
+                    className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900 cursor-pointer"
+                  >
+                    <option value="">-- Select City --</option>
+                    {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="relative">
+                  <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
+                    New District Name
+                  </span>
+                  <input 
+                    id="input-new-district"
+                    type="text" 
+                    value={newDistName}
+                    onChange={(e) => setNewDistName(e.target.value)}
+                    className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
+                  />
+                </div>
+                <button 
+                  onClick={handleAddDistrict}
+                  className="bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer py-3"
                 >
-                  <option value="">-- Select City --</option>
-                  {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                  Add District
+                </button>
               </div>
-              <div className="relative">
-                <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-gray-400">
-                  New District Name
-                </span>
-                <input 
-                  id="input-new-district"
-                  type="text" 
-                  value={newDistName}
-                  onChange={(e) => setNewDistName(e.target.value)}
-                  className="block w-full px-3.5 py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-sans transition-all bg-white text-gray-900"
-                />
-              </div>
-              <button 
-                onClick={handleAddDistrict}
-                className="bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-950 transition cursor-pointer py-3"
-              >
-                Add District
-              </button>
-            </div>
+            )}
 
             <div className="space-y-1.5 max-h-72 overflow-y-auto">
               {districts.map((dist) => {
@@ -231,12 +243,14 @@ export default function LookupsView({
                       <span className="font-bold text-gray-800">{dist.name}</span>
                       <span className="text-[10px] text-gray-400 font-mono block">City: {cityObj ? cityObj.name : 'Unknown'}</span>
                     </div>
-                    <button 
-                      onClick={() => onDeleteDistrict(dist.id, dist.name)}
-                      className="p-1 hover:text-red-630 hover:bg-white rounded text-gray-400 cursor-pointer"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {canDeleteCity && (
+                      <button 
+                        onClick={() => onDeleteDistrict(dist.id, dist.name)}
+                        className="p-1 hover:text-red-630 hover:bg-white rounded text-gray-400 cursor-pointer"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -249,7 +263,8 @@ export default function LookupsView({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 font-sans">
           
           {/* Add form */}
-          <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4 h-fit">
+          {canAddVehicle && (
+            <div className="bg-white border p-5 rounded-2xl shadow-xs space-y-4 h-fit">
             <h3 className="text-sm font-black text-gray-800 flex items-center gap-1.5">
               <TruckIcon size={16} className="text-emerald-700 font-bold" />
               Register Vehicle Asset
@@ -328,9 +343,10 @@ export default function LookupsView({
               </button>
             </div>
           </div>
+          )}
 
           {/* List display */}
-          <div className="lg:col-span-2 bg-white border p-5 rounded-2xl shadow-xs space-y-4">
+          <div className={`${canAddVehicle ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white border p-5 rounded-2xl shadow-xs space-y-4`}>
             <h3 className="text-sm font-black text-gray-800">Registered Vehicles</h3>
 
             <div className="divide-y divide-gray-50">
@@ -345,12 +361,14 @@ export default function LookupsView({
                       Assigned Driver: <strong className="text-gray-650">{employees.find(e => e.id === truck.driver_id)?.name || 'None'}</strong> • Companion: {employees.find(e => e.id === truck.companion_id)?.name || 'None'}
                     </p>
                   </div>
-                  <button 
-                    onClick={() => onDeleteTruck(truck.plate_number)}
-                    className="p-1 px-2.5 hover:text-red-650 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs cursor-pointer"
-                  >
-                    Delete
-                  </button>
+                  {canDeleteVehicle && (
+                    <button 
+                      onClick={() => onDeleteTruck(truck.plate_number)}
+                      className="p-1 px-2.5 hover:text-red-650 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               ))}
 

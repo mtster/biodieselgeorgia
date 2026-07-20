@@ -29,6 +29,9 @@ export default function CitiesSettingView({
   onDeleteDistrict,
   onBack
 , currentUser}: Props) {
+  const canAddCity = currentUser?.role === 'admin' || currentUser?.permissions?.['cities']?.includes('add');
+  const canDeleteCity = currentUser?.role === 'admin' || currentUser?.permissions?.['cities']?.includes('delete');
+
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cityNameInput, setCityNameInput] = useState('');
@@ -87,8 +90,6 @@ export default function CitiesSettingView({
     setNewDistrictName('');
   };
 
-  const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['cities']?.includes('add');
-
   return (
     <div className="space-y-6 animate-in fade-in duration-200 text-left">
       {/* 1. STANDARDIZED PAGE HEADER */}
@@ -126,7 +127,7 @@ export default function CitiesSettingView({
         })}
 
         {/* Plus-Signed Add New City Window Card */}
-        {canAdd && (
+        {canAddCity && (
           <button
             onClick={() => handleOpenCity(null)}
             type="button"
@@ -148,7 +149,7 @@ export default function CitiesSettingView({
         onClose={() => setIsModalOpen(false)}
         title={selectedCity ? t('City Details') : t('Create New City')}
         maxWidthClass="max-w-lg"
-        onDelete={selectedCity ? triggerDeleteCity : undefined}
+        onDelete={selectedCity && canDeleteCity ? triggerDeleteCity : undefined}
         deleteLabel={t("Delete")}
         onCancel={() => setIsModalOpen(false)}
         onSave={handleSave}
@@ -171,34 +172,38 @@ export default function CitiesSettingView({
                 {t("Districts")}
               </h4>
 
-              <div className="flex gap-2">
-                <input 
-                  type="text"
-                  value={newDistrictName}
-                  onChange={(e) => setNewDistrictName(e.target.value)}
-                  placeholder={t("New district name...")}
-                  className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 bg-white"
-                />
-                <button 
-                  onClick={handleAddDistrict}
-                  type="button"
-                  className="px-3.5 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
-                >
-                  {t("Add")}
-                </button>
-              </div>
+              {canAddCity && (
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    value={newDistrictName}
+                    onChange={(e) => setNewDistrictName(e.target.value)}
+                    placeholder={t("New district name...")}
+                    className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 bg-white"
+                  />
+                  <button 
+                    onClick={handleAddDistrict}
+                    type="button"
+                    className="px-3.5 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-emerald-950 transition cursor-pointer"
+                  >
+                    {t("Add")}
+                  </button>
+                </div>
+              )}
 
               <div className="space-y-1.5 max-h-44 overflow-y-auto pt-1">
                 {districts.filter(d => d.city_id === selectedCity.id).map(d => (
                   <div key={d.id} className="p-2 bg-white border border-gray-100 rounded-lg flex items-center justify-between text-xs sm:px-3">
                     <span className="font-bold text-gray-750">{d.name}</span>
-                    <button 
-                      onClick={() => onDeleteDistrict(d.id, d.name)}
-                      type="button"
-                      className="p-1 hover:text-red-650 rounded text-gray-400 hover:bg-red-50"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    {canDeleteCity && (
+                      <button 
+                        onClick={() => onDeleteDistrict(d.id, d.name)}
+                        type="button"
+                        className="p-1 hover:text-red-650 rounded text-gray-400 hover:bg-red-50"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 ))}
                 {districts.filter(d => d.city_id === selectedCity.id).length === 0 && (
