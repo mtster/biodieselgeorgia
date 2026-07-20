@@ -35,7 +35,7 @@ export default function Sidebar({
     }
   }, [activeTab]);
   
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.privileges?.includes('All');
+  const isAdmin = currentUser?.role === 'admin';
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={18} /> },
@@ -44,13 +44,12 @@ export default function Sidebar({
     { id: 'communications', name: 'Communications', icon: <MessageSquare size={18} /> },
     { id: 'orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
     { id: 'reports', name: 'Reports', icon: <FileText size={18} /> },
-  ].filter(item => {
+  ]
+.filter(item => {
     if (isAdmin) return true;
-    if (!currentUser || !currentUser.privileges) return true;
-    if (item.id === 'contacts') {
-      return currentUser.privileges.includes('Suppliers');
-    }
-    return currentUser.privileges.includes(item.name);
+    if (!currentUser || !currentUser.permissions) return false;
+    const pageId = item.id === 'vendors' ? 'suppliers' : item.id;
+    return currentUser.permissions[pageId]?.includes('view');
   });
 
   const settingsSubItems = [
@@ -60,10 +59,12 @@ export default function Sidebar({
     { id: 'vehicles', name: 'Vehicles', icon: <Truck size={18} /> },
     { id: 'warehouses', name: 'Warehouses', icon: <Building2 size={18} /> },
     { id: 'history', name: 'Changes History', icon: <History size={18} /> },
-  ].filter(item => {
+  ]
+.filter(item => {
     if (isAdmin) return true;
-    if (!currentUser || !currentUser.privileges) return true;
-    return currentUser.privileges.includes(item.name);
+    if (!currentUser || !currentUser.permissions) return false;
+    const pageId = item.id;
+    return currentUser.permissions[pageId]?.includes('view');
   });
 
   const showSettings = settingsSubItems.length > 0;

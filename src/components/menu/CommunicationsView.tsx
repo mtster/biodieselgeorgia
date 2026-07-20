@@ -36,6 +36,11 @@ interface Props {
 export default function CommunicationsView({ 
   communications, suppliers, employees, currentEmployee, onSave, onDelete 
 }: Props) {
+
+  const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('add');
+  const canModify = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('modify');
+  const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('delete');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();

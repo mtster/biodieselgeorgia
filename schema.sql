@@ -12,16 +12,78 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 
+-- Drop all existing policies before table definition/alteration so they don't block column type changes
+DROP POLICY IF EXISTS "Cities view" ON public.cities;
+DROP POLICY IF EXISTS "Cities add" ON public.cities;
+DROP POLICY IF EXISTS "Cities modify" ON public.cities;
+DROP POLICY IF EXISTS "Cities delete" ON public.cities;
+
+DROP POLICY IF EXISTS "Districts view" ON public.districts;
+DROP POLICY IF EXISTS "Districts add" ON public.districts;
+DROP POLICY IF EXISTS "Districts modify" ON public.districts;
+DROP POLICY IF EXISTS "Districts delete" ON public.districts;
+
+DROP POLICY IF EXISTS "Directions view" ON public.directions;
+DROP POLICY IF EXISTS "Directions add" ON public.directions;
+DROP POLICY IF EXISTS "Directions modify" ON public.directions;
+DROP POLICY IF EXISTS "Directions delete" ON public.directions;
+
+DROP POLICY IF EXISTS "Warehouses view" ON public.warehouses;
+DROP POLICY IF EXISTS "Warehouses add" ON public.warehouses;
+DROP POLICY IF EXISTS "Warehouses modify" ON public.warehouses;
+DROP POLICY IF EXISTS "Warehouses delete" ON public.warehouses;
+
+DROP POLICY IF EXISTS "Vehicles view" ON public.vehicles;
+DROP POLICY IF EXISTS "Vehicles add" ON public.vehicles;
+DROP POLICY IF EXISTS "Vehicles modify" ON public.vehicles;
+DROP POLICY IF EXISTS "Vehicles delete" ON public.vehicles;
+
+DROP POLICY IF EXISTS "Vendors view" ON public.vendors;
+DROP POLICY IF EXISTS "Vendors add" ON public.vendors;
+DROP POLICY IF EXISTS "Vendors modify" ON public.vendors;
+DROP POLICY IF EXISTS "Vendors delete" ON public.vendors;
+
+DROP POLICY IF EXISTS "Vendor Contacts view" ON public.vendor_contacts;
+DROP POLICY IF EXISTS "Vendor Contacts add" ON public.vendor_contacts;
+DROP POLICY IF EXISTS "Vendor Contacts modify" ON public.vendor_contacts;
+DROP POLICY IF EXISTS "Vendor Contacts delete" ON public.vendor_contacts;
+
+DROP POLICY IF EXISTS "Communications view" ON public.communications;
+DROP POLICY IF EXISTS "Communications add" ON public.communications;
+DROP POLICY IF EXISTS "Communications modify" ON public.communications;
+DROP POLICY IF EXISTS "Communications delete" ON public.communications;
+
+DROP POLICY IF EXISTS "Orders view access" ON public.orders;
+DROP POLICY IF EXISTS "Orders add access" ON public.orders;
+DROP POLICY IF EXISTS "Orders modify access" ON public.orders;
+DROP POLICY IF EXISTS "Orders delete access" ON public.orders;
+
+DROP POLICY IF EXISTS "History view" ON public.change_history;
+DROP POLICY IF EXISTS "History modify (System only usually)" ON public.change_history;
+
+DROP POLICY IF EXISTS "Authenticated full access on cities" ON public.cities;
+DROP POLICY IF EXISTS "Authenticated full access on districts" ON public.districts;
+DROP POLICY IF EXISTS "Authenticated full access on directions" ON public.directions;
+DROP POLICY IF EXISTS "Authenticated full access on warehouses" ON public.warehouses;
+DROP POLICY IF EXISTS "Authenticated full access on vehicles" ON public.vehicles;
+DROP POLICY IF EXISTS "Authenticated full access on vendors" ON public.vendors;
+DROP POLICY IF EXISTS "Authenticated full access on vendor_contacts" ON public.vendor_contacts;
+DROP POLICY IF EXISTS "Authenticated full access on communications" ON public.communications;
+DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.change_history;
+
 -- Create role Enum type (checking first to be re-runnable)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-    CREATE TYPE public.user_role AS ENUM ('admin', 'manager', 'driver', 'vendor', 'assistant', 'warehouse_manager');
+    CREATE TYPE public.user_role AS ENUM ('admin', 'manager', 'driver', 'vendor', 'assistant', 'warehouse_manager', 'purchasing_manager', 'operator', 'logistics_manager');
   END IF;
 END$$;
 
 -- Add values if not exists to handle cases where the type already pre-existed without these values
 ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'assistant';
+ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'purchasing_manager';
+ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'operator';
+ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'logistics_manager';
 ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'warehouse_manager';
 
 -- 1. Cities
@@ -61,9 +123,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     personal_id TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     phone TEXT NOT NULL,
-    role public.user_role NOT NULL,
-    privileges TEXT[] DEFAULT '{}'::TEXT[],
-    edit_permissions JSONB DEFAULT '{}'::JSONB,
+    role TEXT NOT NULL,
+    permissions JSONB DEFAULT '{}'::JSONB,
+    
     is_deleted BOOLEAN DEFAULT FALSE,
     is_blocked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -72,6 +134,17 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Apply non-destructive updates to public.profiles table if it pre-exists
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::JSONB;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS vendor_id TEXT DEFAULT NULL;
+ALTER TABLE public.profiles ALTER COLUMN role TYPE TEXT;
+
+-- Standardize and map legacy roles to clean, standard roles
+UPDATE public.profiles SET role = 'purchasing_head' WHERE role = 'manager';
+UPDATE public.profiles SET role = 'operator' WHERE role NOT IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver');
+
+-- Enforce check constraint to only allow standardized role names
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS check_valid_role;
+ALTER TABLE public.profiles ADD CONSTRAINT check_valid_role CHECK (role IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver'));
 
 -- 5. Vehicles
 CREATE TABLE IF NOT EXISTS public.vehicles (
@@ -170,6 +243,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     tanks_to_bring INT NOT NULL DEFAULT 0,   -- Tanks to Retrieve
     pickup_date_time TIMESTAMPTZ,            -- Retrieve Date and Time
     operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Creator Operator
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,   -- Driver assigned
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,-- Companion assigned
     truck_plate TEXT REFERENCES public.vehicles(plate_number) ON DELETE SET NULL, -- Assigned Vehicle Plate
@@ -185,6 +259,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 -- Apply non-destructive updates to public.orders table if it pre-exists
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_qty NUMERIC(12, 2) DEFAULT 0.00;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_tank_dropoff INT DEFAULT 0;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_tank_pickup INT DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS waybill_qty NUMERIC(12, 2) DEFAULT 0.00;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_id TEXT DEFAULT NULL;
@@ -266,6 +341,17 @@ DECLARE
   v_role TEXT;
 BEGIN
   v_role := COALESCE(new.raw_user_meta_data->>'role', 'admin');
+  
+  IF v_role = 'vendor' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Map any legacy/non-standard roles to the standard ones
+  IF v_role = 'manager' THEN
+    v_role := 'purchasing_head';
+  ELSIF v_role NOT IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver') THEN
+    v_role := 'operator'; -- Default fallback
+  END IF;
 
   INSERT INTO public.profiles (
     id, 
@@ -274,7 +360,8 @@ BEGIN
     email, 
     phone, 
     role, 
-    privileges
+    permissions,
+    vendor_id
   )
   VALUES (
     new.id,
@@ -282,8 +369,9 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'personal_id', '12345678901'),
     new.email,
     COALESCE(new.raw_user_meta_data->>'phone', '599112233'),
-    v_role::public.user_role,
-    COALESCE(ARRAY(SELECT jsonb_array_elements_text(new.raw_user_meta_data->'privileges')), '{}'::TEXT[])
+    v_role,
+    COALESCE(new.raw_user_meta_data->'permissions', '{}'::JSONB),
+    new.raw_user_meta_data->>'vendor_id'
   )
   ON CONFLICT (id) DO UPDATE 
   SET 
@@ -292,7 +380,8 @@ BEGIN
     phone = EXCLUDED.phone,
     personal_id = EXCLUDED.personal_id,
     role = EXCLUDED.role,
-    privileges = EXCLUDED.privileges;
+    permissions = EXCLUDED.permissions,
+    vendor_id = EXCLUDED.vendor_id;
   
   RETURN NEW;
 END;
@@ -318,6 +407,74 @@ ALTER TABLE public.change_history ENABLE ROW LEVEL SECURITY;
 -- Apply simplified, safe, full-access policies for authenticated users on all tables
 -- To prevent infinite loops, NEVER do SELECT on profiles from a policy check.
 -- Instead, check user identity via auth.uid() or verify attributes in the auth.jwt().
+
+-- Helper function to check granular JSONB permissions
+CREATE OR REPLACE FUNCTION public.has_permission(module TEXT, perm TEXT)
+RETURNS BOOLEAN SECURITY DEFINER AS $$
+DECLARE
+  u_role TEXT;
+  u_permissions jsonb;
+BEGIN
+  SELECT role, permissions INTO u_role, u_permissions FROM public.profiles WHERE id = auth.uid();
+  IF u_role::text = 'admin' THEN
+    RETURN true;
+  END IF;
+  
+  -- Handle permissions checking using JSONB containment or extraction
+  -- We'll just check if the array contains the perm string
+  RETURN (u_permissions -> module) ? perm;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DROP POLICY IF EXISTS "Cities view" ON public.cities;
+DROP POLICY IF EXISTS "Cities add" ON public.cities;
+DROP POLICY IF EXISTS "Cities modify" ON public.cities;
+DROP POLICY IF EXISTS "Cities delete" ON public.cities;
+
+DROP POLICY IF EXISTS "Districts view" ON public.districts;
+DROP POLICY IF EXISTS "Districts add" ON public.districts;
+DROP POLICY IF EXISTS "Districts modify" ON public.districts;
+DROP POLICY IF EXISTS "Districts delete" ON public.districts;
+
+DROP POLICY IF EXISTS "Directions view" ON public.directions;
+DROP POLICY IF EXISTS "Directions add" ON public.directions;
+DROP POLICY IF EXISTS "Directions modify" ON public.directions;
+DROP POLICY IF EXISTS "Directions delete" ON public.directions;
+
+DROP POLICY IF EXISTS "Warehouses view" ON public.warehouses;
+DROP POLICY IF EXISTS "Warehouses add" ON public.warehouses;
+DROP POLICY IF EXISTS "Warehouses modify" ON public.warehouses;
+DROP POLICY IF EXISTS "Warehouses delete" ON public.warehouses;
+
+DROP POLICY IF EXISTS "Vehicles view" ON public.vehicles;
+DROP POLICY IF EXISTS "Vehicles add" ON public.vehicles;
+DROP POLICY IF EXISTS "Vehicles modify" ON public.vehicles;
+DROP POLICY IF EXISTS "Vehicles delete" ON public.vehicles;
+
+DROP POLICY IF EXISTS "Vendors view" ON public.vendors;
+DROP POLICY IF EXISTS "Vendors add" ON public.vendors;
+DROP POLICY IF EXISTS "Vendors modify" ON public.vendors;
+DROP POLICY IF EXISTS "Vendors delete" ON public.vendors;
+
+DROP POLICY IF EXISTS "Vendor Contacts view" ON public.vendor_contacts;
+DROP POLICY IF EXISTS "Vendor Contacts add" ON public.vendor_contacts;
+DROP POLICY IF EXISTS "Vendor Contacts modify" ON public.vendor_contacts;
+DROP POLICY IF EXISTS "Vendor Contacts delete" ON public.vendor_contacts;
+
+DROP POLICY IF EXISTS "Communications view" ON public.communications;
+DROP POLICY IF EXISTS "Communications add" ON public.communications;
+DROP POLICY IF EXISTS "Communications modify" ON public.communications;
+DROP POLICY IF EXISTS "Communications delete" ON public.communications;
+
+DROP POLICY IF EXISTS "Orders view access" ON public.orders;
+DROP POLICY IF EXISTS "Orders add access" ON public.orders;
+DROP POLICY IF EXISTS "Orders modify access" ON public.orders;
+DROP POLICY IF EXISTS "Orders delete access" ON public.orders;
+
+DROP POLICY IF EXISTS "History view" ON public.change_history;
+DROP POLICY IF EXISTS "History modify (System only usually)" ON public.change_history;
+
 DROP POLICY IF EXISTS "Authenticated full access on cities" ON public.cities;
 DROP POLICY IF EXISTS "Authenticated full access on districts" ON public.districts;
 DROP POLICY IF EXISTS "Authenticated full access on directions" ON public.directions;
@@ -329,16 +486,80 @@ DROP POLICY IF EXISTS "Authenticated full access on communications" ON public.co
 DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.change_history;
 DROP POLICY IF EXISTS "Authenticated full access on vendor_contacts" ON public.vendor_contacts;
 
-CREATE POLICY "Authenticated full access on cities" ON public.cities FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on districts" ON public.districts FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on directions" ON public.directions FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on warehouses" ON public.warehouses FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on vehicles" ON public.vehicles FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on vendors" ON public.vendors FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on orders" ON public.orders FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on communications" ON public.communications FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on change_history" ON public.change_history FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Authenticated full access on vendor_contacts" ON public.vendor_contacts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+
+
+
+
+
+
+
+
+
+
+
+-- CITIES
+CREATE POLICY "Cities view" ON public.cities FOR SELECT TO authenticated USING (public.has_permission('cities', 'view'));
+CREATE POLICY "Cities add" ON public.cities FOR INSERT TO authenticated WITH CHECK (public.has_permission('cities', 'add'));
+CREATE POLICY "Cities modify" ON public.cities FOR UPDATE TO authenticated USING (public.has_permission('cities', 'modify'));
+CREATE POLICY "Cities delete" ON public.cities FOR DELETE TO authenticated USING (public.has_permission('cities', 'delete'));
+
+-- DISTRICTS (Assuming district is tied to cities permissions)
+CREATE POLICY "Districts view" ON public.districts FOR SELECT TO authenticated USING (public.has_permission('cities', 'view'));
+CREATE POLICY "Districts add" ON public.districts FOR INSERT TO authenticated WITH CHECK (public.has_permission('cities', 'add'));
+CREATE POLICY "Districts modify" ON public.districts FOR UPDATE TO authenticated USING (public.has_permission('cities', 'modify'));
+CREATE POLICY "Districts delete" ON public.districts FOR DELETE TO authenticated USING (public.has_permission('cities', 'delete'));
+
+-- DIRECTIONS
+CREATE POLICY "Directions view" ON public.directions FOR SELECT TO authenticated USING (public.has_permission('directions', 'view'));
+CREATE POLICY "Directions add" ON public.directions FOR INSERT TO authenticated WITH CHECK (public.has_permission('directions', 'add'));
+CREATE POLICY "Directions modify" ON public.directions FOR UPDATE TO authenticated USING (public.has_permission('directions', 'modify'));
+CREATE POLICY "Directions delete" ON public.directions FOR DELETE TO authenticated USING (public.has_permission('directions', 'delete'));
+
+-- WAREHOUSES
+CREATE POLICY "Warehouses view" ON public.warehouses FOR SELECT TO authenticated USING (public.has_permission('warehouses', 'view'));
+CREATE POLICY "Warehouses add" ON public.warehouses FOR INSERT TO authenticated WITH CHECK (public.has_permission('warehouses', 'add'));
+CREATE POLICY "Warehouses modify" ON public.warehouses FOR UPDATE TO authenticated USING (public.has_permission('warehouses', 'modify'));
+CREATE POLICY "Warehouses delete" ON public.warehouses FOR DELETE TO authenticated USING (public.has_permission('warehouses', 'delete'));
+
+-- VEHICLES
+CREATE POLICY "Vehicles view" ON public.vehicles FOR SELECT TO authenticated USING (public.has_permission('vehicles', 'view'));
+CREATE POLICY "Vehicles add" ON public.vehicles FOR INSERT TO authenticated WITH CHECK (public.has_permission('vehicles', 'add'));
+CREATE POLICY "Vehicles modify" ON public.vehicles FOR UPDATE TO authenticated USING (public.has_permission('vehicles', 'modify'));
+CREATE POLICY "Vehicles delete" ON public.vehicles FOR DELETE TO authenticated USING (public.has_permission('vehicles', 'delete'));
+
+-- VENDORS
+CREATE POLICY "Vendors view" ON public.vendors FOR SELECT TO authenticated USING (public.has_permission('suppliers', 'view'));
+CREATE POLICY "Vendors add" ON public.vendors FOR INSERT TO authenticated WITH CHECK (public.has_permission('suppliers', 'add'));
+CREATE POLICY "Vendors modify" ON public.vendors FOR UPDATE TO authenticated USING (public.has_permission('suppliers', 'modify'));
+CREATE POLICY "Vendors delete" ON public.vendors FOR DELETE TO authenticated USING (public.has_permission('suppliers', 'delete'));
+
+-- VENDOR CONTACTS
+CREATE POLICY "Vendor Contacts view" ON public.vendor_contacts FOR SELECT TO authenticated USING (public.has_permission('contacts', 'view'));
+CREATE POLICY "Vendor Contacts add" ON public.vendor_contacts FOR INSERT TO authenticated WITH CHECK (public.has_permission('contacts', 'add'));
+CREATE POLICY "Vendor Contacts modify" ON public.vendor_contacts FOR UPDATE TO authenticated USING (public.has_permission('contacts', 'modify'));
+CREATE POLICY "Vendor Contacts delete" ON public.vendor_contacts FOR DELETE TO authenticated USING (public.has_permission('contacts', 'delete'));
+
+-- COMMUNICATIONS
+CREATE POLICY "Communications view" ON public.communications FOR SELECT TO authenticated USING (public.has_permission('communications', 'view'));
+CREATE POLICY "Communications add" ON public.communications FOR INSERT TO authenticated WITH CHECK (public.has_permission('communications', 'add'));
+CREATE POLICY "Communications modify" ON public.communications FOR UPDATE TO authenticated USING (public.has_permission('communications', 'modify'));
+CREATE POLICY "Communications delete" ON public.communications FOR DELETE TO authenticated USING (public.has_permission('communications', 'delete'));
+
+-- ORDERS
+CREATE POLICY "Orders view access" ON public.orders FOR SELECT TO authenticated USING (public.has_permission('orders', 'view'));
+CREATE POLICY "Orders add access" ON public.orders FOR INSERT TO authenticated WITH CHECK (public.has_permission('orders', 'add'));
+CREATE POLICY "Orders modify access" ON public.orders FOR UPDATE TO authenticated USING (public.has_permission('orders', 'modify'));
+-- Operator logic for order deletion
+CREATE POLICY "Orders delete access" ON public.orders FOR DELETE TO authenticated 
+USING (
+  public.has_permission('orders', 'delete') 
+  OR ( (SELECT role::text FROM public.profiles WHERE id = auth.uid()) = 'operator' AND created_by = auth.uid() )
+);
+
+-- CHANGE HISTORY
+CREATE POLICY "History view" ON public.change_history FOR SELECT TO authenticated USING (public.has_permission('history', 'view'));
+CREATE POLICY "History modify (System only usually)" ON public.change_history FOR INSERT TO authenticated WITH CHECK (true);
 
 -- SECURITY DEFINER function to bypass RLS recursion on the profiles table
 CREATE OR REPLACE FUNCTION public.is_admin()
@@ -346,7 +567,7 @@ RETURNS BOOLEAN SECURITY DEFINER AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role = 'admin'::public.user_role
+    WHERE id = auth.uid() AND role::text = 'admin'
   );
 END;
 $$ LANGUAGE plpgsql;
@@ -377,19 +598,4 @@ CREATE INDEX IF NOT EXISTS idx_vendor_contacts_vendor_id ON public.vendor_contac
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_is_deleted ON public.vendor_contacts (is_deleted);
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_sort_order ON public.vendor_contacts (sort_order);
 
--- Seeding lookups and base data
-INSERT INTO public.cities (id, name) VALUES 
-('city-tbilisi', 'Tbilisi'),
-('city-kutaisi', 'Kutaisi'),
-('city-batumi', 'Batumi') ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.districts (id, city_id, name) VALUES
-('dist-sab-tb', 'city-tbilisi', 'Saburtalo'),
-('dist-vake-tb', 'city-tbilisi', 'Vake'),
-('dist-gld-tb', 'city-tbilisi', 'Gldani'),
-('dist-ctr-kut', 'city-kutaisi', 'Center'),
-('dist-prt-bat', 'city-batumi', 'Port') ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public.warehouses (id, name) VALUES
-('wh-main', 'Central Warehouse'),
-('wh-west', 'West Warehouse') ON CONFLICT (id) DO NOTHING;

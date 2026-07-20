@@ -125,7 +125,7 @@ export default function App() {
   }
 
   // If role is 'vendor', route them to the supplier dashboard interface
-  if (currentUser.role === 'vendor') {
+  if (currentUser.role === 'operator') {
     return (
       <SupplierView 
         currentUser={currentUser}
@@ -296,7 +296,7 @@ export default function App() {
             )}
 
             {(activeTab === 'lookups' || activeTab === 'cities') && (
-              <CitiesSettingView 
+              <CitiesSettingView currentUser={currentUser} 
                 cities={cities}
                 districts={districts}
                 onSaveCity={handleSaveCity}
@@ -308,7 +308,7 @@ export default function App() {
             )}
 
             {activeTab === 'directions' && (
-              <DirectionsSettingView 
+              <DirectionsSettingView currentUser={currentUser} 
                 directions={directions}
                 onSaveDirection={handleSaveDirection}
                 onDeleteDirection={handleDeleteDirection}
@@ -317,7 +317,7 @@ export default function App() {
             )}
 
             {activeTab === 'vehicles' && (
-              <VehiclesSettingView 
+              <VehiclesSettingView currentUser={currentUser} 
                 trucks={trucks}
                 employees={users}
                 cities={cities}
@@ -330,7 +330,7 @@ export default function App() {
             )}
 
             {activeTab === 'warehouses' && (
-              <WarehousesSettingView 
+              <WarehousesSettingView currentUser={currentUser} 
                 warehouses={warehouses}
                 onSaveWarehouse={handleSaveWarehouse}
                 onDeleteWarehouse={handleDeleteWarehouse}

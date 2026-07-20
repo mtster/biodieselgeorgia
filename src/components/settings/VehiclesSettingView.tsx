@@ -8,6 +8,7 @@ import VehicleFormModal from './VehicleFormModal';
 import { t } from '../../utils/lang';
 
 interface Props {
+  currentUser?: User;
   trucks: Vehicle[];
   employees: User[];
   cities: City[];
@@ -27,7 +28,7 @@ export default function VehiclesSettingView({
   onSaveTruck,
   onDeleteTruck,
   onBack
-}: Props) {
+, currentUser}: Props) {
   const [selectedTruck, setSelectedTruck] = useState<Vehicle | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);

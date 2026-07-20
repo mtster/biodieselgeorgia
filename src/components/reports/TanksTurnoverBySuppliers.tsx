@@ -135,7 +135,7 @@ export default function TanksTurnoverBySuppliers({
   const totalReturned = turnoverRows.reduce((sum, r) => sum + r.returned, 0);
   const totalFinal = turnoverRows.reduce((sum, r) => sum + r.finalBalance, 0);
 
-  const filterManagers = users.filter(u => u.role === 'manager' || u.role === 'admin');
+  const filterManagers = users.filter(u => u.role === 'manager' || u.role === 'purchasing_head' || u.role === 'admin');
 
   return (
     <div className="space-y-6">

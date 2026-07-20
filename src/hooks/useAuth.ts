@@ -5,13 +5,10 @@ import { isSupabaseConfigured, supabase } from '../lib/db';
 
 function decodeProfile(p: any): User {
   if (!p) return p;
-  const edit_permissions = p.edit_permissions || {};
-  const warehouse_id = p.warehouse_id || edit_permissions.warehouse_id || '';
-  const vendor_id = p.vendor_id || edit_permissions.vendor_id || '';
   return {
     ...p,
-    warehouse_id: warehouse_id || undefined,
-    vendor_id: vendor_id || undefined
+    warehouse_id: p.warehouse_id || undefined,
+    vendor_id: p.vendor_id || undefined
   };
 }
 
@@ -64,9 +61,12 @@ export function useAuth() {
               if (dbUser.is_blocked) {
                 await supabase.auth.signOut();
                 setCurrentUser(null);
-                alert(t('Your user account has been blocked by administrators.'));
+                alert('სისტემაზე წვდომა არ გაქვთ.');
               } else {
-                setCurrentUser(decodeProfile(dbUser));
+                const secureUser = decodeProfile(dbUser);
+                secureUser.role = session.user.user_metadata?.role || secureUser.role;
+                secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
+                setCurrentUser(secureUser);
               }
             } else {
               // Fallback to user_metadata
@@ -78,7 +78,7 @@ export function useAuth() {
                 personal_id: session.user.user_metadata?.personal_id || '',
                 phone: session.user.user_metadata?.phone || '',
                 role: role,
-                privileges: session.user.user_metadata?.privileges || [],
+                permissions: session.user.user_metadata?.permissions || {},
                 is_blocked: false,
                 created_at: session.user.created_at || new Date().toISOString(),
                 vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,
@@ -139,7 +139,10 @@ export function useAuth() {
             }
 
             if (dbUser) {
-              setCurrentUser(decodeProfile(dbUser));
+              const secureUser = decodeProfile(dbUser);
+              secureUser.role = session.user.user_metadata?.role || secureUser.role;
+              secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
+              setCurrentUser(secureUser);
             } else {
               const role = session.user.user_metadata?.role || 'vendor';
               const vendorUser: User = {
@@ -149,7 +152,7 @@ export function useAuth() {
                 personal_id: session.user.user_metadata?.personal_id || '',
                 phone: session.user.user_metadata?.phone || '',
                 role: role,
-                privileges: session.user.user_metadata?.privileges || [],
+                permissions: session.user.user_metadata?.permissions || {},
                 is_blocked: false,
                 created_at: session.user.created_at || new Date().toISOString(),
                 vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,
@@ -169,6 +172,40 @@ export function useAuth() {
       };
     }
   }, []);
+
+  
+  useEffect(() => {
+    if (!currentUser?.id || !isSupabaseConfigured || !supabase) return;
+
+    const channel = supabase
+      .channel(`public:profiles:${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${currentUser.id}`,
+        },
+        async (payload) => {
+          const updatedProfile = payload.new;
+          if (updatedProfile.is_blocked) {
+            alert("სისტემაზე წვდომა არ გაქვთ.");
+            await supabase.auth.signOut();
+            setCurrentUser(null);
+          } else {
+            // Update JWT by refreshing session
+            await supabase.auth.refreshSession();
+            setCurrentUser(decodeProfile(updatedProfile));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id]);
 
   const handleLogOut = async () => {
     if (isSupabaseConfigured && supabase) {

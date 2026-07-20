@@ -7,7 +7,10 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
 import { t } from '../../utils/lang';
 
+import { User } from '../../types';
+
 interface Props {
+  currentUser?: User;
   warehouses: Warehouse[];
   onSaveWarehouse: (w: Warehouse) => void;
   onDeleteWarehouse: (id: string, name: string) => void;
@@ -19,7 +22,7 @@ export default function WarehousesSettingView({
   onSaveWarehouse,
   onDeleteWarehouse,
   onBack
-}: Props) {
+, currentUser}: Props) {
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [nameInput, setNameInput] = useState('');

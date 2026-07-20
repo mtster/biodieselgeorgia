@@ -41,7 +41,6 @@ async function startServer() {
 
       const token = authHeader.split(" ")[1];
       
-      // Initialize an anon/client client to verify the requester's JWT safely
       const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
       const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
 
@@ -66,7 +65,8 @@ async function startServer() {
         return res.status(403).json({ error: "Access denied: Only Administrators can create users." });
       }
 
-      const { email, password, name, personal_id, phone, role, privileges, warehouse_id, vendor_id } = req.body;
+      const { email, password, name, personal_id, phone, role, permissions, privileges, warehouse_id, vendor_id } = req.body;
+      const perms = permissions || privileges || {};
 
       if (!email || !password || !name || !personal_id || !phone || !role) {
         return res.status(400).json({ error: "All required fields (email, password, name, personal_id, phone, role) must be provided." });
@@ -83,13 +83,14 @@ async function startServer() {
           personal_id,
           phone,
           role,
-          privileges,
-          warehouse_id,
+          permissions: perms,
+          privileges: perms,
           vendor_id,
         },
       });
 
       if (adminError || !adminData.user) {
+        console.error("Supabase Admin Auth Error:", adminError);
         return res.status(500).json({ error: adminError?.message || "Failed to create user in Auth database" });
       }
 
@@ -112,15 +113,19 @@ async function startServer() {
           email,
           phone,
           role,
-          privileges,
-          warehouse_id,
+          permissions: perms,
+          privileges: perms,
           vendor_id,
           created_at: adminData.user.created_at,
         },
       });
     } catch (e: any) {
-      console.error("Admin user creation failed:", e);
-      res.status(500).json({ error: e.message || "Internal server error" });
+      console.error("Admin user creation caught exception:", e);
+      let errMsg = "Internal server error";
+      if (e instanceof Error) errMsg = e.message;
+      else if (typeof e === "string") errMsg = e;
+      else if (typeof e === "object") errMsg = JSON.stringify(e);
+      res.status(500).json({ error: errMsg });
     }
   });
 

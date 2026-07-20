@@ -57,6 +57,11 @@ export default function OrdersView({
   orders, suppliers, warehouses, employees, trucks, directions,
   currentEmployee, onSave, onDelete 
 }: Props) {
+  
+  const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add');
+  const canModify = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('modify');
+  const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('delete');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
@@ -150,6 +155,7 @@ export default function OrdersView({
       fact_tank_pickup: undefined,
       pickup_date_time: undefined,
       operator_id: currentEmployee.id,
+      created_by: currentEmployee.id,
       driver_id: '',
       companion_id: '',
       truck_plate: '',
@@ -295,13 +301,13 @@ export default function OrdersView({
             </span>
           </div>
           
-          <button 
+          {canAdd && (<button 
             onClick={startNew}
             className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none font-sans"
           >
             <Plus size={15} />
             {t("New Order")}
-          </button>
+          </button>)}
         </>
       )}
     </>
@@ -472,7 +478,7 @@ export default function OrdersView({
             </div>
           </div>
 
-          <OrdersList 
+          <OrdersList currentEmployee={currentEmployee} 
             filteredOrders={filteredOrders} 
             suppliers={suppliers} 
             warehouses={warehouses}

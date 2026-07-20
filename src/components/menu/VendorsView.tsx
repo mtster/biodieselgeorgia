@@ -63,6 +63,11 @@ export default function VendorsView({
   communications = [], onSaveCommunication, onDeleteCommunication,
   initialVendorId, onClearInitialVendorId
 }: Props) {
+
+  const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('add');
+  const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('modify');
+  const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('delete');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -408,7 +413,7 @@ export default function VendorsView({
                 >
                   <option value="">{t("All Sales Managers")}</option>
                   {users
-                    .filter(u => u.role === 'manager' || u.role === 'admin' || u.role === 'assistant')
+                    .filter(u => u.role === 'manager' || u.role === 'purchasing_head' || u.role === 'admin' || u.role === 'purchasing_manager')
                     .map(u => (
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}

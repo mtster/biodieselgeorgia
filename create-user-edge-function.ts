@@ -66,7 +66,13 @@ serve(async (req) => {
     }
 
     // Parse payload fields
-    const { action, id, email, password, name, personal_id, phone, role, privileges } = await req.json()
+    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id } = await req.json()
+    const perms = permissions || privileges || {};
+    
+    // Standardize legacy role names to match database constraint
+    if (role === 'manager') {
+      role = 'purchasing_head';
+    }
     
     // Determine CRUD action
     const targetAction = action || 'create'
@@ -90,7 +96,8 @@ serve(async (req) => {
           personal_id,
           phone,
           role,
-          privileges,
+          permissions: perms,
+          vendor_id
         }
       })
 
@@ -101,27 +108,30 @@ serve(async (req) => {
         })
       }
 
-      // Create mapping record in Profiles table
-      const userToUpsert = {
+      // Create mapping record in Profiles table if not a vendor
+      let userToUpsert: any = {
         id: adminData.user.id,
         name,
         personal_id,
         email,
         phone,
         role,
-        privileges: privileges || [],
+        permissions: perms,
+        vendor_id,
         created_at: new Date().toISOString()
-      }
+      };
 
-      const { error: upsertErr } = await supabaseAdmin
-        .from('profiles')
-        .upsert(userToUpsert)
+      if (role !== 'vendor') {
+        const { error: upsertErr } = await supabaseAdmin
+          .from('profiles')
+          .upsert(userToUpsert)
 
-      if (upsertErr) {
-        return new Response(JSON.stringify({ error: `User created in auth, but saving profile failed: ${upsertErr.message}` }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        })
+        if (upsertErr) {
+          return new Response(JSON.stringify({ error: `User created in auth, but saving profile failed: ${upsertErr.message}` }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          })
+        }
       }
 
       return new Response(JSON.stringify({ success: true, user: userToUpsert }), {
@@ -145,7 +155,8 @@ serve(async (req) => {
           personal_id,
           phone,
           role,
-          privileges,
+          permissions: perms,
+          vendor_id
         }
       }
       if (password && password.trim() !== '') {
@@ -161,25 +172,28 @@ serve(async (req) => {
       }
 
       // Update mapping record in Profiles table
-      const userToUpsert = {
+      let userToUpsert: any = {
         id,
         name,
         personal_id,
         email,
         phone,
         role,
-        privileges: privileges || []
+        permissions: perms,
+        vendor_id
       }
 
-      const { error: upsertErr } = await supabaseAdmin
-        .from('profiles')
-        .upsert(userToUpsert)
+      if (role !== 'vendor') {
+        const { error: upsertErr } = await supabaseAdmin
+          .from('profiles')
+          .upsert(userToUpsert)
 
-      if (upsertErr) {
-        return new Response(JSON.stringify({ error: `Auth updated, but profile update failed: ${upsertErr.message}` }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        })
+        if (upsertErr) {
+          return new Response(JSON.stringify({ error: `Auth updated, but profile update failed: ${upsertErr.message}` }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          })
+        }
       }
 
       return new Response(JSON.stringify({ success: true, user: userToUpsert }), {
@@ -229,8 +243,14 @@ serve(async (req) => {
     }
 
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || "Internal execution failure" }), {
-      status: 505,
+    console.error("Unhandled error in edge function:", err);
+    let errMsg = "Internal execution failure";
+    if (err instanceof Error) errMsg = err.message;
+    else if (typeof err === "string") errMsg = err;
+    else if (typeof err === "object") errMsg = JSON.stringify(err);
+
+    return new Response(JSON.stringify({ error: errMsg }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     })
   }

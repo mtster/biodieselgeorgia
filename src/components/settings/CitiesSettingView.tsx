@@ -7,7 +7,10 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
 import { t } from '../../utils/lang';
 
+import { User } from '../../types';
+
 interface Props {
+  currentUser?: User;
   cities: City[];
   districts: District[];
   onSaveCity: (c: City) => void;
@@ -25,7 +28,7 @@ export default function CitiesSettingView({
   onSaveDistrict,
   onDeleteDistrict,
   onBack
-}: Props) {
+, currentUser}: Props) {
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cityNameInput, setCityNameInput] = useState('');

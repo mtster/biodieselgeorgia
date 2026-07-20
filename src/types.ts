@@ -3,14 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type UserRole = 'admin' | 'manager' | 'driver' | 'vendor' | 'warehouse_manager' | 'assistant';
+export type UserRole = 'admin' | 'manager' | 'driver' | 'operator' | 'logistics_manager' | 'purchasing_manager' | 'purchasing_head' | 'vendor';
 
-export interface EditPermissions {
-  [page: string]: {
-    add: boolean;
-    edit: boolean;
-    delete: boolean;
-  };
+export interface PermissionsConfig {
+  [page: string]: string[];
 }
 
 export interface User {
@@ -21,8 +17,7 @@ export interface User {
   password?: string;
   phone: string;
   role: UserRole;
-  privileges: string[]; // ოპერაციების პრივილეგიები
-  edit_permissions?: EditPermissions;
+  permissions?: PermissionsConfig;
   is_deleted?: boolean;
   is_blocked?: boolean;
   created_at?: string;
@@ -65,6 +60,7 @@ export interface Vendor {
   warehouse_id: string;       // საწყობი
   manager_id: string;         // მენეჯერი
   operator_id: string;        // ოპერატორი
+  created_by?: string;
   contacts: VendorContact[];  // კონტაქტები
   comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
@@ -96,6 +92,7 @@ export interface Order {
   qty_requested: number;      // რაოდენობა
   pickup_date_time?: string;  // წამოღების თარიღი და დრო
   operator_id: string;        // შეკვეთის თანამშრომელი (ვინც შექმნა)
+  created_by?: string;
   operator_name?: string;
   driver_id?: string;         // მძღოლი თანამშრომელი
   driver_name?: string;

@@ -20,6 +20,11 @@ interface Props {
 }
 
 export default function UsersView({ users, currentUser, warehouses, suppliers = [], onSave, onDelete }: Props) {
+
+  const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('add');
+  const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('modify');
+  const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('delete');
+
   const [searchTerm, setSearchTerm] = useState('');
   
   // States
@@ -61,7 +66,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
       password: '',
       phone: '',
       role: '' as any, // Default to empty
-      privileges: [],
+      permissions: {},
       created_at: new Date().toISOString()
     };
     setEditingUser(defaultUser);
@@ -69,25 +74,8 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
     scrollMainToTop();
   };
 
-  const startEdit = (usr: User) => {
-    let privileges = [...(usr.privileges || [])];
-    
-    // Normalize any old legacy privileges values
-    privileges = privileges.map(p => {
-      if (p === 'Manage') return 'Management';
-      if (p === 'Order') return 'Orders';
-      return p;
-    });
-
-    // If 'All' is present, explicitly expand it to all availablePrivileges for UX clarity and seamless handling
-    if (privileges.includes('All')) {
-      privileges = Array.from(new Set([...privileges, 'User Management', 'Orders', 'Assigned Tasks Only', 'Analytics', 'Reports']));
-    }
-
-    setEditingUser({
-      ...usr,
-      privileges
-    });
+  const startEdit = (usr: User, readOnly = false) => {
+    setEditingUser(usr);
     setIsNew(false);
     scrollMainToTop();
   };
@@ -172,16 +160,16 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
       render: (usr) => (
         <span className={`text-[10px] font-bold tracking-wide uppercase font-sans px-2.5 py-1 inline-block rounded ${
           usr.role === 'admin' ? 'bg-red-50 text-red-700' :
-          usr.role === 'manager' ? 'bg-indigo-50 text-indigo-700' :
+          (usr.role === 'manager' || usr.role === 'purchasing_head') ? 'bg-indigo-50 text-indigo-700' :
           usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :
           'bg-amber-50 text-amber-700'
         }`} title={usr.role}>
           {usr.role === 'admin' ? t('Admin') :
-           usr.role === 'manager' ? t('Purchasing Group Leader') :
-           usr.role === 'warehouse_manager' ? t('Logistics Manager') :
-           usr.role === 'assistant' ? t('Purchasing Manager') :
+           (usr.role === 'manager' || usr.role === 'purchasing_head') ? t('Purchasing Group Leader') :
+           usr.role === 'logistics_manager' ? t('Logistics Manager') :
+           usr.role === 'purchasing_manager' ? t('Purchasing Manager') :
            usr.role === 'driver' ? t('Logistics/Driver') :
-           usr.role === 'vendor' ? t('Operator') : t('Unknown')}
+           usr.role === 'operator' ? t('Operator') : t('Unknown')}
         </span>
       )
     },

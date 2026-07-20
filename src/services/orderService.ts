@@ -34,6 +34,7 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
     ...order,
     id: isNew ? 'ord-' + Math.random().toString(36).substring(2, 9) : order.id,
     operator_id: cleanUserUuid(order.operator_id),
+    created_by: cleanUserUuid(order.created_by),
     driver_id: cleanUserUuid(order.driver_id),
     companion_id: cleanUserUuid(order.companion_id)
   };

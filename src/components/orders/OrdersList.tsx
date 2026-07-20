@@ -6,6 +6,7 @@ import { ManagedColumn } from '../ColumnsManagerModal';
 import { t, formatDate, formatDateTime } from '../../utils/lang';
 
 interface Props {
+  currentEmployee: User;
   filteredOrders: Order[];
   suppliers: Vendor[];
   warehouses: Warehouse[];
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function OrdersList({
+  currentEmployee,
   filteredOrders,
   suppliers,
   warehouses,

@@ -57,6 +57,11 @@ export default function ContactsView({
   onSaveCommunication,
   onDeleteCommunication
 }: ContactsViewProps) {
+
+  const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('add');
+  const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('modify');
+  const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('delete');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVendorForForm, setSelectedVendorForForm] = useState<Vendor | null>(null);

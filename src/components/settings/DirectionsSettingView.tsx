@@ -7,7 +7,10 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
 import { t } from '../../utils/lang';
 
+import { User } from '../../types';
+
 interface Props {
+  currentUser?: User;
   directions: Direction[];
   onSaveDirection: (d: Direction) => void;
   onDeleteDirection: (id: string, name: string) => void;
@@ -19,7 +22,7 @@ export default function DirectionsSettingView({
   onSaveDirection,
   onDeleteDirection,
   onBack
-}: Props) {
+, currentUser}: Props) {
   const [selectedDirection, setSelectedDirection] = useState<Direction | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [directionNameInput, setDirectionNameInput] = useState('');

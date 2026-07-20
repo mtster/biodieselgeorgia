@@ -278,7 +278,7 @@ export default function VendorForm({
             password: passwordInput.trim() ? passwordInput.trim() : undefined,
             phone: tempContacts.find(c => c.is_default)?.phone || editingVendor.id_code || '599000000',
             role: 'vendor',
-            privileges: [],
+            permissions: {},
             vendor_id: pregeneratedVendorId
           };
 
@@ -363,7 +363,7 @@ export default function VendorForm({
       ? warehouses[Math.floor(Math.random() * warehouses.length)].id 
       : '';
 
-    const possibleManagers = users.filter(u => u.role === 'manager' || u.role === 'admin');
+    const possibleManagers = users.filter(u => u.role === 'manager' || u.role === 'purchasing_head' || u.role === 'admin');
     const randomManager = possibleManagers.length > 0 
       ? possibleManagers[Math.floor(Math.random() * possibleManagers.length)].id 
       : (users[0]?.id || 'user-admin');

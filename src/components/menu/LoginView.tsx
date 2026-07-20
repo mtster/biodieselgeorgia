@@ -11,9 +11,9 @@ interface Props {
 
 function decodeProfile(p: any): User {
   if (!p) return p;
-  const edit_permissions = p.edit_permissions || {};
-  const warehouse_id = p.warehouse_id || edit_permissions.warehouse_id || '';
-  const vendor_id = p.vendor_id || edit_permissions.vendor_id || '';
+  
+  const warehouse_id = p.warehouse_id || '';
+  const vendor_id = p.vendor_id || '';
   return {
     ...p,
     warehouse_id: warehouse_id || undefined,
@@ -99,7 +99,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           if (dbUser) {
             if (dbUser.is_blocked) {
               await supabase.auth.signOut();
-              setErrorMsg(t('Your user account has been blocked by administrators.'));
+              setErrorMsg('სისტემაზე წვდომა არ გაქვთ.');
               setLoading(false);
               return;
             }
@@ -114,11 +114,11 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               personal_id: data.user.user_metadata?.personal_id || '',
               phone: data.user.user_metadata?.phone || '',
               role: role as any,
-              privileges: data.user.user_metadata?.privileges || [],
+              permissions: data.user.user_metadata?.permissions || {},
               is_blocked: false,
               created_at: data.user.created_at || new Date().toISOString(),
-              warehouse_id: data.user.user_metadata?.warehouse_id || data.user.user_metadata?.edit_permissions?.warehouse_id || undefined,
-              vendor_id: data.user.user_metadata?.vendor_id || data.user.user_metadata?.edit_permissions?.vendor_id || undefined
+              warehouse_id: data.user.user_metadata?.warehouse_id || undefined,
+              vendor_id: data.user.user_metadata?.vendor_id || undefined
             };
 
             if (role !== 'vendor') {
@@ -133,7 +133,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         const matched = users.find(u => u.email.trim().toLowerCase() === loginEmail.toLowerCase() && (u.password === password || password === 'admin123'));
         if (matched) {
           if (matched.is_blocked) {
-            setErrorMsg(t('Your user account has been blocked by administrators.'));
+            setErrorMsg('სისტემაზე წვდომა არ გაქვთ.');
           } else {
             onLoginSuccess(matched);
           }

@@ -109,7 +109,7 @@ export default function DeliveredOrdersBySuppliers({
   const totalCost = supplierRows.reduce((sum, r) => sum + r.cost, 0);
 
   // Managers list for dropdown filter
-  const filterManagers = users.filter(u => u.role === 'manager' || u.role === 'admin');
+  const filterManagers = users.filter(u => u.role === 'manager' || u.role === 'purchasing_head' || u.role === 'admin');
 
   return (
     <div className="space-y-6">

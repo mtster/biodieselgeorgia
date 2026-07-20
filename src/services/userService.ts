@@ -1,7 +1,7 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { User } from '../types';
+import { User, UserRole, PermissionsConfig } from '../types';
+import { getLocal, setLocal, KEY_USERS } from './localStorage';
 import { trackChange } from './historyService';
-import { KEY_USERS, getLocal, setLocal } from './localStorage';
+import { isSupabaseConfigured, supabase } from '../lib/db';
 
 export { KEY_USERS };
 
@@ -14,106 +14,102 @@ export const DEFAULT_USERS: User[] = [
     password: 'admin123',
     phone: '599112233',
     role: 'admin',
-    privileges: ['All', 'Manage', 'Order', 'Reports'],
+    permissions: {},
+    is_deleted: false,
+    is_blocked: false,
     created_at: new Date().toISOString()
   }
 ];
 
-export function decodeProfile(p: any): User {
+function decodeProfile(p: any): User {
   if (!p) return p;
-  const edit_permissions = p.edit_permissions || {};
-  const warehouse_id = p.warehouse_id || edit_permissions.warehouse_id || '';
-  const vendor_id = p.vendor_id || edit_permissions.vendor_id || '';
   return {
     ...p,
-    warehouse_id: warehouse_id || undefined,
-    vendor_id: vendor_id || undefined
+    warehouse_id: p.warehouse_id || undefined,
+    vendor_id: p.vendor_id || undefined
   };
 }
 
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const sessionRes = await supabase.auth.getSession();
-      const token = sessionRes.data.session?.access_token;
       const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
-      if (token && useProxy) {
-        const res = await fetch('/api/profiles?is_deleted=false', {
-          headers: {
-            'Authorization': `Bearer ${token}`
+      let data = null;
+
+      if (useProxy) {
+        try {
+          const res = await fetch('/api/profiles');
+          if (res.ok) {
+            data = await res.json();
           }
-        });
-        if (res.ok) {
-          const list = await res.json();
-          return list.map(decodeProfile);
+        } catch (err) {
+          console.warn('Failed to load profiles via proxy, falling back to direct db call', err);
         }
       }
-      const { data, error } = await supabase.from('profiles').select('*').eq('is_deleted', false).order('name');
-      if (!error && data) return data.map(decodeProfile);
+
+      if (!data) {
+        const { data: profiles, error } = await supabase.from('profiles').select('*');
+        if (error) throw error;
+        data = profiles;
+      }
+      return (data || []).map(decodeProfile);
     } catch (e) {
-      console.warn('Supabase getUsers failed', e);
+      console.error('Supabase users loading failed', e);
+      return [];
     }
   }
-  return getLocal<User[]>(KEY_USERS, DEFAULT_USERS).filter(item => !item.is_deleted).map(decodeProfile);
+  return getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
 }
 
 export async function saveUser(user: User, loggerName: string): Promise<User> {
-  const isNew = !user.id;
   let finalUser = { ...user };
+  const isNew = !user.id || user.id.length < 10;
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const useProxy = typeof window !== 'undefined' && 
-        !window.location.hostname.includes('vercel.app') && 
-        !window.location.hostname.includes('github.dev') && 
-        !window.location.hostname.includes('gitpod.io');
-
+      const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
+      
       if (isNew) {
-        // Send a call to full-stack Express Admin user creation API
-        const sessionRes = await supabase.auth.getSession();
-        const token = sessionRes.data.session?.access_token;
-        if (!token) {
-          throw new Error('Not authenticated on client');
-        }
-
         let resData: any = null;
-
+        let createdOnExpress = false;
+        
+        const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
         if (useProxy) {
           try {
+            const sessionRes = await supabase.auth.getSession();
+            const token = sessionRes.data.session?.access_token;
+
             const res = await fetch('/api/create-user', {
               method: 'POST',
-              headers: {
+              headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
               },
-              body: JSON.stringify({
-                email: user.email,
-                password: user.password || 'Georgia2026!',
-                name: user.name,
-                personal_id: user.personal_id,
-                phone: user.phone,
-                role: user.role,
-                privileges: user.privileges,
-                warehouse_id: user.warehouse_id,
-                vendor_id: user.vendor_id
-              })
+              body: JSON.stringify(user)
             });
-
             if (res.ok) {
               resData = await res.json();
+              createdOnExpress = true;
             } else {
-              console.warn('Express /api/create-user failed, trying Supabase Edge function fallback...');
+              const errBody = await res.json().catch(() => ({}));
+              if (errBody?.error) {
+                throw new Error(errBody.error);
+              }
             }
-          } catch (err) {
-            console.warn('Express /api/create-user endpoint hit failed, trying Supabase Edge function fallback...', err);
+          } catch (err: any) {
+            console.warn('Express /api/create-user failed', err);
+            if (err.message && (err.message.includes('Unauthorized') || err.message.includes('Access denied') || err.message.includes('Only Administrators') || err.message.includes('configured on the server'))) {
+              throw err;
+            }
           }
         }
 
-        if (!resData) {
-          const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-          const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-          const functionUrl = `${supabaseUrl}/functions/v1/create-user`;
+        if (!createdOnExpress) {
+          const sessionRes = await supabase.auth.getSession();
+          const token = sessionRes.data.session?.access_token;
+          if (!token) throw new Error('Not authenticated');
 
+          const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
           const edgeRes = await fetch(functionUrl, {
             method: 'POST',
             headers: {
@@ -129,54 +125,34 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               personal_id: user.personal_id,
               phone: user.phone,
               role: user.role,
-              privileges: user.privileges,
+              permissions: user.permissions,
               warehouse_id: user.warehouse_id,
               vendor_id: user.vendor_id
             })
           });
-
-          let edgeData: any = null;
-          try {
-            edgeData = await edgeRes.json();
-          } catch (jsonErr) {
-            console.error('Failed to parse response JSON from Edge Function:', jsonErr);
-          }
-
-          if (!edgeRes.ok) {
-            const errorMsg = edgeData?.error || `HTTP ${edgeRes.status}: ${edgeRes.statusText}`;
-            throw new Error(`Edge Function failed: ${errorMsg}\n\nPlease verify that your 'create-user' edge function exists, is deployed correctly, and that SERVICE_ROLE_KEY is set in your Supabase secrets.`);
-          }
-
-          resData = edgeData;
+          
+          resData = await edgeRes.json();
+          if (!edgeRes.ok) throw new Error(resData?.error || 'Edge function error');
         }
 
         if (resData && resData.user) {
           finalUser = resData.user;
         } else if (resData && resData.profile) {
-          finalUser = {
-            id: resData.profile.id,
-            name: resData.profile.name,
-            personal_id: resData.profile.personal_id,
-            email: resData.profile.email || user.email,
-            phone: resData.profile.phone,
-            role: resData.profile.role,
-            privileges: resData.profile.privileges || []
-          };
+          finalUser = resData.profile;
         } else {
-          throw new Error('No user or profile data returned from user creation engines.');
+          throw new Error('No user or profile data returned');
         }
+
       } else {
-        // Perform direct update in profiles table AND update auth via Edge function if possible
+        // UPDATE Existing
         let updatedOnEdge = false;
         let edgeErrorMsg = '';
+        
         try {
-          const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
           const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-          const functionUrl = `${supabaseUrl}/functions/v1/create-user`;
-
           const sessionRes = await supabase.auth.getSession();
           const token = sessionRes.data.session?.access_token;
-
+          
           if (token) {
             const edgeRes = await fetch(functionUrl, {
               method: 'POST',
@@ -189,81 +165,50 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                 action: 'update',
                 id: user.id,
                 email: user.email,
-                password: user.password || '', // update password if provided
+                password: user.password || '',
                 name: user.name,
                 personal_id: user.personal_id,
                 phone: user.phone,
                 role: user.role,
-                privileges: user.privileges,
-                warehouse_id: user.warehouse_id,
+                permissions: user.permissions,
                 vendor_id: user.vendor_id
               })
             });
-
             if (edgeRes.ok) {
-              const edgeData = await edgeRes.json();
               updatedOnEdge = true;
-              if (edgeData.user) {
-                finalUser = edgeData.user;
-              }
             } else {
-              const edgeData = await edgeRes.json().catch(() => ({}));
-              edgeErrorMsg = edgeData.error || `${edgeRes.status} ${edgeRes.statusText}`;
-              console.warn('Edge Function update failed:', edgeErrorMsg);
+              const errData = await edgeRes.json();
+              edgeErrorMsg = errData.error || 'Update failed';
             }
           }
-        } catch (edgeErr: any) {
-          console.warn('Edge Function invoke error, trying direct profiles update:', edgeErr);
-          edgeErrorMsg = edgeErr?.message || String(edgeErr);
+        } catch (err: any) {
+          edgeErrorMsg = err?.message || String(err);
         }
 
-        if (user.role !== 'vendor') {
-          // Always perform direct update in profiles table to preserve privileges and granular edit_permissions mapping
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({
-              name: user.name,
-              personal_id: user.personal_id,
-              phone: user.phone,
-              role: user.role,
-              privileges: user.privileges,
-              is_blocked: user.is_blocked || false,
-              edit_permissions: {
-                ...(user.edit_permissions || {}),
-                vendor_id: user.vendor_id
-              }
-            })
-            .eq('id', user.id);
-
-          if (profileError) {
-            console.warn('Direct profile sync updating failed', profileError);
-            if (!updatedOnEdge) {
-              if (edgeErrorMsg) {
-                throw new Error(edgeErrorMsg);
-              }
-              throw profileError;
-            }
-          }
-        }
-
-        if (!updatedOnEdge && edgeErrorMsg) {
-          throw new Error(edgeErrorMsg);
-        }
-        finalUser = { ...user } as User;
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            name: user.name,
+            personal_id: user.personal_id,
+            phone: user.phone,
+            role: user.role,
+            permissions: user.permissions,
+            is_blocked: user.is_blocked || false,
+            vendor_id: user.vendor_id
+          })
+          .eq('id', user.id);
+          
+        if (profileError && !updatedOnEdge) throw profileError;
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error('Supabase saveUser failed', e);
-      throw e; // throw error so the UI displays it
+      throw e;
     }
   } else {
-    // Local storage mock mode
-    const generateCompliantUuid = () => {
-      const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-      return `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`;
-    };
+    // Local storage fallback
     finalUser = {
       ...user,
-      id: isNew ? generateCompliantUuid() : user.id,
+      id: isNew ? Math.floor(Math.random() * 1000000).toString() : user.id,
       created_at: user.created_at || new Date().toISOString()
     };
   }
@@ -276,6 +221,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
     setLocal(KEY_USERS, list.map(item => item.id === finalUser.id ? decodeProfile(finalUser) : item));
     await trackChange(loggerName, 'User updated', 'Name', '', finalUser.name);
   }
+
   return decodeProfile(finalUser);
 }
 
@@ -284,71 +230,31 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
     try {
       const sessionRes = await supabase.auth.getSession();
       const token = sessionRes.data.session?.access_token;
-      if (!token) {
-        throw new Error('Not authenticated on client');
-      }
+      if (!token) throw new Error('Not authenticated');
 
-      const useProxy = typeof window !== 'undefined' && 
-        !window.location.hostname.includes('vercel.app') && 
-        !window.location.hostname.includes('github.dev') && 
-        !window.location.hostname.includes('gitpod.io');
-
-      let deletedOnExpress = false;
-      if (useProxy) {
-        try {
-          const res = await fetch('/api/delete-user', {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ id })
-          });
-
-          if (res.ok) {
-            deletedOnExpress = true;
-          } else {
-            const errData = await res.json().catch(() => ({}));
-            console.warn('Express delete-user failed:', errData.error || 'Unknown error');
-          }
-        } catch (err) {
-          console.warn('Express /api/delete-user endpoint is missing/failed, invoking Edge function...', err);
-        }
-      }
-
-      if (!deletedOnExpress) {
-        // Fallback to Edge function user deletion
-        const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-        const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-        const functionUrl = `${supabaseUrl}/functions/v1/create-user`;
-
-        const edgeRes = await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            action: 'delete',
-            id
-          })
-        });
-
-        if (!edgeRes.ok) {
-          const edgeData = await edgeRes.json().catch(() => ({}));
-          const errorMsg = edgeData?.error || `HTTP ${edgeRes.status}: ${edgeRes.statusText}`;
-          throw new Error(`Edge Function failed: ${errorMsg}\n\nPlease verify that your 'create-user' edge function exists, is deployed correctly, and that SERVICE_ROLE_KEY is set in your Supabase secrets.`);
-        }
-      }
-    } catch (e: any) {
+      const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
+      const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+      
+      const edgeRes = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action: 'delete', id })
+      });
+      
+      if (!edgeRes.ok) throw new Error('Delete failed via edge function');
+    } catch (e) {
       console.error('Supabase deleteUser failed', e);
       throw e;
     }
+  } else {
+    const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
+    setLocal(KEY_USERS, list.filter(item => item.id !== id));
   }
-
-  const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
-  setLocal(KEY_USERS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
+  
   await trackChange(loggerName, 'User deleted', 'Name', name, '');
   return true;
 }

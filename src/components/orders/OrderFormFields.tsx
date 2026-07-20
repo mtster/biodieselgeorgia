@@ -317,11 +317,11 @@ export default function OrderFormFields({
           <option value=""></option>
           {employees.map(e => {
             const translatedRole = e.role === 'admin' ? t('Admin') :
-              e.role === 'manager' ? t('Purchasing Group Leader') :
-              e.role === 'warehouse_manager' ? t('Logistics Manager') :
-              e.role === 'assistant' ? t('Purchasing Manager') :
+              (e.role === 'manager' || e.role === 'purchasing_head') ? t('Purchasing Group Leader') :
+              e.role === 'logistics_manager' ? t('Logistics Manager') :
+              e.role === 'purchasing_manager' ? t('Purchasing Manager') :
               e.role === 'driver' ? t('Logistics/Driver') :
-              e.role === 'vendor' ? t('Operator') : e.role;
+              e.role === 'operator' ? t('Operator') : e.role;
             return (
               <option key={e.id} value={e.id}>{e.name} ({translatedRole})</option>
             );

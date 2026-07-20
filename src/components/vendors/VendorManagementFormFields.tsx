@@ -19,7 +19,7 @@ export function getGeorgianRoleName(role: string | undefined | null): string {
   if (r === 'admin' || r === 'administrator' || r.includes('ადმინ')) {
     return 'ადმინი';
   }
-  if (r === 'manager' || r === 'purchasing_group_leader' || r === 'purchasing_leader' || r.includes('ხელმძღვანელი')) {
+  if (r === 'manager' || r === 'purchasing_head' || r === 'purchasing_group_leader' || r === 'purchasing_leader' || r.includes('ხელმძღვანელი')) {
     return 'შესყიდვების ჯგუფის ხელმძღვანელი';
   }
   if (r === 'assistant' || r === 'purchasing_manager' || r.includes('შესყიდვების მენეჯერი') || r.includes('შესყიდვების მენეჯ')) {

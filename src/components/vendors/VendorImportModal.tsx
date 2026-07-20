@@ -334,8 +334,8 @@ export default function VendorImportModal({
         name: managerForm.name,
         personal_id: managerForm.personal_id,
         phone: managerForm.phone,
-        role: 'manager',
-        privileges: ['Dashboard', 'Suppliers', 'Communications', 'Orders', 'Reports'],
+        role: 'purchasing_head',
+        permissions: {},
         created_at: new Date().toISOString()
       };
 
