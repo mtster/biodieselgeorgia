@@ -139,10 +139,16 @@ export function useAuth() {
             }
 
             if (dbUser) {
-              const secureUser = decodeProfile(dbUser);
-              secureUser.role = session.user.user_metadata?.role || secureUser.role;
-              secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
-              setCurrentUser(secureUser);
+              if (dbUser.is_blocked) {
+                await supabase.auth.signOut();
+                setCurrentUser(null);
+                alert('სისტემაზე წვდომა არ გაქვთ.');
+              } else {
+                const secureUser = decodeProfile(dbUser);
+                secureUser.role = session.user.user_metadata?.role || secureUser.role;
+                secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
+                setCurrentUser(secureUser);
+              }
             } else {
               const role = session.user.user_metadata?.role || 'vendor';
               const vendorUser: User = {

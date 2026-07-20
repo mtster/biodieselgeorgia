@@ -133,7 +133,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
       </button>
     </>
   ) : (
-    currentUser.role === 'admin' ? (
+    canAdd ? (
       <button
         onClick={startNew}
         className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 active:bg-emerald-950 transition-all duration-150 cursor-pointer shadow-sm select-none"

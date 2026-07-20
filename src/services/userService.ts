@@ -171,7 +171,8 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                 phone: user.phone,
                 role: user.role,
                 permissions: user.permissions,
-                vendor_id: user.vendor_id
+                vendor_id: user.vendor_id,
+                is_blocked: user.is_blocked || false
               })
             });
             if (edgeRes.ok) {

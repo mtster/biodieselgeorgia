@@ -104,18 +104,20 @@ export default function WarehousesSettingView({
         ))}
 
         {/* Plus-Signed Add New Warehouse Card */}
-        <button
-          onClick={() => handleOpenWarehouse(null)}
-          type="button"
-          className="bg-amber-50/10 border-2 border-dashed border-amber-500/20 hover:border-emerald-600/50 hover:bg-emerald-50/5 p-5 rounded-2xl lg:min-h-[140px] flex flex-col items-center justify-center text-center cursor-pointer group transition-all duration-200"
-        >
-          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-800 group-hover:text-white transition-all">
-            <Plus size={20} />
-          </div>
-          <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
-            {t("Add New Warehouse")}
-          </span>
-        </button>
+        {(!currentUser || currentUser.role === 'admin' || currentUser.permissions?.['warehouses']?.includes('add')) && (
+          <button
+            onClick={() => handleOpenWarehouse(null)}
+            type="button"
+            className="bg-amber-50/10 border-2 border-dashed border-amber-500/20 hover:border-emerald-600/50 hover:bg-emerald-50/5 p-5 rounded-2xl lg:min-h-[140px] flex flex-col items-center justify-center text-center cursor-pointer group transition-all duration-200"
+          >
+            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-gray-400 group-hover:bg-emerald-800 group-hover:text-white transition-all">
+              <Plus size={20} />
+            </div>
+            <span className="text-xs font-black text-gray-500 group-hover:text-emerald-850 transition-colors mt-2">
+              {t("Add New Warehouse")}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Main editor Popup Modal */}

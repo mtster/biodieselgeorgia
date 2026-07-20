@@ -287,8 +287,16 @@ export default function UserForm({
 
     if (updatedPagePerms.includes(type)) {
       updatedPagePerms = updatedPagePerms.filter(p => p !== type);
+      // If we remove view, we must remove all others
+      if (type === 'view') {
+        updatedPagePerms = [];
+      }
     } else {
       updatedPagePerms.push(type);
+      // If we add something else, ensure view is present
+      if (type !== 'view' && !updatedPagePerms.includes('view')) {
+        updatedPagePerms.push('view');
+      }
     }
 
     setEditingUser({
@@ -446,8 +454,12 @@ export default function UserForm({
                   const perms = isAdmin 
                     ? ['view', 'add', 'modify', 'delete'] 
                     : ((editingUser.permissions || {})[page.id] || []);
-                    
-                  const opacityClass = isAdmin ? 'opacity-50 pointer-events-none' : '';
+                  
+                  const viewDisabled = isAdmin;
+                  const othersDisabled = isAdmin || (!perms.includes('view') && !isAdmin);
+                  
+                  const viewOpacityClass = viewDisabled ? 'opacity-50 pointer-events-none' : '';
+                  const othersOpacityClass = othersDisabled ? 'opacity-40 pointer-events-none' : '';
 
                   return (
                     <div key={page.id} className="grid grid-cols-12 px-4 py-2.5 items-center">
@@ -458,8 +470,8 @@ export default function UserForm({
                         <button
                           type="button"
                           onClick={() => togglePermission(page.id, 'view')}
-                          disabled={isAdmin}
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${opacityClass} ${
+                          disabled={viewDisabled}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${viewOpacityClass} ${
                             perms.includes('view')
                               ? 'border-emerald-600 bg-emerald-600 text-white'
                               : 'border-gray-200 bg-white hover:border-gray-300'
@@ -475,11 +487,11 @@ export default function UserForm({
                           <button
                             type="button"
                             onClick={() => togglePermission(page.id, 'add')}
-                            disabled={isAdmin}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${opacityClass} ${
+                            disabled={othersDisabled}
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${othersOpacityClass} ${
                               perms.includes('add')
                                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                : 'border-gray-200 bg-slate-50 hover:border-gray-300'
                             }`}
                           >
                             {perms.includes('add') && <Check size={11} strokeWidth={3.5} />}
@@ -493,11 +505,11 @@ export default function UserForm({
                           <button
                             type="button"
                             onClick={() => togglePermission(page.id, 'modify')}
-                            disabled={isAdmin}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${opacityClass} ${
+                            disabled={othersDisabled}
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${othersOpacityClass} ${
                               perms.includes('modify')
                                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                : 'border-gray-200 bg-slate-50 hover:border-gray-300'
                             }`}
                           >
                             {perms.includes('modify') && <Check size={11} strokeWidth={3.5} />}
@@ -511,11 +523,11 @@ export default function UserForm({
                           <button
                             type="button"
                             onClick={() => togglePermission(page.id, 'delete')}
-                            disabled={isAdmin}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${opacityClass} ${
+                            disabled={othersDisabled}
+                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer ${othersOpacityClass} ${
                               perms.includes('delete')
                                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                : 'border-gray-200 bg-slate-50 hover:border-gray-300'
                             }`}
                           >
                             {perms.includes('delete') && <Check size={11} strokeWidth={3.5} />}
