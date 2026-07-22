@@ -90,31 +90,46 @@ ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'warehouse_manager';
 CREATE TABLE IF NOT EXISTS public.cities (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    created_by TEXT DEFAULT NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.cities ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+ALTER TABLE public.cities ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
 -- 2. Districts
 CREATE TABLE IF NOT EXISTS public.districts (
     id TEXT PRIMARY KEY,
     city_id TEXT REFERENCES public.cities(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    created_by TEXT DEFAULT NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.districts ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+ALTER TABLE public.districts ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
 -- 2b. Directions
 CREATE TABLE IF NOT EXISTS public.directions (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     is_deleted BOOLEAN DEFAULT FALSE,
+    created_by TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.directions ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+ALTER TABLE public.directions ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
 -- 3. Warehouses
 CREATE TABLE IF NOT EXISTS public.warehouses (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    created_by TEXT DEFAULT NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.warehouses ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+ALTER TABLE public.warehouses ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
 -- 4. Profiles (Map 1:1 to Supabase Auth Users)
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -161,6 +176,7 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
 
 -- 6. Vendors
 CREATE TABLE IF NOT EXISTS public.vendors (
@@ -208,6 +224,7 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday TEXT DEFAULT
 ALTER TABLE public.vendors DROP CONSTRAINT IF EXISTS vendors_user_id_fkey;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
 
 -- 6b. Vendor Contacts
 CREATE TABLE IF NOT EXISTS public.vendor_contacts (
@@ -221,11 +238,13 @@ CREATE TABLE IF NOT EXISTS public.vendor_contacts (
     is_default BOOLEAN DEFAULT FALSE,
     sort_order INT DEFAULT 1,
     is_deleted BOOLEAN DEFAULT FALSE,
+    created_by TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Apply non-destructive updates to public.vendor_contacts table if it pre-exists
 ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
 ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE public.vendor_contacts ENABLE ROW LEVEL SECURITY;
@@ -265,6 +284,7 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS waybill_qty NUMERIC(12, 2) DE
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_id TEXT DEFAULT NULL;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_name TEXT DEFAULT NULL;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_phone TEXT DEFAULT NULL;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes JSONB DEFAULT '[]'::JSONB;
 ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
 
 -- Safe update of the status CHECK constraint if it exists
@@ -294,6 +314,7 @@ ALTER TABLE public.communications ADD CONSTRAINT communications_type_check CHECK
 -- Apply non-destructive updates to public.communications
 ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS task_status TEXT;
+ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
 
 -- 9. Change History Trackers
 CREATE TABLE IF NOT EXISTS public.change_history (

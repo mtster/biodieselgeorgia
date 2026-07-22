@@ -285,15 +285,21 @@ export default function UserForm({
     const pagePerms = currentPerms[pageId] || [];
     let updatedPagePerms = [...pagePerms];
 
-    if (updatedPagePerms.includes(type)) {
-      updatedPagePerms = updatedPagePerms.filter(p => p !== type);
-      if (type === 'view') {
-        updatedPagePerms = []; // clear all other permissions if view is unchecked
+    if (type === 'view') {
+      if (updatedPagePerms.includes('view')) {
+        // Unchecking view => immediately clear all other permissions
+        updatedPagePerms = [];
+      } else {
+        updatedPagePerms.push('view');
       }
     } else {
-      updatedPagePerms.push(type);
-      if (type !== 'view' && !updatedPagePerms.includes('view')) {
-        updatedPagePerms.push('view'); // ensure view is checked if any other action is checked
+      // Cannot toggle add/modify/delete if view is not checked
+      if (!updatedPagePerms.includes('view')) return;
+
+      if (updatedPagePerms.includes(type)) {
+        updatedPagePerms = updatedPagePerms.filter(p => p !== type);
+      } else {
+        updatedPagePerms.push(type);
       }
     }
 
@@ -455,7 +461,7 @@ export default function UserForm({
                     
                   const isViewChecked = perms.includes('view');
                   const opacityClass = isAdmin ? 'opacity-50 pointer-events-none' : '';
-                  const otherOpacityClass = (isAdmin || !isViewChecked) ? 'opacity-40 cursor-not-allowed bg-slate-50' : 'cursor-pointer';
+                  const otherOpacityClass = (isAdmin || !isViewChecked) ? 'opacity-30 cursor-not-allowed bg-slate-100 border-gray-200' : 'cursor-pointer';
 
                   return (
                     <div key={page.id} className="grid grid-cols-12 px-4 py-2.5 items-center">

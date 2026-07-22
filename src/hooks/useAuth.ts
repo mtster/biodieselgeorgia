@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { t } from '../utils/lang';
 import { isSupabaseConfigured, supabase } from '../lib/db';
+import { defaultPermissions } from '../components/users/UserForm';
 
 function decodeProfile(p: any): User {
   if (!p) return p;
@@ -65,12 +66,20 @@ export function useAuth() {
               } else {
                 const secureUser = decodeProfile(dbUser);
                 secureUser.role = session.user.user_metadata?.role || secureUser.role;
-                secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
+                const userPerms = session.user.user_metadata?.permissions || secureUser.permissions;
+                if (userPerms && Object.keys(userPerms).length > 0) {
+                  secureUser.permissions = userPerms;
+                } else if (defaultPermissions[secureUser.role]) {
+                  secureUser.permissions = JSON.parse(JSON.stringify(defaultPermissions[secureUser.role]));
+                } else {
+                  secureUser.permissions = {};
+                }
                 setCurrentUser(secureUser);
               }
             } else {
               // Fallback to user_metadata
               const role = session.user.user_metadata?.role || 'vendor';
+              const defPerms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
               const vendorUser: User = {
                 id: session.user.id,
                 name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
@@ -78,7 +87,7 @@ export function useAuth() {
                 personal_id: session.user.user_metadata?.personal_id || '',
                 phone: session.user.user_metadata?.phone || '',
                 role: role,
-                permissions: session.user.user_metadata?.permissions || {},
+                permissions: session.user.user_metadata?.permissions || defPerms,
                 is_blocked: false,
                 created_at: session.user.created_at || new Date().toISOString(),
                 vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,

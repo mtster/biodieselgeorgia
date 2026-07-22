@@ -128,6 +128,7 @@ export default function OrderForm({
           setVendorSearch={setVendorSearch}
           showVendorSuggestions={showVendorSuggestions}
           setShowVendorSuggestions={setShowVendorSuggestions}
+          currentEmployee={currentEmployee}
         />
       </fieldset>
     </div>

@@ -26,11 +26,12 @@ export async function getWarehouses(): Promise<Warehouse[]> {
   return getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
 }
 
-export async function saveWarehouse(wh: Warehouse, loggerName: string): Promise<Warehouse> {
+export async function saveWarehouse(wh: Warehouse, loggerName: string, currentUserId?: string): Promise<Warehouse> {
   const isNew = !wh.id;
   const finalWh = {
     ...wh,
-    id: isNew ? 'wh-' + Math.random().toString(36).substring(2, 9) : wh.id
+    id: isNew ? 'wh-' + Math.random().toString(36).substring(2, 9) : wh.id,
+    created_by: isNew ? (currentUserId || wh.created_by) : wh.created_by
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -86,11 +87,12 @@ export async function getCities(): Promise<City[]> {
   return getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES).filter(item => !item.is_deleted);
 }
 
-export async function saveCity(city: City, loggerName: string): Promise<City> {
+export async function saveCity(city: City, loggerName: string, currentUserId?: string): Promise<City> {
   const isNew = !city.id;
   const finalCity = {
     ...city,
-    id: isNew ? 'city-' + Math.random().toString(36).substring(2, 9) : city.id
+    id: isNew ? 'city-' + Math.random().toString(36).substring(2, 9) : city.id,
+    created_by: isNew ? (currentUserId || city.created_by) : city.created_by
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -144,11 +146,12 @@ export async function getDistricts(): Promise<District[]> {
   return getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
 }
 
-export async function saveDistrict(dist: District, loggerName: string): Promise<District> {
+export async function saveDistrict(dist: District, loggerName: string, currentUserId?: string): Promise<District> {
   const isNew = !dist.id;
   const finalDist = {
     ...dist,
-    id: isNew ? 'dist-' + Math.random().toString(36).substring(2, 9) : dist.id
+    id: isNew ? 'dist-' + Math.random().toString(36).substring(2, 9) : dist.id,
+    created_by: isNew ? (currentUserId || dist.created_by) : dist.created_by
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -204,11 +207,12 @@ export async function getDirections(): Promise<Direction[]> {
   return getLocal<Direction[]>(KEY_DIRECTIONS, DEFAULT_DIRECTIONS).filter(item => !item.is_deleted);
 }
 
-export async function saveDirection(dir: Direction, loggerName: string): Promise<Direction> {
+export async function saveDirection(dir: Direction, loggerName: string, currentUserId?: string): Promise<Direction> {
   const isNew = !dir.id;
   const finalDir = {
     ...dir,
-    id: isNew ? 'dir-' + Math.random().toString(36).substring(2, 9) : dir.id
+    id: isNew ? 'dir-' + Math.random().toString(36).substring(2, 9) : dir.id,
+    created_by: isNew ? (currentUserId || dir.created_by) : dir.created_by
   };
 
   if (isSupabaseConfigured && supabase) {

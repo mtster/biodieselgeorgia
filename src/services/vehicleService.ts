@@ -46,7 +46,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
   return getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
 }
 
-export async function saveVehicle(vehicle: Vehicle, loggerName: string): Promise<Vehicle> {
+export async function saveVehicle(vehicle: Vehicle, loggerName: string, currentUserId?: string): Promise<Vehicle> {
   const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
   const exists = list.some(t => t.plate_number === vehicle.plate_number);
 
@@ -57,43 +57,72 @@ export async function saveVehicle(vehicle: Vehicle, loggerName: string): Promise
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       };
 
-      const dbPayload = {
+      const createdBy = vehicle.created_by || currentUserId || null;
+
+      const dbPayload: any = {
         plate_number: vehicle.plate_number,
         model: vehicle.model,
         driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
         companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
         city: vehicle.city || null,
+        direction_id: vehicle.direction_id || null,
+        warehouse_id: vehicle.warehouse_id || null,
+        created_by: isValidUuid(createdBy) ? createdBy : null
       };
 
       let success = false;
-      try {
-        // Try upserting with warehouse_id column
-        const payloadWithWh = { ...dbPayload, warehouse_id: vehicle.warehouse_id || null };
-        const { error } = await supabase.from('vehicles').upsert([payloadWithWh], { onConflict: 'plate_number' });
-        if (!error) {
+      // 1. Try full payload
+      const { error } = await supabase.from('vehicles').upsert([dbPayload], { onConflict: 'plate_number' });
+      if (!error) {
+        success = true;
+      } else {
+        // 2. If schema cache misses optional columns (created_by, warehouse_id, direction_id), strip created_by & fallback warehouse_id into city
+        const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
+        const fallbackPayload: any = {
+          plate_number: vehicle.plate_number,
+          model: vehicle.model,
+          driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
+          companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
+          city: fallbackCity,
+          direction_id: vehicle.direction_id || null
+        };
+
+        const { error: fbErr } = await supabase.from('vehicles').upsert([fallbackPayload], { onConflict: 'plate_number' });
+        if (!fbErr) {
           success = true;
-        } else if (error.code === 'PGRST204' || error.message?.includes('warehouse_id')) {
-          // Fallback: encode warehouse_id in city field to bypass missing column error
-          const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
-          const fallbackPayload = { ...dbPayload, city: fallbackCity };
-          const { error: fbErr } = await supabase.from('vehicles').upsert([fallbackPayload], { onConflict: 'plate_number' });
-          if (!fbErr) success = true;
-          else console.warn('Vehicles upsert without warehouse_id col failed', fbErr);
         } else {
-          console.warn('General error in vehicles upsert', error);
+          // 3. Minimal payload on vehicles
+          const minPayload = {
+            plate_number: vehicle.plate_number,
+            model: vehicle.model,
+            driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
+            companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
+            city: vehicle.city || null
+          };
+          const { error: minErr } = await supabase.from('vehicles').upsert([minPayload], { onConflict: 'plate_number' });
+          if (!minErr) success = true;
         }
-      } catch (e) {
-        console.warn('vehicles table upsert exception, trying fallback', e);
       }
 
+      // 4. Legacy trucks fallback only if trucks table actually exists
       if (!success) {
-        const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
-        const fallbackPayload = { ...dbPayload, city: fallbackCity };
-        const { error } = await supabase.from('trucks').upsert([fallbackPayload], { onConflict: 'plate_number' });
-        if (error) console.error('Supabase saveVehicle upsert failed as fallback on trucks:', error);
+        try {
+          const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
+          const trucksPayload = {
+            plate_number: vehicle.plate_number,
+            model: vehicle.model,
+            driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
+            companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
+            city: fallbackCity
+          };
+          const { error: trErr } = await supabase.from('trucks').upsert([trucksPayload], { onConflict: 'plate_number' });
+          if (trErr && trErr.code !== 'PGRST205' && trErr.code !== '42P01') {
+            console.warn('Fallback trucks upsert result:', trErr);
+          }
+        } catch (_) {}
       }
     } catch (e) {
-      console.error('Supabase saveVehicle failed completely', e);
+      console.warn('Supabase saveVehicle operation:', e);
     }
   }
 

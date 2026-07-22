@@ -71,9 +71,9 @@ export function StandardTable<T>({
                 <tr
                   key={rowIdx}
                   onClick={() => onRowClick && onRowClick(item)}
-                  className={`transition-colors text-xs font-sans text-gray-700 ${
-                    isClickable ? 'cursor-pointer hover:bg-slate-50/80' : ''
-                  } ${customRowClass}`}
+                  className={`text-xs font-sans text-gray-700 ${
+                    isClickable ? 'cursor-pointer' : ''
+                  } ${customRowClass || (isClickable ? 'hover:bg-slate-50' : '')}`}
                 >
                   {columns.map((col, colIdx) => {
                     const isSelectCol = col.key === 'select';
@@ -86,7 +86,7 @@ export function StandardTable<T>({
                           }
                         }}
                         className={`py-3.5 px-4 whitespace-nowrap text-xs font-sans text-gray-700 leading-normal ${
-                          isSelectCol ? 'bg-slate-50/80 hover:bg-slate-50/80 cursor-default' : ''
+                          isSelectCol ? 'cursor-default' : ''
                         } ${col.className || ''}`}
                       >
                         {col.render ? col.render(item) : (item as any)[col.key] ?? '-'}

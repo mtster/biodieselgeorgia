@@ -235,6 +235,11 @@ export default function CommunicationsView({
     </>
   );
 
+  const rowClassName = (comm: Communication) => {
+    const isChecked = selectedComms.includes(comm.id);
+    return isChecked ? 'bg-emerald-50/70 hover:bg-emerald-100/70' : 'hover:bg-slate-50';
+  };
+
   return (
     <div className="space-y-6 text-left" id="communications-view-panel">
       
@@ -361,6 +366,7 @@ export default function CommunicationsView({
         data={filtered}
         columns={columns}
         onRowClick={startEdit}
+        rowClassName={rowClassName}
         emptyMessage={t("No communication records found.")}
       />
 

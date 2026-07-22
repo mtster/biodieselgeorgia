@@ -1,10 +1,12 @@
-import React from 'react';
-import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../../types';
+import React, { useState } from 'react';
+import { Order, Vendor, Warehouse, User, Truck, OrderStatus, VendorComment } from '../../types';
 import { ShieldAlert, Phone } from 'lucide-react';
 import SupplierAutocomplete from './SupplierAutocomplete';
 import { FormInput, FormSelect } from '../FormInput';
 import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
 import DynamicCustomFields from '../DynamicCustomFields';
+import OrderCommentsSection from './OrderCommentsSection';
+import OrderCommentModal from './OrderCommentModal';
 import { t } from '../../utils/lang';
 
 interface OrderFormFieldsProps {
@@ -20,6 +22,7 @@ interface OrderFormFieldsProps {
   setVendorSearch: (v: string) => void;
   showVendorSuggestions: boolean;
   setShowVendorSuggestions: React.Dispatch<React.SetStateAction<boolean>>;
+  currentEmployee?: User;
 }
 
 export default function OrderFormFields({
@@ -34,8 +37,56 @@ export default function OrderFormFields({
   vendorSearch,
   setVendorSearch,
   showVendorSuggestions,
-  setShowVendorSuggestions
+  setShowVendorSuggestions,
+  currentEmployee
 }: OrderFormFieldsProps) {
+
+  // Comment Modal state
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [activeComment, setActiveComment] = useState<VendorComment | null>(null);
+
+  const comments = editingOrder.notes || [];
+
+  const handleAddComment = () => {
+    setActiveComment(null);
+    setIsCommentModalOpen(true);
+  };
+
+  const handleModifyComment = (comment: VendorComment) => {
+    setActiveComment(comment);
+    setIsCommentModalOpen(true);
+  };
+
+  const handleRemoveComment = (id: string) => {
+    setEditingOrder(prev => {
+      if (!prev) return null;
+      const updated = (prev.notes || []).filter(c => c.id !== id);
+      return { ...prev, notes: updated };
+    });
+  };
+
+  const handleSaveCommentModal = (text: string) => {
+    setEditingOrder(prev => {
+      if (!prev) return null;
+      const currentList = prev.notes || [];
+      let updated: VendorComment[];
+      
+      if (activeComment) {
+        updated = currentList.map(c => c.id === activeComment.id ? { ...c, comment: text } : c);
+      } else {
+        const newComm: VendorComment = {
+          id: 'c-' + Math.random().toString(36).substring(2, 9),
+          comment: text,
+          date: new Date().toISOString(),
+          user_name: currentEmployee?.name || 'System'
+        };
+        updated = [newComm, ...currentList];
+      }
+      return { ...prev, notes: updated };
+    });
+    setIsCommentModalOpen(false);
+    setActiveComment(null);
+  };
 
   return (
     <div className="space-y-6 text-left">
@@ -119,14 +170,20 @@ export default function OrderFormFields({
             error={fieldErrors.doc_number}
           />
 
-          {/* Dispatch Date using software native date picker */}
+          {/* Dispatch Date & Time using software native datetime picker */}
           <FormInput
             label={t("Order Dispatch Date")}
-            type="date"
+            type="datetime-local"
             fontClass="font-mono font-bold"
-            value={editingOrder.order_date ? editingOrder.order_date.substring(0, 10) : ''}
+            value={
+              editingOrder.order_date
+                ? (editingOrder.order_date.includes('T')
+                    ? editingOrder.order_date.substring(0, 16)
+                    : `${editingOrder.order_date.substring(0, 10)}T00:00`)
+                : ''
+            }
             onChange={(e) => {
-              const val = e.target.value; // YYYY-MM-DD
+              const val = e.target.value; // YYYY-MM-DDTHH:mm
               setEditingOrder(prev => prev ? { ...prev, order_date: val } : null);
             }}
           />
@@ -248,17 +305,17 @@ export default function OrderFormFields({
           onChange={(updated) => setEditingOrder(updated)}
         />
 
-        {/* Handover comments */}
-        <FormInput
-          label={t("Handover Comments / Navigation Note on Location")}
-          type="text"
-          value={editingOrder.note || ''}
-          onChange={(e) => setEditingOrder(prev => prev ? { ...prev, note: e.target.value } : null)}
+        {/* Handover comments dedicated section */}
+        <OrderCommentsSection
+          comments={comments}
+          onAddComment={handleAddComment}
+          onModifyComment={handleModifyComment}
+          onRemoveComment={handleRemoveComment}
         />
       </div>
 
-      {/* Crew and Fleet Dispatch Assignments */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5 pb-16">
+      {/* Crew and Fleet Dispatch Assignments - removed pb-16 */}
+      <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5">
         <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">{t("Operations Vehicle Crew")}</span>
         
         {/* Truck asset */}
@@ -328,6 +385,21 @@ export default function OrderFormFields({
           })}
         </FormSelect>
       </div>
+
+      <OrderCommentModal
+        isOpen={isCommentModalOpen}
+        onClose={() => {
+          setIsCommentModalOpen(false);
+          setActiveComment(null);
+        }}
+        activeComment={activeComment}
+        onSave={handleSaveCommentModal}
+        onDelete={(id) => {
+          handleRemoveComment(id);
+          setIsCommentModalOpen(false);
+          setActiveComment(null);
+        }}
+      />
     </div>
   );
 }

@@ -94,6 +94,7 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
           email: c.email || '',
           is_default: !!c.is_default,
           sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1),
+          created_by: c.created_by || null,
           is_deleted: false
         }));
 
@@ -274,6 +275,9 @@ export function cleanVendorDbPayload(vendor: any): any {
 
   const managerId = cleanUserUuid(vendor.manager_id);
   const operatorId = cleanUserUuid(vendor.operator_id);
+  const createdBy = cleanUserUuid(vendor.created_by);
+
+  const isActiveBool = vendor.is_active !== undefined ? !!vendor.is_active : (vendor.status !== 'Closed' && vendor.status !== 'Cancelled');
 
   const payload: any = {
     id: vendor.id,
@@ -292,17 +296,23 @@ export function cleanVendorDbPayload(vendor: any): any {
     operator_id: isValidUuid(operatorId) ? operatorId : null,
     direction_id: vendor.direction_id || null,
     working_hours: vendor.working_hours || '',
-    contacts: [], // Decoupled: keep vendors table's column empty
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
-    status: vendor.status || 'Active',
+    is_active: isActiveBool,
+    status: vendor.status || (isActiveBool ? 'Active' : 'Closed'),
     is_deleted: !!vendor.is_deleted,
     created_at: vendor.created_at || new Date().toISOString(),
+    created_by: isValidUuid(createdBy) ? createdBy : null,
     user_id: vendor.user_id || null,
     username: vendor.username || null,
     overdue_threshold_days: (vendor.overdue_threshold_days === undefined || vendor.overdue_threshold_days === null || vendor.overdue_threshold_days === '') ? null : Number(vendor.overdue_threshold_days),
     is_planned: vendor.is_planned !== undefined ? !!vendor.is_planned : false,
     planned_weekday: vendor.planned_weekday || null
   };
+
+  // Explicitly strip redundant and moved columns from payload
+  delete payload.contacts;
+  delete payload.last_pickup_date;
+  delete payload.average_interval_days;
 
   // Preserve any custom column fields on the actual DB payload!
   Object.keys(vendor).forEach(key => {
@@ -330,7 +340,7 @@ export async function createDatabaseColumn(columnName: string): Promise<void> {
   }
 }
 
-export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Vendor> {
+export async function saveVendor(vendor: Vendor, loggerName: string, currentUserId?: string): Promise<Vendor> {
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   const isNew = !vendor.id;
 
@@ -349,6 +359,7 @@ export async function saveVendor(vendor: Vendor, loggerName: string): Promise<Ve
     id: isNew ? 'vendor-' + Math.random().toString(36).substring(2, 9) : vendor.id,
     manager_id: cleanUserUuid(vendor.manager_id),
     operator_id: cleanUserUuid(vendor.operator_id),
+    created_by: isNew ? cleanUserUuid(currentUserId || vendor.created_by) : vendor.created_by,
     created_at: vendor.created_at || new Date().toISOString()
   };
 

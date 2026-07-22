@@ -2,6 +2,7 @@ import { User, UserRole, PermissionsConfig } from '../types';
 import { getLocal, setLocal, KEY_USERS } from './localStorage';
 import { trackChange } from './historyService';
 import { isSupabaseConfigured, supabase } from '../lib/db';
+import { defaultPermissions } from '../components/users/UserForm';
 
 export { KEY_USERS };
 
@@ -23,8 +24,15 @@ export const DEFAULT_USERS: User[] = [
 
 function decodeProfile(p: any): User {
   if (!p) return p;
+  const role = p.role || 'operator';
+  const perms = (p.permissions && Object.keys(p.permissions).length > 0)
+    ? p.permissions
+    : (defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {});
+
   return {
     ...p,
+    role,
+    permissions: perms,
     warehouse_id: p.warehouse_id || undefined,
     vendor_id: p.vendor_id || undefined
   };

@@ -9,15 +9,23 @@ export async function getOrders(): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('orders').select('*').eq('is_deleted', false).order('order_date', { ascending: false });
-      if (!error && data) return data;
+      if (!error && data) {
+        return data.map((o: any) => ({
+          ...o,
+          notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
+        }));
+      }
     } catch (e) {
       console.warn('Supabase getOrders failed', e);
     }
   }
-  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted);
+  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted).map((o: any) => ({
+    ...o,
+    notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
+  }));
 }
 
-export async function saveOrder(order: Order, loggerName: string): Promise<Order> {
+export async function saveOrder(order: Order, loggerName: string, currentUserId?: string): Promise<Order> {
   const isNew = !order.id;
 
   const cleanUserUuid = (val: string | null | undefined): string | null => {
@@ -30,13 +38,16 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
     return val;
   };
 
+  const createdByUuid = cleanUserUuid(isNew ? (currentUserId || order.created_by) : order.created_by);
+
   const finalOrder = {
     ...order,
     id: isNew ? 'ord-' + Math.random().toString(36).substring(2, 9) : order.id,
     operator_id: cleanUserUuid(order.operator_id),
-    created_by: cleanUserUuid(order.created_by),
+    created_by: createdByUuid,
     driver_id: cleanUserUuid(order.driver_id),
-    companion_id: cleanUserUuid(order.companion_id)
+    companion_id: cleanUserUuid(order.companion_id),
+    notes: Array.isArray(order.notes) ? order.notes : (order.note ? [{ id: 'c-1', comment: order.note, date: new Date().toISOString(), user_name: 'System' }] : [])
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -55,9 +66,11 @@ export async function saveOrder(order: Order, loggerName: string): Promise<Order
       const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       
       dbOrder.operator_id = isValidUuid(dbOrder.operator_id) ? dbOrder.operator_id : null;
+      dbOrder.created_by = isValidUuid(dbOrder.created_by) ? dbOrder.created_by : null;
       dbOrder.driver_id = isValidUuid(dbOrder.driver_id) ? dbOrder.driver_id : null;
       dbOrder.companion_id = isValidUuid(dbOrder.companion_id) ? dbOrder.companion_id : null;
       dbOrder.truck_plate = typeof dbOrder.truck_plate === 'string' && dbOrder.truck_plate.trim() !== "" ? dbOrder.truck_plate : null;
+      dbOrder.notes = Array.isArray(dbOrder.notes) ? dbOrder.notes : [];
 
       if (isNew) {
         const { error } = await supabase.from('orders').insert([dbOrder]);

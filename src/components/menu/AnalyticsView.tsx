@@ -10,20 +10,26 @@ interface Props {
 }
 
 export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) {
-  // 1. Calculate overdue locations (no pickups for more than 15 days or past average interval)
+  // Helper to compute last pickup date dynamically from completed orders
+  const getVendorLastPickupDate = (vendorId: string): string | null => {
+    const vendorOrders = orders
+      .filter(o => o.vendor_id === vendorId && o.status === 'completed' && (o.order_date || o.pickup_date_time))
+      .sort((a, b) => new Date(b.pickup_date_time || b.order_date).getTime() - new Date(a.pickup_date_time || a.order_date).getTime());
+    return vendorOrders[0] ? (vendorOrders[0].pickup_date_time || vendorOrders[0].order_date) : null;
+  };
+
+  // 1. Calculate overdue locations (no pickups for more than 15 days)
   const now = new Date().getTime();
   const defaultIntervalMs = 15 * 24 * 60 * 60 * 1000;
 
   const overdueSuppliers = suppliers.filter(sup => {
-    if (!sup.last_pickup_date) {
+    const lastPickup = getVendorLastPickupDate(sup.id);
+    if (!lastPickup) {
       const created = new Date(sup.created_at).getTime();
       return (now - created) > defaultIntervalMs;
     }
-    const last = new Date(sup.last_pickup_date).getTime();
-    const intervalLimit = sup.average_interval_days
-      ? sup.average_interval_days * 24 * 60 * 60 * 1000
-      : defaultIntervalMs;
-    return (now - last) > intervalLimit;
+    const last = new Date(lastPickup).getTime();
+    return (now - last) > defaultIntervalMs;
   });
 
   // 2. Calculated Metrics
@@ -91,7 +97,7 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
           <div>
             <span className="text-[11px] text-gray-400 font-medium block">Active Points Share</span>
             <span className="text-lg font-black text-gray-800 font-mono">
-              {suppliers.filter(s => !!s.last_pickup_date).length} / {suppliers.length}
+              {suppliers.filter(s => !!getVendorLastPickupDate(s.id)).length} / {suppliers.length}
             </span>
           </div>
         </div>
@@ -131,8 +137,9 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {overdueSuppliers.map(sup => {
-                    const daysPast = sup.last_pickup_date 
-                      ? Math.round((now - new Date(sup.last_pickup_date).getTime()) / (1000 * 60 * 60 * 24))
+                    const lastPickup = getVendorLastPickupDate(sup.id);
+                    const daysPast = lastPickup 
+                      ? Math.round((now - new Date(lastPickup).getTime()) / (1000 * 60 * 60 * 24))
                       : 'Never';
                     return (
                       <tr key={sup.id} className="hover:bg-red-50/10">
@@ -144,8 +151,8 @@ export default function AnalyticsView({ suppliers, orders, onNavigate }: Props) 
                           {sup.city}, {sup.district}
                         </td>
                         <td className="py-3 px-3 text-red-650 font-mono font-bold">
-                          {sup.last_pickup_date 
-                            ? formatDate(sup.last_pickup_date) 
+                          {lastPickup 
+                            ? formatDate(lastPickup) 
                             : 'Never'}
                         </td>
                         <td className="py-3 px-3 font-mono font-medium text-gray-550">

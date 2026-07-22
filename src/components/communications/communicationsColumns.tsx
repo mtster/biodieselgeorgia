@@ -130,11 +130,11 @@ export function getCommunicationsColumns({
   columns.push({
     header: '',
     key: 'select',
-    className: 'w-12 text-center sticky left-0 z-30 bg-slate-50',
+    className: 'w-12 text-center',
     render: (comm) => {
       const isChecked = selectedComms.includes(comm.id);
       return (
-        <div onClick={(e) => e.stopPropagation()} className="flex justify-center sticky left-0 z-30 bg-transparent">
+        <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center w-full h-full bg-transparent">
           <button
             type="button"
             onClick={() => {
@@ -144,13 +144,13 @@ export function getCommunicationsColumns({
                 setSelectedComms([...selectedComms, comm.id]);
               }
             }}
-            className={`w-4 h-4 rounded border flex items-center justify-center transition-all mx-auto cursor-pointer ${
+            className={`w-4 h-4 rounded border flex items-center justify-center p-0 shrink-0 mx-auto cursor-pointer ${
               isChecked
                 ? 'border-emerald-600 bg-emerald-600 text-white'
-                : 'border-gray-200 bg-white hover:border-gray-300'
+                : 'border-gray-300 bg-white hover:border-gray-400'
             }`}
           >
-            {isChecked && <Check size={11} strokeWidth={3.5} />}
+            {isChecked && <Check size={11} strokeWidth={3.5} className="shrink-0 leading-none" />}
           </button>
         </div>
       );

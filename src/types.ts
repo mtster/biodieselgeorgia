@@ -21,6 +21,7 @@ export interface User {
   is_deleted?: boolean;
   is_blocked?: boolean;
   created_at?: string;
+  created_by?: string;
   warehouse_id?: string;      // საწყობი
   vendor_id?: string;         // მომწოდებელი (Vendor ID for supplier role)
 }
@@ -37,6 +38,7 @@ export interface VendorContact {
   sort_order?: number;
   is_deleted?: boolean;
   created_at?: string;
+  created_by?: string;
 }
 
 export interface VendorComment {
@@ -65,11 +67,10 @@ export interface Vendor {
   comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
   status?: 'Active' | 'Under Negotiation' | 'Cancelled';
+  is_active?: boolean;
   barrels_amount?: number;    // Barrels amount
   is_deleted?: boolean;
   created_at: string;
-  last_pickup_date?: string;
-  average_interval_days?: number;
   direction_id?: string;      // მიმართულება
   overdue_threshold_days?: number | null; // ვადა (დღეები)
   is_planned?: boolean;       // გეგმიური
@@ -104,7 +105,8 @@ export interface Order {
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
   fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
   waybill_qty?: number;       // ზედნადებით რაოდენობა
-  note?: string;              // შენიშვნა
+  note?: string;              // ძველი შენიშვნა
+  notes?: VendorComment[];    // შენიშვნების სია (jsonb)
   tanks_to_leave: number;     // დასატოვებელი ავზები რაოდ
   tanks_to_bring: number;     // წამოსაღები ავზების რაოდ
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
@@ -129,6 +131,7 @@ export interface Communication {
   responsible_user_id?: string;
   responsible_user_name?: string;
   task_status?: string;
+  created_by?: string;
   is_deleted?: boolean;
 }
 
@@ -139,6 +142,7 @@ export interface Truck {
   driver_name?: string;
   companion_id?: string;      // (optional profile companion reference)
   companion_name?: string;
+  created_by?: string;
   is_deleted?: boolean;
   city?: string;              // ქალაქი
   warehouse_id?: string;      // საწყობი
@@ -150,6 +154,7 @@ export type Vehicle = Truck;
 export interface Direction {
   id: string;
   name: string;
+  created_by?: string;
   is_deleted?: boolean;
 }
 
@@ -167,11 +172,13 @@ export interface ChangeHistory {
 export interface Warehouse {
   id: string;
   name: string;               // დასახელება
+  created_by?: string;
 }
 
 export interface City {
   id: string;
   name: string;               // დასახელება
+  created_by?: string;
   is_deleted?: boolean;
 }
 
@@ -179,4 +186,5 @@ export interface District {
   id: string;
   city_id: string;            // ქალაქის რეფერენსი
   name: string;               // უბნის დასახელება
+  created_by?: string;
 }
