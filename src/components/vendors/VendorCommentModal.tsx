@@ -49,8 +49,8 @@ export default function VendorCommentModal({ isOpen, onClose, activeComment, onS
           rows={4}
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
-          placeholder={t("Write specific supplier memo here...")}
-          className="w-full p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+          placeholder="მომწოდებლის კომენტარი"
+          className="w-full p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors"
         ></textarea>
       </div>
     </FormModal>

@@ -7,7 +7,7 @@ import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
 import DynamicCustomFields from '../DynamicCustomFields';
 import OrderCommentsSection from './OrderCommentsSection';
 import OrderCommentModal from './OrderCommentModal';
-import { t } from '../../utils/lang';
+import { t, formatDateTime } from '../../utils/lang';
 
 interface OrderFormFieldsProps {
   editingOrder: Order;
@@ -170,23 +170,50 @@ export default function OrderFormFields({
             error={fieldErrors.doc_number}
           />
 
-          {/* Dispatch Date & Time using software native datetime picker */}
-          <FormInput
-            label={t("Order Dispatch Date")}
-            type="datetime-local"
-            fontClass="font-mono font-bold"
-            value={
-              editingOrder.order_date
-                ? (editingOrder.order_date.includes('T')
-                    ? editingOrder.order_date.substring(0, 16)
-                    : `${editingOrder.order_date.substring(0, 10)}T00:00`)
-                : ''
-            }
-            onChange={(e) => {
-              const val = e.target.value; // YYYY-MM-DDTHH:mm
-              setEditingOrder(prev => prev ? { ...prev, order_date: val } : null);
-            }}
-          />
+          {/* Dispatch Date & Time using 24-hour time picker */}
+          <div className="space-y-1 font-sans">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+              {t("Order Dispatch Date")}
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="date"
+                className="w-full px-3 py-2 bg-slate-50 border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors"
+                value={
+                  editingOrder.order_date
+                    ? editingOrder.order_date.substring(0, 10)
+                    : new Date().toISOString().substring(0, 10)
+                }
+                onChange={(e) => {
+                  const d = e.target.value;
+                  const currentIso = editingOrder.order_date || new Date().toISOString();
+                  const tm = currentIso.includes('T') ? currentIso.split('T')[1].substring(0, 5) : '00:00';
+                  setEditingOrder(prev => prev ? { ...prev, order_date: `${d}T${tm}` } : null);
+                }}
+              />
+              <input
+                type="time"
+                step="60"
+                className="w-full px-3 py-2 bg-slate-50 border border-gray-200 rounded-xl text-xs font-mono font-bold text-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors"
+                value={
+                  editingOrder.order_date && editingOrder.order_date.includes('T')
+                    ? editingOrder.order_date.split('T')[1].substring(0, 5)
+                    : '00:00'
+                }
+                onChange={(e) => {
+                  const tm = e.target.value;
+                  const currentIso = editingOrder.order_date || new Date().toISOString();
+                  const d = currentIso.substring(0, 10);
+                  setEditingOrder(prev => prev ? { ...prev, order_date: `${d}T${tm}` } : null);
+                }}
+              />
+            </div>
+            {editingOrder.order_date && (
+              <div className="text-[11px] font-mono font-bold text-emerald-800 pt-0.5">
+                {formatDateTime(editingOrder.order_date)}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Row 1: Planned (Gegmiuri) - wamogeba then datoveba */}

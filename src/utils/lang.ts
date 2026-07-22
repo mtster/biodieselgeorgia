@@ -725,5 +725,5 @@ export function formatDateTime(dateString: string | Date | undefined | null): st
   const year = d.getFullYear();
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  return `${day}/${month}/${year} - ${hours}:${minutes}`;
 }

@@ -193,15 +193,12 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL, -- Warehouse Reference
     manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,   -- Account Manager
     operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,  -- Operator
-    contacts JSONB DEFAULT '[]'::JSONB,     -- Contacts List
     comments JSONB DEFAULT '[]'::JSONB,     -- Comments History
     working_hours TEXT,                     -- Working Hours
     barrels_amount INT DEFAULT 0,          -- Barrels amount
-    status TEXT DEFAULT 'Active',          -- Status
+    is_active BOOLEAN DEFAULT TRUE,        -- Active status
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    last_pickup_date TIMESTAMPTZ,
-    average_interval_days INT DEFAULT 0,
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     username TEXT,
     email TEXT
@@ -213,9 +210,7 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS warehouse_id TEXT REFERENCES
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS barrels_amount INT DEFAULT 0;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS last_pickup_date TIMESTAMPTZ;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS average_interval_days INT DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS overdue_threshold_days INT DEFAULT NULL;
@@ -256,7 +251,6 @@ CREATE TABLE IF NOT EXISTS public.orders (
     doc_number TEXT UNIQUE NOT NULL,         -- Document/Invoice Number
     vendor_id TEXT REFERENCES public.vendors(id) ON DELETE CASCADE,
     warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL,
-    note TEXT,                               -- General Notes
     qty_requested NUMERIC(12, 2),            -- Requested Liters
     tanks_to_leave INT NOT NULL DEFAULT 0,   -- Tanks to Leave
     tanks_to_bring INT NOT NULL DEFAULT 0,   -- Tanks to Retrieve
