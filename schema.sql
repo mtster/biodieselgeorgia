@@ -165,6 +165,7 @@ ALTER TABLE public.profiles ADD CONSTRAINT check_valid_role CHECK (role IN ('adm
 
 -- 5. Vehicles
 CREATE TABLE IF NOT EXISTS public.vehicles (
+    id UUID DEFAULT gen_random_uuid() UNIQUE,
     plate_number TEXT PRIMARY KEY,
     model TEXT NOT NULL,
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -176,6 +177,13 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
 );
 
 -- Apply non-destructive updates to public.vehicles table if it pre-exists
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS id UUID DEFAULT gen_random_uuid();
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vehicles_id_key') THEN 
+        ALTER TABLE public.vehicles ADD CONSTRAINT vehicles_id_key UNIQUE (id); 
+    END IF; 
+END $$;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
@@ -274,6 +282,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 );
 
 -- Apply non-destructive updates to public.orders table if it pre-exists
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE SET NULL;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_qty NUMERIC(12, 2) DEFAULT 0.00;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS fact_tank_dropoff INT DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
@@ -284,6 +293,21 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_name TEXT DEFAULT NUL
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_phone TEXT DEFAULT NULL;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes JSONB DEFAULT '[]'::JSONB;
 ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
+
+-- Populate existing orders vehicle_id based on truck_plate matching
+UPDATE public.orders o
+SET vehicle_id = v.id
+FROM public.vehicles v
+WHERE o.vehicle_id IS NULL
+  AND o.truck_plate IS NOT NULL
+  AND LOWER(REPLACE(REPLACE(o.truck_plate, '-', ''), ' ', '')) = LOWER(REPLACE(REPLACE(v.plate_number, '-', ''), ' ', ''));
+
+-- Performance Indexes for Driver Logistics & Orders Portal
+CREATE INDEX IF NOT EXISTS idx_orders_vehicle_id ON public.orders(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON public.orders(driver_id);
+CREATE INDEX IF NOT EXISTS idx_orders_truck_plate ON public.orders(truck_plate);
+CREATE INDEX IF NOT EXISTS idx_vehicles_auth_user_id ON public.vehicles(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_driver_id ON public.vehicles(driver_id);
 
 -- Safe update of the status CHECK constraint if it exists
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;

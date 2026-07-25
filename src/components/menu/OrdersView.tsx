@@ -513,6 +513,7 @@ export default function OrdersView({
         isOpen={showAssignDriverModal}
         onClose={() => setShowAssignDriverModal(false)}
         onSave={(driverId, companionId, truckPlate) => {
+          const matchingTruck = trucks.find(t => t.plate_number === truckPlate);
           selectedOrders.forEach(id => {
             const ord = orders.find(o => o.id === id);
             if (ord) {
@@ -521,6 +522,7 @@ export default function OrdersView({
                 driver_id: driverId,
                 companion_id: companionId,
                 truck_plate: truckPlate,
+                vehicle_id: matchingTruck?.id,
                 status: 'driver_assigned'
               });
             }

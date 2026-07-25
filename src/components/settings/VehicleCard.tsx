@@ -11,8 +11,8 @@ interface VehicleCardProps {
 }
 
 export default function VehicleCard({ truck, employees, warehouses, onOpen }: VehicleCardProps) {
-  const assignedDriver = employees.find(e => e.id === truck.driver_id)?.name || t('None');
-  const assignedCompanion = employees.find(e => e.id === truck.companion_id)?.name || t('None');
+  const assignedDriver = employees.find(e => e.id === truck.driver_id || e.personal_id === truck.driver_id)?.name || truck.driver_name || t('None');
+  const assignedCompanion = employees.find(e => e.id === truck.companion_id || e.personal_id === truck.companion_id)?.name || truck.companion_name || t('None');
   const assignedWarehouse = warehouses.find(w => w.id === truck.warehouse_id)?.name || t('Unassigned');
 
   return (

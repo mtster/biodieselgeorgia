@@ -90,6 +90,7 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
       const createdBy = vehicle.created_by || currentUserId || null;
 
       const dbPayload: any = {
+        ...(isValidUuid(vehicle.id) ? { id: vehicle.id } : {}),
         plate_number: vehicle.plate_number,
         model: vehicle.model,
         driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,

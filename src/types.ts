@@ -100,6 +100,7 @@ export interface Order {
   companion_id?: string;      // (ფუნქციური დამხმარე - driver role can have optional companions mapped in trucks, but roles are streamlined)
   companion_name?: string;
   truck_plate?: string;       // მანქანა
+  vehicle_id?: string;        // Assigned vehicle ID
   status: OrderStatus;        // სტატუსი
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
@@ -136,6 +137,7 @@ export interface Communication {
 }
 
 export interface Truck {
+  id?: string;                // Primary key ID
   plate_number: string;       // სახელმწიფო ნომერი
   model: string;              // მოდელი
   driver_id?: string;         // მძღოლი თანამშრომელი

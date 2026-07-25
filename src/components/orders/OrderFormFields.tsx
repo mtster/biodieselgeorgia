@@ -330,6 +330,7 @@ export default function OrderFormFields({
               return {
                 ...prev,
                 truck_plate: plate,
+                vehicle_id: truck?.id || prev.vehicle_id,
                 ...(truck ? {
                   driver_id: truck.driver_id || prev.driver_id,
                   companion_id: truck.companion_id || prev.companion_id

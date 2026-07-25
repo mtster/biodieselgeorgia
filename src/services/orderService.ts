@@ -69,6 +69,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
       dbOrder.created_by = isValidUuid(dbOrder.created_by) ? dbOrder.created_by : null;
       dbOrder.driver_id = isValidUuid(dbOrder.driver_id) ? dbOrder.driver_id : null;
       dbOrder.companion_id = isValidUuid(dbOrder.companion_id) ? dbOrder.companion_id : null;
+      dbOrder.vehicle_id = isValidUuid(dbOrder.vehicle_id) ? dbOrder.vehicle_id : null;
       dbOrder.truck_plate = typeof dbOrder.truck_plate === 'string' && dbOrder.truck_plate.trim() !== "" ? dbOrder.truck_plate : null;
       dbOrder.notes = Array.isArray(dbOrder.notes) ? dbOrder.notes : [];
 
