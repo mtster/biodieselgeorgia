@@ -152,6 +152,8 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::JSONB;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS vendor_id TEXT DEFAULT NULL;
 ALTER TABLE public.profiles ALTER COLUMN role TYPE TEXT;
+ALTER TABLE public.profiles ALTER COLUMN email DROP NOT NULL;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
 -- Standardize and map legacy roles to clean, standard roles
 UPDATE public.profiles SET role = 'purchasing_head' WHERE role = 'manager';
@@ -168,6 +170,7 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     city TEXT,
+    auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -177,6 +180,7 @@ ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT N
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
 -- 6. Vendors
 CREATE TABLE IF NOT EXISTS public.vendors (
@@ -357,7 +361,7 @@ DECLARE
 BEGIN
   v_role := COALESCE(new.raw_user_meta_data->>'role', 'admin');
   
-  IF v_role = 'vendor' THEN
+  IF v_role = 'vendor' OR v_role = 'vehicle' OR new.raw_user_meta_data->>'vehicle_role' = 'vehicle' THEN
     RETURN NEW;
   END IF;
 

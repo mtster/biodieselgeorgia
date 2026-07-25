@@ -129,6 +129,93 @@ async function startServer() {
     }
   });
 
+  // Endpoint to create or update a vehicle auth account administratively
+  app.post("/api/create-vehicle-account", async (req, res) => {
+    try {
+      if (!isSupabaseConfigured || !supabaseAdmin) {
+        return res.status(400).json({ error: "Supabase service role key is not configured on the server." });
+      }
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Authorization token is missing" });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
+      const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
+
+      if (userError || !user) {
+        return res.status(401).json({ error: "Unauthorized: Invalid session token" });
+      }
+
+      let isRequesterAdmin = user.user_metadata?.role === "admin";
+      if (!isRequesterAdmin) {
+        const { data: requesterProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        if (requesterProfile && requesterProfile.role === "admin") {
+          isRequesterAdmin = true;
+        }
+      }
+
+      if (!isRequesterAdmin) {
+        return res.status(403).json({ error: "Access denied: Only Administrators can create vehicle accounts." });
+      }
+
+      const { plate_number, password } = req.body;
+      if (!plate_number || !password) {
+        return res.status(400).json({ error: "License plate number and password must be provided." });
+      }
+
+      const sanitizedPlate = plate_number.replace(/-/g, "").toLowerCase();
+      const email = `${sanitizedPlate}@biodiesel.ge`;
+
+      const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        phone_confirm: true,
+        user_metadata: {
+          role: "driver",
+          vehicle_role: "vehicle",
+          plate_number,
+          name: `Vehicle ${plate_number}`
+        },
+      });
+
+      if (adminError) {
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const existing = listData?.users?.find((u) => u.email === email);
+        if (existing) {
+          const { data: updateData, error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+            password,
+            user_metadata: {
+              role: "driver",
+              vehicle_role: "vehicle",
+              plate_number,
+              name: `Vehicle ${plate_number}`
+            },
+          });
+          if (updateErr) {
+            return res.status(500).json({ error: updateErr.message });
+          }
+          return res.json({ success: true, auth_user_id: existing.id });
+        }
+        return res.status(500).json({ error: adminError.message });
+      }
+
+      return res.json({ success: true, auth_user_id: adminData.user.id });
+    } catch (e: any) {
+      console.error("Admin vehicle account creation caught exception:", e);
+      let errMsg = "Internal server error";
+      if (e instanceof Error) errMsg = e.message;
+      res.status(500).json({ error: errMsg });
+    }
+  });
+
   // Endpoint to delete a user administratively
   app.delete("/api/delete-user", async (req, res) => {
     try {

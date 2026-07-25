@@ -42,10 +42,28 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
       return;
     }
 
-    const rawEmail = email.trim();
-    let loginEmail = rawEmail;
-    if (!loginEmail.includes('@')) {
-      loginEmail = `${loginEmail}@biodiesel.ge`;
+    const rawInput = email.trim();
+    const candidates: string[] = [];
+
+    if (!rawInput.includes('@')) {
+      const sanitized = rawInput.replace(/-/g, '').toLowerCase();
+      candidates.push(`${sanitized}@biodiesel.ge`);
+      if (`${rawInput.toLowerCase()}@biodiesel.ge` !== `${sanitized}@biodiesel.ge`) {
+        candidates.push(`${rawInput.toLowerCase()}@biodiesel.ge`);
+      }
+    } else {
+      const parts = rawInput.split('@');
+      const userPart = parts[0];
+      const domainPart = parts[1] ? parts[1].toLowerCase() : '';
+      if (domainPart === 'biodiesel.ge') {
+        const sanitized = userPart.replace(/-/g, '').toLowerCase();
+        candidates.push(`${sanitized}@biodiesel.ge`);
+        if (rawInput.toLowerCase() !== `${sanitized}@biodiesel.ge`) {
+          candidates.push(rawInput.toLowerCase());
+        }
+      } else {
+        candidates.push(rawInput.toLowerCase());
+      }
     }
 
     setLoading(true);
@@ -53,10 +71,19 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
 
     try {
       if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
+        let authRes = await supabase.auth.signInWithPassword({
+          email: candidates[0],
           password: password,
         });
+
+        if (authRes.error && candidates.length > 1) {
+          authRes = await supabase.auth.signInWithPassword({
+            email: candidates[1],
+            password: password,
+          });
+        }
+
+        const { data, error } = authRes;
 
         if (error) {
           setErrorMsg(t('Authorization failed: ') + (error.message === 'Invalid login credentials' ? t('Incorrect email or password') : error.message));
@@ -92,7 +119,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               .from('profiles')
               .select('*')
               .eq('email', data.user.email)
-               .single();
+              .single();
             dbUser = directUser;
           }
 
@@ -105,15 +132,18 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             }
             onLoginSuccess(decodeProfile(dbUser));
           } else {
-            // Setup a fallback User object if they are logged in via Supabase Auth
-            const role = data.user.user_metadata?.role || 'vendor';
+            // Setup a fallback User object for vehicle account or user without profile
+            const metadataRole = data.user.user_metadata?.role;
+            const isVehicle = data.user.user_metadata?.vehicle_role === 'vehicle' || metadataRole === 'vehicle';
+            const userRole = isVehicle ? 'driver' : (metadataRole || 'driver');
+
             const newUser: User = {
               id: data.user.id,
-              name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Supplier',
+              name: data.user.user_metadata?.plate_number || data.user.user_metadata?.name || data.user.email?.split('@')[0].toUpperCase() || 'Vehicle',
               email: data.user.email || '',
               personal_id: data.user.user_metadata?.personal_id || '',
               phone: data.user.user_metadata?.phone || '',
-              role: role as any,
+              role: userRole as any,
               permissions: data.user.user_metadata?.permissions || {},
               is_blocked: false,
               created_at: data.user.created_at || new Date().toISOString(),
@@ -121,7 +151,8 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               vendor_id: data.user.user_metadata?.vendor_id || undefined
             };
 
-            if (role !== 'vendor') {
+            // Vehicle accounts must NOT be added to profiles table!
+            if (metadataRole !== 'vendor' && !isVehicle) {
               await supabase.from('profiles').insert([newUser]);
             }
             onLoginSuccess(newUser);
@@ -130,7 +161,10 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
       } else {
         // Fallback to local storage matching
-        const matched = users.find(u => u.email.trim().toLowerCase() === loginEmail.toLowerCase() && (u.password === password || password === 'admin123'));
+        const matched = users.find(u => {
+          const uEmail = u.email.trim().toLowerCase();
+          return candidates.some(c => c.toLowerCase() === uEmail) && (u.password === password || password === 'admin123');
+        });
         if (matched) {
           if (matched.is_blocked) {
             setErrorMsg('სისტემაზე წვდომა არ გაქვთ.');

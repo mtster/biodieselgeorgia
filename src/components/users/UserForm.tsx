@@ -217,12 +217,16 @@ export default function UserForm({
       errs.personal_id = t('Personal ID must be exactly 11 digits.');
     }
 
-    if (!editingUser.email.trim()) {
-      errs.email = t('Email is required.');
-    }
+    const isDriverOrLogist = ['driver', 'logistics_manager'].includes(editingUser.role);
 
-    if (isNew && (!editingUser.password || editingUser.password.trim().length < 6)) {
-      errs.password = t('Password must be at least 6 characters.');
+    if (!isDriverOrLogist) {
+      if (!editingUser.email.trim()) {
+        errs.email = t('Email is required.');
+      }
+
+      if (isNew && (!editingUser.password || editingUser.password.trim().length < 6)) {
+        errs.password = t('Password must be at least 6 characters.');
+      }
     }
 
     if (!editingUser.phone.trim() || editingUser.phone.trim() === '+995') {
@@ -315,7 +319,8 @@ export default function UserForm({
   if (!editingUser) return null;
 
   const isAdmin = editingUser.role === 'admin';
-  const showPermissions = !['driver', 'logistics_manager'].includes(editingUser.role);
+  const isDriverOrLogist = ['driver', 'logistics_manager'].includes(editingUser.role);
+  const showPermissions = !isDriverOrLogist;
 
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl space-y-6 text-left" id="users-form-panel">
@@ -351,7 +356,7 @@ export default function UserForm({
           />
 
           <FormInput
-            label={t("Email Address") + " *"}
+            label={isDriverOrLogist ? t("Email Address") : t("Email Address") + " *"}
             type="email"
             id="user-email-address"
             value={editingUser.email}
@@ -362,17 +367,19 @@ export default function UserForm({
             error={fieldErrors.email}
           />
 
-          <FormInput
-            label={isNew ? t("Password (min. 6 symbols)") + " *" : t("Change Password (Optional)")}
-            type="password"
-            id="user-password"
-            value={editingUser.password || ''}
-            onChange={(e) => {
-              setEditingUser({...editingUser, password: e.target.value});
-              if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
-            }}
-            error={fieldErrors.password}
-          />
+          {!isDriverOrLogist && (
+            <FormInput
+              label={isNew ? t("Password (min. 6 symbols)") + " *" : t("Change Password (Optional)")}
+              type="password"
+              id="user-password"
+              value={editingUser.password || ''}
+              onChange={(e) => {
+                setEditingUser({...editingUser, password: e.target.value});
+                if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
+              }}
+              error={fieldErrors.password}
+            />
+          )}
 
           <FormInput
             label={t("Phone") + " *"}

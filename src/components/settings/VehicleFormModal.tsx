@@ -29,6 +29,8 @@ export default function VehicleFormModal({
 }: VehicleFormModalProps) {
   // Field values
   const [tPlate, setTPlate] = useState('');
+  const [tPassword, setTPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [tModel, setTModel] = useState('');
   const [tDriver, setTDriver] = useState('');
   const [tCompanion, setTCompanion] = useState('');
@@ -39,6 +41,8 @@ export default function VehicleFormModal({
   useEffect(() => {
     if (isOpen) {
       setTPlate(selectedTruck ? selectedTruck.plate_number : '');
+      setTPassword('');
+      setPasswordError('');
       setTModel(selectedTruck ? selectedTruck.model : '');
       setTDriver(selectedTruck ? selectedTruck.driver_id || '' : '');
       setTCompanion(selectedTruck ? selectedTruck.companion_id || '' : '');
@@ -79,6 +83,16 @@ export default function VehicleFormModal({
       return;
     }
 
+    if (!selectedTruck && !tPassword.trim()) {
+      setPasswordError(t('Password is required (min. 6 symbols)'));
+      return;
+    }
+
+    if (tPassword.trim() && tPassword.trim().length < 6) {
+      setPasswordError(t('Password must be at least 6 characters'));
+      return;
+    }
+
     const driverObj = employees.find(e => e.id === tDriver);
     const companionObj = employees.find(e => e.id === tCompanion);
 
@@ -92,6 +106,8 @@ export default function VehicleFormModal({
       city: tCity,
       warehouse_id: tWarehouseId,
       direction_id: tDirectionId,
+      auth_user_id: selectedTruck?.auth_user_id,
+      password: tPassword.trim() || undefined,
       is_deleted: false
     });
 
@@ -120,6 +136,19 @@ export default function VehicleFormModal({
           disabled={false}
           placeholder={t("e.g. AA-123-BB")}
           className="disabled:bg-slate-50 disabled:text-gray-500"
+        />
+
+        <FormInput
+          label={selectedTruck ? "პაროლი(მინ. 6 სიმბოლო) (არასავალდებულო)" : "პაროლი(მინ. 6 სიმბოლო) *"}
+          type="password"
+          fontClass="font-mono"
+          value={tPassword}
+          onChange={(e) => {
+            setTPassword(e.target.value);
+            if (passwordError) setPasswordError('');
+          }}
+          placeholder=""
+          error={passwordError}
         />
 
         <FormInput

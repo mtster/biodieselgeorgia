@@ -46,11 +46,41 @@ export async function getVehicles(): Promise<Vehicle[]> {
   return getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
 }
 
-export async function saveVehicle(vehicle: Vehicle, loggerName: string, currentUserId?: string): Promise<Vehicle> {
+export async function saveVehicle(vehicle: Vehicle & { password?: string }, loggerName: string, currentUserId?: string): Promise<Vehicle> {
   const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
   const exists = list.some(t => t.plate_number === vehicle.plate_number);
 
+  let authUserId = vehicle.auth_user_id;
+
   if (isSupabaseConfigured && supabase) {
+    if (vehicle.password) {
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        const token = sessionRes.data.session?.access_token;
+        const res = await fetch('/api/create-vehicle-account', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            plate_number: vehicle.plate_number,
+            password: vehicle.password
+          })
+        });
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData.auth_user_id) {
+            authUserId = resData.auth_user_id;
+          }
+        } else {
+          console.warn('Vehicle auth creation warning:', await res.json().catch(() => ({})));
+        }
+      } catch (err) {
+        console.error('Failed to create vehicle auth account:', err);
+      }
+    }
+
     try {
       const isValidUuid = (val: string | null | undefined): boolean => {
         if (!val) return false;
@@ -67,7 +97,8 @@ export async function saveVehicle(vehicle: Vehicle, loggerName: string, currentU
         city: vehicle.city || null,
         direction_id: vehicle.direction_id || null,
         warehouse_id: vehicle.warehouse_id || null,
-        created_by: isValidUuid(createdBy) ? createdBy : null
+        created_by: isValidUuid(createdBy) ? createdBy : null,
+        auth_user_id: isValidUuid(authUserId) ? authUserId : null
       };
 
       let success = false;

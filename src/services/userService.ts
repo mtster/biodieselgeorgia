@@ -72,8 +72,40 @@ export async function getUsers(): Promise<User[]> {
 export async function saveUser(user: User, loggerName: string): Promise<User> {
   let finalUser = { ...user };
   const isNew = !user.id || user.id.length < 10;
+  const isDriverOrLogist = user.role === 'driver' || user.role === 'logistics_manager';
 
   if (isSupabaseConfigured && supabase) {
+    if (isDriverOrLogist) {
+      const profileId = (user.id && user.id.length > 10) ? user.id : crypto.randomUUID();
+      const cleanEmail = user.email && user.email.trim() ? user.email.trim() : `${profileId.substring(0, 8)}@noemail.local`;
+      const profilePayload: any = {
+        id: profileId,
+        name: user.name,
+        personal_id: user.personal_id,
+        email: cleanEmail,
+        phone: user.phone,
+        role: user.role,
+        permissions: {},
+        is_blocked: user.is_blocked || false,
+        is_deleted: false,
+        vendor_id: user.vendor_id || null
+      };
+
+      const { data: profileData, error: profileErr } = await supabase
+        .from('profiles')
+        .upsert([profilePayload], { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (profileErr) {
+        console.error('Failed to save driver profile directly:', profileErr);
+        throw profileErr;
+      }
+      finalUser = decodeProfile(profileData || profilePayload);
+      await trackChange('USERS', isNew ? 'CREATE' : 'UPDATE', loggerName, `Saved driver/logist: ${user.name}`);
+      return finalUser;
+    }
+
     try {
       const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
       

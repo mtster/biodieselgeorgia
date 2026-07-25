@@ -15,29 +15,23 @@ interface CommunicationFormModalProps {
   onDelete?: () => void;
 }
 
-const toDisplayDateTime = (val: string | undefined | null): string => {
-  if (!val) return '';
-  const clean = val.split('T')[0];
-  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
-    const [y, m, d] = clean.split('-');
-    return `${d}/${m}/${y}`;
-  }
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return val;
+const toLocalDatetimeValue = (isoString: string | undefined | null): string => {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day}T${h}:${min}`;
 };
 
-const toDbDateTime = (val: string): string => {
-  if (!val) return '';
-  const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (match) {
-    const [_, d, m, y] = match;
-    return `${y}-${m}-${d}T12:00:00.000Z`;
-  }
-  return val;
+const fromLocalDatetimeValue = (localString: string): string => {
+  if (!localString) return '';
+  const d = new Date(localString);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString();
 };
 
 export default function CommunicationFormModal({
@@ -163,13 +157,13 @@ export default function CommunicationFormModal({
 
         {localComm.type === 'reminder' && (
           <FormInput
-            label="Reminder Due Time"
-            type="date"
+            label={t("Reminder Due Time")}
+            type="datetime-local"
             fontClass="font-mono"
-            value={localComm.reminder_time ? localComm.reminder_time.split('T')[0] : ''}
+            value={localComm.reminder_time ? toLocalDatetimeValue(localComm.reminder_time) : ''}
             onChange={(e) => {
-              const val = e.target.value;
-              setLocalComm(prev => prev ? { ...prev, reminder_time: val ? `${val}T12:00:00.000Z` : undefined } : null);
+              const isoVal = fromLocalDatetimeValue(e.target.value);
+              setLocalComm(prev => prev ? { ...prev, reminder_time: isoVal || undefined } : null);
             }}
           />
         )}

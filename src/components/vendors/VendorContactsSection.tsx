@@ -79,14 +79,14 @@ export default function VendorContactsSection({
                   ) : (
                     <div className="w-[18px]" /> // Spacer to align
                   )}
-                  <div className="flex gap-3 items-center truncate">
-                    <span className="font-extrabold text-gray-800 truncate">
+                  <div className="flex gap-2 items-center min-w-0 flex-1 overflow-hidden">
+                    <span className="font-extrabold text-gray-800 truncate flex-1 min-w-0">
                       {c.name}
                     </span>
-                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold shrink-0">
+                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold truncate shrink min-w-[5ch]" title={t(c.position)}>
                       {t(c.position)}
                     </span>
-                    <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-2 shrink-0">
+                    <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-1 shrink-0">
                       <Phone size={10} /> {c.phone}
                     </span>
                   </div>

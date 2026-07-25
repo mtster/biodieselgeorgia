@@ -147,6 +147,8 @@ export interface Truck {
   city?: string;              // ქალაქი
   warehouse_id?: string;      // საწყობი
   direction_id?: string;      // მიმართულება
+  auth_user_id?: string;      // Vehicle Auth User ID
+  password?: string;          // Password for vehicle account
 }
 
 export type Vehicle = Truck;

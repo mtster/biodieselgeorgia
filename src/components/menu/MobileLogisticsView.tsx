@@ -31,10 +31,21 @@ export default function MobileLogisticsView({
   const [formError, setFormError] = useState<string>('');
 
   // Find user's truck if applicable
-  const myTruck = trucks.find(t => t.driver_id === currentUser.id);
+  const myTruck = trucks.find(t => 
+    (t.auth_user_id && t.auth_user_id === currentUser.id) ||
+    (t.driver_id && t.driver_id === currentUser.id) ||
+    (currentUser.email && t.plate_number.replace(/-/g, '').toLowerCase() === currentUser.email.split('@')[0].toLowerCase())
+  );
 
-  // Filter orders assigned to this driver
-  const myOrders = orders.filter(o => o.driver_id === currentUser.id);
+  // Filter orders assigned to this vehicle or driver
+  const myOrders = orders.filter(o => {
+    if (o.driver_id === currentUser.id) return true;
+    if (myTruck) {
+      if (o.truck_plate && o.truck_plate === myTruck.plate_number) return true;
+      if (myTruck.driver_id && o.driver_id === myTruck.driver_id) return true;
+    }
+    return false;
+  });
   const activeOrders = myOrders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = myOrders.filter(o => o.status === 'completed');
 
@@ -54,11 +65,11 @@ export default function MobileLogisticsView({
     const brought = parseInt(tanksBringActual, 10);
 
     if (isNaN(liters) || liters <= 0) {
-      setFormError('Please enter a valid amount of actual collected liters');
+      setFormError('გთხოვთ შეიყვანოთ ფაქტობრივი ლიტრების სწორი რაოდენობა');
       return;
     }
     if (isNaN(left) || left < 0 || isNaN(brought) || brought < 0) {
-      setFormError('Tanks counts must be positive integers');
+      setFormError('ტანკების რაოდენობა უნდა იყოს მთელი დადებითი რიცხვი');
       return;
     }
 
@@ -85,13 +96,14 @@ export default function MobileLogisticsView({
             <Leaf size={18} className="text-emerald-300" />
           </div>
           <div>
-            <span className="text-[10px] font-black tracking-widest text-emerald-300 block uppercase font-mono leading-none">Biodiesel driver</span>
-            <span className="text-sm font-black tracking-tight leading-none text-white block mt-0.5">Logistics Dashboard</span>
+            <span className="text-[10px] font-black tracking-widest text-emerald-300 block uppercase font-mono leading-none">ბიოდიზელის მძღოლი</span>
+            <span className="text-sm font-black tracking-tight leading-none text-white block mt-0.5">ლოჯისტიკის პანელი</span>
           </div>
         </div>
 
         <button 
           onClick={onLogOut}
+          title="გასვლა"
           className="p-1.5 bg-emerald-800/50 hover:bg-red-800 hover:text-white rounded-lg transition overflow-hidden flex items-center justify-center cursor-pointer"
         >
           <LogOut size={16} />
@@ -102,15 +114,15 @@ export default function MobileLogisticsView({
       <section className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white p-5 shadow-sm border-b border-emerald-900/10">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-widest text-emerald-300 font-bold block">ACTIVE OPERATOR</span>
+            <span className="text-[10px] uppercase tracking-widest text-emerald-300 font-bold block">აქტიური ოპერატორი</span>
             <h2 className="text-base font-extrabold">{currentUser.name}</h2>
-            <p className="text-xs text-emerald-100/70 font-mono">ID: {currentUser.personal_id}</p>
+            <p className="text-xs text-emerald-100/70 font-mono">პირადი ID: {currentUser.personal_id || 'N/A'}</p>
           </div>
           {myTruck && (
             <div className="bg-emerald-800/60 border border-emerald-700/50 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-right">
               <TruckIcon size={18} className="text-emerald-300" />
               <div>
-                <span className="text-[9px] font-bold block text-emerald-300 uppercase leading-none">VEHICLE PLATE</span>
+                <span className="text-[9px] font-bold block text-emerald-300 uppercase leading-none">მანქანის ნომერი</span>
                 <span className="text-xs font-black font-mono block mt-0.5">{myTruck.plate_number}</span>
               </div>
             </div>
@@ -130,7 +142,7 @@ export default function MobileLogisticsView({
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
-            Assigned Pickups ({activeOrders.length})
+            აქტიური შეკვეთები ({activeOrders.length})
           </button>
           <button
             onClick={() => { setActiveTab('completed'); setSelectedOrder(null); }}
@@ -140,7 +152,7 @@ export default function MobileLogisticsView({
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
-            Completed ({completedOrders.length})
+            დასრულებული ({completedOrders.length})
           </button>
         </div>
 
@@ -149,16 +161,16 @@ export default function MobileLogisticsView({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-lg p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b pb-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">Complete pickup task</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">შეკვეთის შესრულება</span>
                 <h3 className="font-extrabold text-sm text-gray-800 mt-0.5">
-                  {selectedOrder.vendor_name || 'Pickup Order'}
+                  {selectedOrder.vendor_name || 'მიმწოდებლის შეკვეთა'}
                 </h3>
               </div>
               <button 
                 onClick={() => setSelectedOrder(null)}
-                className="text-xs text-gray-400 hover:text-gray-650 px-2 py-1 rounded bg-gray-100 font-bold"
+                className="text-xs text-gray-400 hover:text-gray-600 px-2.5 py-1 rounded bg-gray-100 font-bold"
               >
-                Back
+                უკან
               </button>
             </div>
 
@@ -173,7 +185,7 @@ export default function MobileLogisticsView({
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 tracking-wider uppercase block mb-1">
-                  Actual volume collected (Liters)
+                  ფაქტობრივად შეგროვებული მოცულობა (ლ)
                 </label>
                 <div className="relative">
                   <input
@@ -182,15 +194,15 @@ export default function MobileLogisticsView({
                     onChange={(e) => setQtyActual(e.target.value)}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white"
                   />
-                  <span className="absolute right-4 top-2.5 text-xs font-bold text-gray-400">Liters</span>
+                  <span className="absolute right-4 top-2.5 text-xs font-bold text-gray-400">ლ</span>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">Requested volume: {selectedOrder.qty_requested} Liters</p>
+                <p className="text-[10px] text-gray-400 mt-1">მოთხოვნილი მოცულობა: {selectedOrder.qty_requested} ლიტრი</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 tracking-wider uppercase block mb-1">
-                    Tanks left actual
+                    დატოვებული ტანკები (ფაქტ.)
                   </label>
                   <input
                     type="number"
@@ -198,11 +210,11 @@ export default function MobileLogisticsView({
                     onChange={(e) => setTanksLeftActual(e.target.value)}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500"
                   />
-                  <p className="text-[9px] text-gray-450 mt-1">Expected: {selectedOrder.tanks_to_leave}</p>
+                  <p className="text-[9px] text-gray-450 mt-1">მოსალოდნელი: {selectedOrder.tanks_to_leave}</p>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 tracking-wider uppercase block mb-1">
-                    Tanks brought actual
+                    მოტანილი ტანკები (ფაქტ.)
                   </label>
                   <input
                     type="number"
@@ -210,18 +222,18 @@ export default function MobileLogisticsView({
                     onChange={(e) => setTanksBringActual(e.target.value)}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500"
                   />
-                  <p className="text-[9px] text-gray-450 mt-1">Expected: {selectedOrder.tanks_to_bring}</p>
+                  <p className="text-[9px] text-gray-450 mt-1">მოსალოდნელი: {selectedOrder.tanks_to_bring}</p>
                 </div>
               </div>
 
               <div>
                 <label className="text-[10px] font-bold text-gray-400 tracking-wider uppercase block mb-1">
-                  Driver Remarks / Notes
+                  მძღოლის შენიშვნები / კომენტარი
                 </label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="E.g., tanks are sealed, left companion note, keys returned..."
+                  placeholder="მაგ., ტანკები დალუქულია, დატოვებულია შენიშვნა..."
                   rows={2}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white"
                 />
@@ -232,7 +244,7 @@ export default function MobileLogisticsView({
                 className="w-full py-3 bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <CheckCircle2 size={16} />
-                Save Collected Metrics & Close
+                მონაცემების შენახვა და დასრულება
               </button>
             </div>
           </div>
@@ -242,7 +254,7 @@ export default function MobileLogisticsView({
               activeOrders.length === 0 ? (
                 <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
                   <ClipboardList size={30} className="mx-auto text-gray-300" />
-                  <p className="text-xs font-medium">All clear! No pending collections assigned to you today.</p>
+                  <p className="text-xs font-medium">ყველაფერი რიგზეა! თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
                 </div>
               ) : (
                 activeOrders.map(order => {
@@ -258,11 +270,11 @@ export default function MobileLogisticsView({
                             {order.doc_number}
                           </span>
                           <h3 className="font-extrabold text-xs text-gray-800 mt-1.5">
-                            {supplier?.trade_name || order.vendor_name || 'Vendor Collection'}
+                            {supplier?.trade_name || order.vendor_name || 'მიმწოდებლის შეკვეთა'}
                           </h3>
                         </div>
                         <span className="text-[9px] font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full capitalize">
-                          {order.status}
+                          {order.status === 'driver_assigned' ? 'მძღოლი მინიჭებულია' : order.status}
                         </span>
                       </div>
 
@@ -280,10 +292,10 @@ export default function MobileLogisticsView({
                                 className="inline-flex items-center gap-1.5 bg-gray-50 border text-gray-700 px-3 py-1.5 rounded-xl text-[10px] font-extrabold hover:bg-emerald-50 hover:text-emerald-800 transition"
                               >
                                 <Phone size={11} />
-                                Call Contact ({supplier.contacts[0].name})
+                                ზარი ({supplier.contacts[0].name})
                               </a>
                             ) : (
-                              <span className="text-[10px] text-gray-400">No contacts listed</span>
+                              <span className="text-[10px] text-gray-400">კონტაქტები არ არის</span>
                             )}
 
                             <a
@@ -293,7 +305,7 @@ export default function MobileLogisticsView({
                               className="inline-flex items-center gap-1 bg-gray-50 border text-gray-750 px-3 py-1.5 rounded-xl text-[10px] font-extrabold hover:bg-emerald-50 hover:text-emerald-800 transition"
                             >
                               <Navigation size={11} />
-                              Open Maps
+                              რუკაზე გახსნა
                             </a>
                           </div>
                         </div>
@@ -302,22 +314,22 @@ export default function MobileLogisticsView({
                       {/* Pickup specs */}
                       <div className="bg-slate-50 rounded-xl p-3 grid grid-cols-3 gap-2 text-center text-[10px]">
                         <div>
-                          <span className="text-gray-400 uppercase block mb-0.5 font-bold">Liters Req</span>
-                          <span className="font-extrabold text-gray-700 font-mono text-xs">{order.qty_requested} L</span>
+                          <span className="text-gray-400 uppercase block mb-0.5 font-bold">მოთხ. ლიტრი</span>
+                          <span className="font-extrabold text-gray-700 font-mono text-xs">{order.qty_requested} ლ</span>
                         </div>
                         <div>
-                          <span className="text-gray-400 uppercase block mb-0.5 font-bold">Leave tanks</span>
+                          <span className="text-gray-400 uppercase block mb-0.5 font-bold">დასატოვებელი ტანკი</span>
                           <span className="font-extrabold text-gray-700 font-mono text-xs">{order.tanks_to_leave}</span>
                         </div>
                         <div>
-                          <span className="text-gray-400 uppercase block mb-0.5 font-bold">Bring tanks</span>
+                          <span className="text-gray-400 uppercase block mb-0.5 font-bold">მოსატანი ტანკი</span>
                           <span className="font-extrabold text-gray-700 font-mono text-xs">{order.tanks_to_bring}</span>
                         </div>
                       </div>
 
                       {order.note && (
                         <div className="text-[10px] italic bg-amber-50/55 p-2 rounded-lg border border-amber-50 text-gray-600">
-                          <strong>Note:</strong> {order.note}
+                          <strong>შენიშვნა:</strong> {order.note}
                         </div>
                       )}
 
@@ -327,7 +339,7 @@ export default function MobileLogisticsView({
                         className="w-full py-2 bg-emerald-850 hover:bg-emerald-900 border border-emerald-900 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 hover:scale-[1.01] cursor-pointer"
                       >
                         <Fuel size={14} />
-                        Update & Complete Collection
+                        შეკვეთის შესრულება
                       </button>
                     </div>
                   );
@@ -337,7 +349,7 @@ export default function MobileLogisticsView({
               completedOrders.length === 0 ? (
                 <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
                   <ClipboardList size={30} className="mx-auto text-gray-300" />
-                  <p className="text-xs font-medium">No completed pickups registered under your user account yet.</p>
+                  <p className="text-xs font-medium">თქვენს ანგარიშზე დასრულებული შეკვეთები ჯერ არ არის.</p>
                 </div>
               ) : (
                 completedOrders.map(order => (
@@ -351,32 +363,32 @@ export default function MobileLogisticsView({
                           {order.doc_number}
                         </span>
                         <h3 className="font-extrabold text-xs text-gray-800 mt-1 leading-none">
-                          {order.vendor_name || 'Vendor Collection'}
+                          {order.vendor_name || 'მიმწოდებლის შეკვეთა'}
                         </h3>
                       </div>
                       <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full flex items-center gap-1">
-                        <CheckCircle2 size={10} /> Finished
+                        <CheckCircle2 size={10} /> დასრულებული
                       </span>
                     </div>
 
                     <div className="bg-emerald-50/30 rounded-xl p-3 grid grid-cols-3 gap-2 text-center text-[10px]">
                       <div>
-                        <span className="text-gray-400 uppercase block mb-0.5 font-bold">QTY RECORDED</span>
-                        <span className="font-black text-emerald-800 font-mono text-xs">{order.fact_qty} L</span>
+                        <span className="text-gray-400 uppercase block mb-0.5 font-bold">შეგროვებული ლიტრი</span>
+                        <span className="font-black text-emerald-800 font-mono text-xs">{order.fact_qty} ლ</span>
                       </div>
                       <div>
-                        <span className="text-gray-400 uppercase block mb-0.5 font-bold">Tanks Left</span>
+                        <span className="text-gray-400 uppercase block mb-0.5 font-bold">დატოვებული ტანკი</span>
                         <span className="font-black text-emerald-800 font-mono text-xs">{order.fact_tank_dropoff}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400 uppercase block mb-0.5 font-bold">Tanks Brought</span>
+                        <span className="text-gray-400 uppercase block mb-0.5 font-bold">მოტანილი ტანკი</span>
                         <span className="font-black text-emerald-800 font-mono text-xs">{order.fact_tank_pickup}</span>
                       </div>
                     </div>
 
                     {order.pickup_date_time && (
                       <p className="text-[9px] text-gray-400 text-right mt-1">
-                        Completed: {formatDateTime(order.pickup_date_time)}
+                        დასრულდა: {formatDateTime(order.pickup_date_time)}
                       </p>
                     )}
                   </div>
