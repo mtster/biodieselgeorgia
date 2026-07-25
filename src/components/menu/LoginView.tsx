@@ -119,7 +119,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               .from('profiles')
               .select('*')
               .eq('email', data.user.email)
-              .single();
+              .maybeSingle();
             dbUser = directUser;
           }
 

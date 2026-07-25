@@ -313,6 +313,7 @@ export function cleanVendorDbPayload(vendor: any): any {
   delete payload.contacts;
   delete payload.last_pickup_date;
   delete payload.average_interval_days;
+  delete payload.status;
 
   // Preserve any custom column fields on the actual DB payload!
   Object.keys(vendor).forEach(key => {

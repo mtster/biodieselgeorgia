@@ -54,7 +54,7 @@ export function useAuth() {
                 .from('profiles')
                 .select('*')
                 .eq('email', session.user.email)
-                .single();
+                .maybeSingle();
               dbUser = directUser;
             }
               
@@ -143,7 +143,7 @@ export function useAuth() {
                 .from('profiles')
                 .select('*')
                 .eq('email', session.user.email)
-                .single();
+                .maybeSingle();
               dbUser = directUser;
             }
 
