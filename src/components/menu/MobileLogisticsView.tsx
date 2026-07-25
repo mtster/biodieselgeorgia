@@ -67,16 +67,36 @@ export default function MobileLogisticsView({
 
   // Helper to match an employee from employees list by ID, Personal ID, Name, or Email
   const findEmp = (idOrName?: string) => {
-    if (!idOrName) return undefined;
-    const targetClean = cleanStr(idOrName);
-    return employees.find(e => {
-      if (!e) return false;
-      if (e.id && (e.id === idOrName || e.id.toLowerCase() === idOrName.toLowerCase())) return true;
-      if (e.personal_id && e.personal_id === idOrName) return true;
-      if (e.name && (cleanStr(e.name) === targetClean || cleanStr(e.name).includes(targetClean) || targetClean.includes(cleanStr(e.name)))) return true;
-      if (e.email && cleanStr(e.email.split('@')[0]) === targetClean) return true;
-      return false;
-    });
+    if (!idOrName || !idOrName.trim()) return undefined;
+    const trimmed = idOrName.trim();
+    
+    // 1. Exact ID match (UUID or personal_id)
+    const exactMatch = employees.find(e => 
+      e && (
+        (e.id && e.id.toLowerCase() === trimmed.toLowerCase()) || 
+        (e.personal_id && e.personal_id.toLowerCase() === trimmed.toLowerCase())
+      )
+    );
+    if (exactMatch) return exactMatch;
+
+    // 2. Exact name match
+    const nameMatch = employees.find(e => e && e.name && e.name.toLowerCase() === trimmed.toLowerCase());
+    if (nameMatch) return nameMatch;
+
+    // 3. Name or email match if not a UUID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+    if (!isUuid) {
+      const targetClean = cleanStr(trimmed);
+      if (targetClean.length >= 2) {
+        return employees.find(e => {
+          if (!e) return false;
+          if (e.name && cleanStr(e.name) === targetClean) return true;
+          if (e.email && cleanStr(e.email.split('@')[0]) === targetClean) return true;
+          return false;
+        });
+      }
+    }
+    return undefined;
   };
 
   const driverObj = findEmp(myTruck?.driver_id) || findEmp(myTruck?.driver_name);
@@ -84,21 +104,18 @@ export default function MobileLogisticsView({
 
   let assignedDriverName = driverObj?.name || myTruck?.driver_name;
   if (!assignedDriverName && myTruck?.driver_id) {
-    if (!myTruck.driver_id.includes('-') || myTruck.driver_id.length < 20) {
+    if (!myTruck.driver_id.includes('-') && myTruck.driver_id.length < 20) {
       assignedDriverName = myTruck.driver_id;
     }
   }
   if (!assignedDriverName && (myTruck?.driver_id === currentUser.id || myTruck?.driver_id === currentUser.personal_id)) {
     assignedDriverName = currentUser.name;
   }
-  if (!assignedDriverName && currentUser.role === 'driver') {
-    assignedDriverName = currentUser.name;
-  }
   if (!assignedDriverName) assignedDriverName = 'არ არის მინიჭებული';
 
   let assignedCompanionName = companionObj?.name || myTruck?.companion_name;
   if (!assignedCompanionName && myTruck?.companion_id) {
-    if (!myTruck.companion_id.includes('-') || myTruck.companion_id.length < 20) {
+    if (!myTruck.companion_id.includes('-') && myTruck.companion_id.length < 20) {
       assignedCompanionName = myTruck.companion_id;
     }
   }
@@ -138,8 +155,8 @@ export default function MobileLogisticsView({
     }
 
     // 4. Match by driver_name or companion_name text
-    if (o.driver_name && (cleanStr(o.driver_name) === cleanStr(assignedDriverName) || cleanStr(o.driver_name) === uNameClean)) return true;
-    if (o.companion_name && (cleanStr(o.companion_name) === cleanStr(assignedCompanionName) || cleanStr(o.companion_name) === uNameClean)) return true;
+    if (o.driver_name && assignedDriverName !== 'არ არის მინიჭებული' && (cleanStr(o.driver_name) === cleanStr(assignedDriverName) || cleanStr(o.driver_name) === uNameClean)) return true;
+    if (o.companion_name && assignedCompanionName !== 'არ არის მინიჭებული' && (cleanStr(o.companion_name) === cleanStr(assignedCompanionName) || cleanStr(o.companion_name) === uNameClean)) return true;
 
     return false;
   });

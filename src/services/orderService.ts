@@ -59,6 +59,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         operator_name, 
         driver_name, 
         companion_name, 
+        truck_plate,
         ...dbOrder 
       } = finalOrder as any;
 
@@ -70,7 +71,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
       dbOrder.driver_id = isValidUuid(dbOrder.driver_id) ? dbOrder.driver_id : null;
       dbOrder.companion_id = isValidUuid(dbOrder.companion_id) ? dbOrder.companion_id : null;
       dbOrder.vehicle_id = isValidUuid(dbOrder.vehicle_id) ? dbOrder.vehicle_id : null;
-      dbOrder.truck_plate = typeof dbOrder.truck_plate === 'string' && dbOrder.truck_plate.trim() !== "" ? dbOrder.truck_plate : null;
+      delete dbOrder.truck_plate;
       dbOrder.notes = Array.isArray(dbOrder.notes) ? dbOrder.notes : [];
 
       if (isNew) {

@@ -321,16 +321,16 @@ export default function OrderFormFields({
         {/* Truck asset */}
         <FormSelect
           label={t("Assigned Vehicle Plate Asset")}
-          value={editingOrder.truck_plate}
+          value={editingOrder.vehicle_id || trucks.find(t => t.plate_number === editingOrder.truck_plate)?.id || ''}
           onChange={(e) => {
-            const plate = e.target.value;
-            const truck = trucks.find(t => t.plate_number === plate);
+            const selectedVal = e.target.value;
+            const truck = trucks.find(t => t.id === selectedVal || t.plate_number === selectedVal);
             setEditingOrder(prev => {
               if (!prev) return null;
               return {
                 ...prev,
-                truck_plate: plate,
-                vehicle_id: truck?.id || prev.vehicle_id,
+                vehicle_id: truck?.id || selectedVal,
+                truck_plate: truck?.plate_number || '',
                 ...(truck ? {
                   driver_id: truck.driver_id || prev.driver_id,
                   companion_id: truck.companion_id || prev.companion_id
@@ -346,7 +346,7 @@ export default function OrderFormFields({
         >
           <option value="" disabled></option>
           {trucks.map(t => (
-            <option key={t.plate_number} value={t.plate_number}>{t.plate_number} ({t.model})</option>
+            <option key={t.id || t.plate_number} value={t.id || t.plate_number}>{t.plate_number} ({t.model})</option>
           ))}
         </FormSelect>
 

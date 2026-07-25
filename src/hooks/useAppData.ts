@@ -61,20 +61,22 @@ export function useAppData() {
   const refreshAllData = async () => {
     try {
       if (isSupabaseConfigured && supabase) {
-        await createDatabaseOrderColumn('waybill_qty');
+        createDatabaseOrderColumn('waybill_qty').catch(() => {});
       }
-      const usrs = await getUsers();
-      const vnds = await getVendors();
-      const ords = await getOrders();
-      const comms = await getCommunications();
-      const trks = await getTrucks();
-      const hist = await getChangeHistory(50, 0); // initial load
-      setHistoryOffset(0);
-      const whs = await getWarehouses();
-      const cts = await getCities();
-      const dsts = await getDistricts();
-      const dirs = await getDirections();
+      const [usrs, vnds, ords, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
+        getUsers(),
+        getVendors(),
+        getOrders(),
+        getCommunications(),
+        getTrucks(),
+        getChangeHistory(50, 0),
+        getWarehouses(),
+        getCities(),
+        getDistricts(),
+        getDirections()
+      ]);
 
+      setHistoryOffset(0);
       setUsers(usrs);
       setVendors(vnds);
       setOrders(ords);
