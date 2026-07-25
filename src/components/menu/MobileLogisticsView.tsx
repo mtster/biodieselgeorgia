@@ -30,47 +30,50 @@ export default function MobileLogisticsView({
   const [note, setNote] = useState<string>('');
   const [formError, setFormError] = useState<string>('');
 
+  // Helper function to sanitize a plate string for comparison
+  const cleanPlate = (str?: string) => str ? str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+
+  const userCleanEmailPlate = cleanPlate(currentUser.email ? currentUser.email.split('@')[0] : '');
+  const userCleanName = cleanPlate(currentUser.name);
+  const userCleanPid = cleanPlate(currentUser.personal_id);
+
   // Find user's assigned vehicle (truck)
   const myTruck = trucks.find(t => {
     if (!t) return false;
-    // Match by auth_user_id
+
+    // 1. Match by auth_user_id or vehicle id
     if (t.auth_user_id && t.auth_user_id === currentUser.id) return true;
-    // Match by driver_id or companion_id
-    if (t.driver_id && (t.driver_id === currentUser.id || t.driver_id === currentUser.personal_id)) return true;
-    if (t.companion_id && (t.companion_id === currentUser.id || t.companion_id === currentUser.personal_id)) return true;
+    if (t.id && t.id === currentUser.id) return true;
 
-    // Compare sanitized plate number
-    const cleanTruckPlate = t.plate_number ? t.plate_number.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
-    if (!cleanTruckPlate) return false;
+    // 2. Match by driver_id or companion_id
+    if (t.driver_id && (t.driver_id === currentUser.id || (currentUser.personal_id && t.driver_id === currentUser.personal_id))) return true;
+    if (t.companion_id && (t.companion_id === currentUser.id || (currentUser.personal_id && t.companion_id === currentUser.personal_id))) return true;
 
-    if (currentUser.email) {
-      const emailUserPart = currentUser.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      if (emailUserPart && (cleanTruckPlate === emailUserPart || cleanTruckPlate.includes(emailUserPart) || emailUserPart.includes(cleanTruckPlate))) return true;
-    }
-
-    if (currentUser.name) {
-      const cleanName = currentUser.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      if (cleanName && (cleanName.includes(cleanTruckPlate) || cleanTruckPlate.includes(cleanName))) return true;
-    }
-
-    if (currentUser.personal_id) {
-      const cleanPid = currentUser.personal_id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      if (cleanPid && cleanPid === cleanTruckPlate) return true;
+    // 3. Compare sanitized plate number
+    const truckCleanPlate = cleanPlate(t.plate_number);
+    if (truckCleanPlate) {
+      if (userCleanEmailPlate && (truckCleanPlate === userCleanEmailPlate || truckCleanPlate.includes(userCleanEmailPlate) || userCleanEmailPlate.includes(truckCleanPlate))) return true;
+      if (userCleanName && (truckCleanPlate === userCleanName || truckCleanPlate.includes(userCleanName) || userCleanName.includes(truckCleanPlate))) return true;
+      if (userCleanPid && truckCleanPlate === userCleanPid) return true;
     }
 
     return false;
   });
 
   // Fetch driver & companion details
-  const driverObj = employees.find(e => 
-    (myTruck?.driver_id && (e.id === myTruck.driver_id || e.personal_id === myTruck.driver_id)) ||
-    (myTruck?.driver_name && e.name === myTruck.driver_name)
-  );
+  const driverObj = employees.find(e => {
+    if (!e) return false;
+    if (myTruck?.driver_id && (e.id === myTruck.driver_id || e.personal_id === myTruck.driver_id)) return true;
+    if (myTruck?.driver_name && e.name === myTruck.driver_name) return true;
+    return false;
+  });
 
-  const companionObj = employees.find(e => 
-    (myTruck?.companion_id && (e.id === myTruck.companion_id || e.personal_id === myTruck.companion_id)) ||
-    (myTruck?.companion_name && e.name === myTruck.companion_name)
-  );
+  const companionObj = employees.find(e => {
+    if (!e) return false;
+    if (myTruck?.companion_id && (e.id === myTruck.companion_id || e.personal_id === myTruck.companion_id)) return true;
+    if (myTruck?.companion_name && e.name === myTruck.companion_name) return true;
+    return false;
+  });
 
   let assignedDriverName = driverObj ? driverObj.name : (myTruck?.driver_name || '');
   if (!assignedDriverName && myTruck?.driver_id === currentUser.id) {
@@ -94,39 +97,26 @@ export default function MobileLogisticsView({
   const myOrders = orders.filter(o => {
     if (!o || o.is_deleted) return false;
 
-    // 1. Direct match by vehicle_id
+    // 1. Match by vehicle_id
     if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;
 
-    // 2. Direct match by driver_id or companion_id
-    if (o.driver_id && (o.driver_id === currentUser.id || o.driver_id === currentUser.personal_id)) return true;
-    if (o.companion_id && (o.companion_id === currentUser.id || o.companion_id === currentUser.personal_id)) return true;
+    // 2. Match by truck_plate (sanitized text comparison)
+    const orderCleanPlate = cleanPlate(o.truck_plate);
+    if (orderCleanPlate) {
+      if (myTruck?.plate_number && orderCleanPlate === cleanPlate(myTruck.plate_number)) return true;
+      if (userCleanEmailPlate && (orderCleanPlate === userCleanEmailPlate || orderCleanPlate.includes(userCleanEmailPlate) || userCleanEmailPlate.includes(orderCleanPlate))) return true;
+      if (userCleanName && (orderCleanPlate === userCleanName || orderCleanPlate.includes(userCleanName) || userCleanName.includes(orderCleanPlate))) return true;
+      if (userCleanPid && orderCleanPlate === userCleanPid) return true;
+    }
 
-    // 3. Match via myTruck's driver_id or companion_id
-    if (myTruck?.driver_id && (o.driver_id === myTruck.driver_id || o.companion_id === myTruck.driver_id)) return true;
-    if (myTruck?.companion_id && (o.driver_id === myTruck.companion_id || o.companion_id === myTruck.companion_id)) return true;
-
-    // 4. Compare truck plate number (sanitized)
-    const orderPlateClean = o.truck_plate ? o.truck_plate.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
-    if (orderPlateClean) {
-      if (myTruck?.plate_number) {
-        const myTruckPlateClean = myTruck.plate_number.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (orderPlateClean === myTruckPlateClean) return true;
-      }
-
-      if (currentUser.email) {
-        const emailUserPart = currentUser.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (emailUserPart && orderPlateClean === emailUserPart) return true;
-      }
-
-      if (currentUser.name) {
-        const cleanName = currentUser.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (cleanName && (cleanName.includes(orderPlateClean) || orderPlateClean.includes(cleanName))) return true;
-      }
-
-      if (currentUser.personal_id) {
-        const cleanPid = currentUser.personal_id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (cleanPid && cleanPid === orderPlateClean) return true;
-      }
+    // 3. Match by driver_id or companion_id on order
+    if (o.driver_id) {
+      if (o.driver_id === currentUser.id || (currentUser.personal_id && o.driver_id === currentUser.personal_id)) return true;
+      if (myTruck?.driver_id && (o.driver_id === myTruck.driver_id)) return true;
+    }
+    if (o.companion_id) {
+      if (o.companion_id === currentUser.id || (currentUser.personal_id && o.companion_id === currentUser.personal_id)) return true;
+      if (myTruck?.companion_id && (o.companion_id === myTruck.companion_id)) return true;
     }
 
     return false;
@@ -175,10 +165,10 @@ export default function MobileLogisticsView({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="mobile-logistics-portal">
-      {/* Unified Mobile Header */}
-      <header className="bg-slate-900 text-white px-5 py-4 flex items-start justify-between shadow-md sticky top-0 z-20 border-b border-slate-800">
+      {/* Header with original emerald background */}
+      <header className="bg-emerald-900 text-white px-5 py-4 flex items-start justify-between shadow-md sticky top-0 z-20 border-b border-emerald-950">
         <div className="space-y-2">
-          {/* Brand header matching sidebar font style */}
+          {/* Brand header */}
           <div className="flex items-center gap-2.5">
             <div className="bg-emerald-800 p-1.5 rounded-lg text-white flex-shrink-0">
               <Leaf size={18} />
@@ -190,21 +180,20 @@ export default function MobileLogisticsView({
             </div>
           </div>
 
-          {/* Plate badge & Driver Info */}
+          {/* Plate text (clean text, e.g. AB-123-DC) & Driver Info */}
           <div className="pl-0.5 space-y-1">
             {vehiclePlateText && (
-              <div className="inline-flex items-center border border-gray-400 bg-white text-gray-900 rounded px-2 py-0.5 font-mono font-extrabold text-xs shadow-2xs">
-                <div className="w-1.5 h-3.5 bg-blue-700 mr-1.5 rounded-xs"></div>
-                <span className="tracking-wider">{vehiclePlateText}</span>
+              <div className="text-sm font-extrabold text-emerald-100 font-mono tracking-wider uppercase">
+                {vehiclePlateText}
               </div>
             )}
 
-            <div className="text-xs text-slate-300 font-medium space-y-0.5 pt-0.5">
+            <div className="text-xs text-emerald-100/90 font-medium space-y-0.5 pt-0.5">
               <p>
-                <span className="text-emerald-400 font-bold">მძღოლი:</span> {assignedDriverName}
+                <span className="text-amber-300 font-bold">მძღოლი:</span> {assignedDriverName}
               </p>
               <p>
-                <span className="text-emerald-400 font-bold">დამხმარე:</span> {assignedCompanionName}
+                <span className="text-amber-300 font-bold">დამხმარე:</span> {assignedCompanionName}
               </p>
             </div>
           </div>
@@ -213,7 +202,7 @@ export default function MobileLogisticsView({
         <button 
           onClick={onLogOut}
           title="გასვლა"
-          className="p-2 bg-slate-800 hover:bg-red-800 text-slate-300 hover:text-white rounded-xl transition flex items-center justify-center cursor-pointer border border-slate-700 mt-0.5"
+          className="p-2 bg-emerald-950 hover:bg-red-800 text-emerald-100 hover:text-white rounded-xl transition flex items-center justify-center cursor-pointer border border-emerald-800 mt-0.5"
         >
           <LogOut size={18} />
         </button>
