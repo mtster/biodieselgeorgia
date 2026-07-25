@@ -3,7 +3,7 @@ import { User, Order, Vendor, Warehouse, Truck } from '../../types';
 import { formatDateTime } from '../../utils/lang';
 import { 
   LogOut, Leaf, Phone, MapPin, Navigation, 
-  CheckCircle2, ClipboardList, Fuel, Package, TruckIcon, AlertCircle 
+  CheckCircle2, ClipboardList, Fuel, AlertCircle 
 } from 'lucide-react';
 
 interface Props {
@@ -31,23 +31,70 @@ export default function MobileLogisticsView({
   const [formError, setFormError] = useState<string>('');
 
   // Find user's truck if applicable
-  const myTruck = trucks.find(t => 
-    (t.auth_user_id && t.auth_user_id === currentUser.id) ||
-    (t.driver_id && t.driver_id === currentUser.id) ||
-    (currentUser.email && t.plate_number.replace(/-/g, '').toLowerCase() === currentUser.email.split('@')[0].toLowerCase())
-  );
+  const myTruck = trucks.find(t => {
+    if (!t) return false;
+    if (t.auth_user_id && t.auth_user_id === currentUser.id) return true;
+    if (t.driver_id && t.driver_id === currentUser.id) return true;
+    if (t.companion_id && t.companion_id === currentUser.id) return true;
+
+    // Compare plate number sanitized without hyphens or spaces
+    const cleanTruckPlate = t.plate_number ? t.plate_number.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+    if (!cleanTruckPlate) return false;
+
+    // Check against user email
+    if (currentUser.email) {
+      const emailUserPart = currentUser.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      if (emailUserPart && cleanTruckPlate === emailUserPart) return true;
+    }
+
+    // Check against user name
+    if (currentUser.name) {
+      const cleanName = currentUser.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      if (cleanName && (cleanName.includes(cleanTruckPlate) || cleanTruckPlate.includes(cleanName))) return true;
+    }
+
+    return false;
+  });
 
   // Filter orders assigned to this vehicle or driver
   const myOrders = orders.filter(o => {
-    if (o.driver_id === currentUser.id) return true;
-    if (myTruck) {
-      if (o.truck_plate && o.truck_plate === myTruck.plate_number) return true;
-      if (myTruck.driver_id && o.driver_id === myTruck.driver_id) return true;
+    if (!o) return false;
+
+    // 1. Direct user ID match
+    if (o.driver_id && o.driver_id === currentUser.id) return true;
+    if (o.companion_id && o.companion_id === currentUser.id) return true;
+
+    // 2. Plate matching directly with currentUser credentials
+    const cleanUserEmailPlate = currentUser.email ? currentUser.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+    const cleanUserNamePlate = currentUser.name ? currentUser.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+    const cleanOrderPlate = o.truck_plate ? o.truck_plate.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+
+    if (cleanOrderPlate) {
+      if (cleanUserEmailPlate && cleanOrderPlate === cleanUserEmailPlate) return true;
+      if (cleanUserNamePlate && (cleanUserNamePlate.includes(cleanOrderPlate) || cleanOrderPlate.includes(cleanUserNamePlate))) return true;
     }
+
+    // 3. Match via myTruck
+    if (myTruck) {
+      const cleanMyTruckPlate = myTruck.plate_number ? myTruck.plate_number.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+      if (cleanOrderPlate && cleanMyTruckPlate && cleanOrderPlate === cleanMyTruckPlate) return true;
+
+      if (myTruck.driver_id && (o.driver_id === myTruck.driver_id || o.companion_id === myTruck.driver_id)) return true;
+      if (myTruck.companion_id && (o.driver_id === myTruck.companion_id || o.companion_id === myTruck.companion_id)) return true;
+    }
+
     return false;
   });
+
   const activeOrders = myOrders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = myOrders.filter(o => o.status === 'completed');
+
+  // Assigned driver and companion names
+  const driverObj = myTruck?.driver_id ? employees.find(e => e.id === myTruck.driver_id) : null;
+  const companionObj = myTruck?.companion_id ? employees.find(e => e.id === myTruck.companion_id) : null;
+
+  const assignedDriverName = driverObj ? driverObj.name : (myTruck?.driver_name || 'არ არის მინიჭებული');
+  const assignedCompanionName = companionObj ? companionObj.name : (myTruck?.companion_name || 'არ არის მინიჭებული');
 
   const handleSelectOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -89,46 +136,38 @@ export default function MobileLogisticsView({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="mobile-logistics-portal">
-      {/* App Mobile Header */}
-      <header className="bg-emerald-900 text-white px-5 py-4 flex items-center justify-between shadow-md sticky top-0 z-20">
-        <div className="flex items-center gap-2">
-          <div className="bg-emerald-800 p-1.5 rounded-lg">
-            <Leaf size={18} className="text-emerald-300" />
+      {/* Unified Mobile Header */}
+      <header className="bg-emerald-900 text-white px-5 py-4 flex items-start justify-between shadow-md sticky top-0 z-20">
+        <div className="flex items-start gap-3">
+          <div className="bg-emerald-800 p-2 rounded-xl mt-0.5 flex-shrink-0">
+            <Leaf size={20} className="text-emerald-300" />
           </div>
-          <div>
-            <span className="text-[10px] font-black tracking-widest text-emerald-300 block uppercase font-mono leading-none">ბიოდიზელის მძღოლი</span>
-            <span className="text-sm font-black tracking-tight leading-none text-white block mt-0.5">ლოჯისტიკის პანელი</span>
+          <div className="space-y-0.5">
+            <span className="text-[11px] font-black tracking-wider text-emerald-300 block uppercase font-mono">
+              ბიოდიზელ ჯორჯია
+            </span>
+            <h2 className="text-base font-extrabold text-white font-mono tracking-tight">
+              {myTruck ? myTruck.plate_number : (currentUser.name || 'მანქანა')}
+            </h2>
+            <div className="text-xs text-emerald-100/90 font-medium space-y-0.5 pt-0.5">
+              <p>
+                <span className="text-emerald-300 font-semibold">მძღოლი:</span> {assignedDriverName}
+              </p>
+              <p>
+                <span className="text-emerald-300 font-semibold">დამხმარე:</span> {assignedCompanionName}
+              </p>
+            </div>
           </div>
         </div>
 
         <button 
           onClick={onLogOut}
           title="გასვლა"
-          className="p-1.5 bg-emerald-800/50 hover:bg-red-800 hover:text-white rounded-lg transition overflow-hidden flex items-center justify-center cursor-pointer"
+          className="p-2 bg-emerald-800/60 hover:bg-red-800 text-white rounded-xl transition flex items-center justify-center cursor-pointer shadow-xs border border-emerald-700/50 mt-0.5"
         >
-          <LogOut size={16} />
+          <LogOut size={18} />
         </button>
       </header>
-
-      {/* Driver metadata card */}
-      <section className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white p-5 shadow-sm border-b border-emerald-900/10">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-widest text-emerald-300 font-bold block">აქტიური ოპერატორი</span>
-            <h2 className="text-base font-extrabold">{currentUser.name}</h2>
-            <p className="text-xs text-emerald-100/70 font-mono">პირადი ID: {currentUser.personal_id || 'N/A'}</p>
-          </div>
-          {myTruck && (
-            <div className="bg-emerald-800/60 border border-emerald-700/50 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-right">
-              <TruckIcon size={18} className="text-emerald-300" />
-              <div>
-                <span className="text-[9px] font-bold block text-emerald-300 uppercase leading-none">მანქანის ნომერი</span>
-                <span className="text-xs font-black font-mono block mt-0.5">{myTruck.plate_number}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* Primary list space */}
       <main className="flex-1 p-4 max-w-md mx-auto w-full space-y-4">
@@ -254,7 +293,7 @@ export default function MobileLogisticsView({
               activeOrders.length === 0 ? (
                 <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
                   <ClipboardList size={30} className="mx-auto text-gray-300" />
-                  <p className="text-xs font-medium">ყველაფერი რიგზეა! თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
+                  <p className="text-xs font-medium">თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
                 </div>
               ) : (
                 activeOrders.map(order => {
