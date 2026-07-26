@@ -104,7 +104,7 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
 
       let success = false;
       // 1. Try full payload
-      const { error } = await supabase.from('vehicles').upsert([dbPayload], { onConflict: 'plate_number' });
+      const { error } = await supabase.from('vehicles').upsert([dbPayload], { onConflict: isValidUuid(dbPayload.id) ? 'id' : 'plate_number' });
       if (!error) {
         success = true;
       } else {

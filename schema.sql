@@ -171,19 +171,20 @@ CREATE TABLE IF NOT EXISTS public.vehicles (
     driver_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     companion_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     city TEXT,
-    auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    direction_id TEXT,
+    warehouse_id TEXT,
     is_deleted BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
 );
 
 -- Apply non-destructive updates to public.vehicles table if it pre-exists
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS id UUID DEFAULT gen_random_uuid();
-DO $$ 
-BEGIN 
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'vehicles_pkey' OR conname = 'vehicles_id_key') THEN 
-        ALTER TABLE public.vehicles ADD CONSTRAINT vehicles_id_key UNIQUE (id); 
-    END IF; 
-END $$;
+ALTER TABLE public.vehicles DROP CONSTRAINT IF EXISTS vehicles_pkey CASCADE;
+ALTER TABLE public.vehicles ADD PRIMARY KEY (id);
+ALTER TABLE public.vehicles DROP CONSTRAINT IF EXISTS vehicles_plate_number_key;
+ALTER TABLE public.vehicles ADD CONSTRAINT vehicles_plate_number_key UNIQUE (plate_number);
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
@@ -293,6 +294,7 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_name TEXT DEFAULT NUL
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_phone TEXT DEFAULT NULL;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes JSONB DEFAULT '[]'::JSONB;
 ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
+ALTER TABLE public.orders DROP COLUMN IF EXISTS truck_plate CASCADE;
 
 -- Performance Indexes for Driver Logistics & Orders Portal
 CREATE INDEX IF NOT EXISTS idx_orders_vehicle_id ON public.orders(vehicle_id);
@@ -449,14 +451,29 @@ DECLARE
   u_role TEXT;
   u_permissions jsonb;
 BEGIN
+  -- Handle vehicle accounts (authenticated user linked to a vehicle or driver role)
+  IF EXISTS (
+    SELECT 1 FROM public.vehicles 
+    WHERE auth_user_id = auth.uid() OR id = auth.uid()
+  ) OR EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND (role::text = 'vehicle' OR role::text = 'driver')
+  ) THEN
+    IF module IN ('vehicles', 'orders', 'suppliers', 'warehouses', 'cities', 'districts', 'directions', 'contacts') AND perm = 'view' THEN
+      RETURN true;
+    END IF;
+    IF module = 'orders' AND perm = 'modify' THEN
+      RETURN true;
+    END IF;
+  END IF;
+
   SELECT role, permissions INTO u_role, u_permissions FROM public.profiles WHERE id = auth.uid();
   IF u_role::text = 'admin' THEN
     RETURN true;
   END IF;
   
   -- Handle permissions checking using JSONB containment or extraction
-  -- We'll just check if the array contains the perm string
-  RETURN (u_permissions -> module) ? perm;
+  RETURN COALESCE((u_permissions -> module) ? perm, false);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -557,9 +574,19 @@ CREATE POLICY "Warehouses modify" ON public.warehouses FOR UPDATE TO authenticat
 CREATE POLICY "Warehouses delete" ON public.warehouses FOR DELETE TO authenticated USING (public.has_permission('warehouses', 'delete'));
 
 -- VEHICLES
-CREATE POLICY "Vehicles view" ON public.vehicles FOR SELECT TO authenticated USING (public.has_permission('vehicles', 'view'));
+CREATE POLICY "Vehicles view" ON public.vehicles FOR SELECT TO authenticated USING (
+  public.has_permission('vehicles', 'view') 
+  OR auth_user_id = auth.uid() 
+  OR id = auth.uid() 
+  OR driver_id = auth.uid() 
+  OR companion_id = auth.uid()
+);
 CREATE POLICY "Vehicles add" ON public.vehicles FOR INSERT TO authenticated WITH CHECK (public.has_permission('vehicles', 'add'));
-CREATE POLICY "Vehicles modify" ON public.vehicles FOR UPDATE TO authenticated USING (public.has_permission('vehicles', 'modify'));
+CREATE POLICY "Vehicles modify" ON public.vehicles FOR UPDATE TO authenticated USING (
+  public.has_permission('vehicles', 'modify') 
+  OR auth_user_id = auth.uid() 
+  OR id = auth.uid()
+);
 CREATE POLICY "Vehicles delete" ON public.vehicles FOR DELETE TO authenticated USING (public.has_permission('vehicles', 'delete'));
 
 -- VENDORS
@@ -581,9 +608,19 @@ CREATE POLICY "Communications modify" ON public.communications FOR UPDATE TO aut
 CREATE POLICY "Communications delete" ON public.communications FOR DELETE TO authenticated USING (public.has_permission('communications', 'delete'));
 
 -- ORDERS
-CREATE POLICY "Orders view access" ON public.orders FOR SELECT TO authenticated USING (public.has_permission('orders', 'view'));
+CREATE POLICY "Orders view access" ON public.orders FOR SELECT TO authenticated USING (
+  public.has_permission('orders', 'view') 
+  OR vehicle_id IN (SELECT id FROM public.vehicles WHERE auth_user_id = auth.uid() OR id = auth.uid()) 
+  OR driver_id = auth.uid() 
+  OR companion_id = auth.uid()
+);
 CREATE POLICY "Orders add access" ON public.orders FOR INSERT TO authenticated WITH CHECK (public.has_permission('orders', 'add'));
-CREATE POLICY "Orders modify access" ON public.orders FOR UPDATE TO authenticated USING (public.has_permission('orders', 'modify'));
+CREATE POLICY "Orders modify access" ON public.orders FOR UPDATE TO authenticated USING (
+  public.has_permission('orders', 'modify') 
+  OR vehicle_id IN (SELECT id FROM public.vehicles WHERE auth_user_id = auth.uid() OR id = auth.uid()) 
+  OR driver_id = auth.uid() 
+  OR companion_id = auth.uid()
+);
 -- Operator logic for order deletion
 CREATE POLICY "Orders delete access" ON public.orders FOR DELETE TO authenticated 
 USING (
