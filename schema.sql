@@ -199,8 +199,8 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     trade_name TEXT NOT NULL,               -- Vendor Trade Name
     company_code TEXT UNIQUE NOT NULL,      -- Internal Code
     bank_account TEXT NOT NULL,             -- Bank Account (IBAN)
-    city TEXT NOT NULL,                     -- City
-    district TEXT NOT NULL,                 -- District
+    city TEXT NOT NULL,                     -- City ID (references public.cities(id))
+    district TEXT NOT NULL,                 -- District ID (references public.districts(id))
     address TEXT NOT NULL,                  -- Address
     price_per_liter NUMERIC(10, 2) DEFAULT 0.00,  -- Price per Liter
     warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL, -- Warehouse Reference
@@ -208,7 +208,6 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,  -- Operator
     comments JSONB DEFAULT '[]'::JSONB,     -- Comments History
     working_hours TEXT,                     -- Working Hours
-    barrels_amount INT DEFAULT 0,          -- Barrels amount
     is_active BOOLEAN DEFAULT TRUE,        -- Active status
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -222,7 +221,7 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS barrels_amount INT DEFAULT 0;
+ALTER TABLE public.vendors DROP COLUMN IF EXISTS barrels_amount CASCADE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
@@ -295,6 +294,7 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS contact_phone TEXT DEFAULT NU
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes JSONB DEFAULT '[]'::JSONB;
 ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
 ALTER TABLE public.orders DROP COLUMN IF EXISTS truck_plate CASCADE;
+ALTER TABLE public.orders DROP COLUMN IF EXISTS note CASCADE;
 
 -- Performance Indexes for Driver Logistics & Orders Portal
 CREATE INDEX IF NOT EXISTS idx_orders_vehicle_id ON public.orders(vehicle_id);

@@ -60,6 +60,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         driver_name, 
         companion_name, 
         truck_plate,
+        note,
         ...dbOrder 
       } = finalOrder as any;
 
@@ -72,6 +73,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
       dbOrder.companion_id = isValidUuid(dbOrder.companion_id) ? dbOrder.companion_id : null;
       dbOrder.vehicle_id = isValidUuid(dbOrder.vehicle_id) ? dbOrder.vehicle_id : null;
       delete dbOrder.truck_plate;
+      delete dbOrder.note;
       dbOrder.notes = Array.isArray(dbOrder.notes) ? dbOrder.notes : [];
 
       if (isNew) {
