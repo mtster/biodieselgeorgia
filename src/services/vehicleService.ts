@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Vehicle } from '../types';
 import { trackChange } from './historyService';
 import { KEY_TRUCKS as KEY_VEHICLES, getLocal, setLocal } from './localStorage';
+import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_VEHICLES };
 
@@ -161,9 +162,11 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
   if (!exists) {
     setLocal(KEY_VEHICLES, [...list, vehicle]);
     await trackChange(loggerName, 'Vehicle added', 'Plate Number', '', vehicle.plate_number);
+    notifyDbChange('vehicles', 'CREATE', vehicle.plate_number);
   } else {
     setLocal(KEY_VEHICLES, list.map(item => item.plate_number === vehicle.plate_number ? vehicle : item));
     await trackChange(loggerName, 'Vehicle updated', 'Model', '', vehicle.model);
+    notifyDbChange('vehicles', 'UPDATE', vehicle.plate_number);
   }
   return decodeVehicle(vehicle);
 }
@@ -187,5 +190,6 @@ export async function deleteVehicle(plate: string, loggerName: string): Promise<
   const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
   setLocal(KEY_VEHICLES, list.map(item => item.plate_number === plate ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Vehicle deleted', 'Plate Number', plate, '');
+  notifyDbChange('vehicles', 'DELETE', plate);
   return true;
 }

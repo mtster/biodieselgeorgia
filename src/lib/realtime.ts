@@ -19,12 +19,18 @@ export const DB_DEPENDENCY_MAP: Record<string, string[]> = {
 const CHANNEL_NAME = 'biodiesel_app_live_updates';
 
 let realtimeChannel: any = null;
+let globalQueryClient: QueryClient | null = null;
 
 export function initRealtimeBroadcast(queryClient: QueryClient) {
+  globalQueryClient = queryClient;
   if (!isSupabaseConfigured || !supabase) return;
 
   try {
-    realtimeChannel = supabase.channel(CHANNEL_NAME);
+    realtimeChannel = supabase.channel(CHANNEL_NAME, {
+      config: {
+        broadcast: { self: true },
+      },
+    });
 
     realtimeChannel
       .on('broadcast', { event: 'db_change' }, (payload: { payload?: { table: string } }) => {
@@ -44,6 +50,14 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
 }
 
 export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DELETE' = 'UPDATE', recordId?: string) {
+  // Invalidate TanStack Query cache locally for the acting client user
+  if (globalQueryClient) {
+    const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
+    dependentKeys.forEach((key) => {
+      globalQueryClient?.invalidateQueries({ queryKey: [key] });
+    });
+  }
+
   if (realtimeChannel && isSupabaseConfigured) {
     try {
       realtimeChannel.send({

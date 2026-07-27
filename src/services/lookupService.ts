@@ -5,6 +5,7 @@ import {
   KEY_WAREHOUSES, KEY_CITIES, KEY_DISTRICTS, KEY_DIRECTIONS,
   getLocal, setLocal 
 } from './localStorage';
+import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_WAREHOUSES, KEY_CITIES, KEY_DISTRICTS, KEY_DIRECTIONS };
 
@@ -50,9 +51,11 @@ export async function saveWarehouse(wh: Warehouse, loggerName: string, currentUs
   if (isNew) {
     setLocal(KEY_WAREHOUSES, [...list, finalWh]);
     await trackChange(loggerName, 'Warehouse added', 'Name', '', finalWh.name);
+    notifyDbChange('warehouses', 'CREATE', finalWh.id);
   } else {
     setLocal(KEY_WAREHOUSES, list.map(item => item.id === finalWh.id ? finalWh : item));
     await trackChange(loggerName, 'Warehouse updated', 'Name', '', finalWh.name);
+    notifyDbChange('warehouses', 'UPDATE', finalWh.id);
   }
   return finalWh;
 }
@@ -69,6 +72,7 @@ export async function deleteWarehouse(id: string, name: string, loggerName: stri
   const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
   setLocal(KEY_WAREHOUSES, list.filter(item => item.id !== id));
   await trackChange(loggerName, 'Warehouse deleted', 'Name', name, '');
+  notifyDbChange('warehouses', 'DELETE', id);
   return true;
 }
 
@@ -111,9 +115,11 @@ export async function saveCity(city: City, loggerName: string, currentUserId?: s
   if (isNew) {
     setLocal(KEY_CITIES, [...list, finalCity]);
     await trackChange(loggerName, 'City added', 'Name', '', finalCity.name);
+    notifyDbChange('cities', 'CREATE', finalCity.id);
   } else {
     setLocal(KEY_CITIES, list.map(item => item.id === finalCity.id ? finalCity : item));
     await trackChange(loggerName, 'City updated', 'Name', '', finalCity.name);
+    notifyDbChange('cities', 'UPDATE', finalCity.id);
   }
   return finalCity;
 }
@@ -130,6 +136,7 @@ export async function deleteCity(id: string, name: string, loggerName: string): 
   const list = getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
   setLocal(KEY_CITIES, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'City deleted', 'Name', name, '');
+  notifyDbChange('cities', 'DELETE', id);
   return true;
 }
 
@@ -170,9 +177,11 @@ export async function saveDistrict(dist: District, loggerName: string, currentUs
   if (isNew) {
     setLocal(KEY_DISTRICTS, [...list, finalDist]);
     await trackChange(loggerName, 'District added', 'Name', '', finalDist.name);
+    notifyDbChange('districts', 'CREATE', finalDist.id);
   } else {
     setLocal(KEY_DISTRICTS, list.map(item => item.id === finalDist.id ? finalDist : item));
     await trackChange(loggerName, 'District updated', 'Name', '', finalDist.name);
+    notifyDbChange('districts', 'UPDATE', finalDist.id);
   }
   return finalDist;
 }
@@ -189,6 +198,7 @@ export async function deleteDistrict(id: string, name: string, loggerName: strin
   const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
   setLocal(KEY_DISTRICTS, list.filter(item => item.id !== id));
   await trackChange(loggerName, 'District deleted', 'Name', name, '');
+  notifyDbChange('districts', 'DELETE', id);
   return true;
 }
 
@@ -231,9 +241,11 @@ export async function saveDirection(dir: Direction, loggerName: string, currentU
   if (isNew) {
     setLocal(KEY_DIRECTIONS, [...list, finalDir]);
     await trackChange(loggerName, 'Direction added', 'Name', '', finalDir.name);
+    notifyDbChange('directions', 'CREATE', finalDir.id);
   } else {
     setLocal(KEY_DIRECTIONS, list.map(item => item.id === finalDir.id ? finalDir : item));
     await trackChange(loggerName, 'Direction updated', 'Name', '', finalDir.name);
+    notifyDbChange('directions', 'UPDATE', finalDir.id);
   }
   return finalDir;
 }
@@ -250,5 +262,6 @@ export async function deleteDirection(id: string, name: string, loggerName: stri
   const list = getLocal<Direction[]>(KEY_DIRECTIONS, DEFAULT_DIRECTIONS);
   setLocal(KEY_DIRECTIONS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Direction deleted', 'Name', name, '');
+  notifyDbChange('directions', 'DELETE', id);
   return true;
 }
