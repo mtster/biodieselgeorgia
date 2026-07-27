@@ -15,6 +15,7 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import DeleteButton from '../DeleteButton';
 import { createDatabaseColumn } from '../../services/vendorService';
+import { usePaginatedVendors } from '../../hooks/usePaginatedModuleQuery';
 
 const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'trade_name', label: 'Trade Name', visible: true },
@@ -74,6 +75,26 @@ export default function VendorsView({
   const [selectedSalesManager, setSelectedSalesManager] = useState('');
   const [selectedOperationManager, setSelectedOperationManager] = useState('');
   const [selectedDirection, setSelectedDirection] = useState('');
+  const [page, setPage] = useState(1);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedCity, selectedDistrict, selectedSalesManager, selectedOperationManager, selectedDirection]);
+
+  // Fetch 12 suppliers per page via TanStack Query
+  const filters = {
+    searchTerm,
+    city: selectedCity,
+    district: selectedDistrict,
+    managerId: selectedSalesManager,
+    operatorId: selectedOperationManager,
+    directionId: selectedDirection
+  };
+  const { data: paginatedData, isLoading: isVendorsLoading } = usePaginatedVendors(page, filters, currentUser);
+
+  const displayVendors = paginatedData?.vendors || [];
+  const totalVendorsCount = paginatedData?.totalCount || 0;
 
   // Auto-select purchasing manager's own name in Sales Manager filter on login/visit
   useEffect(() => {
@@ -473,7 +494,7 @@ export default function VendorsView({
           </div>
 
           <VendorsList 
-            filteredVendors={filteredVendors} 
+            filteredVendors={displayVendors} 
             users={users} 
             directions={directions}
             startEdit={startEdit} 
@@ -482,6 +503,10 @@ export default function VendorsView({
             setSelectedVendors={setSelectedVendors} 
             managedCols={managedCols}
             communications={communications}
+            serverTotalCount={totalVendorsCount}
+            page={page}
+            onPageChange={setPage}
+            isLoading={isVendorsLoading}
           />
         </div>
       )}

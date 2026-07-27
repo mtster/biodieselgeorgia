@@ -7,6 +7,55 @@ import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_USERS };
 
+export interface PaginatedUsersResult {
+  users: User[];
+  totalCount: number;
+}
+
+export async function getUsersPaginated(
+  limit: number = 12,
+  offset: number = 0,
+  searchTerm?: string
+): Promise<PaginatedUsersResult> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let query = supabase
+        .from('profiles')
+        .select('*', { count: 'exact' })
+        .eq('is_deleted', false);
+
+      if (searchTerm?.trim()) {
+        const term = `%${searchTerm.trim()}%`;
+        query = query.or(`name.ilike.${term},email.ilike.${term},personal_id.ilike.${term}`);
+      }
+
+      query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
+
+      const { data, count, error } = await query;
+      if (!error && data) {
+        const decoded = data.map(u => decodeProfile(u));
+        return {
+          users: decoded,
+          totalCount: count || 0
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase getUsersPaginated failed', e);
+    }
+  }
+
+  const all = getLocal<User[]>(KEY_USERS, DEFAULT_USERS).filter(u => !u.is_deleted).map(u => decodeProfile(u));
+  let filtered = all;
+  if (searchTerm?.trim()) {
+    const term = searchTerm.trim().toLowerCase();
+    filtered = filtered.filter(u => (u.name || '').toLowerCase().includes(term) || (u.email || '').toLowerCase().includes(term));
+  }
+  return {
+    users: filtered.slice(offset, offset + limit),
+    totalCount: filtered.length
+  };
+}
+
 export const DEFAULT_USERS: User[] = [
   {
     id: '00000000-0000-4000-a000-000000000000',

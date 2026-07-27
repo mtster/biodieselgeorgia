@@ -16,6 +16,7 @@ import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import DeleteButton from '../DeleteButton';
 import { createDatabaseOrderColumn } from '../../services/orderService';
 import { FormSelect } from '../FormInput';
+import { usePaginatedOrders } from '../../hooks/usePaginatedModuleQuery';
 
 const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'order_date', label: 'Date', visible: true },
@@ -79,6 +80,29 @@ export default function OrdersView({
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(endOfMonth.getDate())}`;
   });
+
+  const [page, setPage] = useState(1);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, startDate, endDate]);
+
+  const filters = {
+    searchTerm,
+    status: selectedStatus,
+    city: selectedCity,
+    district: selectedDistrict,
+    directionId: selectedDirection,
+    vehicleId: selectedVehicle,
+    startDate,
+    endDate
+  };
+
+  const { data: paginatedData, isLoading: isOrdersLoading } = usePaginatedOrders(page, filters, currentEmployee);
+
+  const displayOrders = paginatedData?.orders || [];
+  const totalOrdersCount = paginatedData?.totalCount || 0;
 
   // Active form management
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -479,7 +503,7 @@ export default function OrdersView({
           </div>
 
           <OrdersList currentEmployee={currentEmployee} 
-            filteredOrders={filteredOrders} 
+            filteredOrders={displayOrders} 
             suppliers={suppliers} 
             warehouses={warehouses}
             employees={employees}
@@ -489,6 +513,10 @@ export default function OrdersView({
             selectedOrders={selectedOrders}
             setSelectedOrders={setSelectedOrders} 
             managedCols={managedCols}
+            serverTotalCount={totalOrdersCount}
+            page={page}
+            onPageChange={setPage}
+            isLoading={isOrdersLoading}
           />
         </div>
       )}

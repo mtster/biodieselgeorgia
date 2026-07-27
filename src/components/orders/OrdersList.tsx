@@ -17,6 +17,10 @@ interface Props {
   selectedOrders?: string[];
   setSelectedOrders?: React.Dispatch<React.SetStateAction<string[]>>;
   managedCols: ManagedColumn[];
+  serverTotalCount?: number;
+  page?: number;
+  onPageChange?: (newPage: number) => void;
+  isLoading?: boolean;
 }
 
 export default function OrdersList({
@@ -30,7 +34,11 @@ export default function OrdersList({
   askDelete,
   selectedOrders = [],
   setSelectedOrders,
-  managedCols = []
+  managedCols = [],
+  serverTotalCount,
+  page,
+  onPageChange,
+  isLoading
 }: Props) {
 
   const handleRowClick = (ord: Order) => {
@@ -271,6 +279,10 @@ export default function OrdersList({
       onRowClick={handleRowClick}
       rowClassName={rowClassName}
       emptyMessage={t("No active collection order entries were located.")}
+      serverTotalCount={serverTotalCount}
+      page={page}
+      onPageChange={onPageChange}
+      isLoading={isLoading}
     />
   );
 }

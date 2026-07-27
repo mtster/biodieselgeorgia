@@ -118,7 +118,7 @@ export function OrderCompletionModal({
             onChange={(e) => setQtyActual(e.target.value)}
             fontClass="font-mono font-bold"
           />
-          <p className="text-xs font-bold text-gray-500 font-mono mt-1 text-left select-none">
+          <p className="text-[10px] text-gray-500 font-medium font-mono mt-1 text-left select-none">
             გეგმიური მოცულობა: {selectedOrder.qty_requested || 0} ლ
           </p>
         </div>
@@ -133,7 +133,7 @@ export function OrderCompletionModal({
               onChange={(e) => setTanksBringActual(e.target.value)}
               fontClass="font-mono font-bold"
             />
-            <p className="text-xs font-bold text-gray-500 font-mono mt-1 text-left select-none">
+            <p className="text-[10px] text-gray-500 font-medium font-mono mt-1 text-left select-none">
               მოსალოდნელი: {selectedOrder.tanks_to_bring ?? 0}
             </p>
           </div>
@@ -146,7 +146,7 @@ export function OrderCompletionModal({
               onChange={(e) => setTanksLeftActual(e.target.value)}
               fontClass="font-mono font-bold"
             />
-            <p className="text-xs font-bold text-gray-500 font-mono mt-1 text-left select-none">
+            <p className="text-[10px] text-gray-500 font-medium font-mono mt-1 text-left select-none">
               მოსალოდნელი: {selectedOrder.tanks_to_leave ?? 0}
             </p>
           </div>

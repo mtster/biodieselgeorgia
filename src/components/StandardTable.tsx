@@ -19,6 +19,9 @@ interface StandardTableProps<T> {
   hasMore?: boolean;
   isLoading?: boolean;
   hidePagination?: boolean;
+  serverTotalCount?: number;
+  page?: number;
+  onPageChange?: (newPage: number) => void;
 }
 
 export function StandardTable<T>({
@@ -28,22 +31,46 @@ export function StandardTable<T>({
   rowClassName,
   emptyMessage = 'No records found.',
   isLoading = false,
-  hidePagination = false
+  hidePagination = false,
+  serverTotalCount,
+  page,
+  onPageChange
 }: StandardTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
 
-  // Reset active page when data dependencies or filter results change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [data.length]);
+  const isServer = serverTotalCount !== undefined;
+  const activePage = isServer ? (page || 1) : currentPage;
 
-  const totalItems = data.length;
+  // Reset active client page when data length changes
+  useEffect(() => {
+    if (!isServer) {
+      setCurrentPage(1);
+    }
+  }, [data.length, isServer]);
+
+  const totalItems = isServer ? serverTotalCount : data.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const displayedData = data.slice(startIndex, endIndex);
+  const startIndex = (activePage - 1) * pageSize;
+  const endIndex = isServer ? Math.min(startIndex + data.length, totalItems) : Math.min(startIndex + pageSize, totalItems);
+  const displayedData = isServer ? data : data.slice(startIndex, endIndex);
+
+  const handlePrevPage = () => {
+    if (isServer && onPageChange) {
+      onPageChange(Math.max(activePage - 1, 1));
+    } else {
+      setCurrentPage(prev => Math.max(prev - 1, 1));
+    }
+  };
+
+  const handleNextPage = () => {
+    if (isServer && onPageChange) {
+      onPageChange(Math.min(activePage + 1, totalPages));
+    } else {
+      setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    }
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col relative">
@@ -124,8 +151,8 @@ export function StandardTable<T>({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={activePage === 1}
+              onClick={handlePrevPage}
               className="p-1 px-3 border border-gray-200 rounded-xl hover:bg-slate-100 text-xs font-bold text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5 cursor-pointer bg-white shadow-3xs"
             >
               <ChevronLeft size={14} strokeWidth={2.5} />
@@ -134,14 +161,14 @@ export function StandardTable<T>({
             
             <div className="flex items-center gap-1 px-3">
               <span className="text-xs font-bold font-sans text-gray-500">
-                Page <span className="text-gray-900 font-black">{currentPage}</span> of <span className="text-gray-900 font-black">{totalPages}</span>
+                Page <span className="text-gray-900 font-black">{activePage}</span> of <span className="text-gray-900 font-black">{totalPages}</span>
               </span>
             </div>
 
             <button
               type="button"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={activePage === totalPages}
+              onClick={handleNextPage}
               className="p-1 px-3 border border-gray-200 rounded-xl hover:bg-slate-100 text-xs font-bold text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1.5 cursor-pointer bg-white shadow-3xs"
             >
               <span>{t("Next")}</span>

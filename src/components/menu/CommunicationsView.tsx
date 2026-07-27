@@ -10,6 +10,7 @@ import { StandardTable } from '../StandardTable';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import CommunicationFormModal from './CommunicationFormModal';
 import { getCommunicationsColumns } from '../communications/communicationsColumns';
+import { usePaginatedCommunications } from '../../hooks/usePaginatedModuleQuery';
 
 const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'date_time', label: 'Date & Time', visible: true },
@@ -69,6 +70,23 @@ export default function CommunicationsView({
   const [userFilter, setUserFilter] = useState('');
   const [taskResponsibleFilter, setTaskResponsibleFilter] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchTerm, typeFilter, supplierFilter, userFilter, taskResponsibleFilter, taskStatusFilter]);
+
+  const commFilters = {
+    searchTerm,
+    type: typeFilter,
+    vendorId: supplierFilter,
+    userId: userFilter
+  };
+
+  const { data: paginatedData, isLoading: isCommsLoading } = usePaginatedCommunications(page, commFilters, currentEmployee);
+
+  const displayComms = paginatedData?.communications || [];
+  const totalCommsCount = paginatedData?.totalCount || 0;
 
   // Columns Manager State
   const [isColModalOpen, setIsColModalOpen] = useState(false);
@@ -363,11 +381,15 @@ export default function CommunicationsView({
 
       {/* Table of logs */}
       <StandardTable
-        data={filtered}
+        data={displayComms}
         columns={columns}
         onRowClick={startEdit}
         rowClassName={rowClassName}
         emptyMessage={t("No communication records found.")}
+        serverTotalCount={totalCommsCount}
+        page={page}
+        onPageChange={setPage}
+        isLoading={isCommsLoading}
       />
 
       <CommunicationFormModal

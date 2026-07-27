@@ -16,6 +16,10 @@ interface Props {
   setSelectedVendors: React.Dispatch<React.SetStateAction<string[]>>;
   managedCols: ManagedColumn[];
   communications: Communication[];
+  serverTotalCount?: number;
+  page?: number;
+  onPageChange?: (newPage: number) => void;
+  isLoading?: boolean;
 }
 
 export default function VendorsList({
@@ -26,7 +30,11 @@ export default function VendorsList({
   selectedVendors = [],
   setSelectedVendors,
   managedCols = [],
-  communications = []
+  communications = [],
+  serverTotalCount,
+  page,
+  onPageChange,
+  isLoading
 }: Props) {
   const [hoveredTooltip, setHoveredTooltip] = useState<{
     items: { key: string; author: string; date: string; content: string }[];
@@ -290,6 +298,10 @@ export default function VendorsList({
         onRowClick={handleRowClick}
         rowClassName={rowClassName}
         emptyMessage={t("No supplier data matches current search criteria.")}
+        serverTotalCount={serverTotalCount}
+        page={page}
+        onPageChange={onPageChange}
+        isLoading={isLoading}
       />
 
       {hoveredTooltip && (

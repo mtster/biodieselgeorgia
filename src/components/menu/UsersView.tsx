@@ -7,6 +7,7 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import DeleteButton from '../DeleteButton';
 import AddButton from '../AddButton';
 import { StandardTable, ColumnConfig } from '../StandardTable';
+import { usePaginatedUsers } from '../../hooks/usePaginatedModuleQuery';
 
 import UserForm from '../users/UserForm';
 
@@ -26,6 +27,16 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('delete');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+
+  const { data: paginatedData, isLoading: isUsersLoading } = usePaginatedUsers(page, searchTerm, currentUser);
+
+  const displayUsers = paginatedData?.users || [];
+  const totalUsersCount = paginatedData?.totalCount || 0;
   
   // States
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -229,9 +240,13 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
 
           {/* List display */}
           <StandardTable
-            data={filtered}
+            data={displayUsers}
             columns={userColumns}
             onRowClick={startEdit}
+            serverTotalCount={totalUsersCount}
+            page={page}
+            onPageChange={setPage}
+            isLoading={isUsersLoading}
           />
         </div>
       )}

@@ -233,6 +233,89 @@ export async function getContactsPaginated(
   return result;
 }
 
+export interface PaginatedVendorsResult {
+  vendors: Vendor[];
+  totalCount: number;
+}
+
+export async function getVendorsPaginated(
+  limit: number = 12,
+  offset: number = 0,
+  filters?: {
+    searchTerm?: string;
+    city?: string;
+    district?: string;
+    managerId?: string;
+    operatorId?: string;
+    directionId?: string;
+  }
+): Promise<PaginatedVendorsResult> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let query = supabase
+        .from('vendors')
+        .select('*', { count: 'exact' })
+        .eq('is_deleted', false);
+
+      if (filters?.searchTerm?.trim()) {
+        const term = `%${filters.searchTerm.trim()}%`;
+        query = query.or(`trade_name.ilike.${term},company_name.ilike.${term},id_code.ilike.${term},address.ilike.${term}`);
+      }
+      if (filters?.city) {
+        query = query.eq('city', filters.city);
+      }
+      if (filters?.district) {
+        query = query.eq('district', filters.district);
+      }
+      if (filters?.managerId) {
+        query = query.eq('manager_id', filters.managerId);
+      }
+      if (filters?.operatorId) {
+        query = query.eq('operator_id', filters.operatorId);
+      }
+      if (filters?.directionId) {
+        query = query.eq('direction_id', filters.directionId);
+      }
+
+      query = query.order('trade_name', { ascending: true }).range(offset, offset + limit - 1);
+
+      const { data, count, error } = await query;
+      if (!error && data) {
+        const decoded = data.map(v => decodeVendorCustomFields(v));
+        const vendorIds = decoded.map(v => v.id);
+        if (vendorIds.length > 0) {
+          const { data: contactsData } = await supabase.from('vendor_contacts').select('*').in('vendor_id', vendorIds).eq('is_deleted', false);
+          if (contactsData) {
+            decoded.forEach(v => {
+              v.contacts = contactsData.filter(c => c.vendor_id === v.id);
+            });
+          }
+        }
+        return {
+          vendors: decoded,
+          totalCount: count || 0
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase getVendorsPaginated failed', e);
+    }
+  }
+
+  const all = getLocal<Vendor[]>(KEY_VENDORS, []).filter(v => !v.is_deleted).map(v => decodeVendorCustomFields(v));
+  let filtered = all;
+  if (filters?.searchTerm?.trim()) {
+    const term = filters.searchTerm.trim().toLowerCase();
+    filtered = filtered.filter(v => (v.trade_name || '').toLowerCase().includes(term) || (v.company_name || '').toLowerCase().includes(term));
+  }
+  if (filters?.managerId) {
+    filtered = filtered.filter(v => v.manager_id === filters.managerId);
+  }
+  return {
+    vendors: filtered.slice(offset, offset + limit),
+    totalCount: filtered.length
+  };
+}
+
 export async function getVendors(): Promise<Vendor[]> {
   let vendors: Vendor[] = [];
   if (isSupabaseConfigured && supabase) {

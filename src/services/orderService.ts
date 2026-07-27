@@ -6,6 +6,111 @@ import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_ORDERS };
 
+export interface PaginatedOrdersResult {
+  orders: Order[];
+  totalCount: number;
+}
+
+export async function getOrdersPaginated(
+  limit: number = 12,
+  offset: number = 0,
+  filters?: {
+    searchTerm?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    city?: string;
+    district?: string;
+    direction?: string;
+    vehicle?: string;
+    driverId?: string;
+    vendorId?: string;
+  }
+): Promise<PaginatedOrdersResult> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let query = supabase
+        .from('orders')
+        .select('*', { count: 'exact' })
+        .eq('is_deleted', false);
+
+      if (filters?.searchTerm?.trim()) {
+        const term = `%${filters.searchTerm.trim()}%`;
+        query = query.or(`doc_number.ilike.${term},address.ilike.${term}`);
+      }
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters?.startDate) {
+        query = query.gte('order_date', filters.startDate);
+      }
+      if (filters?.endDate) {
+        query = query.lte('order_date', filters.endDate + 'T23:59:59');
+      }
+      if (filters?.city) {
+        query = query.eq('city', filters.city);
+      }
+      if (filters?.district) {
+        query = query.eq('district', filters.district);
+      }
+      if (filters?.direction) {
+        query = query.eq('direction', filters.direction);
+      }
+      if (filters?.vehicle) {
+        query = query.eq('vehicle_id', filters.vehicle);
+      }
+      if (filters?.driverId) {
+        query = query.eq('driver_id', filters.driverId);
+      }
+      if (filters?.vendorId) {
+        query = query.eq('vendor_id', filters.vendorId);
+      }
+
+      query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+      const { data, count, error } = await query;
+      if (!error && data) {
+        const mapped = data.map((o: any) => ({
+          ...o,
+          notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
+        }));
+        return {
+          orders: mapped,
+          totalCount: count || 0
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase getOrdersPaginated failed', e);
+    }
+  }
+
+  // Local fallback
+  const all = getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted).map((o: any) => ({
+    ...o,
+    notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
+  }));
+
+  let filtered = all;
+  if (filters?.searchTerm?.trim()) {
+    const term = filters.searchTerm.trim().toLowerCase();
+    filtered = filtered.filter(o => (o.doc_number || '').toLowerCase().includes(term) || (o.address || '').toLowerCase().includes(term));
+  }
+  if (filters?.status) {
+    filtered = filtered.filter(o => o.status === filters.status);
+  }
+  if (filters?.driverId) {
+    filtered = filtered.filter(o => o.driver_id === filters.driverId);
+  }
+  if (filters?.vendorId) {
+    filtered = filtered.filter(o => o.vendor_id === filters.vendorId);
+  }
+
+  return {
+    orders: filtered.slice(offset, offset + limit),
+    totalCount: filtered.length
+  };
+}
+
 export async function getOrders(): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {

@@ -12,6 +12,7 @@ import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
 import VendorForm from '../vendors/VendorForm';
 import { getVendorContacts } from '../../services/vendorService';
+import { usePaginatedContacts } from '../../hooks/usePaginatedModuleQuery';
 
 interface ContactsViewProps {
   vendors: Vendor[];
@@ -78,11 +79,31 @@ export default function ContactsView({
   const [contactPos, setContactPos] = useState<'director' | 'manager' | 'object_number' | 'accountant' | 'cook' | 'other'>('director');
   const [contactNote, setContactNote] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+  const [page, setPage] = useState(1);
 
-  // Pagination states
-  const [contactsList, setContactsList] = useState<ContactRow[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
+
+  const { data: paginatedData, isLoading: isContactsLoading } = usePaginatedContacts(page, searchTerm, currentUser);
+
+  const rawContacts = paginatedData?.contacts || [];
+  const contactsList: ContactRow[] = rawContacts.map((c: any) => {
+    const vInfo: any = vendors.find((v: any) => v.id === c.vendor_id) || {};
+    return {
+      id: c.id,
+      name: c.name || '',
+      phone: c.phone || '',
+      position: c.position || 'other',
+      note: c.note || '',
+      email: c.email || '',
+      company_name: vInfo.trade_name || vInfo.company_name || '-',
+      company_code: vInfo.company_code || vInfo.id_code || '-',
+      vendor_id: c.vendor_id || '',
+      vendor: vInfo as Vendor
+    };
+  });
+  const totalCount = paginatedData?.totalCount || 0;
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -452,6 +473,10 @@ export default function ContactsView({
               }
             }}
             emptyMessage="No contacts recorded"
+            serverTotalCount={totalCount}
+            page={page}
+            onPageChange={setPage}
+            isLoading={isContactsLoading}
           />
         </>
       )}

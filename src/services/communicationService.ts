@@ -6,6 +6,68 @@ import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_COMMUNICATIONS };
 
+export interface PaginatedCommunicationsResult {
+  communications: Communication[];
+  totalCount: number;
+}
+
+export async function getCommunicationsPaginated(
+  limit: number = 12,
+  offset: number = 0,
+  filters?: {
+    searchTerm?: string;
+    type?: string;
+    vendorId?: string;
+    userId?: string;
+  }
+): Promise<PaginatedCommunicationsResult> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let query = supabase
+        .from('communications')
+        .select('*', { count: 'exact' })
+        .eq('is_deleted', false);
+
+      if (filters?.searchTerm?.trim()) {
+        const term = `%${filters.searchTerm.trim()}%`;
+        query = query.or(`comment.ilike.${term}`);
+      }
+      if (filters?.type) {
+        query = query.eq('type', filters.type);
+      }
+      if (filters?.vendorId) {
+        query = query.eq('vendor_id', filters.vendorId);
+      }
+      if (filters?.userId) {
+        query = query.eq('user_id', filters.userId);
+      }
+
+      query = query.order('date_time', { ascending: false }).range(offset, offset + limit - 1);
+
+      const { data, count, error } = await query;
+      if (!error && data) {
+        return {
+          communications: data as Communication[],
+          totalCount: count || 0
+        };
+      }
+    } catch (e) {
+      console.warn('Supabase getCommunicationsPaginated failed', e);
+    }
+  }
+
+  const all = getLocal<Communication[]>(KEY_COMMUNICATIONS, []).filter(c => !c.is_deleted);
+  let filtered = all;
+  if (filters?.searchTerm?.trim()) {
+    const term = filters.searchTerm.trim().toLowerCase();
+    filtered = filtered.filter(c => (c.comment || '').toLowerCase().includes(term));
+  }
+  return {
+    communications: filtered.slice(offset, offset + limit),
+    totalCount: filtered.length
+  };
+}
+
 export async function getCommunications(): Promise<Communication[]> {
   if (isSupabaseConfigured && supabase) {
     try {
