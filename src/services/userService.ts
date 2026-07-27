@@ -3,6 +3,7 @@ import { getLocal, setLocal, KEY_USERS } from './localStorage';
 import { trackChange } from './historyService';
 import { isSupabaseConfigured, supabase } from '../lib/db';
 import { defaultPermissions } from '../components/users/UserForm';
+import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_USERS };
 
@@ -262,6 +263,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
     await trackChange(loggerName, 'User updated', 'Name', '', finalUser.name);
   }
 
+  notifyDbChange('profiles', isNew ? 'CREATE' : 'UPDATE', finalUser.id);
   return decodeProfile(finalUser);
 }
 
@@ -296,5 +298,6 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
   }
   
   await trackChange(loggerName, 'User deleted', 'Name', name, '');
+  notifyDbChange('profiles', 'DELETE', id);
   return true;
 }

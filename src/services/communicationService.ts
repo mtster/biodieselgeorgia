@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Communication } from '../types';
 import { trackChange } from './historyService';
 import { KEY_COMMUNICATIONS, getLocal, setLocal } from './localStorage';
+import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_COMMUNICATIONS };
 
@@ -53,6 +54,8 @@ export async function saveCommunication(comm: Communication, loggerName: string)
     setLocal(KEY_COMMUNICATIONS, list.map(item => item.id === finalComm.id ? finalComm : item));
     await trackChange(loggerName, 'Communication updated', 'Comment', '', finalComm.comment);
   }
+
+  notifyDbChange('vendor_communications', isNew ? 'CREATE' : 'UPDATE', finalComm.id);
   return finalComm;
 }
 
@@ -68,5 +71,6 @@ export async function deleteCommunication(id: string, loggerName: string): Promi
   const list = getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
   setLocal(KEY_COMMUNICATIONS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Communication deleted', 'ID', id, '');
+  notifyDbChange('vendor_communications', 'DELETE', id);
   return true;
 }

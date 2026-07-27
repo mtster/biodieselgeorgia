@@ -74,6 +74,13 @@ export default function VendorsView({
   const [selectedSalesManager, setSelectedSalesManager] = useState('');
   const [selectedOperationManager, setSelectedOperationManager] = useState('');
   const [selectedDirection, setSelectedDirection] = useState('');
+
+  // Auto-select purchasing manager's own name in Sales Manager filter on login/visit
+  useEffect(() => {
+    if (currentUser?.role === 'purchasing_manager' && currentUser?.id) {
+      setSelectedSalesManager(currentUser.id);
+    }
+  }, [currentUser]);
   
   // Active edit state (On-screen form)
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);

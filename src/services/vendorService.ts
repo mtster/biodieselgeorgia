@@ -3,6 +3,7 @@ import { Vendor, VendorContact } from '../types';
 import { trackChange } from './historyService';
 import { KEY_VENDORS, getLocal, setLocal } from './localStorage';
 import { appCache } from '../utils/cache';
+import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_VENDORS };
 
@@ -396,6 +397,8 @@ export async function saveVendor(vendor: Vendor, loggerName: string, currentUser
     setLocal(KEY_VENDORS, list.map(item => item.id === finalVendor.id ? finalVendor : item));
     await trackChange(loggerName, 'Vendor updated', 'Trade Name', '', finalVendor.trade_name);
   }
+
+  notifyDbChange('vendors', isNew ? 'CREATE' : 'UPDATE', finalVendor.id);
   return decodeVendorCustomFields(finalVendor);
 }
 
@@ -418,5 +421,6 @@ export async function deleteVendor(id: string, tradeName: string, loggerName: st
   setLocal('local_vendor_contacts', localContacts.map(c => c.vendor_id === id ? { ...c, is_deleted: true } : c));
   
   await trackChange(loggerName, 'Vendor deleted', 'Trade Name', tradeName, '');
+  notifyDbChange('vendors', 'DELETE', id);
   return true;
 }

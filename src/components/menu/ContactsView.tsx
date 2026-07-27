@@ -65,6 +65,8 @@ export default function ContactsView({
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVendorForForm, setSelectedVendorForForm] = useState<Vendor | null>(null);
+  const [isFormSaving, setIsFormSaving] = useState(false);
+  const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
 
   // Modal fields
   const [selectedVendorId, setSelectedVendorId] = useState('');
@@ -381,15 +383,31 @@ export default function ContactsView({
         title={pageTitle}
         onBack={selectedVendorForForm ? () => setSelectedVendorForForm(null) : undefined}
         actions={
-          !selectedVendorForForm && canAdd && (
-            <button
-              onClick={handleAddClick}
-              type="button"
-              className="p-2.5 px-4 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black rounded-xl cursor-pointer flex items-center justify-center gap-2 transition duration-150 select-none shadow-sm"
+          selectedVendorForForm ? (
+            <button 
+              onClick={() => !isFormSaving && formRef.current?.save()}
+              disabled={isFormSaving}
+              className={`px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-bold rounded-xl text-xs shadow-xs transition cursor-pointer select-none inline-flex items-center gap-1.5 ${isFormSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              <Plus size={15} strokeWidth={2.5} />
-              <span>{t("Add Contact")}</span>
+              {isFormSaving && (
+                <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              )}
+              {t("Save")}
             </button>
+          ) : (
+            canAdd && (
+              <button
+                onClick={handleAddClick}
+                type="button"
+                className="p-2.5 px-4 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black rounded-xl cursor-pointer flex items-center justify-center gap-2 transition duration-150 select-none shadow-sm"
+              >
+                <Plus size={15} strokeWidth={2.5} />
+                <span>{t("Add Contact")}</span>
+              </button>
+            )
           )
         }
       />
@@ -404,6 +422,8 @@ export default function ContactsView({
           districts={districts}
           directions={directions}
           currentUser={currentUser}
+          formRef={formRef}
+          onSavingStateChange={setIsFormSaving}
           onSave={async (updatedVendor) => {
             await onSaveVendor(updatedVendor);
             setSelectedVendorForForm(null); // Return to contacts list upon save

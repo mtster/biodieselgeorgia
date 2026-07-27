@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Order } from '../types';
 import { trackChange } from './historyService';
 import { KEY_ORDERS, getLocal, setLocal } from './localStorage';
+import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_ORDERS };
 
@@ -105,6 +106,8 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
     setLocal(KEY_ORDERS, list.map(item => item.id === finalOrder.id ? finalOrder : item));
     await trackChange(loggerName, 'Order updated', 'Status', oldOrder?.status || '', finalOrder.status);
   }
+
+  notifyDbChange('orders', isNew ? 'CREATE' : 'UPDATE', finalOrder.id);
   return finalOrder;
 }
 
@@ -153,5 +156,6 @@ export async function deleteOrder(id: string, docNum: string, loggerName: string
   const list = getLocal<Order[]>(KEY_ORDERS, []);
   setLocal(KEY_ORDERS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Order deleted', 'Document #', docNum, '');
+  notifyDbChange('orders', 'DELETE', id);
   return true;
 }
