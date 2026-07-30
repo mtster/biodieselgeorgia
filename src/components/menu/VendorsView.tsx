@@ -528,6 +528,7 @@ export default function VendorsView({
         users={users}
         cities={cities}
         districts={districts}
+        directions={directions}
         currentUser={currentUser}
         onComplete={() => window.location.reload()}
       />

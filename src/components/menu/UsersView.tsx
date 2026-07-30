@@ -11,16 +11,21 @@ import { usePaginatedUsers } from '../../hooks/usePaginatedModuleQuery';
 
 import UserForm from '../users/UserForm';
 
+import { checkUserDeletion } from '../../utils/deletionValidation';
+
 interface Props {
   users: User[];
   currentUser: User;
   warehouses: Warehouse[];
   suppliers?: any[];
+  orders?: any[];
+  communications?: any[];
   onSave: (user: User) => void;
   onDelete: (id: string, name: string) => void;
+  setDeleteAlertMessage?: (msg: string | null) => void;
 }
 
-export default function UsersView({ users, currentUser, warehouses, suppliers = [], onSave, onDelete }: Props) {
+export default function UsersView({ users, currentUser, warehouses, suppliers = [], orders = [], communications = [], onSave, onDelete, setDeleteAlertMessage }: Props) {
 
   const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('add');
   const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('modify');
@@ -103,6 +108,11 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
   });
 
   const askDelete = (id: string, name: string) => {
+    const errorMsg = checkUserDeletion(id, name, orders, suppliers, communications);
+    if (errorMsg) {
+      if (setDeleteAlertMessage) setDeleteAlertMessage(errorMsg);
+      return;
+    }
     setDeleteConfirmId(id);
     setDeleteConfirmName(name);
   };

@@ -88,7 +88,19 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
       };
 
-      const createdBy = vehicle.created_by || currentUserId || null;
+      const cleanUserUuid = (val: string | null | undefined): string | null => {
+        if (!val) return null;
+        if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
+        if (val.startsWith('user-')) {
+          const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
+          return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
+        }
+        if (isValidUuid(val)) return val;
+        return null;
+      };
+
+      const rawCreatedBy = vehicle.created_by || currentUserId || null;
+      const createdBy = cleanUserUuid(rawCreatedBy);
 
       const dbPayload: any = {
         ...(isValidUuid(vehicle.id) ? { id: vehicle.id } : {}),
@@ -99,7 +111,7 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
         city: vehicle.city || null,
         direction_id: vehicle.direction_id || null,
         warehouse_id: vehicle.warehouse_id || null,
-        created_by: isValidUuid(createdBy) ? createdBy : null,
+        created_by: createdBy,
         auth_user_id: isValidUuid(authUserId) ? authUserId : null
       };
 

@@ -54,7 +54,7 @@ ${JSON.stringify(rows, null, 2)}
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3.5-flash-lite",
       contents: promptText,
       config: {
         responseMimeType: "application/json",

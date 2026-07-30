@@ -129,6 +129,93 @@ async function startServer() {
     }
   });
 
+  // Endpoint to update user auth details administratively (e.g. auth email, password, metadata, profiles)
+  app.post("/api/update-user", async (req, res) => {
+    try {
+      if (!isSupabaseConfigured || !supabaseAdmin) {
+        return res.status(400).json({ error: "Supabase service role key is not configured on the server." });
+      }
+
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Authorization token is missing" });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
+      const { data: { user: requestingUser }, error: userError } = await tempClient.auth.getUser(token);
+
+      if (userError || !requestingUser) {
+        return res.status(401).json({ error: "Unauthorized: Invalid session token" });
+      }
+
+      const { id, email, password, name, personal_id, phone, role, permissions, vendor_id } = req.body;
+
+      if (!id) {
+        return res.status(400).json({ error: "Missing user ID for update" });
+      }
+
+      const updatePayload: any = {};
+      if (email) updatePayload.email = email;
+      if (password) updatePayload.password = password;
+
+      const perms = permissions || (role === "admin" ? ["all"] : []);
+      updatePayload.user_metadata = {
+        name,
+        personal_id,
+        phone,
+        role,
+        permissions: perms,
+        privileges: perms,
+        vendor_id,
+      };
+
+      const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.updateUserById(id, updatePayload);
+
+      if (adminError) {
+        console.error("Supabase Admin Auth Update Error:", adminError);
+      }
+
+      const profilePayload: any = {
+        name,
+        personal_id,
+        phone,
+        role,
+        permissions: perms,
+        vendor_id,
+      };
+      if (email) profilePayload.email = email;
+
+      const { data: updatedProfile, error: profileErr } = await supabaseAdmin
+        .from("profiles")
+        .update(profilePayload)
+        .eq("id", id)
+        .select("*")
+        .maybeSingle();
+
+      if (profileErr) {
+        console.error("Supabase Profile Update Error:", profileErr);
+      }
+
+      res.json({
+        success: true,
+        user: updatedProfile || {
+          id,
+          email,
+          name,
+          personal_id,
+          phone,
+          role,
+          permissions: perms,
+          vendor_id
+        }
+      });
+    } catch (e: any) {
+      console.error("Admin user update caught exception:", e);
+      res.status(500).json({ error: e?.message || "Internal server error" });
+    }
+  });
+
   // Endpoint to create or update a vehicle auth account administratively
   app.post("/api/create-vehicle-account", async (req, res) => {
     try {
@@ -315,6 +402,94 @@ async function startServer() {
     } catch (e: any) {
       console.error("Fetch profiles via proxy failed:", e);
       res.status(500).json({ error: e.message || "Internal server error" });
+    }
+  });
+
+  // Dedicated endpoint for Excel batch row Gemini parsing
+  app.post("/api/import-excel", async (req, res) => {
+    try {
+      const { rows } = req.body;
+      if (!rows || !Array.isArray(rows)) {
+        return res.status(400).json({ error: "No rows provided or invalid format." });
+      }
+
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (!geminiApiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY environment variable is not set." });
+      }
+
+      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+      const promptText = `
+You are an expert data parser. Parse the following messy company contact rows from a Georgian Excel sheet.
+For each row object:
+1. Parse the "contact_cell" (კონტაქტი) and "accountant_cell" (ბუღალტერის საკონტაქტო) into clean Vendor Contacts array.
+   Each contact MUST have:
+   - "name": Clean Georgian name. Clean out parenthetical names or comments.
+   - "phone": Structured phone numbers (e.g. 595xxxxxx or similar mobile/direct lines, containing only digits, or nicely structured space/dashes). Clean extraneous chars.
+   - "position": One of "accountant", "director", "operator", "other".
+   - "note": Notes about this specific person.
+   - "is_default": Boolean. True for the FIRST contact or principal contact found, false for others.
+2. Parse the comments and date-related logs from "comment_cell", "last_pickup_cell", "contact_time_cell", "may_comments_cell", and "april_comments_cell" into clean Comments array of objects.
+   Each comment MUST have:
+   - "comment": The clean Georgian text comment.
+   - "date": Date in "YYYY-MM-DD" format.
+   - "user_name": "System Import"
+
+Return a structured JSON array with one object for each input string matching the "row_id".
+
+Input Rows:
+${JSON.stringify(rows, null, 2)}
+`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash-lite",
+        contents: promptText,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                row_id: { type: Type.STRING },
+                contacts: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      name: { type: Type.STRING },
+                      phone: { type: Type.STRING },
+                      position: { type: Type.STRING },
+                      note: { type: Type.STRING },
+                      is_default: { type: Type.BOOLEAN }
+                    },
+                    required: ["name", "phone", "position", "is_default"]
+                  }
+                },
+                comments: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      comment: { type: Type.STRING },
+                      date: { type: Type.STRING },
+                      user_name: { type: Type.STRING }
+                    },
+                    required: ["comment", "date", "user_name"]
+                  }
+                }
+              },
+              required: ["row_id", "contacts", "comments"]
+            }
+          }
+        }
+      });
+
+      const parsedData = JSON.parse(response.text || "[]");
+      res.json({ success: true, data: parsedData });
+    } catch (e: any) {
+      console.error("Gemini batch parse server error:", e);
+      res.status(500).json({ error: e.message || "Failed to process rows using Gemini" });
     }
   });
 

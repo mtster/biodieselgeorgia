@@ -101,6 +101,7 @@ export interface Order {
   companion_name?: string;
   truck_plate?: string;       // მანქანა
   vehicle_id?: string;        // Assigned vehicle ID
+  direction_id?: string;      // მიმართულება
   status: OrderStatus;        // სტატუსი
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
@@ -177,6 +178,7 @@ export interface Warehouse {
   id: string;
   name: string;               // დასახელება
   created_by?: string;
+  is_deleted?: boolean;
 }
 
 export interface City {
@@ -191,4 +193,5 @@ export interface District {
   city_id: string;            // ქალაქის რეფერენსი
   name: string;               // უბნის დასახელება
   created_by?: string;
+  is_deleted?: boolean;
 }

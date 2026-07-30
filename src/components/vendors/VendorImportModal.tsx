@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   FileSpreadsheet, X, Upload, CheckCircle, Loader2, Users, MapPin, 
-  AlertCircle, ChevronRight, Info, Sparkles, Check 
+  AlertCircle, ChevronRight, Info, Sparkles, Check, Database, Compass, Home
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { saveCity, saveDistrict } from '../../services/lookupService';
+import { saveCity, saveDistrict, saveDirection, saveWarehouse } from '../../services/lookupService';
 import { saveUser } from '../../services/userService';
-import { saveVendor } from '../../services/vendorService';
-import { City, District, User, Vendor, VendorContact, VendorComment, Warehouse } from '../../types';
-import { t } from '../../utils/lang';
+import { saveVendor, getVendors, generateUuid } from '../../services/vendorService';
+import { City, District, Direction, User, Vendor, Warehouse } from '../../types';
+import { isSupabaseConfigured, supabase } from '../../lib/db';
 
 interface Props {
   isOpen: boolean;
@@ -17,11 +17,12 @@ interface Props {
   users: User[];
   cities: City[];
   districts: District[];
+  directions?: Direction[];
   currentUser: User;
   onComplete: () => void;
 }
 
-type Step = 'upload' | 'scanning' | 'resolve' | 'importing' | 'success';
+type Step = 'upload' | 'scanning' | 'resolve' | 'check' | 'importing' | 'success';
 
 interface ManagerFormState {
   name: string;
@@ -30,36 +31,102 @@ interface ManagerFormState {
   phone: string;
 }
 
+interface ExistingMatchingVendor {
+  id?: string;
+  trade_name: string;
+  company_name: string;
+  company_code: string;
+  id_code: string;
+}
+
 // Normalized excel header map matching
 const normalizationMapping: Record<string, string> = {
+  // Trade Name
   "ობიექტისდასახელება": "trade_name",
+  "ობიექტისდასახელება:": "trade_name",
+  "ობიექტი": "trade_name",
+  "tradename": "trade_name",
+  
+  // Legal Company Name
   "იურ.დასხ.": "company_name",
   "იურ.დასხ": "company_name",
+  "იურიდიულიდასახელება": "company_name",
+  "companyname": "company_name",
+
+  // ID / Tax Code
   "ს/კ": "id_code",
+  "საიდენტიფიკაციოკოდი": "id_code",
+  "idcode": "id_code",
+
+  // Address
   "ფაქტიურიმისამართი": "address",
-  "საბანკორეკვიზიტები": "bank_account",
-  "ფასი(თეთრი)": "price_per_liter",
-  "ფასი": "price_per_liter",
-  "კონტაქტი": "contact_cell",
-  "ბუღალტერისსაკონტაქტო": "accountant_cell",
-  "ქალაქი": "city",
+  "მისამართი": "address",
+
+  // District
+  "რაიონი": "district",
   "უბანი": "district",
+
+  // Direction
+  "მიმართულება": "direction",
+
+  // Bank Account
+  "საბანკოანგარიში": "bank_account",
+  "საბანკორეკვიზიტები": "bank_account",
+  "ანგარიში": "bank_account",
+
+  // Price
+  "ფასი": "price_per_liter",
+  "ლიტრისფასი": "price_per_liter",
+  "ფასი(თეთრი)": "price_per_liter",
+
+  // Email
+  "მეილები": "email",
+  "საკონტაქტომეილი": "email",
+  "მეილი": "email",
+  "email": "email",
+
+  // Contacts
+  "კონტაქტები": "contact_cell",
+  "კონტაქტი": "contact_cell",
+  "საკონტაქტოპირი": "contact_cell",
+  "ბუღალტერისსაკონტაქტო": "accountant_cell",
+
+  // City / Location
+  "ქალაქი": "city",
+  "მდებარეობა": "city",
+
+  // Code
   "კოდი": "company_code",
-  "სტატუსი": "status",
+  "ობიექტისკოდი": "company_code",
+
+  // Warehouse
+  "მინიჭებულისაწყობი": "warehouse",
+  "საწყობი": "warehouse",
+
+  // Sales Manager
+  "გაყიდვებისმენეჯერი": "manager",
+  "მენეჯერი": "manager",
+
+  // Operations Manager / Operator
+  "ოპერაციებისმენეჯერი": "operator",
+  "ოპერატორი": "operator",
+
+  // Comments / others
   "შენიშვნა/მთავარიკომენტარი": "comment_cell",
   "შენიშვნა": "comment_cell",
+  "კომენტარი": "comment_cell",
   "ბოლოგატანა": "last_pickup_cell",
   "მოკითხვისდრო": "contact_time_cell",
   "კომენტარიმაისი": "may_comments_cell",
   "კომენტარიაპრილი": "april_comments_cell",
-  "მენეჯერი": "manager"
+  "სტატუსი": "status"
 };
 
 const normalizeHeader = (h: any): string => {
   if (!h) return '';
   return h.toString()
-    .replace(/["'\n\r]/g, '') // remove quotes/newlines
-    .replace(/\s+/g, '')       // remove all whitespace
+    .replace(/["'\n\r]/g, '')
+    .replace(/\s+/g, '')
     .trim()
     .toLowerCase();
 };
@@ -75,7 +142,7 @@ const transliterateName = (name: string): string => {
 };
 
 export default function VendorImportModal({ 
-  isOpen, onClose, warehouses, users, cities, districts, currentUser, onComplete 
+  isOpen, onClose, warehouses, users, cities, districts, directions = [], currentUser, onComplete 
 }: Props) {
   const [step, setStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
@@ -85,29 +152,36 @@ export default function VendorImportModal({
   // Local copies of lookups to survive in-session updates
   const [localCities, setLocalCities] = useState<City[]>(cities);
   const [localDistricts, setLocalDistricts] = useState<District[]>(districts);
+  const [localDirections, setLocalDirections] = useState<Direction[]>(directions);
+  const [localWarehouses, setLocalWarehouses] = useState<Warehouse[]>(warehouses);
 
-  useEffect(() => {
-    setLocalCities(cities);
-  }, [cities]);
-
-  useEffect(() => {
-    setLocalDistricts(districts);
-  }, [districts]);
+  useEffect(() => { setLocalCities(cities); }, [cities]);
+  useEffect(() => { setLocalDistricts(districts); }, [districts]);
+  useEffect(() => { setLocalDirections(directions); }, [directions]);
+  useEffect(() => { setLocalWarehouses(warehouses); }, [warehouses]);
 
   // Parsed sheet rows
   const [rawRows, setRawRows] = useState<any[]>([]);
 
-  // Pre-flight scan outcomes
+  // Pre-flight scan outcomes for missing lookups
   const [missingCities, setMissingCities] = useState<string[]>([]);
   const [missingDistricts, setMissingDistricts] = useState<{ city: string; district: string }[]>([]);
+  const [missingDirections, setMissingDirections] = useState<string[]>([]);
+  const [missingWarehouses, setMissingWarehouses] = useState<string[]>([]);
   const [missingManagers, setMissingManagers] = useState<string[]>([]);
 
-  // Resolving maps: ExcelName -> DatabaseId
+  // Existing database vendor matches for re-import check phase
+  const [matchingVendors, setMatchingVendors] = useState<ExistingMatchingVendor[]>([]);
+  const [nonMatchingRows, setNonMatchingRows] = useState<any[]>([]);
+
+  // Resolving maps: ExcelName -> DatabaseId/Name
   const [cityResolutionMap, setCityResolutionMap] = useState<Record<string, string>>({});
   const [districtResolutionMap, setDistrictResolutionMap] = useState<Record<string, string>>({});
+  const [directionResolutionMap, setDirectionResolutionMap] = useState<Record<string, string>>({});
+  const [warehouseResolutionMap, setWarehouseResolutionMap] = useState<Record<string, string>>({});
   const [managerResolutionMap, setManagerResolutionMap] = useState<Record<string, string>>({});
 
-  // Single-by-single interactive manager flow
+  // Manager interactive registration state
   const [currentManagerIdx, setCurrentManagerIdx] = useState<number>(0);
   const [managerForm, setManagerForm] = useState<ManagerFormState>({ name: '', email: '', personal_id: '', phone: '' });
   const [isCreatingManager, setIsCreatingManager] = useState<boolean>(false);
@@ -127,9 +201,15 @@ export default function VendorImportModal({
       setRawRows([]);
       setMissingCities([]);
       setMissingDistricts([]);
+      setMissingDirections([]);
+      setMissingWarehouses([]);
       setMissingManagers([]);
+      setMatchingVendors([]);
+      setNonMatchingRows([]);
       setCityResolutionMap({});
       setDistrictResolutionMap({});
+      setDirectionResolutionMap({});
+      setWarehouseResolutionMap({});
       setManagerResolutionMap({});
       setCurrentManagerIdx(0);
       setProcessedRows(0);
@@ -153,7 +233,7 @@ export default function VendorImportModal({
 
   if (!isOpen) return null;
 
-  // 1. Process local file load via SheetJS
+  // File Selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -175,6 +255,7 @@ export default function VendorImportModal({
     }
   };
 
+  // Pre-Flight Check Scan Logic
   const startPreFlightScan = () => {
     if (!file) {
       setErrorMsg('გთხოვთ ატვირთოთ Excel ფაილი დასაწყებად.');
@@ -209,7 +290,7 @@ export default function VendorImportModal({
           }
         });
 
-        // Ensure we mapped at least the trade name!
+        // Ensure trade name header was mapped
         if (headerIndices['trade_name'] === undefined) {
           throw new Error('ვერ მოხერხდა "ობიექტის დასახელება" სვეტის იდენტიფიცირება Excel ფაილში. გთხოვთ შეამოწმოთ სვეტები.');
         }
@@ -230,8 +311,10 @@ export default function VendorImportModal({
             address: val('address'),
             bank_account: val('bank_account'),
             price_per_liter: parseFloat(val('price_per_liter').replace(',', '.')) || 0.05,
-            city: val('city'),
-            district: val('district'),
+            city: val('city') || 'თბილისი',
+            district: val('district') || 'ვაკე',
+            direction: val('direction'),
+            warehouse: val('warehouse'),
             company_code: val('company_code'),
             status: val('status') || 'Active',
             contact_cell: val('contact_cell'),
@@ -241,14 +324,15 @@ export default function VendorImportModal({
             contact_time_cell: val('contact_time_cell'),
             may_comments_cell: val('may_comments_cell'),
             april_comments_cell: val('april_comments_cell'),
-            manager: val('manager')
+            manager: val('manager'),
+            operator: val('operator')
           };
         }).filter(r => r.trade_name !== '');
 
         setRawRows(parsedRowsClean);
         setErrorMsg(null);
 
-        // Analyze missing items
+        // Analyze missing lookup entries
         const sheetCities = Array.from(new Set(parsedRowsClean.map(r => r.city).filter(Boolean))) as string[];
         const sheetDistricts: { city: string; district: string }[] = [];
         parsedRowsClean.forEach(r => {
@@ -259,22 +343,30 @@ export default function VendorImportModal({
             }
           }
         });
+        const sheetDirections = Array.from(new Set(parsedRowsClean.map(r => r.direction).filter(Boolean))) as string[];
+        const sheetWarehouses = Array.from(new Set(parsedRowsClean.map(r => r.warehouse).filter(Boolean))) as string[];
         const sheetManagers = Array.from(new Set(parsedRowsClean.map(r => r.manager).filter(Boolean))) as string[];
 
         // Map lowercases for matching checks
         const dbCitiesLower = localCities.map(c => c.name.trim().toLowerCase());
         const dbDistrictsLower = localDistricts.map(d => d.name.trim().toLowerCase());
+        const dbDirectionsLower = localDirections.map(d => d.name.trim().toLowerCase());
+        const dbWarehousesLower = localWarehouses.map(w => w.name.trim().toLowerCase());
         const dbUsersLower = users.map(u => u.name.trim().toLowerCase());
 
         const missingC = sheetCities.filter(sc => !dbCitiesLower.includes(sc.trim().toLowerCase()));
         const missingD = sheetDistricts.filter(sd => !dbDistrictsLower.includes(sd.district.trim().toLowerCase()));
+        const missingDir = sheetDirections.filter(sdir => !dbDirectionsLower.includes(sdir.trim().toLowerCase()));
+        const missingWh = sheetWarehouses.filter(sw => !dbWarehousesLower.includes(sw.trim().toLowerCase()));
         const missingM = sheetManagers.filter(sm => !dbUsersLower.includes(sm.trim().toLowerCase()));
 
         setMissingCities(missingC);
         setMissingDistricts(missingD);
+        setMissingDirections(missingDir);
+        setMissingWarehouses(missingWh);
         setMissingManagers(missingM);
 
-        // Pre-build default resolutions (for existing lookup items mapping)
+        // Build default resolution mappings for existing lookups
         const initCityMap: Record<string, string> = {};
         localCities.forEach(c => {
           initCityMap[c.name.trim().toLowerCase()] = c.id;
@@ -287,6 +379,18 @@ export default function VendorImportModal({
           initDistrictMap[d.name.trim()] = d.id;
         });
 
+        const initDirectionMap: Record<string, string> = {};
+        localDirections.forEach(dir => {
+          initDirectionMap[dir.name.trim().toLowerCase()] = dir.id;
+          initDirectionMap[dir.name.trim()] = dir.id;
+        });
+
+        const initWarehouseMap: Record<string, string> = {};
+        localWarehouses.forEach(w => {
+          initWarehouseMap[w.name.trim().toLowerCase()] = w.id;
+          initWarehouseMap[w.name.trim()] = w.id;
+        });
+
         const initManagerMap: Record<string, string> = {};
         users.forEach(u => {
           initManagerMap[u.name.trim().toLowerCase()] = u.id;
@@ -295,14 +399,16 @@ export default function VendorImportModal({
 
         setCityResolutionMap(initCityMap);
         setDistrictResolutionMap(initDistrictMap);
+        setDirectionResolutionMap(initDirectionMap);
+        setWarehouseResolutionMap(initWarehouseMap);
         setManagerResolutionMap(initManagerMap);
 
-        // Move to resolution step directly if anything missing, else start processing
-        if (missingC.length > 0 || missingD.length > 0 || missingM.length > 0) {
+        // If lookups are missing, go to resolve step
+        if (missingC.length > 0 || missingD.length > 0 || missingDir.length > 0 || missingWh.length > 0 || missingM.length > 0) {
           setStep('resolve');
         } else {
-          // All good! Auto bypass to processing directly with initial mappings
-          executeImportStep(parsedRowsClean, initCityMap, initDistrictMap, initManagerMap);
+          // All lookups exist! Calculate matching records in DB and proceed to Check modal
+          await prepareCheckStep(parsedRowsClean, initCityMap, initDistrictMap, initDirectionMap, initWarehouseMap, initManagerMap);
         }
 
       } catch (err: any) {
@@ -311,6 +417,7 @@ export default function VendorImportModal({
         setStep('upload');
       }
     };
+
     reader.onerror = () => {
       setErrorMsg('ფაილის წაკითხვა ვერ მოხერხდა.');
       setStep('upload');
@@ -318,7 +425,204 @@ export default function VendorImportModal({
     reader.readAsBinaryString(file);
   };
 
-  // 2. Interactive user creations
+  // Prepare Check Step: Query existing database records to calculate duplicates/matches
+  const prepareCheckStep = async (
+    allRows: any[],
+    cityMap: Record<string, string>,
+    districtMap: Record<string, string>,
+    directionMap: Record<string, string>,
+    whMap: Record<string, string>,
+    managerMap: Record<string, string>
+  ) => {
+    setProgressMsg('მოწმდება ბაზაში არსებული ჩანაწერები...');
+    
+    let dbVendors: ExistingMatchingVendor[] = [];
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('vendors')
+          .select('id, id_code, company_name, trade_name, company_code')
+          .eq('is_deleted', false)
+          .range(0, 10000);
+        if (!error && data) {
+          dbVendors = data;
+        }
+      } catch (err) {
+        console.warn('Failed to query existing vendors directly from Supabase', err);
+      }
+    }
+    if (dbVendors.length === 0) {
+      try {
+        const allDb = await getVendors();
+        dbVendors = allDb.map(v => ({
+          id: v.id,
+          id_code: v.id_code || '',
+          company_name: v.company_name || v.trade_name || '',
+          trade_name: v.trade_name || '',
+          company_code: v.company_code || ''
+        }));
+      } catch (err) {
+        console.warn('Failed to query existing vendors', err);
+      }
+    }
+
+    const matches: ExistingMatchingVendor[] = [];
+    const nonMatches: any[] = [];
+    const seenBatchCodes = new Set<string>();
+
+    allRows.forEach(row => {
+      const codeStr = (row.company_code || '').toString().trim().toLowerCase();
+      const idStr = (row.id_code || '').toString().trim();
+
+      let matchedInDb: ExistingMatchingVendor | undefined = undefined;
+
+      if (codeStr) {
+        // Reliable matching: match strictly by company_code (კოდი in Excel)
+        matchedInDb = dbVendors.find(v => (v.company_code || '').toString().trim().toLowerCase() === codeStr);
+      } else if (idStr && idStr !== '204857392') {
+        // Fallback matching: match by id_code if valid and non-generic
+        matchedInDb = dbVendors.find(v => (v.id_code || '').toString().trim() === idStr);
+      }
+
+      const isDuplicateInBatch = !!(codeStr && seenBatchCodes.has(codeStr));
+
+      if (matchedInDb || isDuplicateInBatch) {
+        matches.push({
+          id: matchedInDb?.id || `dup-${Math.random().toString(36).substring(2, 8)}`,
+          trade_name: row.trade_name,
+          company_name: row.company_name || matchedInDb?.company_name || '',
+          company_code: row.company_code || matchedInDb?.company_code || '',
+          id_code: row.id_code || matchedInDb?.id_code || ''
+        });
+      } else {
+        nonMatches.push(row);
+      }
+
+      if (codeStr) {
+        seenBatchCodes.add(codeStr);
+      }
+    });
+
+    setMatchingVendors(matches);
+    setNonMatchingRows(nonMatches);
+    setCityResolutionMap(cityMap);
+    setDistrictResolutionMap(districtMap);
+    setDirectionResolutionMap(directionMap);
+    setWarehouseResolutionMap(whMap);
+    setManagerResolutionMap(managerMap);
+
+    setStep('check');
+  };
+
+  // Interactive lookups auto-creation
+  const handleResolveAndProceedList = async (resolveEntries: boolean) => {
+    setStep('scanning');
+    
+    let resolvedCityIds = { ...cityResolutionMap };
+    let resolvedDistrictIds = { ...districtResolutionMap };
+    let resolvedDirectionIds = { ...directionResolutionMap };
+    let resolvedWarehouseIds = { ...warehouseResolutionMap };
+
+    if (resolveEntries) {
+      setProgressMsg('იქმნება ახალი დამხმარე ჩანაწერები (created_by: "import")...');
+      try {
+        // Cities
+        const newCitiesList: City[] = [];
+        for (const cityName of missingCities) {
+          const savedC = await saveCity({
+            id: '',
+            name: cityName,
+            created_by: 'import',
+            is_deleted: false
+          }, 'import');
+          resolvedCityIds[cityName.trim().toLowerCase()] = savedC.id;
+          resolvedCityIds[cityName.trim()] = savedC.id;
+          newCitiesList.push(savedC);
+        }
+        if (newCitiesList.length > 0) {
+          setLocalCities(prev => [...prev, ...newCitiesList]);
+        }
+
+        // Districts
+        const newDistrictsList: District[] = [];
+        for (const distInfo of missingDistricts) {
+          const parentCityLower = distInfo.city.trim().toLowerCase();
+          const cityId = resolvedCityIds[parentCityLower] || resolvedCityIds[distInfo.city] || '';
+          
+          if (cityId) {
+            const savedD = await saveDistrict({
+              id: '',
+              city_id: cityId,
+              name: distInfo.district,
+              created_by: 'import'
+            }, 'import');
+            resolvedDistrictIds[distInfo.district.trim().toLowerCase()] = savedD.id;
+            resolvedDistrictIds[distInfo.district.trim()] = savedD.id;
+            newDistrictsList.push(savedD);
+          }
+        }
+        if (newDistrictsList.length > 0) {
+          setLocalDistricts(prev => [...prev, ...newDistrictsList]);
+        }
+
+        // Directions
+        const newDirectionsList: Direction[] = [];
+        for (const dirName of missingDirections) {
+          const savedDir = await saveDirection({
+            id: '',
+            name: dirName,
+            created_by: 'import',
+            is_deleted: false
+          }, 'import');
+          resolvedDirectionIds[dirName.trim().toLowerCase()] = savedDir.id;
+          resolvedDirectionIds[dirName.trim()] = savedDir.id;
+          newDirectionsList.push(savedDir);
+        }
+        if (newDirectionsList.length > 0) {
+          setLocalDirections(prev => [...prev, ...newDirectionsList]);
+        }
+
+        // Warehouses
+        const newWarehousesList: Warehouse[] = [];
+        for (const whName of missingWarehouses) {
+          const savedWh = await saveWarehouse({
+            id: '',
+            name: whName,
+            created_by: 'import',
+            is_deleted: false
+          }, 'import');
+          resolvedWarehouseIds[whName.trim().toLowerCase()] = savedWh.id;
+          resolvedWarehouseIds[whName.trim()] = savedWh.id;
+          newWarehousesList.push(savedWh);
+        }
+        if (newWarehousesList.length > 0) {
+          setLocalWarehouses(prev => [...prev, ...newWarehousesList]);
+        }
+
+      } catch (e) {
+        console.error('Error auto-creating lookups:', e);
+      }
+    }
+
+    setMissingCities([]);
+    setMissingDistricts([]);
+    setMissingDirections([]);
+    setMissingWarehouses([]);
+
+    setCurrentManagerIdx(0);
+    
+    if (missingManagers.length === 0) {
+      await prepareCheckStep(rawRows, resolvedCityIds, resolvedDistrictIds, resolvedDirectionIds, resolvedWarehouseIds, managerResolutionMap);
+    } else {
+      setCityResolutionMap(resolvedCityIds);
+      setDistrictResolutionMap(resolvedDistrictIds);
+      setDirectionResolutionMap(resolvedDirectionIds);
+      setWarehouseResolutionMap(resolvedWarehouseIds);
+      setStep('resolve');
+    }
+  };
+
+  // Interactive User/Manager Creation
   const handleCreateManager = async () => {
     if (!managerForm.name.trim() || !managerForm.email.trim()) {
       alert('მიუთითეთ სახელი და ელ.ფოსტა');
@@ -326,7 +630,6 @@ export default function VendorImportModal({
     }
     setIsCreatingManager(true);
     try {
-      // Complete user registration details
       const userPayload: User = {
         id: '',
         email: managerForm.email,
@@ -339,16 +642,14 @@ export default function VendorImportModal({
         created_at: new Date().toISOString()
       };
 
-      const createdUser = await saveUser(userPayload, currentUser.name || 'System Import');
+      const createdUser = await saveUser(userPayload, 'import');
       
-      // Update mappings
       setManagerResolutionMap(prev => ({
         ...prev,
         [managerForm.name.trim().toLowerCase()]: createdUser.id,
         [managerForm.name.trim()]: createdUser.id
       }));
 
-      // Next
       setCurrentManagerIdx(prev => prev + 1);
     } catch (e: any) {
       console.error(e);
@@ -359,7 +660,6 @@ export default function VendorImportModal({
   };
 
   const handleSkipManager = () => {
-    // Record skipped name as unmapped
     const skippedName = missingManagers[currentManagerIdx];
     setManagerResolutionMap(prev => ({
       ...prev,
@@ -369,103 +669,31 @@ export default function VendorImportModal({
     setCurrentManagerIdx(prev => prev + 1);
   };
 
-  const handleResolveAndProceedList = async (resolveEntries: boolean) => {
-    setStep('scanning');
-    
-    let resolvedCityIds = { ...cityResolutionMap };
-    let resolvedDistrictIds = { ...districtResolutionMap };
-
-    if (resolveEntries) {
-      setProgressMsg('პარალელურად იქმნება ახალი ქალაქები და უბნები...');
-      try {
-        // A. Save Missing Cities if any
-        const newCitiesList: City[] = [];
-        for (const cityName of missingCities) {
-          const savedC = await saveCity({
-            id: '',
-            name: cityName,
-            is_deleted: false
-          }, currentUser.name);
-          resolvedCityIds[cityName.trim().toLowerCase()] = savedC.id;
-          resolvedCityIds[cityName.trim()] = savedC.id;
-          newCitiesList.push(savedC);
-        }
-        if (newCitiesList.length > 0) {
-          setLocalCities(prev => [...prev, ...newCitiesList]);
-        }
-
-        // B. Save Missing Districts if any
-        const newDistrictsList: District[] = [];
-        for (const distInfo of missingDistricts) {
-          // Wait, find city ID of parent
-          const parentCityLower = distInfo.city.trim().toLowerCase();
-          const cityId = resolvedCityIds[parentCityLower] || resolvedCityIds[distInfo.city] || '';
-          
-          if (cityId) {
-            const savedD = await saveDistrict({
-              id: '',
-              city_id: cityId,
-              name: distInfo.district
-            }, currentUser.name);
-            resolvedDistrictIds[distInfo.district.trim().toLowerCase()] = savedD.id;
-            resolvedDistrictIds[distInfo.district.trim()] = savedD.id;
-            newDistrictsList.push(savedD);
-          }
-        }
-        if (newDistrictsList.length > 0) {
-          setLocalDistricts(prev => [...prev, ...newDistrictsList]);
-        }
-      } catch (e) {
-        console.error('Error auto-creating locations:', e);
-      }
-    }
-
-    // Clear missing domains to hide the city and district mapper
-    setMissingCities([]);
-    setMissingDistricts([]);
-
-    // Move to next step of wizard: manager check
-    const managerIndex = 0;
-    setCurrentManagerIdx(0);
-    
-    // If no missing managers or bypassed managers creation, start bulk processing!
-    if (missingManagers.length === 0) {
-      executeImportStep(rawRows, resolvedCityIds, resolvedDistrictIds, managerResolutionMap);
-    } else {
-      setCityResolutionMap(resolvedCityIds);
-      setDistrictResolutionMap(resolvedDistrictIds);
-      setStep('resolve');
-    }
-  };
-
-  // Skip all remaining manager profiles with single click
-  const handleSkipAllManagersAndProceed = () => {
+  const handleSkipAllManagersAndProceed = async () => {
     const finalManagersMap = { ...managerResolutionMap };
     missingManagers.slice(currentManagerIdx).forEach(mgr => {
       finalManagersMap[mgr.trim().toLowerCase()] = '';
       finalManagersMap[mgr.trim()] = '';
     });
     setManagerResolutionMap(finalManagersMap);
-    executeImportStep(rawRows, cityResolutionMap, districtResolutionMap, finalManagersMap);
+    await prepareCheckStep(rawRows, cityResolutionMap, districtResolutionMap, directionResolutionMap, warehouseResolutionMap, finalManagersMap);
   };
 
-  // Submit resolved managers & run import batch loops!
-  const handleAcceptManagersAndImport = () => {
-    executeImportStep(rawRows, cityResolutionMap, districtResolutionMap, managerResolutionMap);
+  const handleAcceptManagersAndProceedToCheck = async () => {
+    await prepareCheckStep(rawRows, cityResolutionMap, districtResolutionMap, directionResolutionMap, warehouseResolutionMap, managerResolutionMap);
   };
 
-
-  // 3. Batch process execution using Gemini 3.5 Flash JSON proxy
-  const executeImportStep = async (
-    allParsedRows: any[], 
-    cityIdMap: Record<string, string>, 
-    districtIdMap: Record<string, string>, 
-    managerIdMap: Record<string, string>
-  ) => {
+  // Execute Import: Imports new (non-duplicate) rows with created_by="import"
+  const startImportingExecution = async () => {
+    const rowsToImport = nonMatchingRows;
+    if (rowsToImport.length === 0) {
+      return;
+    }
+    
     setStep('importing');
-    setTotalRows(allParsedRows.length);
+    setTotalRows(rowsToImport.length);
     setProcessedRows(0);
-    setProgressMsg('მზადდება მონაცემები იმპორტისთვის...');
+    setProgressMsg('მზადდება მონაცემები იმპორტისთვის (created_by = "import")...');
 
     let importCount = 0;
     let contactsCount = 0;
@@ -474,12 +702,10 @@ export default function VendorImportModal({
     const batchSize = 50;
 
     try {
-      for (let i = 0; i < allParsedRows.length; i += batchSize) {
-        const batchRows = allParsedRows.slice(i, i + batchSize);
-        const batchProgressText = `პროცესინგი: იგზავნება ${i + 1}-დან ${Math.min(i + batchSize, allParsedRows.length)}-მდე ჩანაწერი Gemini API-ში...`;
-        setProgressMsg(batchProgressText);
+      for (let i = 0; i < rowsToImport.length; i += batchSize) {
+        const batchRows = rowsToImport.slice(i, i + batchSize);
+        setProgressMsg(`პროცესინგი: იგზავნება ${i + 1}-დან ${Math.min(i + batchSize, rowsToImport.length)}-მდე ჩანაწერი Gemini API-ში...`);
 
-        // Form payload for Gemini structure API
         const payloadRows = batchRows.map(r => ({
           row_id: r.row_id,
           contact_cell: r.contact_cell || '',
@@ -491,28 +717,43 @@ export default function VendorImportModal({
           april_comments_cell: r.april_comments_cell || ''
         }));
 
-        // Request Supabase Edge Function directly
-        const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
-        const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
+        let geminiParsedList: any[] = [];
+        
+        // Try Express API first, fallback to Supabase Edge Function
+        try {
+          const res = await fetch('/api/import-excel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rows: payloadRows })
+          });
+          if (res.ok) {
+            const resData = await res.json();
+            geminiParsedList = resData.data || [];
+          } else {
+            throw new Error(`Express API status ${res.status}`);
+          }
+        } catch (expressErr) {
+          console.warn('Falling back to Supabase Edge Function for Gemini parse', expressErr);
+          const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
+          const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
 
-        const res = await fetch(`${supabaseUrl}/functions/v1/import-excel`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`
-          },
-          body: JSON.stringify({ rows: payloadRows })
-        });
+          const edgeRes = await fetch(`${supabaseUrl}/functions/v1/import-excel`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`
+            },
+            body: JSON.stringify({ rows: payloadRows })
+          });
 
-        if (!res.ok) {
-          const errRes = await res.json();
-          throw new Error(errRes.error || `Gemini proxy returned ${res.status}`);
+          if (edgeRes.ok) {
+            const resData = await edgeRes.json();
+            geminiParsedList = resData.data || [];
+          } else {
+            console.warn('Edge function failed, continuing with basic extraction');
+          }
         }
 
-        const resData = await res.json();
-        const geminiParsedList: any[] = resData.data || [];
-
-        // Build mapping lookup of AI extractions
         const aiMap: Record<string, any> = {};
         geminiParsedList.forEach(item => {
           if (item.row_id) {
@@ -522,68 +763,89 @@ export default function VendorImportModal({
 
         setProgressMsg(`ბაზაში იწერება დამუშავებული ${batchRows.length} მიმწოდებელი...`);
 
-        // Perform parallel vendor saving for this batch
         await Promise.all(batchRows.map(async (row) => {
           const aiExtract = aiMap[row.row_id] || { contacts: [], comments: [] };
 
-          // Build clean entities mapped
-          const mappedCityId = cityIdMap[row.city.trim().toLowerCase()] || cityIdMap[row.city.trim()] || '';
-          const mappedCityName = localCities.find(c => c.id === mappedCityId)?.name || row.city || 'Tbilisi';
+          const mappedCityId = cityResolutionMap[row.city.trim().toLowerCase()] || cityResolutionMap[row.city.trim()] || '';
+          const mappedCityName = localCities.find(c => c.id === mappedCityId)?.name || row.city || 'თბილისი';
 
-          const mappedDistrictId = districtIdMap[row.district.trim().toLowerCase()] || districtIdMap[row.district.trim()] || '';
-          const mappedDistrictName = localDistricts.find(d => d.id === mappedDistrictId)?.name || row.district || 'Saburtalo';
+          const mappedDistrictId = districtResolutionMap[row.district.trim().toLowerCase()] || districtResolutionMap[row.district.trim()] || '';
+          const mappedDistrictName = localDistricts.find(d => d.id === mappedDistrictId)?.name || row.district || 'ვაკე';
 
-          const mappedManagerId = managerIdMap[row.manager.trim().toLowerCase()] || managerIdMap[row.manager.trim()] || currentUser.id;
+          const mappedDirectionId = directionResolutionMap[(row.direction || '').trim().toLowerCase()] || directionResolutionMap[(row.direction || '').trim()] || null;
+          
+          const mappedWarehouseId = warehouseResolutionMap[(row.warehouse || '').trim().toLowerCase()] || warehouseResolutionMap[(row.warehouse || '').trim()] || (localWarehouses[0]?.id || '');
 
-          // Default safe values for missing columns
+          const mappedManagerId = managerResolutionMap[(row.manager || '').trim().toLowerCase()] || managerResolutionMap[(row.manager || '').trim()] || currentUser.id;
+          
+          const mappedOperatorId = managerResolutionMap[(row.operator || '').trim().toLowerCase()] || managerResolutionMap[(row.operator || '').trim()] || currentUser.id;
+
+          const contactsList = (aiExtract.contacts || []).map((c: any, cIdx: number) => ({
+            id: generateUuid(),
+            name: c.name || 'კონტაქტი',
+            phone: c.phone || '',
+            position: c.position || 'other',
+            note: c.note || '',
+            is_default: c.is_default !== undefined ? c.is_default : (cIdx === 0),
+            sort_order: cIdx + 1,
+            created_by: 'import',
+            is_deleted: false
+          }));
+
+          const commentsList = (aiExtract.comments || []).map((cm: any, cmIdx: number) => ({
+            id: generateUuid(),
+            comment: cm.comment || 'კომენტარი',
+            date: cm.date || new Date().toISOString().split('T')[0],
+            user_name: cm.user_name || 'System Import'
+          }));
+
+          const newVendorId = generateUuid();
+          const cleanCode = (row.company_code || '').toString().trim();
+          const rawIdCode = (row.id_code || '').toString().trim();
+          const uniqueCompCode = cleanCode || (rawIdCode && rawIdCode !== '204857392' ? rawIdCode : `CC-${newVendorId.slice(-8)}`);
+
           const finalVendor: Vendor = {
-            id: '', // let saveVendor auto generate
+            id: newVendorId,
             id_code: row.id_code || '204857392',
             company_name: row.company_name || row.trade_name,
             trade_name: row.trade_name,
-            company_code: row.company_code || row.id_code || '',
+            company_code: uniqueCompCode,
             bank_account: row.bank_account || 'GE00TB0000000000000000',
             city: mappedCityName,
             district: mappedDistrictName,
             address: row.address || 'Imported Address',
             price_per_liter: row.price_per_liter || 0.05,
-            warehouse_id: warehouses[0]?.id || '',
+            warehouse_id: mappedWarehouseId,
             manager_id: mappedManagerId,
-            operator_id: currentUser.id,
+            operator_id: mappedOperatorId,
+            direction_id: mappedDirectionId,
             working_hours: '09:00 - 18:00',
             status: 'Active',
             barrels_amount: 0,
-            contacts: aiExtract.contacts.map((c: any, cIdx: number) => ({
-              id: `cont-imp-${row.row_id}-${cIdx}-${Math.random().toString(36).substring(2, 5)}`,
-              name: c.name || 'კონტაქტი',
-              phone: c.phone || '',
-              position: c.position || 'other',
-              note: c.note || '',
-              is_default: c.is_default !== undefined ? c.is_default : (cIdx === 0)
-            })),
-            comments: aiExtract.comments.map((cm: any, cmIdx: number) => ({
-              id: `comm-imp-${row.row_id}-${cmIdx}-${Math.random().toString(36).substring(2, 5)}`,
-              comment: cm.comment || 'კომენტარი',
-              date: cm.date || new Date().toISOString().split('T')[0],
-              user_name: cm.user_name || 'System Import'
-            })),
+            is_active: true,
+            is_deleted: false,
+            created_by: 'import',
+            email: row.email || '',
+            contacts: contactsList,
+            comments: commentsList,
             created_at: new Date().toISOString()
           };
 
-          await saveVendor(finalVendor, currentUser.name || 'System');
-          
-          importCount++;
-          contactsCount += finalVendor.contacts.length;
-          commentsCount += finalVendor.comments.length;
+          try {
+            await saveVendor(finalVendor, 'import');
+            importCount++;
+            contactsCount += contactsList.length;
+            commentsCount += commentsList.length;
+          } catch (rowErr) {
+            console.warn('Individual vendor save warning during import:', row.company_code || row.trade_name, rowErr);
+          }
         }));
 
-        setProcessedRows(prev => Math.min(prev + batchRows.length, allParsedRows.length));
+        setProcessedRows(prev => Math.min(prev + batchRows.length, rowsToImport.length));
       }
 
       setImportResults({ vendors: importCount, contacts: contactsCount, comments: commentsCount });
       setStep('success');
-
-      // Trigger high-level parent state reload
       onComplete();
 
     } catch (e: any) {
@@ -594,12 +856,13 @@ export default function VendorImportModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 font-sans">
       <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150">
         
         {/* HEADER AREA */}
         <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
           <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
+            <FileSpreadsheet className="text-emerald-700" size={18} />
             მონაცემების იმპორტი ექსელიდან
           </h3>
           <button 
@@ -611,22 +874,21 @@ export default function VendorImportModal({
           </button>
         </div>
 
-        {/* WIZARD SCREENS CONTAINER - COLLAPSIBLE BODY */}
+        {/* WIZARD SCREENS CONTAINER */}
         <div className="flex-1 overflow-y-auto pr-1">
           {errorMsg && (
-            <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-800 rounded-xl p-3.5 text-xs animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-800 rounded-xl p-3.5 text-xs animate-in slide-in-from-top-2 duration-200 mb-3">
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <div>
-                <strong className="block font-black">შეცდომა / Error:</strong>
+                <strong className="block font-black">შეცდომა:</strong>
                 <p className="font-medium mt-0.5">{errorMsg}</p>
               </div>
             </div>
           )}
 
-          {/* SCREEN 1: FILE COOP / PASTE UPLOAD */}
+          {/* SCREEN 1: FILE UPLOAD */}
           {step === 'upload' && (
             <div className="space-y-4">
-              {/* Drag/Drop Box */}
               <div 
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
@@ -641,7 +903,7 @@ export default function VendorImportModal({
                   className="hidden" 
                 />
                 
-                <div className="w-12 h-12 rounded-full bg-emerald-150 text-emerald-800 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
                   <Upload size={22} />
                 </div>
 
@@ -666,7 +928,7 @@ export default function VendorImportModal({
                   disabled={!file}
                   className="px-6 py-2 bg-emerald-800 hover:bg-emerald-950 disabled:bg-gray-100 disabled:text-gray-400 active:bg-emerald-900 text-white rounded-xl text-xs font-black transition flex items-center gap-1 cursor-pointer"
                 >
-                  იმპორტის შემოწმება
+                  შემოწმება
                   <ChevronRight size={14} className="mt-0.5" />
                 </button>
               </div>
@@ -679,7 +941,7 @@ export default function VendorImportModal({
               <Loader2 className="animate-spin text-emerald-700" size={38} />
               <div className="space-y-1.5 font-sans">
                 <h4 className="font-black text-sm text-gray-800">მიმდინარეობს შემოწმება...</h4>
-                <p className="text-xs text-gray-500 max-w-sm">{progressMsg || 'ვეძებთ ახალ მომხმარებლებს, ქალაქებსა და უბნებს ჩანაცვლებამდე...'}</p>
+                <p className="text-xs text-gray-500 max-w-sm">{progressMsg || 'ვეძებთ მონაცემთა ბაზაში არსებულ და დამხმარე ჩანაწერებს...'}</p>
               </div>
             </div>
           )}
@@ -688,14 +950,14 @@ export default function VendorImportModal({
           {step === 'resolve' && (
             <div className="space-y-5 animate-in fade-in duration-250">
               
-              {/* STAGE A: Cities and Districts Resolve Card */}
-              {(missingCities.length > 0 || missingDistricts.length > 0) ? (
+              {/* STAGE A: Cities, Districts, Directions, Warehouses Resolve Card */}
+              {(missingCities.length > 0 || missingDistricts.length > 0 || missingDirections.length > 0 || missingWarehouses.length > 0) ? (
                 <div className="border border-amber-250 bg-amber-50 rounded-2xl p-4.5 space-y-4">
                   <div className="flex items-start gap-3">
                     <MapPin className="text-amber-800 shrink-0 mt-0.5 animate-bounce" size={18} />
                     <div className="font-sans">
-                      <h4 className="font-extrabold text-xs text-amber-950">ლოკაციების სინქრონიზაცია</h4>
-                      <p className="text-[11px] text-amber-800 mt-0.5">Excel-ში აღმოჩნდა ქალაქები ან უბნები, რომლებიც არ არსებობს საწყის მონაცემებში. გსურთ მათი ავტომატურად დამატება ბაზაში?</p>
+                      <h4 className="font-extrabold text-xs text-amber-950">დამხმარე ჩანაწერების სინქრონიზაცია</h4>
+                      <p className="text-[11px] text-amber-800 mt-0.5">Excel-ში აღმოჩნდა ლოკაციები ან საწყობები, რომლებიც არ არსებობს საწყის მონაცემებში. გსურთ მათი ავტომატურად დამატება ბაზაში (created_by: "import")?</p>
                     </div>
                   </div>
 
@@ -703,13 +965,25 @@ export default function VendorImportModal({
                     {missingCities.map(c => (
                       <div key={c} className="flex items-center gap-1.5 text-amber-950 font-bold">
                         <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                        ქალაქი (New City): <strong className="text-amber-900 bg-amber-100/50 px-1.5 py-0.5 rounded">{c}</strong>
+                        ქალაქი: <strong className="text-amber-900 bg-amber-100/50 px-1.5 py-0.5 rounded">{c}</strong>
                       </div>
                     ))}
                     {missingDistricts.map(d => (
                       <div key={`${d.city}-${d.district}`} className="flex items-center gap-1.5 text-amber-950">
                         <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                        უბანი (New District): <strong className="text-amber-900 bg-amber-100/50 px-1.5 py-0.5 rounded">{d.city} &gt; {d.district}</strong>
+                        უბანი: <strong className="text-amber-900 bg-amber-100/50 px-1.5 py-0.5 rounded">{d.city} &gt; {d.district}</strong>
+                      </div>
+                    ))}
+                    {missingDirections.map(dir => (
+                      <div key={dir} className="flex items-center gap-1.5 text-amber-950">
+                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                        მიმართულება: <strong className="text-amber-900 bg-amber-100/50 px-1.5 py-0.5 rounded">{dir}</strong>
+                      </div>
+                    ))}
+                    {missingWarehouses.map(wh => (
+                      <div key={wh} className="flex items-center gap-1.5 text-amber-950">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                        საწყობი: <strong className="text-amber-900 bg-amber-100/50 px-1.5 py-0.5 rounded">{wh}</strong>
                       </div>
                     ))}
                   </div>
@@ -733,8 +1007,8 @@ export default function VendorImportModal({
                 </div>
               ) : null}
 
-              {/* STAGE B: Users/Managers One-by-One sequential registration */}
-              {missingCities.length === 0 && missingDistricts.length === 0 && missingManagers.length > 0 && currentManagerIdx < missingManagers.length ? (
+              {/* STAGE B: Managers creation */}
+              {missingCities.length === 0 && missingDistricts.length === 0 && missingDirections.length === 0 && missingWarehouses.length === 0 && missingManagers.length > 0 && currentManagerIdx < missingManagers.length ? (
                 <div className="border border-blue-200 bg-blue-50 rounded-2xl p-5 space-y-4 animate-in slide-in-from-bottom-2 duration-200">
                   <div className="flex items-start gap-3">
                     <Users className="text-blue-800 shrink-0 mt-0.5" size={18} />
@@ -794,7 +1068,7 @@ export default function VendorImportModal({
                       onClick={handleSkipManager}
                       className="px-4 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold transition cursor-pointer"
                     >
-                      ამ მენეჯერის გამოტოვება (Skip)
+                      ამ მენეჯერის გამოტოვება
                     </button>
                     
                     <div className="flex gap-2.5">
@@ -820,34 +1094,141 @@ export default function VendorImportModal({
               ) : null}
 
               {/* Bottom trigger fallback when managers list exhausts */}
-              {missingCities.length === 0 && missingDistricts.length === 0 && (missingManagers.length === 0 || currentManagerIdx >= missingManagers.length) && (
+              {missingCities.length === 0 && missingDistricts.length === 0 && missingDirections.length === 0 && missingWarehouses.length === 0 && (missingManagers.length === 0 || currentManagerIdx >= missingManagers.length) && (
                 <div className="text-center py-6 space-y-4 font-sans animate-in zoom-in-95 duration-150">
                   <div className="w-12 h-12 bg-emerald-50 text-emerald-800 rounded-full flex items-center justify-center mx-auto">
                     <CheckCircle size={22} className="animate-bounce" />
                   </div>
                   <div className="space-y-1">
-                    <h5 className="font-black text-sm text-gray-800">იდენტიფიცირება დასრულებულია</h5>
-                    <p className="text-xs text-gray-500">ყველა საჭირო ახალი მენეჯერი და ლოკაცია მზადაა დასაკავშირებლად.</p>
+                    <h5 className="font-black text-sm text-gray-800">დამხმარე ჩანაწერები შემოწმებულია</h5>
+                    <p className="text-xs text-gray-500">ყველა საჭირო დამხმარე ჩანაწერი მზადაა.</p>
                   </div>
                   <button 
                     type="button"
-                    onClick={handleAcceptManagersAndImport}
+                    onClick={handleAcceptManagersAndProceedToCheck}
                     className="px-6 py-2 bg-emerald-800 hover:bg-emerald-950 text-white font-black rounded-xl text-xs transition"
                   >
-                    იმპორტის დაწყება
+                    შემოწმების დასრულება
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* SCREEN 4: PROGRESS BAR LOOPS OF GEMINI EXTRACTION */}
+          {/* SCREEN 4: PRE-FLIGHT CHECK RESULTS & DUPLICATE DISPLAY MODAL */}
+          {step === 'check' && (
+            <div className="space-y-4.5 animate-in fade-in duration-200 font-sans">
+              {/* Notice Banner */}
+              {nonMatchingRows.length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                  <AlertCircle className="text-amber-700 shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <h4 className="font-black text-xs text-amber-950 uppercase tracking-wider">შემოწმების შედეგი</h4>
+                    <p className="text-xs font-bold text-amber-900 mt-1">
+                      ბაზაში უკვე არსებობს ეს ჩანაწერები.
+                    </p>
+                  </div>
+                </div>
+              ) : matchingVendors.length > 0 ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
+                  <CheckCircle className="text-emerald-700 shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <h4 className="font-black text-xs text-emerald-950 uppercase tracking-wider">შემოწმების შედეგი</h4>
+                    <p className="text-xs font-bold text-emerald-800 mt-1">
+                      ეს ჩანაწერები უკვე არსებობს ბაზაში და განმეორებითად არ შეიქმნება.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
+                  <CheckCircle className="text-emerald-700 shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <h4 className="font-black text-xs text-emerald-950 uppercase tracking-wider">შემოწმების შედეგი</h4>
+                    <p className="text-xs font-bold text-emerald-800 mt-1">
+                      დამხმარე ჩანაწერები არსებობს ბაზაში და არ საჭიროებს შექმნას.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Matching/Duplicate Records Summary */}
+              {matchingVendors.length > 0 ? (
+                <div className="border border-slate-200 bg-slate-50 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Database className="text-slate-600" size={16} />
+                      <span className="font-black text-xs text-slate-800">
+                        {nonMatchingRows.length === 0 
+                          ? `სულ ${rawRows.length} ჩანაწერიდან ყველა (${matchingVendors.length}) უკვე არსებობს ბაზაში`
+                          : `სულ ${rawRows.length} ჩანაწერიდან ${matchingVendors.length} უკვე არსებობს ბაზაში`
+                        }
+                      </span>
+                    </div>
+                    <span className="bg-amber-100 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full text-[10px] font-black">
+                      {matchingVendors.length} დუბლიკატი
+                    </span>
+                  </div>
+
+                  <p className="text-xs font-semibold text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200">
+                    {nonMatchingRows.length === 0 
+                      ? 'ბაზაში უკვე არსებობს ეს ჩანაწერები.'
+                      : `ეს ჩანაწერები უკვე არსებობს ბაზაში და განმეორებითად არ შეიქმნება. (${nonMatchingRows.length} ახალი ჩანაწერი დაემატება)`
+                    }
+                  </p>
+
+                  {/* List of matching existing records */}
+                  <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white divide-y divide-slate-100 text-[11px]">
+                    <div className="bg-slate-100 font-bold text-slate-600 px-3 py-1.5 grid grid-cols-3 sticky top-0">
+                      <span>ობიექტის დასახელება</span>
+                      <span>იურიდიული სახელი</span>
+                      <span>ს/კ / კოდი</span>
+                    </div>
+                    {matchingVendors.map((mv, idx) => (
+                      <div key={mv.id || idx} className="px-3 py-1.5 grid grid-cols-3 hover:bg-slate-50">
+                        <span className="font-bold text-slate-900 truncate" title={mv.trade_name}>{mv.trade_name}</span>
+                        <span className="text-slate-600 truncate" title={mv.company_name}>{mv.company_name}</span>
+                        <span className="font-mono text-slate-500">{mv.id_code || mv.company_code || '-'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-blue-100 bg-blue-50/70 rounded-2xl p-4 text-center space-y-1 text-blue-900">
+                  <p className="text-xs font-bold">
+                    ბაზაში მატჩინგი არ მოიძებნა. სულ {rawRows.length} ახალი ჩანაწერი შეიქმნება.
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <button 
+                  type="button"
+                  onClick={() => setStep('upload')}
+                  className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  უკან დაბრუნება
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={startImportingExecution}
+                  disabled={nonMatchingRows.length === 0}
+                  className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-950 active:bg-emerald-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-black rounded-xl text-xs transition shadow-sm cursor-pointer"
+                >
+                  იმპორტის დაწყება
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* SCREEN 5: PROGRESS BAR LOOPS OF GEMINI EXTRACTION */}
           {step === 'importing' && (
-            <div className="py-8 space-y-5 animate-in fade-in duration-200">
+            <div className="py-8 space-y-5 animate-in fade-in duration-200 font-sans">
               <div className="flex items-center gap-2.5 justify-center">
                 <Loader2 className="animate-spin text-emerald-700" size={24} />
-                <h4 className="font-extrabold text-xs text-emerald-950 font-sans uppercase tracking-wider">
-                  მონაცემების იმპორტი (50-იანი პაკეტებით)...
+                <h4 className="font-extrabold text-xs text-emerald-950 uppercase tracking-wider">
+                  მონაცემების იმპორტი (created_by: "import")...
                 </h4>
               </div>
 
@@ -860,13 +1241,13 @@ export default function VendorImportModal({
                     {totalRows > 0 ? Math.round((processedRows / totalRows) * 100) : 0}%
                   </div>
                 </div>
-                <div className="flex justify-between text-[10px] text-gray-500 font-bold font-sans">
+                <div className="flex justify-between text-[10px] text-gray-500 font-bold">
                   <span>დამუშავდა: {processedRows} რიგი</span>
-                  <span>სულ: {totalRows} რიგი</span>
+                  <span>სულ ასატვირთი: {totalRows} რიგი</span>
                 </div>
               </div>
 
-              <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 text-[11px] leading-relaxed font-sans text-gray-600 block max-h-32 overflow-y-auto">
+              <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 text-[11px] leading-relaxed text-gray-600 block max-h-32 overflow-y-auto">
                 <div className="flex items-start gap-1.5">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-1.5 shrink-0"></span>
                   <p>{progressMsg}</p>
@@ -875,7 +1256,7 @@ export default function VendorImportModal({
             </div>
           )}
 
-          {/* SCREEN 5: SUCCESS REPORT SUMMARY */}
+          {/* SCREEN 6: SUCCESS REPORT SUMMARY */}
           {step === 'success' && (
             <div className="py-8 text-center space-y-5 animate-in zoom-in-95 duration-200 font-sans">
               <div className="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto">
@@ -884,7 +1265,7 @@ export default function VendorImportModal({
 
               <div className="space-y-1.5">
                 <h3 className="font-black text-sm text-gray-800">იმპორტი წარმატებით დასრულდა!</h3>
-                <p className="text-xs text-gray-500">მონაცემები სრულად დამუშავდა და გადაიწერა ძირითად მონაცემთა ბაზაში.</p>
+                <p className="text-xs text-gray-500">მონაცემები სრულად დამუშავდა და გადაიწერა ძირითად მონაცემთა ბაზაში (created_by: "import").</p>
               </div>
 
               <div className="max-w-xs mx-auto grid grid-cols-3 gap-2.5 bg-slate-50 border border-gray-100 rounded-xl p-3.5 text-center">
@@ -905,7 +1286,7 @@ export default function VendorImportModal({
               <div className="pt-2">
                 <button 
                   onClick={onClose}
-                  className="px-6 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-black transition shadow-sm"
+                  className="px-6 py-2 bg-emerald-800 hover:bg-emerald-950 text-white rounded-xl text-xs font-black transition shadow-sm cursor-pointer"
                 >
                   დახურვა
                 </button>

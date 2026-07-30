@@ -280,8 +280,11 @@ export default function App() {
                 currentUser={currentUser}
                 warehouses={warehouses}
                 suppliers={vendors}
+                orders={orders}
+                communications={communications}
                 onSave={handleUserSave}
                 onDelete={handleUserDelete}
+                setDeleteAlertMessage={setDeleteAlertMessage}
               />
             )}
 
@@ -299,10 +302,13 @@ export default function App() {
               <CitiesSettingView currentUser={currentUser} 
                 cities={cities}
                 districts={districts}
+                vendors={vendors}
+                trucks={trucks}
                 onSaveCity={handleSaveCity}
                 onDeleteCity={handleDeleteCity}
                 onSaveDistrict={handleSaveDistrict}
                 onDeleteDistrict={handleDeleteDistrict}
+                setDeleteAlertMessage={setDeleteAlertMessage}
                 onBack={() => setActiveTab('dashboard')}
               />
             )}
@@ -310,8 +316,11 @@ export default function App() {
             {activeTab === 'directions' && (
               <DirectionsSettingView currentUser={currentUser} 
                 directions={directions}
+                trucks={trucks}
+                orders={orders}
                 onSaveDirection={handleSaveDirection}
                 onDeleteDirection={handleDeleteDirection}
+                setDeleteAlertMessage={setDeleteAlertMessage}
                 onBack={() => setActiveTab('dashboard')}
               />
             )}
@@ -323,8 +332,10 @@ export default function App() {
                 cities={cities}
                 warehouses={warehouses}
                 directions={directions}
+                orders={orders}
                 onSaveTruck={handleSaveTruck}
                 onDeleteTruck={handleDeleteTruck}
+                setDeleteAlertMessage={setDeleteAlertMessage}
                 onBack={() => setActiveTab('dashboard')}
               />
             )}
@@ -332,8 +343,12 @@ export default function App() {
             {activeTab === 'warehouses' && (
               <WarehousesSettingView currentUser={currentUser} 
                 warehouses={warehouses}
+                vendors={vendors}
+                orders={orders}
+                trucks={trucks}
                 onSaveWarehouse={handleSaveWarehouse}
                 onDeleteWarehouse={handleDeleteWarehouse}
+                setDeleteAlertMessage={setDeleteAlertMessage}
                 onBack={() => setActiveTab('dashboard')}
               />
             )}

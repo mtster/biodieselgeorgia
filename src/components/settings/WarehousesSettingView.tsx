@@ -9,20 +9,31 @@ import { t } from '../../utils/lang';
 
 import { User } from '../../types';
 
+import { checkWarehouseDeletion } from '../../utils/deletionValidation';
+
 interface Props {
   currentUser?: User;
   warehouses: Warehouse[];
+  vendors?: any[];
+  orders?: any[];
+  trucks?: any[];
   onSaveWarehouse: (w: Warehouse) => void;
   onDeleteWarehouse: (id: string, name: string) => void;
+  setDeleteAlertMessage?: (msg: string | null) => void;
   onBack: () => void;
 }
 
 export default function WarehousesSettingView({
   warehouses,
+  vendors = [],
+  orders = [],
+  trucks = [],
   onSaveWarehouse,
   onDeleteWarehouse,
-  onBack
-, currentUser}: Props) {
+  setDeleteAlertMessage,
+  onBack,
+  currentUser
+}: Props) {
   const canAddWarehouse = currentUser?.role === 'admin' || currentUser?.permissions?.['warehouses']?.includes('add');
   const canDeleteWarehouse = currentUser?.role === 'admin' || currentUser?.permissions?.['warehouses']?.includes('delete');
 
@@ -58,6 +69,11 @@ export default function WarehousesSettingView({
 
   const triggerDeleteWarehouse = () => {
     if (selectedWarehouse) {
+      const errorMsg = checkWarehouseDeletion(selectedWarehouse.id, selectedWarehouse.name, vendors, orders, trucks);
+      if (errorMsg) {
+        if (setDeleteAlertMessage) setDeleteAlertMessage(errorMsg);
+        return;
+      }
       setWarehouseToDelete({ id: selectedWarehouse.id, name: selectedWarehouse.name });
       setShowConfirmDelete(true);
     }

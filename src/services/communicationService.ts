@@ -80,11 +80,27 @@ export async function getCommunications(): Promise<Communication[]> {
   return getLocal<Communication[]>(KEY_COMMUNICATIONS, []).filter(item => !item.is_deleted);
 }
 
-export async function saveCommunication(comm: Communication, loggerName: string): Promise<Communication> {
+const cleanUserUuid = (val: string | null | undefined): string | null => {
+  if (!val) return null;
+  if (val === 'import') return 'import';
+  if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
+  if (val.startsWith('user-')) {
+    const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
+    return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
+  }
+  return val;
+};
+
+export async function saveCommunication(comm: Communication, loggerName: string, currentUserId?: string): Promise<Communication> {
   const isNew = !comm.id;
+  const createdBy = cleanUserUuid(isNew ? (currentUserId || comm.created_by || comm.user_id) : (comm.created_by || currentUserId || comm.user_id));
+  const cleanUserId = cleanUserUuid(comm.user_id) || createdBy;
+
   const finalComm = {
     ...comm,
-    id: isNew ? 'comm-' + Math.random().toString(36).substring(2, 9) : comm.id
+    id: isNew ? 'comm-' + Math.random().toString(36).substring(2, 9) : comm.id,
+    user_id: cleanUserId || comm.user_id,
+    created_by: createdBy || comm.created_by
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -97,6 +113,10 @@ export async function saveCommunication(comm: Communication, loggerName: string)
         responsible_user_name,
         ...dbComm 
       } = finalComm as any;
+
+      dbComm.created_by = cleanUserUuid(finalComm.created_by || currentUserId) || null;
+      dbComm.user_id = cleanUserUuid(finalComm.user_id || currentUserId) || null;
+      dbComm.responsible_user_id = cleanUserUuid(finalComm.responsible_user_id) || null;
 
       if (isNew) {
         await supabase.from('communications').insert([dbComm]);

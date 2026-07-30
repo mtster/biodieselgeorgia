@@ -14,25 +14,37 @@ export const DEFAULT_CITIES: City[] = [];
 export const DEFAULT_DISTRICTS: District[] = [];
 export const DEFAULT_DIRECTIONS: Direction[] = [];
 
+const cleanUserUuid = (val: string | null | undefined): string | null => {
+  if (!val) return null;
+  if (val === 'import') return 'import';
+  if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
+  if (val.startsWith('user-')) {
+    const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
+    return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
+  }
+  return val;
+};
+
 // 1. Warehouses
 export async function getWarehouses(): Promise<Warehouse[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('warehouses').select('*').order('name');
-      if (!error && data) return data;
+      if (!error && data) return data.filter((w: any) => !w.is_deleted);
     } catch (e) {
       console.warn('Supabase getWarehouses failed', e);
     }
   }
-  return getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
+  return getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES).filter(w => !w.is_deleted);
 }
 
 export async function saveWarehouse(wh: Warehouse, loggerName: string, currentUserId?: string): Promise<Warehouse> {
   const isNew = !wh.id;
+  const createdBy = cleanUserUuid(isNew ? (currentUserId || wh.created_by) : (wh.created_by || currentUserId));
   const finalWh = {
     ...wh,
     id: isNew ? 'wh-' + Math.random().toString(36).substring(2, 9) : wh.id,
-    created_by: isNew ? (currentUserId || wh.created_by) : wh.created_by
+    created_by: createdBy || wh.created_by
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -63,14 +75,14 @@ export async function saveWarehouse(wh: Warehouse, loggerName: string, currentUs
 export async function deleteWarehouse(id: string, name: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('warehouses').delete().eq('id', id);
+      await supabase.from('warehouses').update({ is_deleted: true }).eq('id', id);
     } catch (e) {
       console.error('Supabase deleteWarehouse failed', e);
     }
   }
 
   const list = getLocal<Warehouse[]>(KEY_WAREHOUSES, DEFAULT_WAREHOUSES);
-  setLocal(KEY_WAREHOUSES, list.filter(item => item.id !== id));
+  setLocal(KEY_WAREHOUSES, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Warehouse deleted', 'Name', name, '');
   notifyDbChange('warehouses', 'DELETE', id);
   return true;
@@ -93,10 +105,11 @@ export async function getCities(): Promise<City[]> {
 
 export async function saveCity(city: City, loggerName: string, currentUserId?: string): Promise<City> {
   const isNew = !city.id;
+  const createdBy = cleanUserUuid(isNew ? (currentUserId || city.created_by) : (city.created_by || currentUserId));
   const finalCity = {
     ...city,
     id: isNew ? 'city-' + Math.random().toString(36).substring(2, 9) : city.id,
-    created_by: isNew ? (currentUserId || city.created_by) : city.created_by
+    created_by: createdBy || city.created_by
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -155,10 +168,11 @@ export async function getDistricts(): Promise<District[]> {
 
 export async function saveDistrict(dist: District, loggerName: string, currentUserId?: string): Promise<District> {
   const isNew = !dist.id;
+  const createdBy = cleanUserUuid(isNew ? (currentUserId || dist.created_by) : (dist.created_by || currentUserId));
   const finalDist = {
     ...dist,
     id: isNew ? 'dist-' + Math.random().toString(36).substring(2, 9) : dist.id,
-    created_by: isNew ? (currentUserId || dist.created_by) : dist.created_by
+    created_by: createdBy || dist.created_by
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -189,14 +203,14 @@ export async function saveDistrict(dist: District, loggerName: string, currentUs
 export async function deleteDistrict(id: string, name: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('districts').delete().eq('id', id);
+      await supabase.from('districts').update({ is_deleted: true }).eq('id', id);
     } catch (e) {
       console.error('Supabase deleteDistrict failed', e);
     }
   }
 
   const list = getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
-  setLocal(KEY_DISTRICTS, list.filter(item => item.id !== id));
+  setLocal(KEY_DISTRICTS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'District deleted', 'Name', name, '');
   notifyDbChange('districts', 'DELETE', id);
   return true;
@@ -219,10 +233,11 @@ export async function getDirections(): Promise<Direction[]> {
 
 export async function saveDirection(dir: Direction, loggerName: string, currentUserId?: string): Promise<Direction> {
   const isNew = !dir.id;
+  const createdBy = cleanUserUuid(isNew ? (currentUserId || dir.created_by) : (dir.created_by || currentUserId));
   const finalDir = {
     ...dir,
     id: isNew ? 'dir-' + Math.random().toString(36).substring(2, 9) : dir.id,
-    created_by: isNew ? (currentUserId || dir.created_by) : dir.created_by
+    created_by: createdBy || dir.created_by
   };
 
   if (isSupabaseConfigured && supabase) {

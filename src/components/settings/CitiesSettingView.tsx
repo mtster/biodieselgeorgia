@@ -9,26 +9,35 @@ import { t } from '../../utils/lang';
 
 import { User } from '../../types';
 
+import { checkCityDeletion, checkDistrictDeletion } from '../../utils/deletionValidation';
+
 interface Props {
   currentUser?: User;
   cities: City[];
   districts: District[];
+  vendors?: any[];
+  trucks?: any[];
   onSaveCity: (c: City) => void;
   onDeleteCity: (id: string, name: string) => void;
   onSaveDistrict: (d: District) => void;
   onDeleteDistrict: (id: string, name: string) => void;
+  setDeleteAlertMessage?: (msg: string | null) => void;
   onBack: () => void;
 }
 
 export default function CitiesSettingView({
   cities,
   districts,
+  vendors = [],
+  trucks = [],
   onSaveCity,
   onDeleteCity,
   onSaveDistrict,
   onDeleteDistrict,
-  onBack
-, currentUser}: Props) {
+  setDeleteAlertMessage,
+  onBack,
+  currentUser
+}: Props) {
   const canAddCity = currentUser?.role === 'admin' || currentUser?.permissions?.['cities']?.includes('add');
   const canDeleteCity = currentUser?.role === 'admin' || currentUser?.permissions?.['cities']?.includes('delete');
 
@@ -65,6 +74,11 @@ export default function CitiesSettingView({
 
   const triggerDeleteCity = () => {
     if (selectedCity) {
+      const errorMsg = checkCityDeletion(selectedCity.id, selectedCity.name, vendors, trucks, districts);
+      if (errorMsg) {
+        if (setDeleteAlertMessage) setDeleteAlertMessage(errorMsg);
+        return;
+      }
       setCityToDelete({ id: selectedCity.id, name: selectedCity.name });
       setShowConfirmDelete(true);
     }
@@ -197,7 +211,14 @@ export default function CitiesSettingView({
                     <span className="font-bold text-gray-750">{d.name}</span>
                     {canDeleteCity && (
                       <button 
-                        onClick={() => onDeleteDistrict(d.id, d.name)}
+                        onClick={() => {
+                          const errorMsg = checkDistrictDeletion(d.id, d.name, vendors);
+                          if (errorMsg) {
+                            if (setDeleteAlertMessage) setDeleteAlertMessage(errorMsg);
+                            return;
+                          }
+                          onDeleteDistrict(d.id, d.name);
+                        }}
                         type="button"
                         className="p-1 hover:text-red-650 rounded text-gray-400 hover:bg-red-50"
                       >

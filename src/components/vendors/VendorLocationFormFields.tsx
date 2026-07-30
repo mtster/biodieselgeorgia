@@ -101,7 +101,7 @@ export default function VendorLocationFormFields({
         <FormInput
           label={t("overdue_threshold_days")}
           type="text"
-          placeholder="e.g. 14"
+          placeholder="მაგ: 14"
           value={editingVendor.overdue_threshold_days !== undefined && editingVendor.overdue_threshold_days !== null ? String(editingVendor.overdue_threshold_days) : ''}
           onChange={(e) => {
             const val = e.target.value;

@@ -13,6 +13,7 @@ import { FormInput, FormSelect } from '../FormInput';
 import VendorForm from '../vendors/VendorForm';
 import { getVendorContacts } from '../../services/vendorService';
 import { usePaginatedContacts } from '../../hooks/usePaginatedModuleQuery';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ContactsViewProps {
   vendors: Vendor[];
@@ -121,50 +122,6 @@ export default function ContactsView({
   // Filter out soft-deleted vendors
   const activeVendors = vendors.filter(v => !v.is_deleted);
 
-  const loadContacts = async () => {
-    setIsLoading(true);
-    try {
-      const contacts = await getVendorContacts();
-      
-      const rows: ContactRow[] = contacts.map((c: any) => {
-        const vInfo: any = vendors.find((v: any) => v.id === c.vendor_id) || {};
-        return {
-          id: c.id,
-          name: c.name || '',
-          phone: c.phone || '',
-          position: c.position || 'other',
-          note: c.note || '',
-          email: c.email || '',
-          company_name: vInfo.trade_name || vInfo.company_name || '-',
-          company_code: vInfo.company_code || vInfo.id_code || '-',
-          vendor_id: c.vendor_id || '',
-          vendor: vInfo as Vendor
-        };
-      });
-
-      // Filter rows in-memory by search term
-      const term = searchTerm.toLowerCase().trim();
-      const filtered = rows.filter(row => {
-        if (!term) return true;
-        return (
-          row.name.toLowerCase().includes(term) ||
-          row.phone.toLowerCase().includes(term) ||
-          row.company_name.toLowerCase().includes(term) ||
-          row.company_code.toLowerCase().includes(term) ||
-          row.note.toLowerCase().includes(term) ||
-          row.email.toLowerCase().includes(term)
-        );
-      });
-
-      setContactsList(filtered);
-      setTotalCount(filtered.length);
-    } catch (err) {
-      console.error('Error loading contacts:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Sync selectedVendorForForm if vendors list is updated in App level
   useEffect(() => {
     if (selectedVendorForForm) {
@@ -175,9 +132,7 @@ export default function ContactsView({
     }
   }, [vendors, selectedVendorForForm]);
 
-  useEffect(() => {
-    loadContacts();
-  }, [searchTerm, vendors]);
+  const queryClient = useQueryClient();
 
   // Filter suppliers in modal search
   const filteredModalVendors = activeVendors.filter(v => {
@@ -293,7 +248,7 @@ export default function ContactsView({
     try {
       await onSaveVendor(updatedVendor);
       setIsAddModalOpen(false);
-      loadContacts();
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
     } catch (err) {
       console.error('Error saving contact:', err);
       alert('შეცდომა კონტაქტის შენახვისას');

@@ -7,6 +7,28 @@ import { notifyDbChange } from '../lib/realtime';
 
 export { KEY_VENDORS };
 
+export function generateUuid(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export const cleanUserUuid = (val: string | null | undefined): string | null => {
+  if (!val) return null;
+  if (val === 'import') return 'import';
+  if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
+  if (val.startsWith('user-')) {
+    const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
+    return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
+  }
+  return val;
+};
+
 export function decodeVendorCustomFields(vendor: Vendor): Vendor {
   const contacts = vendor.contacts || [];
   const customContact = contacts.find(c => c.name === "__DYNAMIC_CUSTOM_FIELDS__");
@@ -68,7 +90,7 @@ export async function getVendorContacts(vendorId?: string): Promise<VendorContac
 }
 
 // Save/update all contacts for a specific vendor
-export async function saveVendorContacts(vendorId: string, contacts: VendorContact[]): Promise<void> {
+export async function saveVendorContacts(vendorId: string, contacts: VendorContact[], currentUserId?: string): Promise<void> {
   appCache.clear('contacts_');
   if (isSupabaseConfigured && supabase) {
     try {
@@ -86,7 +108,7 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
       // Upsert current list
       if (contacts.length > 0) {
         const payloads = contacts.map((c, idx) => ({
-          id: c.id || 'vc-' + Math.random().toString(36).substring(2, 9),
+          id: c.id || generateUuid(),
           vendor_id: vendorId,
           name: c.name || '',
           phone: c.phone || '',
@@ -95,7 +117,7 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
           email: c.email || '',
           is_default: !!c.is_default,
           sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1),
-          created_by: c.created_by || null,
+          created_by: cleanUserUuid(c.created_by || currentUserId) || null,
           is_deleted: false
         }));
 
@@ -359,16 +381,22 @@ export function cleanVendorDbPayload(vendor: any): any {
 
   const managerId = cleanUserUuid(vendor.manager_id);
   const operatorId = cleanUserUuid(vendor.operator_id);
-  const createdBy = cleanUserUuid(vendor.created_by);
+  const createdByRaw = vendor.created_by;
+  const createdBy = createdByRaw === 'import' ? 'import' : (isValidUuid(cleanUserUuid(createdByRaw)) ? cleanUserUuid(createdByRaw) : (createdByRaw || null));
 
   const isActiveBool = vendor.is_active !== undefined ? !!vendor.is_active : (vendor.status !== 'Closed' && vendor.status !== 'Cancelled');
 
+  const vId = vendor.id || generateUuid();
+  const rawCompCode = (vendor.company_code || '').toString().trim();
+  const rawIdCode = (vendor.id_code || '').toString().trim();
+  const finalCompCode = rawCompCode || (rawIdCode && rawIdCode !== '204857392' ? rawIdCode : `CC-${vId.slice(-8)}`);
+
   const payload: any = {
-    id: vendor.id,
+    id: vId,
     id_code: vendor.id_code || '',
     company_name: vendor.company_name || vendor.trade_name || '',
     trade_name: vendor.trade_name || '',
-    company_code: (vendor.company_code || vendor.id_code || vendor.id || '').trim(),
+    company_code: finalCompCode,
     bank_account: vendor.bank_account || '',
     email: vendor.email || '',
     city: vendor.city || '',
@@ -429,22 +457,18 @@ export async function saveVendor(vendor: Vendor, loggerName: string, currentUser
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   const isNew = !vendor.id;
 
-  const cleanUserUuid = (val: string | null | undefined): string | null => {
-    if (!val) return null;
-    if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
-    if (val.startsWith('user-')) {
-      const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
-      return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
-    }
-    return val;
-  };
+  const vId = isNew ? generateUuid() : vendor.id;
+  const rawCompCode = (vendor.company_code || '').toString().trim();
+  const rawIdCode = (vendor.id_code || '').toString().trim();
+  const finalCompCode = rawCompCode || (rawIdCode && rawIdCode !== '204857392' ? rawIdCode : `CC-${vId.slice(-8)}`);
 
   const finalVendor = {
     ...vendor,
-    id: isNew ? 'vendor-' + Math.random().toString(36).substring(2, 9) : vendor.id,
+    id: vId,
+    company_code: finalCompCode,
     manager_id: cleanUserUuid(vendor.manager_id),
     operator_id: cleanUserUuid(vendor.operator_id),
-    created_by: isNew ? cleanUserUuid(currentUserId || vendor.created_by) : vendor.created_by,
+    created_by: vendor.created_by === 'import' ? 'import' : (isNew ? cleanUserUuid(currentUserId || vendor.created_by) : cleanUserUuid(vendor.created_by || currentUserId)),
     created_at: vendor.created_at || new Date().toISOString()
   };
 
@@ -454,22 +478,44 @@ export async function saveVendor(vendor: Vendor, loggerName: string, currentUser
 
   if (isSupabaseConfigured && supabase) {
     try {
+      // Check if a vendor with the same company_code already exists in DB to reuse its ID
+      if (finalCompCode && isNew) {
+        const { data: existingComp } = await supabase
+          .from('vendors')
+          .select('id')
+          .eq('is_deleted', false)
+          .ilike('company_code', finalCompCode)
+          .maybeSingle();
+
+        if (existingComp?.id) {
+          finalVendor.id = existingComp.id;
+        }
+      }
+
       const dbPayload = cleanVendorDbPayload(finalVendor);
       const { error } = await supabase.from('vendors').upsert([dbPayload], { onConflict: 'id' });
       if (error) {
         console.error('Supabase upsert error details:', error);
+        if ((error as any).code === '23505') {
+          console.warn('Skipping duplicate company_code conflict in Supabase:', finalCompCode);
+          return decodeVendorCustomFields(finalVendor);
+        }
         throw error;
       }
       
       // Save contacts to separate table
-      await saveVendorContacts(finalVendor.id, cleanContacts);
-    } catch (e) {
+      await saveVendorContacts(finalVendor.id, cleanContacts, currentUserId);
+    } catch (e: any) {
+      if (e?.code === '23505') {
+        console.warn('Duplicate key constraint caught in saveVendor, continuing safely:', e);
+        return decodeVendorCustomFields(finalVendor);
+      }
       console.error('Supabase saveVendor failed', e);
       throw e;
     }
   } else {
     // Local save
-    await saveVendorContacts(finalVendor.id, cleanContacts);
+    await saveVendorContacts(finalVendor.id, cleanContacts, currentUserId);
   }
 
   const existsInLocal = list.some(item => item.id === finalVendor.id);

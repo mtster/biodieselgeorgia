@@ -9,20 +9,29 @@ import { t } from '../../utils/lang';
 
 import { User } from '../../types';
 
+import { checkDirectionDeletion } from '../../utils/deletionValidation';
+
 interface Props {
   currentUser?: User;
   directions: Direction[];
+  trucks?: any[];
+  orders?: any[];
   onSaveDirection: (d: Direction) => void;
   onDeleteDirection: (id: string, name: string) => void;
+  setDeleteAlertMessage?: (msg: string | null) => void;
   onBack: () => void;
 }
 
 export default function DirectionsSettingView({
   directions,
+  trucks = [],
+  orders = [],
   onSaveDirection,
   onDeleteDirection,
-  onBack
-, currentUser}: Props) {
+  setDeleteAlertMessage,
+  onBack,
+  currentUser
+}: Props) {
   const canAddDirection = currentUser?.role === 'admin' || currentUser?.permissions?.['directions']?.includes('add');
   const canDeleteDirection = currentUser?.role === 'admin' || currentUser?.permissions?.['directions']?.includes('delete');
 
@@ -55,6 +64,11 @@ export default function DirectionsSettingView({
 
   const triggerDeleteDirection = () => {
     if (selectedDirection) {
+      const errorMsg = checkDirectionDeletion(selectedDirection.id, selectedDirection.name, trucks, orders);
+      if (errorMsg) {
+        if (setDeleteAlertMessage) setDeleteAlertMessage(errorMsg);
+        return;
+      }
       setDirectionToDelete({ id: selectedDirection.id, name: selectedDirection.name });
       setShowConfirmDelete(true);
     }

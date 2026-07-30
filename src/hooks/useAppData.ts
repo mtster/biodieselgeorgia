@@ -142,30 +142,22 @@ export function useAppData() {
   };
 
   const handleUserDelete = async (id: string, name: string) => {
-    const errorMsg = checkUserDeletion(id, name, orders, vendors);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-
-    if (confirm(`Are you sure you want to delete user: ${name}?`)) {
-      try {
-        await deleteUser(id, name, currentUser?.name || 'System');
-        await refreshAllData();
-      } catch (e: any) {
-        console.error('Error deleting user:', e);
-        setErrorModal({
-          isOpen: true,
-          title: 'Delete Error',
-          errorMsg: e.message || 'Permissions denied.'
-        });
-      }
+    try {
+      await deleteUser(id, name, currentUser?.name || 'System');
+      await refreshAllData();
+    } catch (e: any) {
+      console.error('Error deleting user:', e);
+      setErrorModal({
+        isOpen: true,
+        title: 'Delete Error',
+        errorMsg: e.message || 'Permissions denied.'
+      });
     }
   };
 
   const handleVendorSave = async (vnd: Vendor) => {
     try {
-      await saveVendor(vnd, currentUser?.name || 'System');
+      await saveVendor(vnd, currentUser?.name || 'System', currentUser?.id);
       await refreshAllData();
     } catch (e: any) {
       console.error('Error saving supplier:', e);
@@ -178,11 +170,6 @@ export function useAppData() {
   };
 
   const handleVendorDelete = async (id: string, tradeName: string) => {
-    const errorMsg = checkSupplierDeletion(id, tradeName, orders);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
     try {
       await deleteVendor(id, tradeName, currentUser?.name || 'System');
       await refreshAllData();
@@ -225,7 +212,7 @@ export function useAppData() {
   };
 
   const handleCommunicationSave = async (comm: Communication) => {
-    await saveCommunication(comm, currentUser?.name || 'System');
+    await saveCommunication(comm, currentUser?.name || 'System', currentUser?.id);
     await refreshAllData();
   };
 
@@ -236,63 +223,46 @@ export function useAppData() {
 
   // Lookups updates
   const handleSaveCity = async (c: City) => {
-    await saveCity(c, currentUser?.name || 'System');
+    await saveCity(c, currentUser?.name || 'System', currentUser?.id);
     await refreshAllData();
   };
   const handleDeleteCity = async (id: string, name: string) => {
-    const errorMsg = checkCityDeletion(id, name, vendors);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-    if (confirm(`Delete city ${name}?`)) {
-      await deleteCity(id, name, currentUser?.name || 'System');
-      await refreshAllData();
-    }
+    await deleteCity(id, name, currentUser?.name || 'System');
+    await refreshAllData();
   };
 
   const handleSaveDistrict = async (d: District) => {
-    await saveDistrict(d, currentUser?.name || 'System');
+    await saveDistrict(d, currentUser?.name || 'System', currentUser?.id);
     await refreshAllData();
   };
   const handleDeleteDistrict = async (id: string, name: string) => {
-    if (confirm(`Delete district ${name}?`)) {
-      await deleteDistrict(id, name, currentUser?.name || 'System');
-      await refreshAllData();
-    }
+    await deleteDistrict(id, name, currentUser?.name || 'System');
+    await refreshAllData();
   };
 
   const handleSaveDirection = async (d: Direction) => {
-    await saveDirection(d, currentUser?.name || 'System');
+    await saveDirection(d, currentUser?.name || 'System', currentUser?.id);
     await refreshAllData();
   };
   const handleDeleteDirection = async (id: string, name: string) => {
-    if (confirm(`Delete direction ${name}?`)) {
-      await deleteDirection(id, name, currentUser?.name || 'System');
-      await refreshAllData();
-    }
+    await deleteDirection(id, name, currentUser?.name || 'System');
+    await refreshAllData();
   };
 
   const handleSaveTruck = async (t: Truck) => {
-    await saveTruck(t, currentUser?.name || 'System');
+    await saveTruck(t, currentUser?.name || 'System', currentUser?.id);
     await refreshAllData();
   };
   const handleDeleteTruck = async (plate: string) => {
-    const errorMsg = checkVehicleDeletion(plate, orders);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-    if (confirm(`Are you sure you want to delete vehicle (${plate})?`)) {
-      await deleteTruck(plate, currentUser?.name || 'System');
-      await refreshAllData();
-    }
+    await deleteTruck(plate, currentUser?.name || 'System');
+    await refreshAllData();
   };
 
   const handleAddCityDirect = async (name: string) => {
     const newCity: City = {
       id: '',
-      name
+      name,
+      created_by: currentUser?.id
     };
     await handleSaveCity(newCity);
   };
@@ -301,7 +271,8 @@ export function useAppData() {
     const newDst: District = {
       id: '',
       city_id: cityId,
-      name
+      name,
+      created_by: currentUser?.id
     };
     await handleSaveDistrict(newDst);
   };
@@ -309,27 +280,21 @@ export function useAppData() {
   const handleAddWarehouseDirect = async (name: string) => {
     const newWh: Warehouse = {
       id: '',
-      name
+      name,
+      created_by: currentUser?.id
     };
-    await saveWarehouse(newWh, currentUser?.name || 'System');
+    await saveWarehouse(newWh, currentUser?.name || 'System', currentUser?.id);
     await refreshAllData();
   };
 
   const handleSaveWarehouse = async (wh: Warehouse) => {
-    await saveWarehouse(wh, currentUser?.name || 'System');
+    await saveWarehouse(wh, currentUser?.name || 'System', currentUser?.id);
     await refreshAllData();
   };
 
   const handleDeleteWarehouse = async (id: string, name: string) => {
-    const errorMsg = checkWarehouseDeletion(id, name, vendors, orders);
-    if (errorMsg) {
-      setDeleteAlertMessage(errorMsg);
-      return;
-    }
-    if (confirm(`Are you sure you want to permanently delete warehouse "${name}"?`)) {
-      await deleteWarehouse(id, name, currentUser?.name || 'System');
-      await refreshAllData();
-    }
+    await deleteWarehouse(id, name, currentUser?.name || 'System');
+    await refreshAllData();
   };
 
   const handleRevertChange = async (log: ChangeHistory): Promise<boolean> => {

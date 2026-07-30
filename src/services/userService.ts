@@ -236,23 +236,20 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
       } else {
         // UPDATE Existing
         let updatedOnEdge = false;
-        let edgeErrorMsg = '';
         
         try {
-          const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
           const sessionRes = await supabase.auth.getSession();
           const token = sessionRes.data.session?.access_token;
           
           if (token) {
-            const edgeRes = await fetch(functionUrl, {
+            // First try internal server API endpoint for auth updates
+            const serverRes = await fetch('/api/update-user', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'apikey': supabaseAnonKey,
                 'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({
-                action: 'update',
                 id: user.id,
                 email: user.email,
                 password: user.password || '',
@@ -264,20 +261,42 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                 vendor_id: user.vendor_id
               })
             });
-            if (edgeRes.ok) {
+            if (serverRes.ok) {
               updatedOnEdge = true;
             } else {
-              const errData = await edgeRes.json();
-              edgeErrorMsg = errData.error || 'Update failed';
+              // Edge function fallback
+              const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+              const edgeRes = await fetch(functionUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  action: 'update',
+                  id: user.id,
+                  email: user.email,
+                  password: user.password || '',
+                  name: user.name,
+                  personal_id: user.personal_id,
+                  phone: user.phone,
+                  role: user.role,
+                  permissions: user.permissions,
+                  vendor_id: user.vendor_id
+                })
+              });
+              if (edgeRes.ok) updatedOnEdge = true;
             }
           }
         } catch (err: any) {
-          edgeErrorMsg = err?.message || String(err);
+          console.warn('User update auth API failed, falling back to profiles update:', err);
         }
 
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
+            email: user.email,
             name: user.name,
             personal_id: user.personal_id,
             phone: user.phone,
@@ -319,32 +338,30 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
 export async function deleteUser(id: string, name: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
+      await supabase.from('profiles').update({ is_deleted: true }).eq('id', id);
+      
       const sessionRes = await supabase.auth.getSession();
       const token = sessionRes.data.session?.access_token;
-      if (!token) throw new Error('Not authenticated');
-
-      const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
-      const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-      
-      const edgeRes = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseAnonKey,
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ action: 'delete', id })
-      });
-      
-      if (!edgeRes.ok) throw new Error('Delete failed via edge function');
+      if (token) {
+        const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
+        const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+        await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ action: 'delete', id })
+        }).catch(() => {});
+      }
     } catch (e) {
       console.error('Supabase deleteUser failed', e);
-      throw e;
     }
-  } else {
-    const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
-    setLocal(KEY_USERS, list.filter(item => item.id !== id));
   }
+  
+  const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
+  setLocal(KEY_USERS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   
   await trackChange(loggerName, 'User deleted', 'Name', name, '');
   notifyDbChange('profiles', 'DELETE', id);

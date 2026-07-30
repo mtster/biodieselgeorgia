@@ -7,6 +7,8 @@ import VehicleCard from './VehicleCard';
 import VehicleFormModal from './VehicleFormModal';
 import { t } from '../../utils/lang';
 
+import { checkVehicleDeletion } from '../../utils/deletionValidation';
+
 interface Props {
   currentUser?: User;
   trucks: Vehicle[];
@@ -14,8 +16,10 @@ interface Props {
   cities: City[];
   warehouses: Warehouse[];
   directions: Direction[];
+  orders?: any[];
   onSaveTruck: (t: Vehicle) => void;
   onDeleteTruck: (plate: string) => void;
+  setDeleteAlertMessage?: (msg: string | null) => void;
   onBack: () => void;
 }
 
@@ -25,10 +29,13 @@ export default function VehiclesSettingView({
   cities = [],
   warehouses = [],
   directions = [],
+  orders = [],
   onSaveTruck,
   onDeleteTruck,
-  onBack
-, currentUser}: Props) {
+  setDeleteAlertMessage,
+  onBack,
+  currentUser
+}: Props) {
   const canAddVehicle = currentUser?.role === 'admin' || currentUser?.permissions?.['vehicles']?.includes('add');
   const canDeleteVehicle = currentUser?.role === 'admin' || currentUser?.permissions?.['vehicles']?.includes('delete');
 
@@ -46,6 +53,11 @@ export default function VehiclesSettingView({
 
   const triggerDeleteTruck = () => {
     if (selectedTruck) {
+      const errorMsg = checkVehicleDeletion(selectedTruck.plate_number, orders);
+      if (errorMsg) {
+        if (setDeleteAlertMessage) setDeleteAlertMessage(errorMsg);
+        return;
+      }
       setTruckToDelete(selectedTruck.plate_number);
       setShowConfirmDelete(true);
     }
