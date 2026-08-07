@@ -155,18 +155,23 @@ export async function getContactsPaginated(
   offset: number = 0,
   searchTerm: string = ''
 ): Promise<PaginatedContactsResult> {
-  const cacheKey = `contacts_limit_${limit}_offset_${offset}_search_${searchTerm}`;
-  const cached = appCache.get<PaginatedContactsResult>(cacheKey);
-  if (cached) {
-    return cached;
+  const filterKey = `search_${searchTerm.trim().toLowerCase()}`;
+  const countCacheKey = `count_contacts_${filterKey}`;
+  const pageCacheKey = `contacts_limit_${limit}_offset_${offset}_${filterKey}`;
+
+  const cachedPage = appCache.get<PaginatedContactsResult>(pageCacheKey);
+  if (cachedPage) {
+    return cachedPage;
   }
+
+  const cachedCount = appCache.get<number>(countCacheKey);
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // Retrieve the table size instantly with indexed query count
+      // Retrieve contacts flat without heavy embedded join, using cached count
       let query = supabase
         .from('vendor_contacts')
-        .select('*, vendors(*)', { count: 'exact' })
+        .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
       if (searchTerm.trim()) {
@@ -183,8 +188,26 @@ export async function getContactsPaginated(
 
       const { data, count, error } = await query;
       if (!error && data) {
+        const finalCount = cachedCount !== null ? cachedCount : (count || 0);
+        if (cachedCount === null && count !== null) {
+          appCache.set(countCacheKey, count);
+        }
+
+        // Fetch vendor info efficiently for only the vendor_ids present on this page
+        const vendorIds = Array.from(new Set((data as any[]).map(item => item.vendor_id).filter(Boolean)));
+        const vendorsMap = new Map<string, any>();
+        if (vendorIds.length > 0) {
+          const { data: vendorsData } = await supabase
+            .from('vendors')
+            .select('id, trade_name, company_name, company_code, id_code')
+            .in('id', vendorIds);
+          if (vendorsData) {
+            vendorsData.forEach(v => vendorsMap.set(v.id, v));
+          }
+        }
+
         const mapped = (data as any[]).map(item => {
-          const v = item.vendors;
+          const v = vendorsMap.get(item.vendor_id);
           return {
             id: item.id,
             vendor_id: item.vendor_id,
@@ -202,9 +225,9 @@ export async function getContactsPaginated(
         });
         const result = {
           contacts: mapped,
-          totalCount: count || 0
+          totalCount: finalCount
         };
-        appCache.set(cacheKey, result);
+        appCache.set(pageCacheKey, result);
         return result;
       } else if (error) {
         console.error('Supabase getContactsPaginated error', error);
@@ -251,7 +274,7 @@ export async function getContactsPaginated(
     contacts: filtered.slice(offset, offset + limit),
     totalCount: filtered.length
   };
-  appCache.set(cacheKey, result);
+  appCache.set(pageCacheKey, result);
   return result;
 }
 
@@ -272,16 +295,27 @@ export async function getVendorsPaginated(
     directionId?: string;
   }
 ): Promise<PaginatedVendorsResult> {
+  const filterKey = JSON.stringify(filters || {});
+  const countCacheKey = `count_vendors_${filterKey}`;
+  const pageCacheKey = `vendors_limit_${limit}_offset_${offset}_${filterKey}`;
+
+  const cachedPage = appCache.get<PaginatedVendorsResult>(pageCacheKey);
+  if (cachedPage) {
+    return cachedPage;
+  }
+
+  const cachedCount = appCache.get<number>(countCacheKey);
+
   if (isSupabaseConfigured && supabase) {
     try {
       let query = supabase
         .from('vendors')
-        .select('*', { count: 'exact' })
+        .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
       if (filters?.searchTerm?.trim()) {
         const term = `%${filters.searchTerm.trim()}%`;
-        query = query.or(`trade_name.ilike.${term},company_name.ilike.${term},id_code.ilike.${term},address.ilike.${term}`);
+        query = query.or(`trade_name.ilike.${term},company_name.ilike.${term},id_code.ilike.${term},company_code.ilike.${term},address.ilike.${term}`);
       }
       if (filters?.city) {
         query = query.eq('city', filters.city);
@@ -303,20 +337,31 @@ export async function getVendorsPaginated(
 
       const { data, count, error } = await query;
       if (!error && data) {
+        const finalCount = cachedCount !== null ? cachedCount : (count || 0);
+        if (cachedCount === null && count !== null) {
+          appCache.set(countCacheKey, count);
+        }
+
         const decoded = data.map(v => decodeVendorCustomFields(v));
         const vendorIds = decoded.map(v => v.id);
         if (vendorIds.length > 0) {
-          const { data: contactsData } = await supabase.from('vendor_contacts').select('*').in('vendor_id', vendorIds).eq('is_deleted', false);
+          const { data: contactsData } = await supabase
+            .from('vendor_contacts')
+            .select('id, vendor_id, name, phone, position, note, email, is_default, sort_order')
+            .in('vendor_id', vendorIds)
+            .eq('is_deleted', false);
           if (contactsData) {
             decoded.forEach(v => {
               v.contacts = contactsData.filter(c => c.vendor_id === v.id);
             });
           }
         }
-        return {
+        const result = {
           vendors: decoded,
-          totalCount: count || 0
+          totalCount: finalCount
         };
+        appCache.set(pageCacheKey, result);
+        return result;
       }
     } catch (e) {
       console.warn('Supabase getVendorsPaginated failed', e);
@@ -327,7 +372,12 @@ export async function getVendorsPaginated(
   let filtered = all;
   if (filters?.searchTerm?.trim()) {
     const term = filters.searchTerm.trim().toLowerCase();
-    filtered = filtered.filter(v => (v.trade_name || '').toLowerCase().includes(term) || (v.company_name || '').toLowerCase().includes(term));
+    filtered = filtered.filter(v => 
+      (v.trade_name || '').toLowerCase().includes(term) || 
+      (v.company_name || '').toLowerCase().includes(term) ||
+      (v.company_code || '').toLowerCase().includes(term) ||
+      (v.id_code || '').toLowerCase().includes(term)
+    );
   }
   if (filters?.managerId) {
     filtered = filtered.filter(v => v.manager_id === filters.managerId);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { t } from '../utils/lang';
 
 export interface ColumnConfig<T> {
@@ -128,9 +128,9 @@ export function StandardTable<T>({
       </div>
 
       {isLoading && (
-        <div className="py-4 text-center text-xs text-gray-400 italic bg-slate-50/40 select-none font-sans font-medium flex items-center justify-center gap-1.5 animate-pulse border-b border-gray-200">
-          <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-          {t("Fetching older entries...")}
+        <div className="py-4 text-center text-xs text-gray-500 bg-slate-50/60 select-none font-sans font-semibold flex items-center justify-center gap-2 border-b border-gray-200">
+          <Loader2 className="animate-spin text-emerald-700" size={15} />
+          <span>{t("Fetching older entries...")}</span>
         </div>
       )}
 

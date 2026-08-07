@@ -11,6 +11,7 @@ import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import CommunicationFormModal from './CommunicationFormModal';
 import { getCommunicationsColumns } from '../communications/communicationsColumns';
 import { usePaginatedCommunications } from '../../hooks/usePaginatedModuleQuery';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'date_time', label: 'Date & Time', visible: true },
@@ -43,6 +44,7 @@ export default function CommunicationsView({
   const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('delete');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 350);
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -74,10 +76,10 @@ export default function CommunicationsView({
 
   React.useEffect(() => {
     setPage(1);
-  }, [searchTerm, typeFilter, supplierFilter, userFilter, taskResponsibleFilter, taskStatusFilter]);
+  }, [debouncedSearchTerm, typeFilter, supplierFilter, userFilter, taskResponsibleFilter, taskStatusFilter]);
 
   const commFilters = {
-    searchTerm,
+    searchTerm: debouncedSearchTerm,
     type: typeFilter,
     vendorId: supplierFilter,
     userId: userFilter

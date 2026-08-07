@@ -14,6 +14,7 @@ import VendorForm from '../vendors/VendorForm';
 import { getVendorContacts } from '../../services/vendorService';
 import { usePaginatedContacts } from '../../hooks/usePaginatedModuleQuery';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface ContactsViewProps {
   vendors: Vendor[];
@@ -65,6 +66,7 @@ export default function ContactsView({
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('delete');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 350);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVendorForForm, setSelectedVendorForForm] = useState<Vendor | null>(null);
   const [isFormSaving, setIsFormSaving] = useState(false);
@@ -84,9 +86,9 @@ export default function ContactsView({
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm]);
+  }, [debouncedSearchTerm]);
 
-  const { data: paginatedData, isLoading: isContactsLoading } = usePaginatedContacts(page, searchTerm, currentUser);
+  const { data: paginatedData, isLoading: isContactsLoading } = usePaginatedContacts(page, debouncedSearchTerm, currentUser);
 
   const rawContacts = paginatedData?.contacts || [];
   const contactsList: ContactRow[] = rawContacts.map((c: any) => {

@@ -659,6 +659,10 @@ CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL T
 -- Indices for high-speed performance
 CREATE INDEX IF NOT EXISTS idx_districts_city_id ON public.districts (city_id);
 CREATE INDEX IF NOT EXISTS idx_vendors_company_code ON public.vendors (company_code);
+CREATE INDEX IF NOT EXISTS idx_vendors_trade_name ON public.vendors (trade_name);
+CREATE INDEX IF NOT EXISTS idx_vendors_company_name ON public.vendors (company_name);
+CREATE INDEX IF NOT EXISTS idx_vendors_id_code ON public.vendors (id_code);
+CREATE INDEX IF NOT EXISTS idx_vendors_city_district ON public.vendors (city, district) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_vendors_planning ON public.vendors (is_planned, planned_weekday) WHERE is_planned = true AND is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_orders_doc_number ON public.orders (doc_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
@@ -668,5 +672,10 @@ CREATE INDEX IF NOT EXISTS idx_change_history_date ON public.change_history (dat
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_vendor_id ON public.vendor_contacts (vendor_id);
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_is_deleted ON public.vendor_contacts (is_deleted);
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_sort_order ON public.vendor_contacts (sort_order);
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_name ON public.vendor_contacts (name);
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_phone ON public.vendor_contacts (phone);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at_desc ON public.orders (created_at DESC) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_communications_date_time_desc ON public.communications (date_time DESC) WHERE is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_default_sort ON public.vendor_contacts (is_default DESC, sort_order DESC) WHERE is_deleted = false;
 
 

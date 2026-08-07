@@ -4,6 +4,7 @@ import { trackChange } from './historyService';
 import { isSupabaseConfigured, supabase } from '../lib/db';
 import { defaultPermissions } from '../components/users/UserForm';
 import { notifyDbChange } from '../lib/realtime';
+import { appCache } from '../utils/cache';
 
 export { KEY_USERS };
 
@@ -17,11 +18,22 @@ export async function getUsersPaginated(
   offset: number = 0,
   searchTerm?: string
 ): Promise<PaginatedUsersResult> {
+  const filterKey = `search_${(searchTerm || '').trim().toLowerCase()}`;
+  const countCacheKey = `count_users_${filterKey}`;
+  const pageCacheKey = `users_limit_${limit}_offset_${offset}_${filterKey}`;
+
+  const cachedPage = appCache.get<PaginatedUsersResult>(pageCacheKey);
+  if (cachedPage) {
+    return cachedPage;
+  }
+
+  const cachedCount = appCache.get<number>(countCacheKey);
+
   if (isSupabaseConfigured && supabase) {
     try {
       let query = supabase
         .from('profiles')
-        .select('*', { count: 'exact' })
+        .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
       if (searchTerm?.trim()) {
@@ -33,11 +45,18 @@ export async function getUsersPaginated(
 
       const { data, count, error } = await query;
       if (!error && data) {
+        const finalCount = cachedCount !== null ? cachedCount : (count || 0);
+        if (cachedCount === null && count !== null) {
+          appCache.set(countCacheKey, count);
+        }
+
         const decoded = data.map(u => decodeProfile(u));
-        return {
+        const result = {
           users: decoded,
-          totalCount: count || 0
+          totalCount: finalCount
         };
+        appCache.set(pageCacheKey, result);
+        return result;
       }
     } catch (e) {
       console.warn('Supabase getUsersPaginated failed', e);

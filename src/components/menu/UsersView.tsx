@@ -8,6 +8,7 @@ import DeleteButton from '../DeleteButton';
 import AddButton from '../AddButton';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { usePaginatedUsers } from '../../hooks/usePaginatedModuleQuery';
+import { useDebounce } from '../../hooks/useDebounce';
 
 import UserForm from '../users/UserForm';
 
@@ -32,13 +33,14 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('delete');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 350);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm]);
+  }, [debouncedSearchTerm]);
 
-  const { data: paginatedData, isLoading: isUsersLoading } = usePaginatedUsers(page, searchTerm, currentUser);
+  const { data: paginatedData, isLoading: isUsersLoading } = usePaginatedUsers(page, debouncedSearchTerm, currentUser);
 
   const displayUsers = paginatedData?.users || [];
   const totalUsersCount = paginatedData?.totalCount || 0;

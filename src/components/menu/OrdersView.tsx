@@ -17,6 +17,7 @@ import DeleteButton from '../DeleteButton';
 import { createDatabaseOrderColumn } from '../../services/orderService';
 import { FormSelect } from '../FormInput';
 import { usePaginatedOrders } from '../../hooks/usePaginatedModuleQuery';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'order_date', label: 'Date', visible: true },
@@ -64,6 +65,7 @@ export default function OrdersView({
   const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('delete');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 350);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
@@ -86,10 +88,10 @@ export default function OrdersView({
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, startDate, endDate]);
+  }, [debouncedSearchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, startDate, endDate]);
 
   const filters = {
-    searchTerm,
+    searchTerm: debouncedSearchTerm,
     status: selectedStatus,
     city: selectedCity,
     district: selectedDistrict,

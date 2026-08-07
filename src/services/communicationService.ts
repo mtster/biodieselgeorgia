@@ -3,6 +3,7 @@ import { Communication } from '../types';
 import { trackChange } from './historyService';
 import { KEY_COMMUNICATIONS, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
+import { appCache } from '../utils/cache';
 
 export { KEY_COMMUNICATIONS };
 
@@ -21,11 +22,22 @@ export async function getCommunicationsPaginated(
     userId?: string;
   }
 ): Promise<PaginatedCommunicationsResult> {
+  const filterKey = JSON.stringify(filters || {});
+  const countCacheKey = `count_communications_${filterKey}`;
+  const pageCacheKey = `communications_limit_${limit}_offset_${offset}_${filterKey}`;
+
+  const cachedPage = appCache.get<PaginatedCommunicationsResult>(pageCacheKey);
+  if (cachedPage) {
+    return cachedPage;
+  }
+
+  const cachedCount = appCache.get<number>(countCacheKey);
+
   if (isSupabaseConfigured && supabase) {
     try {
       let query = supabase
         .from('communications')
-        .select('*', { count: 'exact' })
+        .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
       if (filters?.searchTerm?.trim()) {
@@ -46,10 +58,17 @@ export async function getCommunicationsPaginated(
 
       const { data, count, error } = await query;
       if (!error && data) {
-        return {
+        const finalCount = cachedCount !== null ? cachedCount : (count || 0);
+        if (cachedCount === null && count !== null) {
+          appCache.set(countCacheKey, count);
+        }
+
+        const result = {
           communications: data as Communication[],
-          totalCount: count || 0
+          totalCount: finalCount
         };
+        appCache.set(pageCacheKey, result);
+        return result;
       }
     } catch (e) {
       console.warn('Supabase getCommunicationsPaginated failed', e);

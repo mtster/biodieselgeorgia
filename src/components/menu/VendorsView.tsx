@@ -16,6 +16,7 @@ import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import DeleteButton from '../DeleteButton';
 import { createDatabaseColumn } from '../../services/vendorService';
 import { usePaginatedVendors } from '../../hooks/usePaginatedModuleQuery';
+import { useDebounce } from '../../hooks/useDebounce';
 
 const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'trade_name', label: 'Trade Name', visible: true },
@@ -70,6 +71,7 @@ export default function VendorsView({
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('delete');
 
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 350);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedSalesManager, setSelectedSalesManager] = useState('');
@@ -80,11 +82,11 @@ export default function VendorsView({
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, selectedCity, selectedDistrict, selectedSalesManager, selectedOperationManager, selectedDirection]);
+  }, [debouncedSearchTerm, selectedCity, selectedDistrict, selectedSalesManager, selectedOperationManager, selectedDirection]);
 
   // Fetch 12 suppliers per page via TanStack Query
   const filters = {
-    searchTerm,
+    searchTerm: debouncedSearchTerm,
     city: selectedCity,
     district: selectedDistrict,
     managerId: selectedSalesManager,

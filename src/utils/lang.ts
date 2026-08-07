@@ -612,11 +612,15 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Memos / Internal Notes": "შიდა ჩანიშვნები",
   "No Contact": "კონტაქტი არ არის",
   "Search...": "ძებნა...",
-  "Search suppliers by trade name, legal entity, or registered taxation ID coordinates...": "ძებნა მომწოდებლის დასახელებით, იურიდიული პირით ან საიდენტიფიკაციო კოდით...",
+  "Active Orders": "აქტიური შეკვეთები",
+  "Fetching older entries...": "ჩანაწერების ძებნა",
+  "Search contact name, phone or company...": "ძებნა სახელით, ტელეფონით ან კომპანიით...",
+  "Search suppliers by trade name, legal entity, or registered taxation ID coordinates...": "ძებნა მომწოდებლის დასახელებით, იურიდიული პირით, ს/კ, კოდით ან მისამართით...",
+  "Search suppliers by trade name, legal entity, taxation ID, company code or address...": "ძებნა მომწოდებლის დასახელებით, იურიდიული პირით, ს/კ, კოდით ან მისამართით...",
   "Add New User": "მომხმარებლის დამატება",
   "Add New City": "ქალაქის დამატება",
-  "Biodiesel Georgia": "ბიოდიზელ ჯორჯია",
-  "Welcome to Biodiesel Georgia Portal": "კეთილი იყოს თქვენი მობრძანება ბიოდიზელ ჯორჯიას პორტალზე",
+  "Biodiesel Georgia": "ბიოდიზელი ჯორჯია",
+  "Welcome to Biodiesel Georgia Portal": "კეთილი იყოს თქვენი მობრძანება ბიოდიზელი ჯორჯიას პორტალზე",
   "No custom privileges": "სპეციალური პრივილეგიების გარეშე",
   "Privileges": "პრივილეგიები",
   "Personal ID": "პირადი ნომერი",
@@ -674,6 +678,8 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Reminders": "შეხსენებები",
   "No reminders for today.": "დღეისთვის შეხსენებები არ არის.",
   "All Vehicles": "ყველა მანქანა",
+  "Loading...": "იტვირთება",
+  "Loading": "იტვირთება",
 };
 
 export function t(key: string): string {

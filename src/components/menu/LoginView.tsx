@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
-import { LogIn, Leaf } from 'lucide-react';
+import { LogIn, Leaf, Loader2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/db';
 import { t } from '../../utils/lang';
+import { FormInput } from '../FormInput';
 
 interface Props {
   users: User[];
@@ -195,10 +196,9 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             <Leaf size={28} className={loading ? 'animate-spin' : ''} />
           </div>
           <div>
-            <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase font-mono block">
-              {t("Logistics Portal Sign In")}
+            <span className="text-sm md:text-base font-black tracking-widest text-emerald-800 uppercase font-sans block mt-1">
+              {t("Biodiesel Georgia")}
             </span>
-            <span className="text-sm font-black tracking-tight leading-none text-gray-800 block mt-1 font-sans">{t("Biodiesel Georgia")}</span>
           </div>
         </div>
 
@@ -209,41 +209,36 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         )}
 
         {/* Real Form using native standard colors */}
-        <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">{t("Email or Username")}</label>
-            <input 
-              id="input-login-email"
-              type="text"
-              placeholder="user@biodiesel.ge or username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4 relative z-10 text-left">
+          <FormInput 
+            id="input-login-email"
+            label={t("Email or Username")}
+            type="text"
+            placeholder="user@biodiesel.ge or username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+          />
 
-          <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">{t("Password")}</label>
-            <input 
-              id="input-login-password"
-              type="password"
-              placeholder="••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none focus:bg-white disabled:opacity-50"
-            />
-          </div>
+          <FormInput 
+            id="input-login-password"
+            label={t("Password")}
+            type="password"
+            placeholder="••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
 
           <button 
             id="btn-login"
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 focus:bg-emerald-950 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full py-2.5 bg-emerald-800 hover:bg-emerald-900 focus:bg-emerald-950 text-white text-xs font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
           >
             <LogIn size={15} />
-            {loading ? t('Please wait...') : t('Sign In')}
+            <span>შესვლა</span>
+            {loading && <Loader2 size={15} className="animate-spin ml-1" />}
           </button>
         </form>
 

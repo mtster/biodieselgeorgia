@@ -3,6 +3,7 @@ import { Order } from '../types';
 import { trackChange } from './historyService';
 import { KEY_ORDERS, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
+import { appCache } from '../utils/cache';
 
 export { KEY_ORDERS };
 
@@ -27,11 +28,22 @@ export async function getOrdersPaginated(
     vendorId?: string;
   }
 ): Promise<PaginatedOrdersResult> {
+  const filterKey = JSON.stringify(filters || {});
+  const countCacheKey = `count_orders_${filterKey}`;
+  const pageCacheKey = `orders_limit_${limit}_offset_${offset}_${filterKey}`;
+
+  const cachedPage = appCache.get<PaginatedOrdersResult>(pageCacheKey);
+  if (cachedPage) {
+    return cachedPage;
+  }
+
+  const cachedCount = appCache.get<number>(countCacheKey);
+
   if (isSupabaseConfigured && supabase) {
     try {
       let query = supabase
         .from('orders')
-        .select('*', { count: 'exact' })
+        .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
       if (filters?.searchTerm?.trim()) {
@@ -70,14 +82,21 @@ export async function getOrdersPaginated(
 
       const { data, count, error } = await query;
       if (!error && data) {
+        const finalCount = cachedCount !== null ? cachedCount : (count || 0);
+        if (cachedCount === null && count !== null) {
+          appCache.set(countCacheKey, count);
+        }
+
         const mapped = data.map((o: any) => ({
           ...o,
           notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
         }));
-        return {
+        const result = {
           orders: mapped,
-          totalCount: count || 0
+          totalCount: finalCount
         };
+        appCache.set(pageCacheKey, result);
+        return result;
       }
     } catch (e) {
       console.warn('Supabase getOrdersPaginated failed', e);
