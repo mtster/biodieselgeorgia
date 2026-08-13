@@ -21,6 +21,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'trade_name', label: 'Trade Name', visible: true },
   { id: 'id_code', label: 'Taxation ID', visible: true },
+  { id: 'company_name', label: 'Legal Name', visible: true },
   { id: 'status', label: 'Status', visible: true },
   { id: 'price_per_liter', label: 'Rate (₾)', visible: true },
   { id: 'working_hours', label: 'Working Hours', visible: true },
@@ -136,8 +137,19 @@ export default function VendorsView({
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
     const loaded = localStorage.getItem('suppliers_columns_managed');
-    const cols = loaded ? JSON.parse(loaded) as ManagedColumn[] : defaultSuppliersColumns;
-    return cols.filter((c: ManagedColumn) => c.id !== 'fact_qty' && c.id !== 'fact_tank_dropoff' && c.id !== 'fact_tank_pickup');
+    let cols = loaded ? JSON.parse(loaded) as ManagedColumn[] : defaultSuppliersColumns;
+    cols = cols.filter((c: ManagedColumn) => c.id !== 'fact_qty' && c.id !== 'fact_tank_dropoff' && c.id !== 'fact_tank_pickup');
+    
+    if (!cols.some(c => c.id === 'company_name')) {
+      const idCodeIdx = cols.findIndex(c => c.id === 'id_code');
+      const newCol: ManagedColumn = { id: 'company_name', label: 'Legal Name', visible: true };
+      if (idCodeIdx !== -1) {
+        cols.splice(idCodeIdx + 1, 0, newCol);
+      } else {
+        cols.unshift(newCol);
+      }
+    }
+    return cols;
   });
 
   const handleSaveColumns = async (updated: ManagedColumn[]) => {

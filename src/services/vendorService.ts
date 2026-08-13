@@ -392,7 +392,7 @@ export async function getVendors(): Promise<Vendor[]> {
   let vendors: Vendor[] = [];
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('vendors').select('*').eq('is_deleted', false).order('trade_name');
+      const { data, error } = await supabase.from('vendors').select('*').eq('is_deleted', false).order('trade_name').limit(10000);
       if (!error && data) {
         vendors = data.map(v => decodeVendorCustomFields(v));
       }

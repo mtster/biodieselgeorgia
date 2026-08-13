@@ -67,6 +67,12 @@ export default function VendorsList({
       className: 'min-w-[100px] max-w-[150px]',
       render: (vendor) => <div className="truncate" title={vendor.id_code}>{vendor.id_code}</div>
     },
+    company_name: {
+      header: t('Legal Name'),
+      key: 'company_name',
+      className: 'min-w-[150px] max-w-[200px]',
+      render: (vendor) => <div className="truncate" title={vendor.company_name}>{vendor.company_name}</div>
+    },
     status: {
       header: t('Status'),
       key: 'status',

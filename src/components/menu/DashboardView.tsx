@@ -8,6 +8,7 @@ import { t } from '../../utils/lang';
 
 interface Props {
   suppliers: Vendor[]; // Pass vendors from parent App
+  totalSuppliersCount?: number;
   orders: Order[];
   employees: User[];   // Pass users from parent App
   trucks: Truck[];
@@ -15,7 +16,7 @@ interface Props {
   onNavigate: (tab: string) => void;
 }
 
-export default function DashboardView({ suppliers, orders, employees, trucks, communications = [], onNavigate }: Props) {
+export default function DashboardView({ suppliers, totalSuppliersCount, orders, employees, trucks, communications = [], onNavigate }: Props) {
   const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = orders.filter(o => o.status === 'completed');
   
@@ -61,7 +62,7 @@ export default function DashboardView({ suppliers, orders, employees, trucks, co
           </div>
           <span className="text-xs text-gray-400 font-medium block">{t("Suppliers")}</span>
           <span className="text-xl font-extrabold text-gray-800 font-mono">
-            {suppliers.length}
+            {totalSuppliersCount !== undefined ? totalSuppliersCount : suppliers.length}
           </span>
         </button>
 

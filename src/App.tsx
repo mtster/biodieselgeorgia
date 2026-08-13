@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { useAppData } from './hooks/useAppData';
+import { usePaginatedVendors } from './hooks/usePaginatedModuleQuery';
 import { t } from './utils/lang';
 import ErrorModal from './components/ErrorModal';
 
@@ -77,6 +78,9 @@ export default function App() {
     errorModal,
     setErrorModal
   } = useAppData();
+
+  const { data: initialVendorsPaginated } = usePaginatedVendors(1, {}, currentUser);
+  const totalVendorsCount = initialVendorsPaginated?.totalCount;
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
   const mainRef = React.useRef<HTMLElement>(null);
@@ -177,6 +181,7 @@ export default function App() {
             {activeTab === 'dashboard' && (
               <DashboardView 
                 suppliers={vendors}
+                totalSuppliersCount={totalVendorsCount}
                 orders={orders}
                 employees={users}
                 trucks={trucks}
