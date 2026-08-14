@@ -50,11 +50,17 @@ export function getCommunicationsColumns({
       }
     },
     vendor_name: {
-      header: t('Supplier / Subject'),
+      header: t('Supplier'),
       key: 'vendor_name',
+      className: 'max-w-[180px] truncate',
       render: (comm) => {
         const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-        return suppObj ? suppObj.trade_name : (comm.vendor_name || t('Supplier'));
+        const name = suppObj ? suppObj.trade_name : (comm.vendor_name || t('Supplier'));
+        return (
+          <div className="max-w-[180px] truncate" title={name}>
+            {name}
+          </div>
+        );
       }
     },
     company_name: {

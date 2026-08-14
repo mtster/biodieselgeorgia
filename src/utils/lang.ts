@@ -280,7 +280,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Completed": "დასრულებული",
   "No previous interactions logged for this supplier": "ამ მომწოდებლისთვის წინა ინტერაქციები არ არის.",
   "Direct / No contact selected": "კონტაქტი არ არის არჩეული",
-  "Supplier / Subject": "მომწოდებელი / თემა",
+  "Supplier / Subject": "მომწოდებელი",
   "Operator / User": "ოპერატორი / მომხმარებელი",
   "Interaction Comment": "ინტერაქციის კომენტარი",
   "Reminder Time": "შეხსენების დრო",

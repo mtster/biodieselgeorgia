@@ -16,7 +16,7 @@ import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'date_time', label: 'Date & Time', visible: true },
   { id: 'type', label: 'Type', visible: true },
-  { id: 'vendor_name', label: 'Supplier / Subject', visible: true },
+  { id: 'vendor_name', label: 'Supplier', visible: true },
   { id: 'company_name', label: 'Company Name', visible: true },
   { id: 'id_code', label: 'Identification Code', visible: true },
   { id: 'user_name', label: 'Operator / User', visible: true },
