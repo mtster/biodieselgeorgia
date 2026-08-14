@@ -21,6 +21,10 @@ export function usePaginatedVendors(
 
   useEffect(() => {
     if (isAllowed && currentUser) {
+      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['vendors', page, filterKey]);
+      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
+        return;
+      }
       queryClient.prefetchQuery({
         queryKey: ['vendors', page + 1, filterKey],
         queryFn: () => getVendorsPaginated(12, page * 12, filters),
@@ -49,6 +53,10 @@ export function usePaginatedOrders(
 
   useEffect(() => {
     if (isAllowed && currentUser) {
+      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['orders', page, filterKey]);
+      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
+        return;
+      }
       queryClient.prefetchQuery({
         queryKey: ['orders', page + 1, filterKey],
         queryFn: () => getOrdersPaginated(12, page * 12, filters),
@@ -77,6 +85,10 @@ export function usePaginatedCommunications(
 
   useEffect(() => {
     if (isAllowed && currentUser) {
+      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['communications', page, filterKey]);
+      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
+        return;
+      }
       queryClient.prefetchQuery({
         queryKey: ['communications', page + 1, filterKey],
         queryFn: () => getCommunicationsPaginated(12, page * 12, filters),
@@ -104,6 +116,10 @@ export function usePaginatedContacts(
 
   useEffect(() => {
     if (isAllowed && currentUser) {
+      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['contacts', page, searchTerm]);
+      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
+        return;
+      }
       queryClient.prefetchQuery({
         queryKey: ['contacts', page + 1, searchTerm],
         queryFn: () => getContactsPaginated(12, page * 12, searchTerm),
@@ -131,6 +147,10 @@ export function usePaginatedUsers(
 
   useEffect(() => {
     if (isAllowed && currentUser) {
+      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['users', page, searchTerm]);
+      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
+        return;
+      }
       queryClient.prefetchQuery({
         queryKey: ['users', page + 1, searchTerm],
         queryFn: () => getUsersPaginated(12, page * 12, searchTerm),

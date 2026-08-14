@@ -28,14 +28,18 @@ export async function getUsersPaginated(
   }
 
   const cachedCount = appCache.get<number>(countCacheKey);
+  if (cachedCount !== null && offset >= cachedCount && cachedCount > 0) {
+    return { users: [], totalCount: cachedCount };
+  }
 
   if (isSupabaseConfigured && supabase) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
+      const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
 
-      // 1. Try server proxy with auth token first
-      if (token) {
+      // 1. Try server proxy with auth token first if proxy is active
+      if (token && useProxy) {
         try {
           const searchParam = searchTerm?.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
           const res = await fetch(`/api/profiles?limit=${limit}&offset=${offset}${searchParam}`, {
@@ -56,8 +60,8 @@ export async function getUsersPaginated(
               return result;
             }
           }
-        } catch (proxyErr) {
-          console.warn('Proxy paginated profiles load failed, falling back to direct db call', proxyErr);
+        } catch {
+          // Fallback to direct db call silently
         }
       }
 
@@ -75,6 +79,13 @@ export async function getUsersPaginated(
       query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
+
+      if (error) {
+        if (error.code === 'PGRST103' || error.message?.toLowerCase().includes('satisfiable')) {
+          return { users: [], totalCount: cachedCount || 0 };
+        }
+      }
+
       if (!error && data) {
         const finalCount = cachedCount !== null ? cachedCount : (count || 0);
         if (cachedCount === null && count !== null) {
@@ -186,46 +197,33 @@ export async function getUsers(): Promise<User[]> {
 export async function saveUser(user: User, loggerName: string): Promise<User> {
   let finalUser = { ...user };
   const isNew = !user.id || user.id.length < 10;
-  const isDriverOrLogist = user.role === 'driver' || user.role === 'logistics_manager';
 
   if (isSupabaseConfigured && supabase) {
-    if (isDriverOrLogist) {
-      const profileId = (user.id && user.id.length > 10) ? user.id : crypto.randomUUID();
-      const cleanEmail = user.email && user.email.trim() ? user.email.trim() : `${profileId.substring(0, 8)}@noemail.local`;
-      const profilePayload: any = {
-        id: profileId,
-        name: user.name,
-        personal_id: user.personal_id,
-        email: cleanEmail,
-        phone: user.phone,
-        role: user.role,
-        permissions: {},
-        is_blocked: user.is_blocked || false,
-        is_deleted: false,
-        vendor_id: user.vendor_id || null
-      };
-
-      const { data: profileData, error: profileErr } = await supabase
-        .from('profiles')
-        .upsert([profilePayload], { onConflict: 'id' })
-        .select()
-        .single();
-
-      if (profileErr) {
-        console.error('Failed to save driver profile directly:', profileErr);
-        throw profileErr;
-      }
-      finalUser = decodeProfile(profileData || profilePayload);
-      await trackChange('USERS', isNew ? 'CREATE' : 'UPDATE', loggerName, `Saved driver/logist: ${user.name}`);
-      return finalUser;
-    }
-
     try {
       const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
       
       if (isNew) {
         let resData: any = null;
         let createdOnExpress = false;
+
+        const cleanPersonalId = (user.personal_id && user.personal_id.trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
+        const cleanEmail = (user.email && user.email.trim()) || `${cleanPersonalId}@company.ge`;
+        const cleanPassword = (user.password && user.password.trim()) || 'Georgia2026!';
+        const cleanPhone = (user.phone && user.phone.trim()) || '+995 599 00 00 00';
+        const cleanName = (user.name && user.name.trim()) || 'New User';
+
+        const userToCreate = {
+          ...user,
+          name: cleanName,
+          email: cleanEmail,
+          password: cleanPassword,
+          personal_id: cleanPersonalId,
+          phone: cleanPhone,
+          role: user.role || 'operator',
+          permissions: user.permissions || {},
+          vendor_id: user.vendor_id || null,
+          warehouse_id: user.warehouse_id || null
+        };
         
         const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
         if (useProxy) {
@@ -239,7 +237,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
               },
-              body: JSON.stringify(user)
+              body: JSON.stringify(userToCreate)
             });
             if (res.ok) {
               resData = await res.json();
@@ -251,7 +249,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             }
           } catch (err: any) {
             console.error('Express /api/create-user failed:', err);
-            // If the server responded with an error, propagate it directly
+            // If the server responded with an explicit validation/auth error, propagate it directly
             if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
               throw err;
             }
@@ -273,15 +271,15 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             },
             body: JSON.stringify({
               action: 'create',
-              email: user.email,
-              password: user.password || 'Georgia2026!',
-              name: user.name,
-              personal_id: user.personal_id,
-              phone: user.phone,
-              role: user.role,
-              permissions: user.permissions,
-              warehouse_id: user.warehouse_id,
-              vendor_id: user.vendor_id
+              email: userToCreate.email,
+              password: userToCreate.password,
+              name: userToCreate.name,
+              personal_id: userToCreate.personal_id,
+              phone: userToCreate.phone,
+              role: userToCreate.role,
+              permissions: userToCreate.permissions,
+              warehouse_id: userToCreate.warehouse_id,
+              vendor_id: userToCreate.vendor_id
             })
           });
           

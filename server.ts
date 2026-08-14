@@ -73,25 +73,27 @@ async function startServer() {
 
       const { email, password, name, personal_id, phone, role, permissions, privileges, warehouse_id, vendor_id } = req.body;
       const perms = permissions || privileges || {};
-      let assignedRole = role;
+      let assignedRole = role || "operator";
       if (assignedRole === "manager") {
         assignedRole = "purchasing_head";
       }
 
-      if (!email || !password || !name || !personal_id || !phone || !assignedRole) {
-        return res.status(400).json({ error: "All required fields (email, password, name, personal_id, phone, role) must be provided." });
-      }
+      const cleanPersonalId = (personal_id && String(personal_id).trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
+      const cleanEmail = (email && String(email).trim()) || `${cleanPersonalId}@company.ge`;
+      const cleanPassword = (password && String(password).trim()) || "Georgia2026!";
+      const cleanName = (name && String(name).trim()) || "New User";
+      const cleanPhone = (phone && String(phone).trim()) || "+995 599 00 00 00";
 
-      // Create user administratively
+      // Create user administratively in auth.users
       const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
         email_confirm: true,
         phone_confirm: true,
         user_metadata: {
-          name,
-          personal_id,
-          phone,
+          name: cleanName,
+          personal_id: cleanPersonalId,
+          phone: cleanPhone,
           role: assignedRole,
           permissions: perms,
           privileges: perms,
@@ -108,10 +110,10 @@ async function startServer() {
       if (assignedRole !== "vendor") {
         const profilePayload = {
           id: adminData.user.id,
-          name,
-          personal_id,
-          email,
-          phone,
+          name: cleanName,
+          personal_id: cleanPersonalId,
+          email: cleanEmail,
+          phone: cleanPhone,
           role: assignedRole,
           permissions: perms,
           vendor_id: vendor_id || null,

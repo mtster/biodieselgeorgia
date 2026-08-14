@@ -698,33 +698,9 @@ CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL T
   public.is_admin()
 );
 
--- Admin Deletion Protection Trigger (Prevent non-admins from deleting or soft-deleting admin profiles)
-CREATE OR REPLACE FUNCTION public.protect_admin_profiles()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Service role, postgres, or authenticated admin users can delete/update admin profiles
-  IF public.is_admin() THEN
-    RETURN NEW;
-  END IF;
-
-  -- Prevent hard DELETE of admin profile if caller is NOT an admin
-  IF TG_OP = 'DELETE' AND OLD.role::text = 'admin' THEN
-    RAISE EXCEPTION 'ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.';
-  END IF;
-
-  -- Prevent soft DELETE (is_deleted = true) of admin profile if caller is NOT an admin
-  IF TG_OP = 'UPDATE' AND OLD.role::text = 'admin' AND NEW.is_deleted = TRUE THEN
-    RAISE EXCEPTION 'ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.';
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
+-- Ensure trg_protect_admin_profiles is removed
 DROP TRIGGER IF EXISTS trg_protect_admin_profiles ON public.profiles;
-CREATE TRIGGER trg_protect_admin_profiles
-BEFORE UPDATE OR DELETE ON public.profiles
-FOR EACH ROW EXECUTE FUNCTION public.protect_admin_profiles();
+DROP FUNCTION IF EXISTS public.protect_admin_profiles();
 
 -- Indices for high-speed performance
 CREATE INDEX IF NOT EXISTS idx_districts_city_id ON public.districts (city_id);

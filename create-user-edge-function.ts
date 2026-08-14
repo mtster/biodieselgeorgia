@@ -92,24 +92,28 @@ serve(async (req) => {
     const targetAction = action || 'create'
 
     if (targetAction === 'create') {
-      if (!email || !password || !name || !personal_id || !phone || !role) {
-        return new Response(JSON.stringify({ error: "Required fields (email, password, name, personal_id, phone, role) are missing." }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        })
+      let assignedRole = role || 'operator';
+      if (assignedRole === 'manager') {
+        assignedRole = 'purchasing_head';
       }
 
-      // Create user auth credentials
+      const cleanPersonalId = (personal_id && String(personal_id).trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
+      const cleanEmail = (email && String(email).trim()) || `${cleanPersonalId}@company.ge`;
+      const cleanPassword = (password && String(password).trim()) || 'Georgia2026!';
+      const cleanName = (name && String(name).trim()) || 'New User';
+      const cleanPhone = (phone && String(phone).trim()) || '+995 599 00 00 00';
+
+      // Create user auth credentials in auth.users
       const { data: adminData, error: adminErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
         email_confirm: true,
         phone_confirm: true,
         user_metadata: {
-          name,
-          personal_id,
-          phone,
-          role,
+          name: cleanName,
+          personal_id: cleanPersonalId,
+          phone: cleanPhone,
+          role: assignedRole,
           permissions: perms,
           vendor_id
         }
@@ -125,11 +129,11 @@ serve(async (req) => {
       // Create mapping record in Profiles table if not a vendor
       let userToUpsert: any = {
         id: adminData.user.id,
-        name,
-        personal_id,
-        email,
-        phone,
-        role,
+        name: cleanName,
+        personal_id: cleanPersonalId,
+        email: cleanEmail,
+        phone: cleanPhone,
+        role: assignedRole,
         permissions: perms,
         vendor_id,
         is_deleted: false,

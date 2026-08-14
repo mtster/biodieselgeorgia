@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Order, Vendor, Warehouse, User, Truck, OrderStatus, VendorComment } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Order, Vendor, Warehouse, User, Truck, OrderStatus, VendorComment, VendorContact } from '../../types';
 import { ShieldAlert, Phone } from 'lucide-react';
 import SupplierAutocomplete from './SupplierAutocomplete';
 import { FormInput, FormSelect } from '../FormInput';
@@ -8,6 +8,7 @@ import DynamicCustomFields from '../DynamicCustomFields';
 import OrderCommentsSection from './OrderCommentsSection';
 import OrderCommentModal from './OrderCommentModal';
 import { t, formatDateTime } from '../../utils/lang';
+import { getVendorContacts } from '../../services/vendorService';
 
 interface OrderFormFieldsProps {
   editingOrder: Order;
@@ -44,6 +45,42 @@ export default function OrderFormFields({
   // Comment Modal state
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activeComment, setActiveComment] = useState<VendorComment | null>(null);
+
+  // Dynamic contacts assigned to the selected vendor
+  const [fetchedContacts, setFetchedContacts] = useState<VendorContact[]>([]);
+
+  useEffect(() => {
+    if (!editingOrder.vendor_id) {
+      setFetchedContacts([]);
+      return;
+    }
+
+    const supplier = suppliers.find(s => s.id === editingOrder.vendor_id);
+    if (supplier && supplier.contacts && supplier.contacts.length > 0) {
+      setFetchedContacts(supplier.contacts);
+    } else {
+      getVendorContacts(editingOrder.vendor_id).then(contacts => {
+        setFetchedContacts(contacts || []);
+      });
+    }
+  }, [editingOrder.vendor_id, suppliers]);
+
+  useEffect(() => {
+    if (editingOrder.vendor_id && fetchedContacts.length > 0) {
+      const currentContactExists = fetchedContacts.some(c => c.id === editingOrder.contact_id);
+      if (!editingOrder.contact_id || !currentContactExists) {
+        const defaultContact = fetchedContacts.find(c => c.is_default) || fetchedContacts[0];
+        if (defaultContact) {
+          setEditingOrder(prev => prev ? {
+            ...prev,
+            contact_id: defaultContact.id,
+            contact_name: defaultContact.name,
+            contact_phone: defaultContact.phone
+          } : null);
+        }
+      }
+    }
+  }, [editingOrder.vendor_id, fetchedContacts]);
 
   const comments = editingOrder.notes || [];
 
@@ -124,8 +161,9 @@ export default function OrderFormFields({
         {/* Contact Dropdown & Contact Card details */}
         {(() => {
           const selectedSupplier = suppliers.find(s => s.id === editingOrder.vendor_id);
-          const contactsList = selectedSupplier ? (selectedSupplier.contacts || []) : [];
-          const selectedContact = contactsList.find(c => c.id === editingOrder.contact_id);
+          const contactsList = (fetchedContacts && fetchedContacts.length > 0)
+            ? fetchedContacts
+            : (selectedSupplier ? (selectedSupplier.contacts || []) : []);
 
           return (
             <div className="space-y-3">
@@ -146,11 +184,15 @@ export default function OrderFormFields({
                 error={fieldErrors.contact_id}
               >
                 <option value="" disabled>{t("Select contact...")}</option>
-                {contactsList.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} - {t(c.position)} ({c.phone})
-                  </option>
-                ))}
+                {contactsList.map(c => {
+                  const posStr = c.position ? ` - ${t(c.position)}` : '';
+                  const phoneStr = c.phone ? ` (${c.phone})` : '';
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.name}{posStr}{phoneStr}
+                    </option>
+                  );
+                })}
               </FormSelect>
             </div>
           );
