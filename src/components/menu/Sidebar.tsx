@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { User } from '../../types';
 import { t } from '../../utils/lang';
+import { hasModuleViewPermission } from '../../lib/realtime';
 
 interface SidebarProps {
   currentUser: User;
@@ -44,12 +45,9 @@ export default function Sidebar({
     { id: 'communications', name: 'Communications', icon: <MessageSquare size={18} /> },
     { id: 'orders', name: 'Orders', icon: <ShoppingBag size={18} /> },
     { id: 'reports', name: 'Reports', icon: <FileText size={18} /> },
-  ]
-.filter(item => {
+  ].filter(item => {
     if (isAdmin) return true;
-    if (!currentUser || !currentUser.permissions) return false;
-    const pageId = item.id === 'vendors' ? 'suppliers' : item.id;
-    return currentUser.permissions[pageId]?.includes('view');
+    return hasModuleViewPermission(currentUser, item.id);
   });
 
   const settingsSubItems = [
@@ -59,12 +57,9 @@ export default function Sidebar({
     { id: 'vehicles', name: 'Vehicles', icon: <Truck size={18} /> },
     { id: 'warehouses', name: 'Warehouses', icon: <Building2 size={18} /> },
     { id: 'history', name: 'Changes History', icon: <History size={18} /> },
-  ]
-.filter(item => {
+  ].filter(item => {
     if (isAdmin) return true;
-    if (!currentUser || !currentUser.permissions) return false;
-    const pageId = item.id;
-    return currentUser.permissions[pageId]?.includes('view');
+    return hasModuleViewPermission(currentUser, item.id);
   });
 
   const showSettings = settingsSubItems.length > 0;

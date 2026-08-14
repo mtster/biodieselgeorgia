@@ -127,7 +127,7 @@ export function usePaginatedUsers(
   currentUser: User | null
 ) {
   const queryClient = useQueryClient();
-  const isAllowed = hasModuleViewPermission(currentUser, 'employees');
+  const isAllowed = hasModuleViewPermission(currentUser, 'users');
 
   useEffect(() => {
     if (isAllowed && currentUser) {

@@ -258,6 +258,13 @@ export default function UserForm({
       finalUser.permissions = undefined; 
     } else if (finalUser.role === 'logistics_manager' || finalUser.role === 'driver') {
       finalUser.permissions = undefined;
+    } else {
+      const cleanPerms: Record<string, string[]> = {};
+      const currentPerms = finalUser.permissions || {};
+      permissionPages.forEach(page => {
+        cleanPerms[page.id] = currentPerms[page.id] || [];
+      });
+      finalUser.permissions = cleanPerms;
     }
     onSave(finalUser);
   };

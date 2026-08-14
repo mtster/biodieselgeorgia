@@ -678,8 +678,17 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Reminders": "შეხსენებები",
   "No reminders for today.": "დღეისთვის შეხსენებები არ არის.",
   "All Vehicles": "ყველა მანქანა",
-  "Loading...": "იტვირთება",
-  "Loading": "იტვირთება",
+  "Loading...": "იტვირთება...",
+  "Loading": "იტვირთება...",
+  "Loading data...": "მონაცემები იტვირთება...",
+  "No supplier data matches current search criteria.": "მომწოდებლის მონაცემები მიმდინარე ძიების პარამეტრებით არ მოიძებნა.",
+  "No supplier data matches current search criteria": "მომწოდებლის მონაცემები მიმდინარე ძიების პარამეტრებით არ მოიძებნა.",
+  "No supplier data matches current": "მომწოდებლის მონაცემები მიმდინარე ძიების პარამეტრებით არ მოიძებნა.",
+  "No supplier data found": "მომწოდებლის მონაცემები არ მოიძებნა.",
+  "No records found": "ჩანაწერები არ მოიძებნა.",
+  "No results found": "შედეგები არ მოიძებნა.",
+  "No data found": "მონაცემები არ მოიძებნა.",
+  "Page": "გვერდი",
 };
 
 export function t(key: string): string {

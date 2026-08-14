@@ -4,22 +4,11 @@ import { LogIn, Leaf, Loader2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/db';
 import { t } from '../../utils/lang';
 import { FormInput } from '../FormInput';
+import { decodeProfile } from '../../services/userService';
 
 interface Props {
   users: User[];
   onLoginSuccess: (user: User) => void;
-}
-
-function decodeProfile(p: any): User {
-  if (!p) return p;
-  
-  const warehouse_id = p.warehouse_id || '';
-  const vendor_id = p.vendor_id || '';
-  return {
-    ...p,
-    warehouse_id: warehouse_id || undefined,
-    vendor_id: vendor_id || undefined
-  };
 }
 
 export default function LoginView({ users, onLoginSuccess }: Props) {

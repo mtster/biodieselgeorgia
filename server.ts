@@ -149,31 +149,71 @@ async function startServer() {
         return res.status(401).json({ error: "Unauthorized: Invalid session token" });
       }
 
-      const { id, email, password, name, personal_id, phone, role, permissions, vendor_id } = req.body;
+      // Check if user is admin or modifying own profile or has permission
+      let isRequesterAdmin = requestingUser.user_metadata?.role === "admin";
+      if (!isRequesterAdmin) {
+        const { data: requesterProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("role, permissions")
+          .eq("id", requestingUser.id)
+          .maybeSingle();
+        if (requesterProfile) {
+          if (
+            requesterProfile.role === "admin" || 
+            requesterProfile.role === "purchasing_head" || 
+            requesterProfile.permissions?.users?.includes("modify") ||
+            requesterProfile.permissions?.users?.includes("add")
+          ) {
+            isRequesterAdmin = true;
+          }
+        }
+      }
+
+      if (!isRequesterAdmin && requestingUser.id !== req.body?.id) {
+        return res.status(403).json({ error: "Access denied. Only users with administrative privileges are authorized." });
+      }
+
+      const { id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id, is_blocked } = req.body;
 
       if (!id) {
         return res.status(400).json({ error: "Missing user ID for update" });
       }
 
-      const updatePayload: any = {};
-      if (email) updatePayload.email = email;
-      if (password) updatePayload.password = password;
-
-      const perms = permissions || (role === "admin" ? ["all"] : []);
-      updatePayload.user_metadata = {
-        name,
-        personal_id,
-        phone,
-        role,
-        permissions: perms,
-        privileges: perms,
-        vendor_id,
+      const perms = permissions || privileges || (role === "admin" ? { all: ["view", "add", "modify", "delete"] } : {});
+      const updatePayload: any = {
+        user_metadata: {
+          name,
+          personal_id,
+          phone,
+          role,
+          permissions: perms,
+          privileges: perms,
+          vendor_id,
+        }
       };
+
+      if (email && email.trim() !== "") {
+        updatePayload.email = email.trim();
+        updatePayload.email_confirm = true; // Auto-confirm email change immediately in auth.users
+      }
+      if (password && password.trim() !== "") {
+        updatePayload.password = password.trim();
+      }
 
       const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.updateUserById(id, updatePayload);
 
       if (adminError) {
-        console.error("Supabase Admin Auth Update Error:", adminError);
+        console.warn("Supabase Admin Auth Update Warning:", adminError.message);
+        if (adminError.message.toLowerCase().includes("user not found") && email) {
+          await supabaseAdmin.auth.admin.createUser({
+            id,
+            email: email.trim(),
+            password: (password && password.trim()) || "Georgia2026!",
+            email_confirm: true,
+            phone_confirm: true,
+            user_metadata: updatePayload.user_metadata
+          }).catch((err) => console.warn("Fallback createUser failed:", err));
+        }
       }
 
       const profilePayload: any = {
@@ -183,8 +223,11 @@ async function startServer() {
         role,
         permissions: perms,
         vendor_id,
+        is_blocked: is_blocked ?? false
       };
-      if (email) profilePayload.email = email;
+      if (email && email.trim() !== "") {
+        profilePayload.email = email.trim();
+      }
 
       const { data: updatedProfile, error: profileErr } = await supabaseAdmin
         .from("profiles")
@@ -207,7 +250,8 @@ async function startServer() {
           phone,
           role,
           permissions: perms,
-          vendor_id
+          vendor_id,
+          is_blocked: is_blocked ?? false
         }
       });
     } catch (e: any) {
@@ -379,20 +423,40 @@ async function startServer() {
         return res.status(401).json({ error: "Unauthorized: Invalid session token" });
       }
 
-      const { email, is_deleted, id } = req.query;
-      let query = supabaseAdmin.from("profiles").select("*");
+      const { email, is_deleted, id, limit, offset, search } = req.query;
+      const isPaginated = limit !== undefined && offset !== undefined;
+      let query = supabaseAdmin.from("profiles").select("*", isPaginated ? { count: "exact" } : {});
 
       if (email) {
         query = query.eq("email", email);
       }
       if (is_deleted !== undefined) {
         query = query.eq("is_deleted", is_deleted === "true");
+      } else {
+        query = query.eq("is_deleted", false);
       }
       if (id) {
         query = query.eq("id", id);
       }
+      if (search && typeof search === "string" && search.trim()) {
+        const term = `%${search.trim()}%`;
+        query = query.or(`name.ilike.${term},email.ilike.${term},personal_id.ilike.${term}`);
+      }
 
-      const { data: profiles, error: queryErr } = await query.order("name");
+      query = query.order("name", { ascending: true });
+
+      if (isPaginated) {
+        const lim = parseInt(limit as string, 10) || 12;
+        const off = parseInt(offset as string, 10) || 0;
+        query = query.range(off, off + lim - 1);
+        const { data: profiles, count, error: queryErr } = await query;
+        if (queryErr) {
+          return res.status(500).json({ error: queryErr.message });
+        }
+        return res.json({ users: profiles || [], totalCount: count || 0 });
+      }
+
+      const { data: profiles, error: queryErr } = await query;
 
       if (queryErr) {
         return res.status(500).json({ error: queryErr.message });

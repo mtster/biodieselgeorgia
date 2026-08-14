@@ -31,6 +31,37 @@ export async function getUsersPaginated(
 
   if (isSupabaseConfigured && supabase) {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // 1. Try server proxy with auth token first
+      if (token) {
+        try {
+          const searchParam = searchTerm?.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
+          const res = await fetch(`/api/profiles?limit=${limit}&offset=${offset}${searchParam}`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && Array.isArray(json.users)) {
+              const decoded = json.users.map((u: any) => decodeProfile(u));
+              const result = {
+                users: decoded,
+                totalCount: json.totalCount !== undefined ? json.totalCount : decoded.length
+              };
+              appCache.set(countCacheKey, result.totalCount);
+              appCache.set(pageCacheKey, result);
+              return result;
+            }
+          }
+        } catch (proxyErr) {
+          console.warn('Proxy paginated profiles load failed, falling back to direct db call', proxyErr);
+        }
+      }
+
+      // 2. Direct Supabase call
       let query = supabase
         .from('profiles')
         .select('*', cachedCount !== null ? {} : { count: 'exact' })
@@ -67,7 +98,7 @@ export async function getUsersPaginated(
   let filtered = all;
   if (searchTerm?.trim()) {
     const term = searchTerm.trim().toLowerCase();
-    filtered = filtered.filter(u => (u.name || '').toLowerCase().includes(term) || (u.email || '').toLowerCase().includes(term));
+    filtered = filtered.filter(u => (u.name || '').toLowerCase().includes(term) || (u.email || '').toLowerCase().includes(term) || (u.personal_id || '').includes(term));
   }
   return {
     users: filtered.slice(offset, offset + limit),
@@ -91,17 +122,27 @@ export const DEFAULT_USERS: User[] = [
   }
 ];
 
-function decodeProfile(p: any): User {
+export function decodeProfile(p: any): User {
   if (!p) return p;
   const role = p.role || 'operator';
-  const perms = (p.permissions && Object.keys(p.permissions).length > 0)
-    ? p.permissions
-    : (defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {});
+  let perms = p.permissions;
+  if (typeof perms === 'string') {
+    try {
+      perms = JSON.parse(perms);
+    } catch (e) {
+      perms = null;
+    }
+  }
+
+  // If perms is null/undefined, initialize with defaultPermissions for role
+  if (perms === null || perms === undefined) {
+    perms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
+  }
 
   return {
     ...p,
     role,
-    permissions: perms,
+    permissions: perms || {},
     warehouse_id: p.warehouse_id || undefined,
     vendor_id: p.vendor_id || undefined
   };
@@ -110,22 +151,26 @@ function decodeProfile(p: any): User {
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
       let data = null;
-
-      if (useProxy) {
-        try {
-          const res = await fetch('/api/profiles');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          const res = await fetch('/api/profiles', {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
           if (res.ok) {
             data = await res.json();
           }
-        } catch (err) {
-          console.warn('Failed to load profiles via proxy, falling back to direct db call', err);
         }
+      } catch (err) {
+        console.warn('Failed to load profiles via proxy, falling back to direct db call', err);
       }
 
       if (!data) {
-        const { data: profiles, error } = await supabase.from('profiles').select('*');
+        const { data: profiles, error } = await supabase.from('profiles').select('*').eq('is_deleted', false);
         if (error) throw error;
         data = profiles;
       }
@@ -277,7 +322,8 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                 phone: user.phone,
                 role: user.role,
                 permissions: user.permissions,
-                vendor_id: user.vendor_id
+                vendor_id: user.vendor_id,
+                is_blocked: user.is_blocked || false
               })
             });
             if (serverRes.ok) {
@@ -302,7 +348,8 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                   phone: user.phone,
                   role: user.role,
                   permissions: user.permissions,
-                  vendor_id: user.vendor_id
+                  vendor_id: user.vendor_id,
+                  is_blocked: user.is_blocked || false
                 })
               });
               if (edgeRes.ok) updatedOnEdge = true;
@@ -340,6 +387,10 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
       created_at: user.created_at || new Date().toISOString()
     };
   }
+
+  // Clear in-memory caches
+  appCache.clear('users_');
+  appCache.clear('count_users_');
 
   const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
   if (isNew) {

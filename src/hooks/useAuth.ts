@@ -3,15 +3,7 @@ import { User } from '../types';
 import { t } from '../utils/lang';
 import { isSupabaseConfigured, supabase } from '../lib/db';
 import { defaultPermissions } from '../components/users/UserForm';
-
-function decodeProfile(p: any): User {
-  if (!p) return p;
-  return {
-    ...p,
-    warehouse_id: p.warehouse_id || undefined,
-    vendor_id: p.vendor_id || undefined
-  };
-}
+import { decodeProfile } from '../services/userService';
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -30,8 +22,7 @@ export function useAuth() {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             let dbUser: any = null;
-            const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
-            if (session.access_token && useProxy) {
+            if (session.access_token) {
               try {
                 const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
                   headers: {
@@ -59,20 +50,23 @@ export function useAuth() {
             }
               
             if (dbUser) {
-              if (dbUser.is_blocked) {
-                console.warn('Access denied: User is blocked.');
+              if (dbUser.is_deleted || dbUser.is_blocked) {
+                console.warn('Access denied: User is blocked or deleted.');
                 await supabase.auth.signOut();
                 setCurrentUser(null);
               } else {
                 const secureUser = decodeProfile(dbUser);
-                secureUser.role = session.user.user_metadata?.role || secureUser.role;
-                const userPerms = session.user.user_metadata?.permissions || secureUser.permissions;
-                if (userPerms && Object.keys(userPerms).length > 0) {
-                  secureUser.permissions = userPerms;
-                } else if (defaultPermissions[secureUser.role]) {
-                  secureUser.permissions = JSON.parse(JSON.stringify(defaultPermissions[secureUser.role]));
-                } else {
-                  secureUser.permissions = {};
+                secureUser.role = dbUser.role || session.user.user_metadata?.role || secureUser.role;
+                // If dbUser permissions are null/undefined, check metadata or default
+                if (secureUser.permissions === undefined || secureUser.permissions === null) {
+                  const metaPerms = session.user.user_metadata?.permissions;
+                  if (metaPerms) {
+                    secureUser.permissions = metaPerms;
+                  } else if (defaultPermissions[secureUser.role]) {
+                    secureUser.permissions = JSON.parse(JSON.stringify(defaultPermissions[secureUser.role]));
+                  } else {
+                    secureUser.permissions = {};
+                  }
                 }
                 setCurrentUser(secureUser);
               }
@@ -114,13 +108,11 @@ export function useAuth() {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           if (currentUserRef.current && currentUserRef.current.id === session.user.id) {
-            // Already logged in, skip redundant profile refetching
             return;
           }
           try {
             let dbUser: any = null;
-            const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
-            if (session?.access_token && useProxy) {
+            if (session?.access_token) {
               try {
                 const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
                   headers: {
@@ -148,15 +140,17 @@ export function useAuth() {
             }
 
             if (dbUser) {
-              if (dbUser.is_blocked) {
-                console.warn('Access denied: User is blocked during authentication state sync.');
+              if (dbUser.is_deleted || dbUser.is_blocked) {
+                console.warn('Access denied: User is blocked or deleted during authentication state sync.');
                 await supabase.auth.signOut();
                 setCurrentUser(null);
                 return;
               }
               const secureUser = decodeProfile(dbUser);
-              secureUser.role = session.user.user_metadata?.role || secureUser.role;
-              secureUser.permissions = session.user.user_metadata?.permissions || secureUser.permissions || {};
+              secureUser.role = dbUser.role || session.user.user_metadata?.role || secureUser.role;
+              if (secureUser.permissions === undefined || secureUser.permissions === null) {
+                secureUser.permissions = session.user.user_metadata?.permissions || defaultPermissions[secureUser.role] || {};
+              }
               setCurrentUser(secureUser);
             } else {
               const role = session.user.user_metadata?.role || 'vendor';
@@ -188,11 +182,59 @@ export function useAuth() {
     }
   }, []);
 
-  
+  // Real-time synchronization for profile and permission changes
   useEffect(() => {
     if (!currentUser?.id || !isSupabaseConfigured || !supabase) return;
 
-    const channel = supabase
+    const refreshCurrentProfile = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        let freshProfile: any = null;
+
+        if (session?.access_token) {
+          try {
+            const res = await fetch(`/api/profiles?id=${currentUser.id}`, {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`
+              }
+            });
+            if (res.ok) {
+              const profiles = await res.json();
+              if (profiles && profiles.length > 0) {
+                freshProfile = profiles[0];
+              }
+            }
+          } catch (e) {
+            console.warn('Proxy profile refresh failed, falling back', e);
+          }
+        }
+
+        if (!freshProfile) {
+          const { data: dbProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .maybeSingle();
+          freshProfile = dbProfile;
+        }
+
+        if (freshProfile) {
+          if (freshProfile.is_blocked || freshProfile.is_deleted) {
+            console.warn('User access revoked in real-time. Signing out.');
+            await supabase.auth.signOut();
+            setCurrentUser(null);
+          } else {
+            await supabase.auth.refreshSession();
+            setCurrentUser(decodeProfile(freshProfile));
+          }
+        }
+      } catch (err) {
+        console.error('Error refreshing active user profile in real-time:', err);
+      }
+    };
+
+    // 1. Postgres changes listener
+    const pgChannel = supabase
       .channel(`public:profiles:${currentUser.id}`)
       .on(
         'postgres_changes',
@@ -202,23 +244,30 @@ export function useAuth() {
           table: 'profiles',
           filter: `id=eq.${currentUser.id}`,
         },
-        async (payload) => {
-          const updatedProfile = payload.new;
-          if (updatedProfile.is_blocked) {
-            console.warn('User has been blocked in real-time. Signing out.');
-            await supabase.auth.signOut();
-            setCurrentUser(null);
-          } else {
-            // Update JWT by refreshing session
-            await supabase.auth.refreshSession();
-            setCurrentUser(decodeProfile(updatedProfile));
+        () => {
+          refreshCurrentProfile();
+        }
+      )
+      .subscribe();
+
+    // 2. Broadcast synchronization listener for profile updates
+    const syncChannel = supabase
+      .channel(`app_auth_profile_sync:${currentUser.id}`)
+      .on(
+        'broadcast',
+        { event: 'db_change' },
+        (payload) => {
+          const data = payload?.payload;
+          if (data?.table === 'profiles' && (!data.recordId || data.recordId === currentUser.id)) {
+            refreshCurrentProfile();
           }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(pgChannel);
+      supabase.removeChannel(syncChannel);
     };
   }, [currentUser?.id]);
 

@@ -29,6 +29,7 @@ import SupplierView from './components/menu/SupplierView';
 import Sidebar from './components/menu/Sidebar';
 
 import { Leaf, Menu } from 'lucide-react';
+import { hasModuleViewPermission } from './lib/realtime';
 
 export default function App() {
   const {
@@ -90,6 +91,15 @@ export default function App() {
       mainRef.current.scrollTop = 0;
     }
   }, [activeTab]);
+
+  React.useEffect(() => {
+    if (currentUser && currentUser.role !== 'admin' && activeTab !== 'dashboard') {
+      const pageId = activeTab === 'vendors' ? 'suppliers' : activeTab;
+      if (!hasModuleViewPermission(currentUser, pageId)) {
+        setActiveTab('dashboard');
+      }
+    }
+  }, [currentUser, activeTab, setActiveTab]);
 
   if (isLoading) {
     return (

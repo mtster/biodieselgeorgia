@@ -128,14 +128,14 @@ export function StandardTable<T>({
       </div>
 
       {isLoading && (
-        <div className="py-4 text-center text-xs text-gray-500 bg-slate-50/60 select-none font-sans font-semibold flex items-center justify-center gap-2 border-b border-gray-200">
-          <Loader2 className="animate-spin text-emerald-700" size={15} />
-          <span>{t("Fetching older entries...")}</span>
+        <div className="py-12 text-center text-xs text-gray-500 bg-slate-50/60 select-none font-sans font-semibold flex items-center justify-center gap-2 border-b border-gray-200">
+          <Loader2 className="animate-spin text-emerald-700" size={16} />
+          <span>{t("Loading data...")}</span>
         </div>
       )}
 
-      {totalItems === 0 && (
-        <div className="text-center py-20 text-xs text-gray-400 italic select-none bg-white">
+      {!isLoading && totalItems === 0 && (
+        <div className="text-center py-20 text-xs text-gray-400 italic select-none bg-white font-sans">
           {t(emptyMessage)}
         </div>
       )}

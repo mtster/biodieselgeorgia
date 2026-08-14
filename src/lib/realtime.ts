@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { User } from '../types';
+import { appCache } from '../utils/cache';
 
 // Relational dependency map: maps updated DB table to all dependent Query Keys
 export const DB_DEPENDENCY_MAP: Record<string, string[]> = {
@@ -37,8 +38,22 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
         const table = payload?.payload?.table;
         if (!table) return;
 
+        // Clear in-memory query cache so refetches get fresh data
+        appCache.clear();
+
         const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
         
+        dependentKeys.forEach((key) => {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload: any) => {
+        const table = payload?.table;
+        if (!table) return;
+
+        appCache.clear();
+
+        const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
         dependentKeys.forEach((key) => {
           queryClient.invalidateQueries({ queryKey: [key] });
         });
@@ -50,6 +65,9 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
 }
 
 export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DELETE' = 'UPDATE', recordId?: string) {
+  // Clear in-memory query cache immediately
+  appCache.clear();
+
   // Invalidate TanStack Query cache locally for the acting client user
   if (globalQueryClient) {
     const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
@@ -79,13 +97,21 @@ export function hasModuleViewPermission(currentUser: User | null, moduleName: st
   if (!currentUser) return false;
   if (currentUser.role === 'admin') return true;
   if (currentUser.role === 'driver') {
-    return moduleName === 'orders' || moduleName === 'logistics';
+    return moduleName === 'orders' || moduleName === 'logistics' || moduleName === 'directions';
   }
   if (currentUser.role === 'vendor') {
-    return moduleName === 'orders' || moduleName === 'vendors';
+    return moduleName === 'orders' || moduleName === 'vendors' || moduleName === 'suppliers';
   }
-  const userPerms = currentUser.permissions || {};
-  const modulePerms = (userPerms as Record<string, any>)[moduleName];
+  const userPerms = (currentUser.permissions || {}) as Record<string, any>;
+  let modulePerms = userPerms[moduleName];
+  if (modulePerms === undefined) {
+    if (moduleName === 'users') modulePerms = userPerms['employees'];
+    else if (moduleName === 'employees') modulePerms = userPerms['users'];
+    else if (moduleName === 'suppliers') modulePerms = userPerms['vendors'];
+    else if (moduleName === 'vendors') modulePerms = userPerms['suppliers'];
+    else if (moduleName === 'vehicles') modulePerms = userPerms['transports'] ?? userPerms['trucks'];
+    else if (moduleName === 'transports' || moduleName === 'trucks') modulePerms = userPerms['vehicles'];
+  }
   if (!modulePerms) return false;
   if (Array.isArray(modulePerms)) {
     return modulePerms.includes('view');

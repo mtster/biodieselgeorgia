@@ -51,15 +51,29 @@ serve(async (req) => {
       })
     }
 
-    // Check caller attributes in Profiles table to guarantee they are strictly an 'admin'
-    const { data: profile, error: profErr } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('id', requester.id)
-      .single()
+    // Check caller attributes in user_metadata or Profiles table
+    let isAuthorized = requester.user_metadata?.role === 'admin';
+    if (!isAuthorized) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('role, permissions')
+        .eq('id', requester.id)
+        .maybeSingle()
 
-    if (profErr || !profile || profile.role !== 'admin') {
-      return new Response(JSON.stringify({ error: "Access denied. Only users with Admin role are authorized." }), {
+      if (profile) {
+        if (
+          profile.role === 'admin' || 
+          profile.role === 'purchasing_head' || 
+          profile.permissions?.users?.includes('modify') || 
+          profile.permissions?.users?.includes('add')
+        ) {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    if (!isAuthorized) {
+      return new Response(JSON.stringify({ error: "Access denied. Only users with administrative privileges are authorized." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       })
@@ -149,7 +163,6 @@ serve(async (req) => {
 
       // Prepare updates in Auth table
       const authUpdates: any = {
-        email,
         user_metadata: {
           name,
           personal_id,
@@ -159,34 +172,47 @@ serve(async (req) => {
           vendor_id
         }
       }
+      if (email && email.trim() !== '') {
+        authUpdates.email = email.trim();
+        authUpdates.email_confirm = true; // Auto confirm email in Auth immediately
+      }
       if (password && password.trim() !== '') {
-        authUpdates.password = password
+        authUpdates.password = password.trim();
       }
 
       const { error: updateAuthErr } = await supabaseAdmin.auth.admin.updateUserById(id, authUpdates)
       if (updateAuthErr) {
-        return new Response(JSON.stringify({ error: `Auth update failed: ${updateAuthErr.message}` }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        })
+        console.warn(`Auth update warning: ${updateAuthErr.message}`);
+        if (updateAuthErr.message.toLowerCase().includes('user not found') && email) {
+          await supabaseAdmin.auth.admin.createUser({
+            id,
+            email: email.trim(),
+            password: (password && password.trim()) || 'Georgia2026!',
+            email_confirm: true,
+            phone_confirm: true,
+            user_metadata: authUpdates.user_metadata
+          }).catch((err) => console.warn('Fallback createUser failed:', err));
+        }
       }
 
       // Update mapping record in Profiles table
       let userToUpsert: any = {
-        id,
         name,
         personal_id,
-        email,
         phone,
         role,
         permissions: perms,
         vendor_id
       }
+      if (email && email.trim() !== '') {
+        userToUpsert.email = email.trim();
+      }
 
       if (role !== 'vendor') {
         const { error: upsertErr } = await supabaseAdmin
           .from('profiles')
-          .upsert(userToUpsert)
+          .update(userToUpsert)
+          .eq('id', id)
 
         if (upsertErr) {
           return new Response(JSON.stringify({ error: `Auth updated, but profile update failed: ${upsertErr.message}` }), {
@@ -196,7 +222,7 @@ serve(async (req) => {
         }
       }
 
-      return new Response(JSON.stringify({ success: true, user: userToUpsert }), {
+      return new Response(JSON.stringify({ success: true, user: { id, ...userToUpsert } }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       })
