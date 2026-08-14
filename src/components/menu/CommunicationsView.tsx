@@ -11,7 +11,7 @@ import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import CommunicationFormModal from './CommunicationFormModal';
 import { getCommunicationsColumns } from '../communications/communicationsColumns';
 import { usePaginatedCommunications } from '../../hooks/usePaginatedModuleQuery';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'date_time', label: 'Date & Time', visible: true },
@@ -43,8 +43,12 @@ export default function CommunicationsView({
   const canModify = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('modify');
   const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('delete');
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 350);
+  const {
+    searchTerm,
+    setSearchTerm,
+    debouncedSearchTerm,
+    triggerImmediateSearch
+  } = useDebouncedSearch('', 350);
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -375,6 +379,7 @@ export default function CommunicationsView({
           <CentralSearchBar 
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            onSearchSubmit={triggerImmediateSearch}
             idPrefix="input-comm-search"
             searchPlaceholder={t("Search communications logs...")}
           />

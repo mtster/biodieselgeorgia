@@ -375,10 +375,13 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   v_role TEXT;
+  v_personal_id TEXT;
+  v_name TEXT;
+  v_phone TEXT;
 BEGIN
-  v_role := COALESCE(new.raw_user_meta_data->>'role', 'admin');
+  v_role := COALESCE(new.raw_user_meta_data->>'role', 'operator');
   
-  IF v_role = 'vendor' OR v_role = 'vehicle' OR new.raw_user_meta_data->>'vehicle_role' = 'vehicle' THEN
+  IF v_role = 'vendor' OR v_role = 'vehicle' OR COALESCE(new.raw_user_meta_data->>'vehicle_role', '') = 'vehicle' THEN
     RETURN NEW;
   END IF;
 
@@ -389,6 +392,16 @@ BEGIN
     v_role := 'operator'; -- Default fallback
   END IF;
 
+  v_name := COALESCE(NULLIF(new.raw_user_meta_data->>'name', ''), split_part(new.email, '@', 1));
+  v_phone := COALESCE(NULLIF(new.raw_user_meta_data->>'phone', ''), '+995 599 00 00 00');
+  v_personal_id := COALESCE(
+    NULLIF(new.raw_user_meta_data->>'personal_id', ''),
+    substr(regexp_replace(new.id::text, '[^0-9]', '', 'g') || '12345678901', 1, 11)
+  );
+
+  -- Clean up any orphaned profile record with matching email or personal_id but mismatched id
+  DELETE FROM public.profiles WHERE (email = new.email OR (personal_id = v_personal_id AND v_personal_id != '')) AND id != new.id;
+
   INSERT INTO public.profiles (
     id, 
     name, 
@@ -397,17 +410,21 @@ BEGIN
     phone, 
     role, 
     permissions,
-    vendor_id
+    vendor_id,
+    is_deleted,
+    is_blocked
   )
   VALUES (
     new.id,
-    COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    COALESCE(new.raw_user_meta_data->>'personal_id', '12345678901'),
+    v_name,
+    v_personal_id,
     new.email,
-    COALESCE(new.raw_user_meta_data->>'phone', '599112233'),
+    v_phone,
     v_role,
     COALESCE(new.raw_user_meta_data->'permissions', '{}'::JSONB),
-    new.raw_user_meta_data->>'vendor_id'
+    new.raw_user_meta_data->>'vendor_id',
+    FALSE,
+    FALSE
   )
   ON CONFLICT (id) DO UPDATE 
   SET 
@@ -417,8 +434,13 @@ BEGIN
     personal_id = EXCLUDED.personal_id,
     role = EXCLUDED.role,
     permissions = EXCLUDED.permissions,
-    vendor_id = EXCLUDED.vendor_id;
+    vendor_id = EXCLUDED.vendor_id,
+    is_deleted = FALSE;
   
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Prevent trigger failures from crashing auth.users creation
+  RAISE WARNING 'handle_new_user trigger error: % %', SQLERRM, SQLSTATE;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
@@ -451,6 +473,16 @@ DECLARE
   u_role TEXT;
   u_permissions jsonb;
 BEGIN
+  -- Service role and postgres superuser always have all permissions
+  IF auth.role() = 'service_role' OR current_user IN ('postgres', 'supabase_admin') THEN
+    RETURN true;
+  END IF;
+
+  -- Admin in JWT token metadata always has all permissions
+  IF COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' THEN
+    RETURN true;
+  END IF;
+
   -- Handle vehicle accounts (authenticated user linked to a vehicle or driver role)
   IF EXISTS (
     SELECT 1 FROM public.vehicles 
@@ -475,7 +507,7 @@ BEGIN
   -- Handle permissions checking using JSONB containment or extraction
   RETURN COALESCE((u_permissions -> module) ? perm, false);
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql STABLE;
 
 
 DROP POLICY IF EXISTS "Cities view" ON public.cities;
@@ -636,12 +668,22 @@ CREATE POLICY "History modify (System only usually)" ON public.change_history FO
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN SECURITY DEFINER AS $$
 BEGIN
+  -- Service role and postgres superuser always have elevated admin access
+  IF auth.role() = 'service_role' OR current_user IN ('postgres', 'supabase_admin') THEN
+    RETURN true;
+  END IF;
+
+  -- Admin role explicitly asserted in verified JWT claims
+  IF COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' THEN
+    RETURN true;
+  END IF;
+
   RETURN EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role::text = 'admin'
+    WHERE id = auth.uid() AND role::text = 'admin' AND is_deleted = FALSE
   );
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql STABLE;
 
 -- Profiles policies (highly optimized against recursion)
 DROP POLICY IF EXISTS "Users can read profiles" ON public.profiles;
@@ -655,6 +697,34 @@ CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL T
 ) WITH CHECK (
   public.is_admin()
 );
+
+-- Admin Deletion Protection Trigger (Prevent non-admins from deleting or soft-deleting admin profiles)
+CREATE OR REPLACE FUNCTION public.protect_admin_profiles()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Service role, postgres, or authenticated admin users can delete/update admin profiles
+  IF public.is_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  -- Prevent hard DELETE of admin profile if caller is NOT an admin
+  IF TG_OP = 'DELETE' AND OLD.role::text = 'admin' THEN
+    RAISE EXCEPTION 'ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.';
+  END IF;
+
+  -- Prevent soft DELETE (is_deleted = true) of admin profile if caller is NOT an admin
+  IF TG_OP = 'UPDATE' AND OLD.role::text = 'admin' AND NEW.is_deleted = TRUE THEN
+    RAISE EXCEPTION 'ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_protect_admin_profiles ON public.profiles;
+CREATE TRIGGER trg_protect_admin_profiles
+BEFORE UPDATE OR DELETE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.protect_admin_profiles();
 
 -- Indices for high-speed performance
 CREATE INDEX IF NOT EXISTS idx_districts_city_id ON public.districts (city_id);

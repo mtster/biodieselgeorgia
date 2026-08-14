@@ -22,8 +22,13 @@ export function checkUserDeletion(
   name: string,
   orders: Order[],
   vendors: Vendor[],
-  communications: Communication[] = []
+  communications: Communication[] = [],
+  targetRole?: string,
+  currentUserRole?: string
 ): string | null {
+  if (targetRole === 'admin' && currentUserRole !== 'admin') {
+    return 'ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.';
+  }
   const activeOrders = orders.filter(o => !o.is_deleted);
   if (activeOrders.some(o => o.operator_id === id || o.driver_id === id || o.companion_id === id)) {
     return `ვერ წაიშლება მომხმარებელი "${name}", რადგან ის დაკავშირებულია შეკვეთასთან.`;

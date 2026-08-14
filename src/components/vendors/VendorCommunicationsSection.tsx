@@ -77,9 +77,30 @@ export default function VendorCommunicationsSection({
     {
       header: t('Logged By'),
       key: 'user_name',
-      render: (comm) => (
-        <span className="font-medium text-slate-600">{comm.user_name || currentUser.name}</span>
-      )
+      render: (comm) => {
+        // Resolve author using created_by column from database communications table, falling back to user_id or users list
+        const authorUser = users.find(u => {
+          if (comm.created_by) {
+            if (u.id === comm.created_by || u.id?.toLowerCase() === comm.created_by?.toLowerCase()) return true;
+            if (u.email && u.email.toLowerCase() === comm.created_by.toLowerCase()) return true;
+            if (u.name && u.name.toLowerCase() === comm.created_by.toLowerCase()) return true;
+          }
+          if (comm.user_id) {
+            if (u.id === comm.user_id || u.id?.toLowerCase() === comm.user_id?.toLowerCase()) return true;
+          }
+          return false;
+        });
+
+        const authorName = authorUser?.name || 
+          (comm.created_by && !comm.created_by.includes('-') && comm.created_by.length < 40 ? comm.created_by : '') ||
+          comm.user_name || 
+          (comm.created_by === currentUser.id || comm.user_id === currentUser.id ? currentUser.name : '') ||
+          '-';
+
+        return (
+          <span className="font-medium text-slate-600">{authorName}</span>
+        );
+      }
     },
     {
       header: t('Responsible'),

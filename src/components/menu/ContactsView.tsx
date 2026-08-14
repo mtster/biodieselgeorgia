@@ -14,7 +14,7 @@ import VendorForm from '../vendors/VendorForm';
 import { getVendorContacts } from '../../services/vendorService';
 import { usePaginatedContacts } from '../../hooks/usePaginatedModuleQuery';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 interface ContactsViewProps {
   vendors: Vendor[];
@@ -65,8 +65,12 @@ export default function ContactsView({
   const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('modify');
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('delete');
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 350);
+  const {
+    searchTerm,
+    setSearchTerm,
+    debouncedSearchTerm,
+    triggerImmediateSearch
+  } = useDebouncedSearch('', 350);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVendorForForm, setSelectedVendorForForm] = useState<Vendor | null>(null);
   const [isFormSaving, setIsFormSaving] = useState(false);
@@ -417,6 +421,7 @@ export default function ContactsView({
           <CentralSearchBar
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            onSearchSubmit={triggerImmediateSearch}
             searchPlaceholder={t("Search contact name, phone or company...")}
           />
 

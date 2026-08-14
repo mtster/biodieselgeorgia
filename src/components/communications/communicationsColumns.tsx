@@ -77,8 +77,11 @@ export function getCommunicationsColumns({
       header: t('Operator / User'),
       key: 'user_name',
       render: (comm) => {
-        const empObj = employees.find(e => e.id === comm.user_id);
-        return empObj ? empObj.name : (comm.user_name || t('Manager'));
+        const empObj = employees.find(e => 
+          (comm.created_by && (e.id === comm.created_by || e.id?.toLowerCase() === comm.created_by?.toLowerCase() || e.email?.toLowerCase() === comm.created_by?.toLowerCase() || e.name?.toLowerCase() === comm.created_by?.toLowerCase())) ||
+          (comm.user_id && (e.id === comm.user_id || e.id?.toLowerCase() === comm.user_id?.toLowerCase()))
+        );
+        return empObj ? empObj.name : (comm.user_name || (comm.created_by && !comm.created_by.includes('-') ? comm.created_by : '') || t('Operator'));
       }
     },
     comment: {

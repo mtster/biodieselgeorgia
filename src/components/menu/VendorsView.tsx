@@ -16,7 +16,7 @@ import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import DeleteButton from '../DeleteButton';
 import { createDatabaseColumn } from '../../services/vendorService';
 import { usePaginatedVendors } from '../../hooks/usePaginatedModuleQuery';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 const defaultSuppliersColumns: ManagedColumn[] = [
   { id: 'trade_name', label: 'Trade Name', visible: true },
@@ -71,8 +71,12 @@ export default function VendorsView({
   const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('modify');
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('delete');
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 350);
+  const {
+    searchTerm,
+    setSearchTerm,
+    debouncedSearchTerm,
+    triggerImmediateSearch
+  } = useDebouncedSearch('', 350);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedSalesManager, setSelectedSalesManager] = useState('');
@@ -394,6 +398,12 @@ export default function VendorsView({
                 placeholder={t("Search suppliers by trade name, legal entity, or registered taxation ID coordinates...")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    triggerImmediateSearch();
+                  }
+                }}
                 className="w-full pl-9 pr-4 py-2.5 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all text-gray-900 font-sans"
               />
             </div>

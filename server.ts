@@ -48,27 +48,37 @@ async function startServer() {
         return res.status(401).json({ error: "Unauthorized: Invalid session token" });
       }
 
-      // Check if user is admin
-      let isRequesterAdmin = user.user_metadata?.role === "admin";
-      if (!isRequesterAdmin) {
-        const { data: requesterProfile, error: profileErr } = await supabaseAdmin
+      // Check if user is authorized (admin or user management permissions)
+      let isRequesterAuthorized = user.user_metadata?.role === "admin";
+      if (!isRequesterAuthorized) {
+        const { data: requesterProfile } = await supabaseAdmin
           .from("profiles")
-          .select("role")
+          .select("role, permissions")
           .eq("id", user.id)
-          .single();
-        if (!profileErr && requesterProfile && requesterProfile.role === "admin") {
-          isRequesterAdmin = true;
+          .maybeSingle();
+        if (
+          requesterProfile &&
+          (requesterProfile.role === "admin" ||
+           requesterProfile.role === "purchasing_head" ||
+           requesterProfile.permissions?.users?.includes("add") ||
+           requesterProfile.permissions?.users?.includes("modify"))
+        ) {
+          isRequesterAuthorized = true;
         }
       }
 
-      if (!isRequesterAdmin) {
-        return res.status(403).json({ error: "Access denied: Only Administrators can create users." });
+      if (!isRequesterAuthorized) {
+        return res.status(403).json({ error: "Access denied: Only Administrators or authorized managers can create users." });
       }
 
       const { email, password, name, personal_id, phone, role, permissions, privileges, warehouse_id, vendor_id } = req.body;
       const perms = permissions || privileges || {};
+      let assignedRole = role;
+      if (assignedRole === "manager") {
+        assignedRole = "purchasing_head";
+      }
 
-      if (!email || !password || !name || !personal_id || !phone || !role) {
+      if (!email || !password || !name || !personal_id || !phone || !assignedRole) {
         return res.status(400).json({ error: "All required fields (email, password, name, personal_id, phone, role) must be provided." });
       }
 
@@ -82,7 +92,7 @@ async function startServer() {
           name,
           personal_id,
           phone,
-          role,
+          role: assignedRole,
           permissions: perms,
           privileges: perms,
           vendor_id,
@@ -95,13 +105,31 @@ async function startServer() {
       }
 
       let profile = null;
-      if (role !== "vendor") {
-        const { data: fetchedProfile } = await supabaseAdmin
+      if (assignedRole !== "vendor") {
+        const profilePayload = {
+          id: adminData.user.id,
+          name,
+          personal_id,
+          email,
+          phone,
+          role: assignedRole,
+          permissions: perms,
+          vendor_id: vendor_id || null,
+          is_deleted: false,
+          is_blocked: false,
+        };
+
+        const { data: savedProfile, error: profileErr } = await supabaseAdmin
           .from("profiles")
-          .select("*")
-          .eq("id", adminData.user.id)
+          .upsert(profilePayload, { onConflict: "id" })
+          .select()
           .maybeSingle();
-        profile = fetchedProfile;
+
+        if (profileErr) {
+          console.error("Profile upsert error:", profileErr);
+          return res.status(500).json({ error: profileErr.message });
+        }
+        profile = savedProfile;
       }
 
       res.json({
@@ -112,7 +140,7 @@ async function startServer() {
           personal_id,
           email,
           phone,
-          role,
+          role: assignedRole,
           permissions: perms,
           privileges: perms,
           vendor_id,
@@ -347,8 +375,8 @@ async function startServer() {
     }
   });
 
-  // Endpoint to delete a user administratively
-  app.delete("/api/delete-user", async (req, res) => {
+  // Endpoint to delete a user administratively (supports both POST and DELETE)
+  const handleDeleteUser = async (req: express.Request, res: express.Response) => {
     try {
       if (!isSupabaseConfigured || !supabaseAdmin) {
         return res.status(400).json({ error: "Supabase service role key is not configured on the server." });
@@ -388,10 +416,32 @@ async function startServer() {
         return res.status(400).json({ error: "User ID is required" });
       }
 
+      // Check if target user has admin role - ONLY admin users can delete admin users
+      const { data: targetProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("role")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (targetProfile && targetProfile.role === "admin" && !isRequesterAdmin) {
+        return res.status(403).json({ error: "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს." });
+      }
+
+      // Delete from auth or ban user so they cannot login anymore
+      await supabaseAdmin.auth.admin.deleteUser(id).catch(async (authErr: any) => {
+        console.warn(`Auth delete fallback for ${id}:`, authErr?.message);
+        await supabaseAdmin.auth.admin.updateUserById(id, {
+          ban_duration: '876000h',
+          user_metadata: { is_blocked: true, is_deleted: true }
+        }).catch(() => {});
+      });
+
+      // Update both is_deleted AND is_blocked to true
       const { error: deleteError } = await supabaseAdmin
         .from("profiles")
-        .update({ is_deleted: true })
+        .update({ is_deleted: true, is_blocked: true })
         .eq("id", id);
+
       if (deleteError) {
         return res.status(500).json({ error: deleteError.message });
       }
@@ -401,7 +451,10 @@ async function startServer() {
       console.error("Admin user deletion failed:", e);
       res.status(500).json({ error: e.message || "Internal server error" });
     }
-  });
+  };
+
+  app.delete("/api/delete-user", handleDeleteUser);
+  app.post("/api/delete-user", handleDeleteUser);
 
   // Proxy endpoint to read profiles bypassing RLS recursion
   app.get("/api/profiles", async (req, res) => {

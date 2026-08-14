@@ -114,7 +114,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           }
 
           if (dbUser) {
-            if (dbUser.is_blocked) {
+            if (dbUser.is_blocked || dbUser.is_deleted) {
               await supabase.auth.signOut();
               setErrorMsg('სისტემაზე წვდომა არ გაქვთ.');
               setLoading(false);
@@ -156,7 +156,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           return candidates.some(c => c.toLowerCase() === uEmail) && (u.password === password || password === 'admin123');
         });
         if (matched) {
-          if (matched.is_blocked) {
+          if (matched.is_blocked || matched.is_deleted) {
             setErrorMsg('სისტემაზე წვდომა არ გაქვთ.');
           } else {
             onLoginSuccess(matched);

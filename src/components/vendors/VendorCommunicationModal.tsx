@@ -141,7 +141,8 @@ export default function VendorCommunicationModal({
       comment: newCommComment.trim(),
       responsible_user_id: newCommType === 'task' ? (newCommResponsibleUserId || undefined) : undefined,
       responsible_user_name: newCommType === 'task' ? (users.find(u => u.id === newCommResponsibleUserId)?.name || '') : undefined,
-      task_status: newCommType === 'task' ? newCommTaskStatus : undefined
+      task_status: newCommType === 'task' ? newCommTaskStatus : undefined,
+      created_by: activeComm ? activeComm.created_by : currentUser.id
     };
 
     try {

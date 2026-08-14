@@ -14,6 +14,13 @@ export function translateSupabaseErrorToGeorgian(errorMsg: string): string {
   
   const msgLower = errorMsg.toLowerCase();
   
+  if (
+    msgLower.includes("ადმინისტრატორის") ||
+    (msgLower.includes("admin") && (msgLower.includes("delete") || msgLower.includes("cannot") || msgLower.includes("only")))
+  ) {
+    return "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.";
+  }
+
   // 1. Check Not-Null violations first using regex to preserve column and relation names
   const notNullRegex = /null value in column "([^"]+)"(?: of relation "([^"]+)")? violates not-null constraint/i;
   const notNullMatch = errorMsg.match(notNullRegex);
@@ -58,13 +65,29 @@ export function translateSupabaseErrorToGeorgian(errorMsg: string): string {
   const uniqueMatch = errorMsg.match(uniqueRegex);
   if (uniqueMatch) {
     const constraint = uniqueMatch[1];
+    if (constraint.includes("personal_id") || constraint.includes("profiles_personal_id")) {
+      return "მომხმარებელი ამ პირადი ნომრით უკვე რეგისტრირებულია სისტემაში.";
+    }
+    if (constraint.includes("email") || constraint.includes("profiles_email")) {
+      return "მომხმარებელი ამ ელ-ფოსტით უკვე რეგისტრირებულია სისტემაში.";
+    }
     if (constraint.includes("plate_number") || constraint.includes("license_plate")) {
       return "ეს სახელმწიფო ნომერი უკვე რეგისტრირებულია სხვა ტრანსპორტზე.";
     }
     return `ეს ჩანაწერი უკვე არსებობს ბაზაში (დუბლირების შეზღუდვის დარღვევა: "${constraint}").`;
   }
 
+  if (msgLower.includes("database error creating new user")) {
+    return "მომხმარებლის შექმნისას მონაცემთა ბაზაში დაფიქსირდა შეცდომა (შესაძლოა მითითებული პირადი ნომერი ან ელ-ფოსტა უკვე დაკავებულია).";
+  }
+
   if (msgLower.includes("unique constraint") || msgLower.includes("unique_violation") || msgLower.includes("already exists")) {
+    if (msgLower.includes("personal_id") || msgLower.includes("პირადი ნომერი")) {
+      return "მომხმარებელი ამ პირადი ნომრით უკვე რეგისტრირებულია სისტემაში.";
+    }
+    if (msgLower.includes("email") || msgLower.includes("ელ-ფოსტა")) {
+      return "მომხმარებელი ამ ელ-ფოსტით უკვე რეგისტრირებულია სისტემაში.";
+    }
     if (msgLower.includes("plate_number") || msgLower.includes("license_plate")) {
       return "ეს სახელმწიფო ნომერი უკვე რეგისტრირებულია სხვა ტრანსპორტზე.";
     }
@@ -183,8 +206,8 @@ export default function ErrorModal({
               <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase font-mono block mb-1">
                 Raw Error Payload:
               </span>
-              <p className="font-mono text-[10px] text-slate-600 leading-normal whitespace-pre-wrap">
-                {errorMsg}
+              <p className="font-mono text-[10px] text-slate-600 leading-normal whitespace-pre-wrap break-all select-all">
+                {typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg, null, 2)}
               </p>
             </div>
           )}

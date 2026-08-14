@@ -187,10 +187,13 @@ export default function VendorsList({
                 const rect = e.currentTarget.getBoundingClientRect();
                 setHoveredTooltip({
                   items: vendorComms.map(c => {
-                    const matchedUser = users.find(u => u.id === c.user_id);
+                    const matchedUser = users.find(u => 
+                      (c.created_by && (u.id === c.created_by || u.id?.toLowerCase() === c.created_by?.toLowerCase() || u.email?.toLowerCase() === c.created_by?.toLowerCase() || u.name?.toLowerCase() === c.created_by?.toLowerCase())) ||
+                      (c.user_id && (u.id === c.user_id || u.id?.toLowerCase() === c.user_id?.toLowerCase()))
+                    );
                     return {
                       key: c.id,
-                      author: matchedUser?.name || c.user_name || t('System'),
+                      author: matchedUser?.name || c.user_name || (c.created_by && !c.created_by.includes('-') ? c.created_by : '') || t('System'),
                       date: formatDateTime(c.date_time),
                       content: c.comment
                     };

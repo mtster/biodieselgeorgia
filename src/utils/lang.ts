@@ -689,6 +689,11 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "No results found": "შედეგები არ მოიძებნა.",
   "No data found": "მონაცემები არ მოიძებნა.",
   "Page": "გვერდი",
+  "Administrative Warning": "ადმინისტრაციული გაფრთხილება",
+  "Cannot delete admin user": "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.",
+  "Cannot delete user with admin role": "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.",
+  "Admin user cannot be deleted": "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.",
+  "Only admins can delete admin users": "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.",
 };
 
 export function t(key: string): string {

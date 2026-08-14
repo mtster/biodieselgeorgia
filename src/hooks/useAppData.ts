@@ -143,7 +143,7 @@ export function useAppData() {
 
   const handleUserDelete = async (id: string, name: string) => {
     try {
-      await deleteUser(id, name, currentUser?.name || 'System');
+      await deleteUser(id, name, currentUser?.name || 'System', currentUser?.role);
       await refreshAllData();
     } catch (e: any) {
       console.error('Error deleting user:', e);

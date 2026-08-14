@@ -112,14 +112,17 @@ const cleanUserUuid = (val: string | null | undefined): string | null => {
 
 export async function saveCommunication(comm: Communication, loggerName: string, currentUserId?: string): Promise<Communication> {
   const isNew = !comm.id;
-  const createdBy = cleanUserUuid(isNew ? (currentUserId || comm.created_by || comm.user_id) : (comm.created_by || currentUserId || comm.user_id));
-  const cleanUserId = cleanUserUuid(comm.user_id) || createdBy;
+  const createdBy = isNew 
+    ? (comm.created_by || currentUserId || comm.user_id) 
+    : (comm.created_by || currentUserId || comm.user_id);
+  const cleanCreatedBy = cleanUserUuid(createdBy) || createdBy;
+  const cleanUserId = cleanUserUuid(comm.user_id) || cleanCreatedBy;
 
   const finalComm = {
     ...comm,
     id: isNew ? 'comm-' + Math.random().toString(36).substring(2, 9) : comm.id,
     user_id: cleanUserId || comm.user_id,
-    created_by: createdBy || comm.created_by
+    created_by: cleanCreatedBy || comm.created_by || currentUserId || createdBy
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -133,9 +136,9 @@ export async function saveCommunication(comm: Communication, loggerName: string,
         ...dbComm 
       } = finalComm as any;
 
-      dbComm.created_by = cleanUserUuid(finalComm.created_by || currentUserId) || null;
-      dbComm.user_id = cleanUserUuid(finalComm.user_id || currentUserId) || null;
-      dbComm.responsible_user_id = cleanUserUuid(finalComm.responsible_user_id) || null;
+      dbComm.created_by = cleanUserUuid(finalComm.created_by || currentUserId) || finalComm.created_by || currentUserId || null;
+      dbComm.user_id = cleanUserUuid(finalComm.user_id || currentUserId) || finalComm.user_id || currentUserId || null;
+      dbComm.responsible_user_id = cleanUserUuid(finalComm.responsible_user_id) || finalComm.responsible_user_id || null;
 
       if (isNew) {
         await supabase.from('communications').insert([dbComm]);

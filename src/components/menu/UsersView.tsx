@@ -8,7 +8,7 @@ import DeleteButton from '../DeleteButton';
 import AddButton from '../AddButton';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { usePaginatedUsers } from '../../hooks/usePaginatedModuleQuery';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 import UserForm from '../users/UserForm';
 
@@ -32,8 +32,12 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
   const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('modify');
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['users']?.includes('delete');
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 350);
+  const {
+    searchTerm,
+    setSearchTerm,
+    debouncedSearchTerm,
+    triggerImmediateSearch
+  } = useDebouncedSearch('', 350);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -110,7 +114,8 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
   });
 
   const askDelete = (id: string, name: string) => {
-    const errorMsg = checkUserDeletion(id, name, orders, suppliers, communications);
+    const targetUser = displayUsers.find(u => u.id === id) || users.find(u => u.id === id) || (editingUser?.id === id ? editingUser : undefined);
+    const errorMsg = checkUserDeletion(id, name, orders, suppliers, communications, targetUser?.role, currentUser?.role);
     if (errorMsg) {
       if (setDeleteAlertMessage) setDeleteAlertMessage(errorMsg);
       return;

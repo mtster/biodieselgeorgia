@@ -246,13 +246,13 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               createdOnExpress = true;
             } else {
               const errBody = await res.json().catch(() => ({}));
-              if (errBody?.error) {
-                throw new Error(errBody.error);
-              }
+              const errorMsg = errBody?.error || (errBody?.message ? `${errBody.error || ''}: ${errBody.message}` : null) || `Server error (${res.status})`;
+              throw new Error(errorMsg);
             }
           } catch (err: any) {
-            console.warn('Express /api/create-user failed', err);
-            if (err.message && (err.message.includes('Unauthorized') || err.message.includes('Access denied') || err.message.includes('Only Administrators') || err.message.includes('configured on the server'))) {
+            console.error('Express /api/create-user failed:', err);
+            // If the server responded with an error, propagate it directly
+            if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
               throw err;
             }
           }
@@ -285,8 +285,8 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             })
           });
           
-          resData = await edgeRes.json();
-          if (!edgeRes.ok) throw new Error(resData?.error || 'Edge function error');
+          resData = await edgeRes.json().catch(() => ({}));
+          if (!edgeRes.ok) throw new Error(resData?.error || resData?.message || 'Edge function error creating user');
         }
 
         if (resData && resData.user) {
@@ -405,13 +405,40 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
   return decodeProfile(finalUser);
 }
 
-export async function deleteUser(id: string, name: string, loggerName: string): Promise<boolean> {
+export async function deleteUser(id: string, name: string, loggerName: string, currentUserRole?: string): Promise<boolean> {
+  const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
+  const target = list.find(item => item.id === id);
+  if (target?.role === 'admin' && currentUserRole && currentUserRole !== 'admin') {
+    throw new Error('ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.');
+  }
+
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('profiles').update({ is_deleted: true }).eq('id', id);
+      // First check if profile is admin in DB and whether current user is non-admin
+      const { data: dbProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (dbProfile?.role === 'admin' && currentUserRole && currentUserRole !== 'admin') {
+        throw new Error('ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.');
+      }
+
+      // Mark both is_deleted: true AND is_blocked: true
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ is_deleted: true, is_blocked: true })
+        .eq('id', id);
+
+      if (updateError) {
+        throw updateError;
+      }
       
       const sessionRes = await supabase.auth.getSession();
       const token = sessionRes.data.session?.access_token;
+      
+      // Try edge function
       if (token) {
         const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
         const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
@@ -425,13 +452,24 @@ export async function deleteUser(id: string, name: string, loggerName: string): 
           body: JSON.stringify({ action: 'delete', id })
         }).catch(() => {});
       }
-    } catch (e) {
+
+      // Also call backend express endpoint if available
+      await fetch('/api/delete-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ id })
+      }).catch(() => {});
+
+    } catch (e: any) {
       console.error('Supabase deleteUser failed', e);
+      throw e;
     }
   }
   
-  const list = getLocal<User[]>(KEY_USERS, DEFAULT_USERS);
-  setLocal(KEY_USERS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
+  setLocal(KEY_USERS, list.map(item => item.id === id ? { ...item, is_deleted: true, is_blocked: true } : item));
   
   await trackChange(loggerName, 'User deleted', 'Name', name, '');
   notifyDbChange('profiles', 'DELETE', id);

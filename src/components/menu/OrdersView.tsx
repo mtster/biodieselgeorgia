@@ -17,7 +17,7 @@ import DeleteButton from '../DeleteButton';
 import { createDatabaseOrderColumn } from '../../services/orderService';
 import { FormSelect } from '../FormInput';
 import { usePaginatedOrders } from '../../hooks/usePaginatedModuleQuery';
-import { useDebounce } from '../../hooks/useDebounce';
+import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'order_date', label: 'Date', visible: true },
@@ -64,8 +64,12 @@ export default function OrdersView({
   const canModify = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('modify');
   const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('delete');
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 350);
+  const {
+    searchTerm,
+    setSearchTerm,
+    debouncedSearchTerm,
+    triggerImmediateSearch
+  } = useDebouncedSearch('', 350);
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
@@ -373,6 +377,7 @@ export default function OrdersView({
               <CentralSearchBar 
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
+                onSearchSubmit={triggerImmediateSearch}
                 idPrefix="orders-search"
                 searchPlaceholder={t("Search dispatches by supplier trade name, legal entity, or document coordinate...")}
               />

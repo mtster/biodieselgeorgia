@@ -13,6 +13,7 @@ export interface FilterOption {
 interface CentralSearchBarProps {
   searchTerm: string;
   onSearchChange: (val: string) => void;
+  onSearchSubmit?: () => void;
   searchPlaceholder?: string;
   filters?: FilterOption[];
   idPrefix?: string;
@@ -21,6 +22,7 @@ interface CentralSearchBarProps {
 export default function CentralSearchBar({
   searchTerm,
   onSearchChange,
+  onSearchSubmit,
   searchPlaceholder = "Search...",
   filters = [],
   idPrefix = "search"
@@ -66,6 +68,12 @@ export default function CentralSearchBar({
           placeholder={searchPlaceholder}
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onSearchSubmit?.();
+            }
+          }}
           className="w-full pl-9 pr-4 py-2.5 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all text-gray-900 font-sans"
         />
       </div>

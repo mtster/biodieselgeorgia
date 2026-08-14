@@ -132,13 +132,15 @@ serve(async (req) => {
         role,
         permissions: perms,
         vendor_id,
+        is_deleted: false,
+        is_blocked: false,
         created_at: new Date().toISOString()
       };
 
       if (role !== 'vendor') {
         const { error: upsertErr } = await supabaseAdmin
           .from('profiles')
-          .upsert(userToUpsert)
+          .upsert(userToUpsert, { onConflict: 'id' })
 
         if (upsertErr) {
           return new Response(JSON.stringify({ error: `User created in auth, but saving profile failed: ${upsertErr.message}` }), {
@@ -235,23 +237,42 @@ serve(async (req) => {
         })
       }
 
-      // First delete from auth table
-      const { error: deleteAuthErr } = await supabaseAdmin.auth.admin.deleteUser(id)
-      if (deleteAuthErr) {
-        // If auth user wasn't found or delete failed, try to delete the profile regardless,
-        // but report the auth error if critical.
-        console.warn(`Auth deletion warning/error for ${id}:`, deleteAuthErr.message)
+      // Check if target profile is admin - only admins can delete admin users
+      const { data: targetProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', id)
+        .maybeSingle();
+
+      const isRequesterAdmin = requester.user_metadata?.role === 'admin' || (
+        await supabaseAdmin.from('profiles').select('role').eq('id', requester.id).maybeSingle()
+      ).data?.role === 'admin';
+
+      if (targetProfile?.role === 'admin' && !isRequesterAdmin) {
+        return new Response(JSON.stringify({ error: "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
       }
 
-      // Next delete from profiles table
-      const { error: deleteProfileErr } = await supabaseAdmin
-        .from('profiles')
-        .delete()
-        .eq('id', id)
+      // Delete from auth table (or ban)
+      await supabaseAdmin.auth.admin.deleteUser(id).catch(async (deleteAuthErr: any) => {
+        console.warn(`Auth deletion warning for ${id}:`, deleteAuthErr?.message);
+        await supabaseAdmin.auth.admin.updateUserById(id, {
+          ban_duration: '876000h',
+          user_metadata: { is_blocked: true, is_deleted: true }
+        }).catch(() => {});
+      });
 
-      if (deleteProfileErr) {
-        return new Response(JSON.stringify({ error: `Failed to delete profile: ${deleteProfileErr.message}` }), {
-          status: 505,
+      // Update profiles table with soft-deletion and block
+      const { error: updateProfileErr } = await supabaseAdmin
+        .from('profiles')
+        .update({ is_deleted: true, is_blocked: true })
+        .eq('id', id);
+
+      if (updateProfileErr) {
+        return new Response(JSON.stringify({ error: `Failed to delete profile: ${updateProfileErr.message}` }), {
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         })
       }
