@@ -12,6 +12,17 @@ interface FormModalProps {
   deleteLabel?: string;
   onCancel?: () => void;
   cancelLabel?: string;
+  hideCancel?: boolean;
+  leftAction?: {
+    label: string;
+    onClick: () => void;
+    className?: string;
+  };
+  secondaryAction?: {
+    label: string;
+    onClick: () => void;
+    className?: string;
+  };
   onSave?: () => void;
   saveLabel?: string;
   maxWidthClass?: string; // e.g. "max-w-md", "max-w-sm", etc.
@@ -26,6 +37,9 @@ export default function FormModal({
   deleteLabel = 'Delete',
   onCancel,
   cancelLabel = 'Cancel',
+  hideCancel = false,
+  leftAction,
+  secondaryAction,
   onSave,
   saveLabel = 'Save Changes',
   maxWidthClass = 'max-w-md',
@@ -55,31 +69,52 @@ export default function FormModal({
         </div>
 
         {/* Modal Bottom row without border-t */}
-        <div className="pt-4 mt-4 flex items-center justify-between shrink-0 select-none">
-          {onDelete ? (
-            <div className="mr-auto select-none">
+        <div className="pt-4 mt-4 flex items-center justify-between w-full gap-3 shrink-0 select-none">
+          <div className="flex items-center">
+            {onDelete && (
               <DeleteButton
                 onClick={onDelete}
                 label={t(deleteLabel)}
               />
+            )}
+          </div>
+
+          {leftAction && (
+            <div className={`flex items-center ${!onDelete ? 'mr-auto' : ''}`}>
+              <button
+                type="button"
+                onClick={leftAction.onClick}
+                className={leftAction.className || "px-4 py-2 border border-emerald-700 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 font-bold rounded-lg text-xs transition cursor-pointer select-none"}
+              >
+                {t(leftAction.label)}
+              </button>
             </div>
-          ) : (
-            <div />
           )}
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onCancel || onClose}
-              className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer select-none"
-            >
-              {t(cancelLabel)}
-            </button>
+          <div className="flex items-center gap-2 ml-auto">
+            {!hideCancel && (
+              <button
+                type="button"
+                onClick={onCancel || onClose}
+                className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer select-none"
+              >
+                {t(cancelLabel)}
+              </button>
+            )}
+            {secondaryAction && (
+              <button
+                type="button"
+                onClick={secondaryAction.onClick}
+                className={secondaryAction.className || "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none"}
+              >
+                {t(secondaryAction.label)}
+              </button>
+            )}
             {onSave && (
               <button
                 type="button"
                 onClick={onSave}
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-black rounded-lg text-xs transition cursor-pointer select-none"
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-black rounded-lg text-xs transition cursor-pointer select-none"
               >
                 {t(saveLabel)}
               </button>

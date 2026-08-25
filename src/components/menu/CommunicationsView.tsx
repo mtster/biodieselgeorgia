@@ -33,10 +33,11 @@ interface Props {
   currentEmployee: User;
   onSave: (comm: Communication) => void;
   onDelete: (id: string) => void;
+  onNavigateToOrdersWithVendor?: (vendorId: string) => void;
 }
 
 export default function CommunicationsView({ 
-  communications, suppliers, employees, currentEmployee, onSave, onDelete 
+  communications, suppliers, employees, currentEmployee, onSave, onDelete, onNavigateToOrdersWithVendor 
 }: Props) {
 
   const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('add');
@@ -80,13 +81,17 @@ export default function CommunicationsView({
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearchTerm, typeFilter, supplierFilter, userFilter, taskResponsibleFilter, taskStatusFilter]);
+  }, [debouncedSearchTerm, typeFilter, supplierFilter, userFilter, taskResponsibleFilter, taskStatusFilter, startDate, endDate]);
 
   const commFilters = {
     searchTerm: debouncedSearchTerm,
     type: typeFilter,
     vendorId: supplierFilter,
-    userId: userFilter
+    userId: userFilter,
+    taskResponsible: taskResponsibleFilter,
+    taskStatus: taskStatusFilter,
+    startDate,
+    endDate
   };
 
   const { data: paginatedData, isLoading: isCommsLoading } = usePaginatedCommunications(page, commFilters, currentEmployee);
@@ -112,10 +117,13 @@ export default function CommunicationsView({
       date_time: new Date().toISOString().substring(0, 16),
       type: 'action',
       reminder_time: undefined,
-      user_id: currentEmployee.id,
+      user_id: currentEmployee?.id || employees[0]?.id || '',
+      responsible_user_id: currentEmployee?.id || employees[0]?.id || '',
       vendor_id: '',
       vendor_contact_id: '',
-      comment: ''
+      comment: '',
+      is_completed: false,
+      task_status: 'pending'
     };
     setEditingComm(defaultComm);
     setIsNew(true);
@@ -407,6 +415,12 @@ export default function CommunicationsView({
         employees={employees}
         suppliers={suppliers}
         onSave={handleSaveAll}
+        onSaveAndOrder={(payload, vendorId) => {
+          handleSaveAll(payload);
+          if (onNavigateToOrdersWithVendor && vendorId) {
+            onNavigateToOrdersWithVendor(vendorId);
+          }
+        }}
         onDelete={() => {
           if (editingComm) {
             setDeleteConfirmId(editingComm.id);

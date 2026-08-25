@@ -3,6 +3,7 @@ import { Communication, User, VendorContact, Vendor } from '../../types';
 import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
 import { t } from '../../utils/lang';
+import { X } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -73,27 +74,47 @@ export default function VendorCommunicationModal({
   onDeleteCommunication
 }: Props) {
   const [newCommType, setNewCommType] = useState<'action' | 'reminder' | 'task'>('action');
-  const [localReminderTime, setLocalReminderTime] = useState('');
+  const [reminderDate, setReminderDate] = useState('');
+  const [reminderTime, setReminderTime] = useState('');
   const [newCommContactId, setNewCommContactId] = useState('');
   const [newCommUserId, setNewCommUserId] = useState(currentUser.id);
   const [newCommComment, setNewCommComment] = useState('');
-  const [newCommResponsibleUserId, setNewCommResponsibleUserId] = useState('');
-  const [newCommTaskStatus, setNewCommTaskStatus] = useState('pending');
+  const [newCommResponsibleUserId, setNewCommResponsibleUserId] = useState(currentUser.id);
+  const [newCommIsCompleted, setNewCommIsCompleted] = useState(false);
   const [commError, setCommError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       if (activeComm) {
         setNewCommType(activeComm.type);
-        setLocalReminderTime(activeComm.reminder_time || '');
+        if (activeComm.reminder_time) {
+          const raw = activeComm.reminder_time;
+          if (raw.includes('T')) {
+            const parts = raw.split('T');
+            setReminderDate(parts[0]);
+            if (activeComm.has_time) {
+              setReminderTime(parts[1].substring(0, 5));
+            } else {
+              setReminderTime('');
+            }
+          } else {
+            setReminderDate(raw);
+            setReminderTime('');
+          }
+        } else {
+          setReminderDate('');
+          setReminderTime('');
+        }
         setNewCommContactId(activeComm.vendor_contact_id || '');
-        setNewCommUserId(activeComm.user_id);
+        const respId = activeComm.responsible_user_id || activeComm.user_id || currentUser.id;
+        setNewCommUserId(respId);
+        setNewCommResponsibleUserId(respId);
         setNewCommComment(activeComm.comment);
-        setNewCommResponsibleUserId(activeComm.responsible_user_id || '');
-        setNewCommTaskStatus(activeComm.task_status || 'pending');
+        setNewCommIsCompleted(typeof activeComm.is_completed === 'boolean' ? activeComm.is_completed : activeComm.task_status === 'completed');
       } else {
         setNewCommType('action');
-        setLocalReminderTime('');
+        setReminderDate('');
+        setReminderTime('');
         const primary = tempContacts.find(c => c.is_default);
         if (primary) {
           setNewCommContactId(primary.id);
@@ -103,9 +124,9 @@ export default function VendorCommunicationModal({
           setNewCommContactId('');
         }
         setNewCommUserId(currentUser.id);
+        setNewCommResponsibleUserId(currentUser.id);
         setNewCommComment('');
-        setNewCommResponsibleUserId('');
-        setNewCommTaskStatus('pending');
+        setNewCommIsCompleted(false);
       }
       setCommError('');
     }
@@ -122,26 +143,51 @@ export default function VendorCommunicationModal({
     }
     setCommError('');
     
-    const assignedUser = users.find(u => u.id === newCommUserId);
+    const respId = newCommResponsibleUserId || newCommUserId || currentUser.id;
+    const assignedUser = users.find(u => u.id === respId);
     const assignedContact = tempContacts.find(c => c.id === newCommContactId);
 
-    const finalReminderTime = newCommType === 'reminder' && localReminderTime ? localReminderTime : undefined;
+    let finalReminderTime: string | undefined = undefined;
+    let hasTimeSelected = false;
+
+    if (newCommType === 'reminder' && reminderDate.trim()) {
+      if (reminderTime.trim()) {
+        try {
+          const localDt = new Date(`${reminderDate.trim()}T${reminderTime.trim()}`);
+          if (!isNaN(localDt.getTime())) {
+            finalReminderTime = localDt.toISOString();
+            hasTimeSelected = true;
+          } else {
+            finalReminderTime = `${reminderDate.trim()}T${reminderTime.trim()}:00`;
+            hasTimeSelected = true;
+          }
+        } catch {
+          finalReminderTime = `${reminderDate.trim()}T${reminderTime.trim()}:00`;
+          hasTimeSelected = true;
+        }
+      } else {
+        finalReminderTime = `${reminderDate.trim()}T00:00:00.000Z`;
+        hasTimeSelected = false;
+      }
+    }
 
     const commPayload: Communication = {
       id: activeComm ? activeComm.id : '',
       date_time: activeComm ? activeComm.date_time : new Date().toISOString(),
       type: newCommType,
       reminder_time: finalReminderTime,
-      user_id: newCommUserId,
+      has_time: hasTimeSelected,
+      user_id: respId,
       user_name: assignedUser ? assignedUser.name : currentUser.name,
       vendor_id: editingVendor.id,
       vendor_name: editingVendor.trade_name,
       vendor_contact_id: newCommContactId,
       vendor_contact_name: assignedContact ? assignedContact.name : 'Direct Interaction',
       comment: newCommComment.trim(),
-      responsible_user_id: newCommType === 'task' ? (newCommResponsibleUserId || undefined) : undefined,
-      responsible_user_name: newCommType === 'task' ? (users.find(u => u.id === newCommResponsibleUserId)?.name || '') : undefined,
-      task_status: newCommType === 'task' ? newCommTaskStatus : undefined,
+      responsible_user_id: respId,
+      responsible_user_name: assignedUser ? assignedUser.name : currentUser.name,
+      is_completed: newCommIsCompleted,
+      task_status: newCommIsCompleted ? 'completed' : 'pending',
       created_by: activeComm ? activeComm.created_by : currentUser.id
     };
 
@@ -182,53 +228,60 @@ export default function VendorCommunicationModal({
           </FormSelect>
 
           <FormSelect
-            label={t("User Rep *")}
-            value={newCommUserId}
-            onChange={(e) => setNewCommUserId(e.target.value)}
+            label={t("Task Status *")}
+            value={newCommIsCompleted ? 'completed' : 'active'}
+            onChange={(e) => setNewCommIsCompleted(e.target.value === 'completed')}
           >
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
+            <option value="active">{t("Active")}</option>
+            <option value="completed">{t("Completed")}</option>
           </FormSelect>
         </div>
 
-        {newCommType === 'task' && (
-          <div className="grid grid-cols-2 gap-3">
-            <FormSelect
-              label={t("Responsible User *")}
-              value={newCommResponsibleUserId}
-              onChange={(e) => setNewCommResponsibleUserId(e.target.value)}
+        {newCommType === 'reminder' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in duration-150">
+            <FormInput
+              label={`${t("Date")} *`}
+              type="date"
+              fontClass="font-mono"
+              value={reminderDate}
+              onChange={(e) => setReminderDate(e.target.value)}
+              required
+            />
+            <FormInput
+              label={t("Time")}
+              type="time"
+              fontClass="font-mono"
+              value={reminderTime}
+              onChange={(e) => setReminderTime(e.target.value)}
             >
-              <option value="">{t("Select Employee")}</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </FormSelect>
-
-            <FormSelect
-              label={t("Task Status *")}
-              value={newCommTaskStatus}
-              onChange={(e) => setNewCommTaskStatus(e.target.value)}
-            >
-              <option value="pending">{t("Pending")}</option>
-              <option value="in_progress">{t("In Progress")}</option>
-              <option value="completed">{t("Completed")}</option>
-            </FormSelect>
+              {reminderTime && (
+                <button
+                  type="button"
+                  id="clear-vendor-reminder-time-btn"
+                  onClick={() => setReminderTime('')}
+                  title={t("Clear time")}
+                  aria-label={t("Clear time")}
+                  className="absolute right-11 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 hover:bg-gray-100 rounded-lg transition-colors z-10 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </FormInput>
           </div>
         )}
 
-        {newCommType === 'reminder' && (
-          <FormInput
-            label={t("Reminder Due Time")}
-            type="datetime-local"
-            fontClass="font-mono"
-            value={localReminderTime ? toLocalDatetimeValue(localReminderTime) : ''}
-            onChange={(e) => {
-              const isoVal = fromLocalDatetimeValue(e.target.value);
-              setLocalReminderTime(isoVal);
-            }}
-          />
-        )}
+        <FormSelect
+          label={t("Responsible User *")}
+          value={newCommResponsibleUserId}
+          onChange={(e) => {
+            setNewCommResponsibleUserId(e.target.value);
+            setNewCommUserId(e.target.value);
+          }}
+        >
+          {users.map(u => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </FormSelect>
 
         <FormSelect
           label={t("Contact Person")}

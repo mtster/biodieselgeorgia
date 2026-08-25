@@ -298,6 +298,10 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
       } else {
         // UPDATE Existing
         let updatedOnEdge = false;
+        let cleanEmail = user.email ? user.email.trim() : '';
+        if (cleanEmail && !cleanEmail.includes('@')) {
+          cleanEmail = `${cleanEmail}@biodiesel.ge`;
+        }
         
         try {
           const sessionRes = await supabase.auth.getSession();
@@ -313,7 +317,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               },
               body: JSON.stringify({
                 id: user.id,
-                email: user.email,
+                email: cleanEmail,
                 password: user.password || '',
                 name: user.name,
                 personal_id: user.personal_id,
@@ -325,6 +329,10 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               })
             });
             if (serverRes.ok) {
+              const resData = await serverRes.json().catch(() => ({}));
+              if (resData?.user) {
+                finalUser = { ...finalUser, ...resData.user };
+              }
               updatedOnEdge = true;
             } else {
               // Edge function fallback
@@ -339,7 +347,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                 body: JSON.stringify({
                   action: 'update',
                   id: user.id,
-                  email: user.email,
+                  email: cleanEmail,
                   password: user.password || '',
                   name: user.name,
                   personal_id: user.personal_id,
@@ -350,7 +358,13 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
                   is_blocked: user.is_blocked || false
                 })
               });
-              if (edgeRes.ok) updatedOnEdge = true;
+              if (edgeRes.ok) {
+                const resData = await edgeRes.json().catch(() => ({}));
+                if (resData?.user) {
+                  finalUser = { ...finalUser, ...resData.user };
+                }
+                updatedOnEdge = true;
+              }
             }
           }
         } catch (err: any) {
@@ -360,7 +374,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
-            email: user.email,
+            email: cleanEmail || user.email,
             name: user.name,
             personal_id: user.personal_id,
             phone: user.phone,

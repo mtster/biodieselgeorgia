@@ -7,6 +7,7 @@
 -- Enable robust extension support if needed
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- Recreate trigger function securely (does not delete table data)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
@@ -296,9 +297,22 @@ ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
 ALTER TABLE public.orders DROP COLUMN IF EXISTS truck_plate CASCADE;
 ALTER TABLE public.orders DROP COLUMN IF EXISTS note CASCADE;
 
--- Performance Indexes for Driver Logistics & Orders Portal
+-- Performance Indexes for Driver Logistics & Orders Portal & Global Search
 CREATE INDEX IF NOT EXISTS idx_orders_vehicle_id ON public.orders(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON public.orders(driver_id);
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_id ON public.orders(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_orders_doc_number ON public.orders(doc_number);
+CREATE INDEX IF NOT EXISTS idx_orders_order_date ON public.orders(order_date);
+CREATE INDEX IF NOT EXISTS idx_orders_is_deleted ON public.orders(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_doc_number_trgm ON public.orders USING gin (doc_number gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_vendors_trade_name ON public.vendors(trade_name);
+CREATE INDEX IF NOT EXISTS idx_vendors_company_name ON public.vendors(company_name);
+CREATE INDEX IF NOT EXISTS idx_vendors_is_deleted ON public.vendors(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_vendors_trade_name_trgm ON public.vendors USING gin (trade_name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_vendors_company_name_trgm ON public.vendors USING gin (company_name gin_trgm_ops);
+
 CREATE INDEX IF NOT EXISTS idx_vehicles_auth_user_id ON public.vehicles(auth_user_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_driver_id ON public.vehicles(driver_id);
 
@@ -312,13 +326,14 @@ CREATE TABLE IF NOT EXISTS public.communications (
     date_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     type TEXT NOT NULL CHECK (type IN ('action', 'reminder', 'task')), -- Communication Type
     reminder_time TIMESTAMPTZ,                -- Remind time
-    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Logging user
+    has_time BOOLEAN DEFAULT FALSE,           -- Whether time was specifically chosen or date-only
     vendor_id TEXT REFERENCES public.vendors(id) ON DELETE CASCADE,  -- Connected Vendor
     vendor_contact_id TEXT,                   -- Specific contact person
     comment TEXT NOT NULL,                     -- Notes/Log details
-    responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Responsible User
-    task_status TEXT,                          -- Task Status (pending, etc.)
+    responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Responsible User (პასუხისმგებელი პირი)
+    is_completed BOOLEAN DEFAULT FALSE,        -- Task Status (დავალების სტატუსი: FALSE = აქტიური, TRUE = შესრულებული)
     is_deleted BOOLEAN DEFAULT FALSE,
+    created_by TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -327,9 +342,16 @@ ALTER TABLE public.communications DROP CONSTRAINT IF EXISTS communications_type_
 ALTER TABLE public.communications ADD CONSTRAINT communications_type_check CHECK (type IN ('action', 'reminder', 'task'));
 
 -- Apply non-destructive updates to public.communications
+ALTER TABLE public.communications DROP COLUMN IF EXISTS user_id CASCADE;
+ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS has_time BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
-ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS task_status TEXT;
+ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS is_completed BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_communications_vendor_id ON public.communications(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_communications_reminder_time ON public.communications(reminder_time);
+CREATE INDEX IF NOT EXISTS idx_communications_is_deleted ON public.communications(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_communications_responsible_user_id ON public.communications(responsible_user_id);
 
 -- 9. Change History Trackers
 CREATE TABLE IF NOT EXISTS public.change_history (

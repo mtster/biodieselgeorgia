@@ -53,11 +53,13 @@ interface Props {
   currentEmployee: User;
   onSave: (order: Order) => void;
   onDelete: (id: string, docNum: string) => void;
+  initialVendorId?: string;
+  onClearInitialVendorId?: () => void;
 }
 
 export default function OrdersView({ 
   orders, suppliers, warehouses, employees, trucks, directions,
-  currentEmployee, onSave, onDelete 
+  currentEmployee, onSave, onDelete, initialVendorId, onClearInitialVendorId 
 }: Props) {
   
   const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add');
@@ -168,6 +170,38 @@ export default function OrdersView({
   useEffect(() => {
     loadSMSLogs();
   }, [orders]);
+
+  useEffect(() => {
+    if (initialVendorId) {
+      const defaultOrder: Order = {
+        id: '',
+        order_date: new Date().toISOString().substring(0, 10),
+        doc_number: 'DOC-' + Math.floor(100000 + Math.random() * 900000),
+        vendor_id: initialVendorId,
+        warehouse_id: '',
+        note: '',
+        qty_requested: undefined as any,
+        fact_qty: undefined,
+        tanks_to_leave: undefined as any,
+        tanks_to_bring: undefined as any,
+        fact_tank_dropoff: undefined,
+        fact_tank_pickup: undefined,
+        pickup_date_time: undefined,
+        operator_id: currentEmployee.id,
+        created_by: currentEmployee.id,
+        driver_id: '',
+        companion_id: '',
+        truck_plate: '',
+        status: 'registered'
+      };
+      setEditingOrder(defaultOrder);
+      setIsNew(true);
+      scrollMainToTop();
+      if (onClearInitialVendorId) {
+        onClearInitialVendorId();
+      }
+    }
+  }, [initialVendorId, currentEmployee.id]);
 
   const startNew = () => {
     const defaultOrder: Order = {

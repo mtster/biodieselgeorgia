@@ -68,9 +68,15 @@ export default function OrdersList({
     vendor_id: {
       header: t('Supplier'),
       key: 'supplier',
+      className: 'max-w-[200px] xl:max-w-[260px]',
       render: (ord) => {
         const supplierObj = suppliers.find(s => s.id === ord.vendor_id);
-        return supplierObj ? supplierObj.trade_name : (ord.vendor_name || 'Dispatched supplier');
+        const name = supplierObj ? (supplierObj.trade_name || supplierObj.company_name) : (ord.vendor_name || 'Dispatched supplier');
+        return (
+          <div className="max-w-[200px] xl:max-w-[260px] truncate" title={name}>
+            <span className="font-semibold text-gray-800">{name}</span>
+          </div>
+        );
       }
     },
     warehouse_id: {

@@ -140,6 +140,7 @@ export default function OrderFormFields({
           fieldErrors={fieldErrors}
           setFieldErrors={setFieldErrors}
           suppliers={suppliers}
+          selectedVendorId={editingOrder.vendor_id}
         />
         
         {/* Destination storage dropdown */}

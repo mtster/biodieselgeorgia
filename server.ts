@@ -27,7 +27,19 @@ async function startServer() {
       })
     : null;
 
-  // Endpoint to create a user administratively
+  // Helper to sanitize email with @biodiesel.ge fallback
+  const formatAuthEmail = (rawEmail?: string, fallbackId?: string): string => {
+    let clean = (rawEmail && String(rawEmail).trim()) || '';
+    if (!clean && fallbackId) {
+      clean = `${fallbackId}@biodiesel.ge`;
+    }
+    if (clean && !clean.includes('@')) {
+      clean = `${clean}@biodiesel.ge`;
+    }
+    return clean;
+  };
+
+  // Endpoint to create a user administratively (or update if id/action provided)
   app.post("/api/create-user", async (req, res) => {
     try {
       if (!isSupabaseConfigured || !supabaseAdmin) {
@@ -40,7 +52,6 @@ async function startServer() {
       }
 
       const token = authHeader.split(" ")[1];
-      
       const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
       const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
 
@@ -68,18 +79,97 @@ async function startServer() {
       }
 
       if (!isRequesterAuthorized) {
-        return res.status(403).json({ error: "Access denied: Only Administrators or authorized managers can create users." });
+        return res.status(403).json({ error: "Access denied: Only Administrators or authorized managers can create/modify users." });
       }
 
-      const { email, password, name, personal_id, phone, role, permissions, privileges, warehouse_id, vendor_id } = req.body;
+      const { action, id, email, password, name, personal_id, phone, role, permissions, privileges, warehouse_id, vendor_id, is_blocked } = req.body;
       const perms = permissions || privileges || {};
       let assignedRole = role || "operator";
       if (assignedRole === "manager") {
         assignedRole = "purchasing_head";
       }
 
+      // If action is update or an ID is present, perform update
+      if (action === "update" || (id && action !== "create")) {
+        const cleanEmail = email ? formatAuthEmail(email) : undefined;
+        const updatePayload: any = {
+          user_metadata: {
+            name: (name && String(name).trim()) || "",
+            personal_id: (personal_id && String(personal_id).trim()) || "",
+            phone: (phone && String(phone).trim()) || "",
+            role: assignedRole,
+            permissions: perms,
+            privileges: perms,
+            vendor_id: vendor_id || null,
+          }
+        };
+
+        if (cleanEmail) {
+          updatePayload.email = cleanEmail;
+          updatePayload.email_confirm = true;
+        }
+        if (password && String(password).trim() !== "") {
+          updatePayload.password = String(password).trim();
+        }
+
+        const { error: adminError } = await supabaseAdmin.auth.admin.updateUserById(id, updatePayload);
+        if (adminError) {
+          console.warn("Supabase Admin Auth Update Warning:", adminError.message);
+          if (adminError.message.toLowerCase().includes("user not found") && cleanEmail) {
+            await supabaseAdmin.auth.admin.createUser({
+              id,
+              email: cleanEmail,
+              password: (password && String(password).trim()) || "Georgia2026!",
+              email_confirm: true,
+              phone_confirm: true,
+              user_metadata: updatePayload.user_metadata
+            }).catch((err) => console.warn("Fallback createUser failed:", err));
+          }
+        }
+
+        const profilePayload: any = {
+          name: (name && String(name).trim()) || "",
+          personal_id: (personal_id && String(personal_id).trim()) || "",
+          phone: (phone && String(phone).trim()) || "",
+          role: assignedRole,
+          permissions: perms,
+          vendor_id: vendor_id || null,
+          is_blocked: is_blocked ?? false
+        };
+        if (cleanEmail) {
+          profilePayload.email = cleanEmail;
+        }
+
+        const { data: updatedProfile, error: profileErr } = await supabaseAdmin
+          .from("profiles")
+          .update(profilePayload)
+          .eq("id", id)
+          .select("*")
+          .maybeSingle();
+
+        if (profileErr) {
+          console.error("Supabase Profile Update Error:", profileErr);
+        }
+
+        return res.json({
+          success: true,
+          user: updatedProfile || {
+            id,
+            email: cleanEmail || email,
+            name,
+            personal_id,
+            phone,
+            role: assignedRole,
+            permissions: perms,
+            vendor_id,
+            is_blocked: is_blocked ?? false
+          }
+        });
+      }
+
+      // Action is CREATE
       const cleanPersonalId = (personal_id && String(personal_id).trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
-      const cleanEmail = (email && String(email).trim()) || `${cleanPersonalId}@company.ge`;
+      const cleanEmail = formatAuthEmail(email, cleanPersonalId);
       const cleanPassword = (password && String(password).trim()) || "Georgia2026!";
       const cleanName = (name && String(name).trim()) || "New User";
       const cleanPhone = (phone && String(phone).trim()) || "+995 599 00 00 00";
@@ -138,10 +228,10 @@ async function startServer() {
         success: true,
         user: profile || {
           id: adminData.user.id,
-          name,
-          personal_id,
-          email,
-          phone,
+          name: cleanName,
+          personal_id: cleanPersonalId,
+          email: cleanEmail,
+          phone: cleanPhone,
           role: assignedRole,
           permissions: perms,
           privileges: perms,
@@ -209,36 +299,43 @@ async function startServer() {
         return res.status(400).json({ error: "Missing user ID for update" });
       }
 
-      const perms = permissions || privileges || (role === "admin" ? { all: ["view", "add", "modify", "delete"] } : {});
+      let assignedRole = role || "operator";
+      if (assignedRole === "manager") {
+        assignedRole = "purchasing_head";
+      }
+
+      const perms = permissions || privileges || (assignedRole === "admin" ? { all: ["view", "add", "modify", "delete"] } : {});
+      const cleanEmail = email ? formatAuthEmail(email) : undefined;
+
       const updatePayload: any = {
         user_metadata: {
-          name,
-          personal_id,
-          phone,
-          role,
+          name: (name && String(name).trim()) || "",
+          personal_id: (personal_id && String(personal_id).trim()) || "",
+          phone: (phone && String(phone).trim()) || "",
+          role: assignedRole,
           permissions: perms,
           privileges: perms,
-          vendor_id,
+          vendor_id: vendor_id || null,
         }
       };
 
-      if (email && email.trim() !== "") {
-        updatePayload.email = email.trim();
+      if (cleanEmail) {
+        updatePayload.email = cleanEmail;
         updatePayload.email_confirm = true; // Auto-confirm email change immediately in auth.users
       }
-      if (password && password.trim() !== "") {
-        updatePayload.password = password.trim();
+      if (password && String(password).trim() !== "") {
+        updatePayload.password = String(password).trim();
       }
 
       const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.updateUserById(id, updatePayload);
 
       if (adminError) {
         console.warn("Supabase Admin Auth Update Warning:", adminError.message);
-        if (adminError.message.toLowerCase().includes("user not found") && email) {
+        if (adminError.message.toLowerCase().includes("user not found") && cleanEmail) {
           await supabaseAdmin.auth.admin.createUser({
             id,
-            email: email.trim(),
-            password: (password && password.trim()) || "Georgia2026!",
+            email: cleanEmail,
+            password: (password && String(password).trim()) || "Georgia2026!",
             email_confirm: true,
             phone_confirm: true,
             user_metadata: updatePayload.user_metadata
@@ -247,16 +344,16 @@ async function startServer() {
       }
 
       const profilePayload: any = {
-        name,
-        personal_id,
-        phone,
-        role,
+        name: (name && String(name).trim()) || "",
+        personal_id: (personal_id && String(personal_id).trim()) || "",
+        phone: (phone && String(phone).trim()) || "",
+        role: assignedRole,
         permissions: perms,
-        vendor_id,
+        vendor_id: vendor_id || null,
         is_blocked: is_blocked ?? false
       };
-      if (email && email.trim() !== "") {
-        profilePayload.email = email.trim();
+      if (cleanEmail) {
+        profilePayload.email = cleanEmail;
       }
 
       const { data: updatedProfile, error: profileErr } = await supabaseAdmin
@@ -274,11 +371,11 @@ async function startServer() {
         success: true,
         user: updatedProfile || {
           id,
-          email,
+          email: cleanEmail || email,
           name,
           personal_id,
           phone,
-          role,
+          role: assignedRole,
           permissions: perms,
           vendor_id,
           is_blocked: is_blocked ?? false
@@ -286,7 +383,11 @@ async function startServer() {
       });
     } catch (e: any) {
       console.error("Admin user update caught exception:", e);
-      res.status(500).json({ error: e?.message || "Internal server error" });
+      let errMsg = "Internal server error";
+      if (e instanceof Error) errMsg = e.message;
+      else if (typeof e === "string") errMsg = e;
+      else if (typeof e === "object") errMsg = JSON.stringify(e);
+      res.status(500).json({ error: errMsg });
     }
   });
 

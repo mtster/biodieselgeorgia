@@ -116,6 +116,9 @@ export interface Order {
   contact_id?: string;
   contact_name?: string;
   contact_phone?: string;
+  address?: string;
+  city?: string;
+  district?: string;
 }
 
 export interface Communication {
@@ -123,16 +126,18 @@ export interface Communication {
   date_time: string;          // თარიღი და დრო
   type: 'action' | 'reminder' | 'task'; // სახეობა (მოქმედება, შეხსენება, დავალება)
   reminder_time?: string;     // შეხსენების დრო
-  user_id: string;            // მომხმარებელი (User)
+  has_time?: boolean;         // დრო მითითებულია თუ მხოლოდ თარიღი
+  user_id?: string;           // Optional legacy identifier
   user_name?: string;
   vendor_id: string;          // მომწოდებელი (Vendor)
   vendor_name?: string;
   vendor_contact_id: string;  // მომწოდებლის კონტაქტი
   vendor_contact_name?: string;
   comment: string;            // კომენტარი
-  responsible_user_id?: string;
+  responsible_user_id?: string; // პასუხისმგებელი პირი
   responsible_user_name?: string;
-  task_status?: string;
+  is_completed?: boolean;     // დავალების სტატუსი (false: აქტიური, true: შესრულებული)
+  task_status?: string;       // Legacy string representation
   created_by?: string;
   is_deleted?: boolean;
 }

@@ -84,6 +84,7 @@ export default function App() {
   const totalVendorsCount = initialVendorsPaginated?.totalCount;
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
+  const [selectedOrderVendorId, setSelectedOrderVendorId] = React.useState<string | undefined>(undefined);
   const mainRef = React.useRef<HTMLElement>(null);
 
   React.useEffect(() => {
@@ -272,6 +273,10 @@ export default function App() {
                 currentEmployee={currentUser}
                 onSave={handleCommunicationSave}
                 onDelete={handleCommunicationDelete}
+                onNavigateToOrdersWithVendor={(vendorId) => {
+                  setSelectedOrderVendorId(vendorId);
+                  setActiveTab('orders');
+                }}
               />
             )}
 
@@ -286,6 +291,8 @@ export default function App() {
                 currentEmployee={currentUser}
                 onSave={handleOrderSave}
                 onDelete={handleOrderDelete}
+                initialVendorId={selectedOrderVendorId}
+                onClearInitialVendorId={() => setSelectedOrderVendorId(undefined)}
               />
             )}
 

@@ -41,10 +41,19 @@ export default function OrderForm({
     fillDummy: fillDummyOrder
   }));
 
-  // Pre-fill vendorSearch term
+  // Pre-fill vendorSearch term with company name
   useEffect(() => {
+    if (!editingOrder.vendor_id) {
+      setVendorSearch('');
+      return;
+    }
     const vendorObj = suppliers.find(s => s.id === editingOrder.vendor_id);
-    setVendorSearch(vendorObj ? vendorObj.trade_name : '');
+    if (vendorObj) {
+      const name = vendorObj.trade_name || vendorObj.company_name || '';
+      setVendorSearch(name);
+    } else if (editingOrder.vendor_name) {
+      setVendorSearch(editingOrder.vendor_name);
+    }
   }, [editingOrder.vendor_id, suppliers]);
 
   const handleSaveAll = () => {

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Order } from '../types';
+import { Order, Vendor } from '../types';
 import { trackChange } from './historyService';
 import { KEY_ORDERS, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
@@ -23,7 +23,9 @@ export async function getOrdersPaginated(
     city?: string;
     district?: string;
     direction?: string;
+    directionId?: string;
     vehicle?: string;
+    vehicleId?: string;
     driverId?: string;
     vendorId?: string;
   }
@@ -47,9 +49,25 @@ export async function getOrdersPaginated(
         .eq('is_deleted', false);
 
       if (filters?.searchTerm?.trim()) {
-        const term = `%${filters.searchTerm.trim()}%`;
-        query = query.or(`doc_number.ilike.${term},address.ilike.${term}`);
+        const rawTerm = filters.searchTerm.trim();
+        const term = `%${rawTerm}%`;
+        
+        // Find matching vendor IDs by trade_name or company_name
+        const { data: matchedVendors } = await supabase
+          .from('vendors')
+          .select('id')
+          .or(`trade_name.ilike.${term},company_name.ilike.${term}`)
+          .eq('is_deleted', false);
+
+        const matchedVendorIds = (matchedVendors || []).map(v => v.id);
+
+        if (matchedVendorIds.length > 0) {
+          query = query.or(`doc_number.ilike.${term},vendor_id.in.(${matchedVendorIds.join(',')})`);
+        } else {
+          query = query.ilike('doc_number', term);
+        }
       }
+
       if (filters?.status) {
         query = query.eq('status', filters.status);
       }
@@ -59,17 +77,29 @@ export async function getOrdersPaginated(
       if (filters?.endDate) {
         query = query.lte('order_date', filters.endDate + 'T23:59:59');
       }
-      if (filters?.city) {
-        query = query.eq('city', filters.city);
+
+      // If filtering by location / direction (properties on vendors table)
+      const targetCity = filters?.city;
+      const targetDistrict = filters?.district;
+      const targetDirection = filters?.direction || filters?.directionId;
+      if (targetCity || targetDistrict || targetDirection) {
+        let vQuery = supabase.from('vendors').select('id').eq('is_deleted', false);
+        if (targetCity) vQuery = vQuery.eq('city', targetCity);
+        if (targetDistrict) vQuery = vQuery.eq('district', targetDistrict);
+        if (targetDirection) vQuery = vQuery.eq('direction_id', targetDirection);
+        const { data: vList } = await vQuery;
+        const vIds = (vList || []).map(v => v.id);
+        if (vIds.length > 0) {
+          query = query.in('vendor_id', vIds);
+        } else {
+          // No vendors match criteria
+          return { orders: [], totalCount: 0 };
+        }
       }
-      if (filters?.district) {
-        query = query.eq('district', filters.district);
-      }
-      if (filters?.direction) {
-        query = query.eq('direction', filters.direction);
-      }
-      if (filters?.vehicle) {
-        query = query.eq('vehicle_id', filters.vehicle);
+
+      const vehicleVal = filters?.vehicle || filters?.vehicleId;
+      if (vehicleVal) {
+        query = query.eq('vehicle_id', vehicleVal);
       }
       if (filters?.driverId) {
         query = query.eq('driver_id', filters.driverId);
@@ -78,7 +108,7 @@ export async function getOrdersPaginated(
         query = query.eq('vendor_id', filters.vendorId);
       }
 
-      query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+      query = query.order('order_date', { ascending: false }).range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
       if (!error && data) {
@@ -109,10 +139,19 @@ export async function getOrdersPaginated(
     notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
   }));
 
+  const localVendors = getLocal<Vendor[]>('biodiesel_vendors', []);
+  const vendorMap = new Map(localVendors.map(v => [v.id, v]));
+
   let filtered = all;
   if (filters?.searchTerm?.trim()) {
     const term = filters.searchTerm.trim().toLowerCase();
-    filtered = filtered.filter(o => (o.doc_number || '').toLowerCase().includes(term) || (o.address || '').toLowerCase().includes(term));
+    filtered = filtered.filter(o => {
+      const docMatch = (o.doc_number || '').toLowerCase().includes(term);
+      const vObj = vendorMap.get(o.vendor_id);
+      const tradeMatch = (vObj?.trade_name || o.vendor_name || '').toLowerCase().includes(term);
+      const companyMatch = (vObj?.company_name || '').toLowerCase().includes(term);
+      return docMatch || tradeMatch || companyMatch;
+    });
   }
   if (filters?.status) {
     filtered = filtered.filter(o => o.status === filters.status);
@@ -122,6 +161,10 @@ export async function getOrdersPaginated(
   }
   if (filters?.vendorId) {
     filtered = filtered.filter(o => o.vendor_id === filters.vendorId);
+  }
+  const vehicleVal = filters?.vehicle || filters?.vehicleId;
+  if (vehicleVal) {
+    filtered = filtered.filter(o => o.vehicle_id === vehicleVal || o.truck_plate === vehicleVal);
   }
 
   return {

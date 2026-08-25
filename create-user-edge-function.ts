@@ -79,8 +79,20 @@ serve(async (req) => {
       })
     }
 
+    // Helper to sanitize email with @biodiesel.ge fallback
+    const formatAuthEmail = (rawEmail?: string, fallbackId?: string): string => {
+      let clean = (rawEmail && String(rawEmail).trim()) || '';
+      if (!clean && fallbackId) {
+        clean = `${fallbackId}@biodiesel.ge`;
+      }
+      if (clean && !clean.includes('@')) {
+        clean = `${clean}@biodiesel.ge`;
+      }
+      return clean;
+    };
+
     // Parse payload fields
-    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id } = await req.json()
+    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id, is_blocked } = await req.json()
     const perms = permissions || privileges || {};
     
     // Standardize legacy role names to match database constraint
@@ -98,7 +110,7 @@ serve(async (req) => {
       }
 
       const cleanPersonalId = (personal_id && String(personal_id).trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
-      const cleanEmail = (email && String(email).trim()) || `${cleanPersonalId}@company.ge`;
+      const cleanEmail = formatAuthEmail(email, cleanPersonalId);
       const cleanPassword = (password && String(password).trim()) || 'Georgia2026!';
       const cleanName = (name && String(name).trim()) || 'New User';
       const cleanPhone = (phone && String(phone).trim()) || '+995 599 00 00 00';
@@ -115,6 +127,7 @@ serve(async (req) => {
           phone: cleanPhone,
           role: assignedRole,
           permissions: perms,
+          privileges: perms,
           vendor_id
         }
       })
@@ -137,7 +150,7 @@ serve(async (req) => {
         permissions: perms,
         vendor_id,
         is_deleted: false,
-        is_blocked: false,
+        is_blocked: is_blocked ?? false,
         created_at: new Date().toISOString()
       };
 
@@ -167,33 +180,41 @@ serve(async (req) => {
         })
       }
 
+      let assignedRole = role || 'operator';
+      if (assignedRole === 'manager') {
+        assignedRole = 'purchasing_head';
+      }
+
+      const cleanEmail = email ? formatAuthEmail(email) : undefined;
+
       // Prepare updates in Auth table
       const authUpdates: any = {
         user_metadata: {
-          name,
-          personal_id,
-          phone,
-          role,
+          name: (name && String(name).trim()) || "",
+          personal_id: (personal_id && String(personal_id).trim()) || "",
+          phone: (phone && String(phone).trim()) || "",
+          role: assignedRole,
           permissions: perms,
-          vendor_id
+          privileges: perms,
+          vendor_id: vendor_id || null
         }
       }
-      if (email && email.trim() !== '') {
-        authUpdates.email = email.trim();
+      if (cleanEmail) {
+        authUpdates.email = cleanEmail;
         authUpdates.email_confirm = true; // Auto confirm email in Auth immediately
       }
-      if (password && password.trim() !== '') {
-        authUpdates.password = password.trim();
+      if (password && String(password).trim() !== '') {
+        authUpdates.password = String(password).trim();
       }
 
       const { error: updateAuthErr } = await supabaseAdmin.auth.admin.updateUserById(id, authUpdates)
       if (updateAuthErr) {
         console.warn(`Auth update warning: ${updateAuthErr.message}`);
-        if (updateAuthErr.message.toLowerCase().includes('user not found') && email) {
+        if (updateAuthErr.message.toLowerCase().includes('user not found') && cleanEmail) {
           await supabaseAdmin.auth.admin.createUser({
             id,
-            email: email.trim(),
-            password: (password && password.trim()) || 'Georgia2026!',
+            email: cleanEmail,
+            password: (password && String(password).trim()) || 'Georgia2026!',
             email_confirm: true,
             phone_confirm: true,
             user_metadata: authUpdates.user_metadata
@@ -203,15 +224,16 @@ serve(async (req) => {
 
       // Update mapping record in Profiles table
       let userToUpsert: any = {
-        name,
-        personal_id,
-        phone,
-        role,
+        name: (name && String(name).trim()) || "",
+        personal_id: (personal_id && String(personal_id).trim()) || "",
+        phone: (phone && String(phone).trim()) || "",
+        role: assignedRole,
         permissions: perms,
-        vendor_id
+        vendor_id: vendor_id || null,
+        is_blocked: is_blocked ?? false
       }
-      if (email && email.trim() !== '') {
-        userToUpsert.email = email.trim();
+      if (cleanEmail) {
+        userToUpsert.email = cleanEmail;
       }
 
       if (role !== 'vendor') {
