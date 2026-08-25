@@ -81,7 +81,7 @@ export default function VendorCommunicationModal({
   const [newCommComment, setNewCommComment] = useState('');
   const [newCommResponsibleUserId, setNewCommResponsibleUserId] = useState(currentUser.id);
   const [newCommIsCompleted, setNewCommIsCompleted] = useState(false);
-  const [commError, setCommError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -128,7 +128,7 @@ export default function VendorCommunicationModal({
         setNewCommComment('');
         setNewCommIsCompleted(false);
       }
-      setCommError('');
+      setFieldErrors({});
     }
   }, [isOpen, activeComm, currentUser.id, tempContacts]);
 
@@ -137,13 +137,29 @@ export default function VendorCommunicationModal({
       alert(t("Please save this supplier before logging communication records."));
       return;
     }
+
+    const errors: Record<string, string> = {};
+
+    if (newCommType === 'reminder' && !reminderDate.trim()) {
+      errors.reminder_date = t("Date is required");
+    }
+
+    const respId = newCommResponsibleUserId || newCommUserId || currentUser.id;
+    if (!respId) {
+      errors.responsible_user_id = t("Responsible user is required");
+    }
+
     if (!newCommComment.trim()) {
-      setCommError(t("Log comment is required."));
+      errors.comment = t("Comment is required");
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
-    setCommError('');
+
+    setFieldErrors({});
     
-    const respId = newCommResponsibleUserId || newCommUserId || currentUser.id;
     const assignedUser = users.find(u => u.id === respId);
     const assignedContact = tempContacts.find(c => c.id === newCommContactId);
 
@@ -216,9 +232,9 @@ export default function VendorCommunicationModal({
       saveLabel={activeComm ? t("Save Communication") : t("Add Communication")}
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <FormSelect
-            label={t("Type *")}
+            label={t("Interaction Type")}
             value={newCommType}
             onChange={(e) => setNewCommType(e.target.value as any)}
           >
@@ -244,7 +260,13 @@ export default function VendorCommunicationModal({
               type="date"
               fontClass="font-mono"
               value={reminderDate}
-              onChange={(e) => setReminderDate(e.target.value)}
+              onChange={(e) => {
+                setReminderDate(e.target.value);
+                if (fieldErrors.reminder_date) {
+                  setFieldErrors(prev => ({ ...prev, reminder_date: '' }));
+                }
+              }}
+              error={fieldErrors.reminder_date}
               required
             />
             <FormInput
@@ -273,9 +295,13 @@ export default function VendorCommunicationModal({
         <FormSelect
           label={t("Responsible User *")}
           value={newCommResponsibleUserId}
+          error={fieldErrors.responsible_user_id}
           onChange={(e) => {
             setNewCommResponsibleUserId(e.target.value);
             setNewCommUserId(e.target.value);
+            if (fieldErrors.responsible_user_id) {
+              setFieldErrors(prev => ({ ...prev, responsible_user_id: '' }));
+            }
           }}
         >
           {users.map(u => (
@@ -297,19 +323,29 @@ export default function VendorCommunicationModal({
         </FormSelect>
 
         <div className="relative">
-          <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">{t("Notes / Discussion Content *")}</span>
+          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.comment ? 'text-red-500' : 'text-gray-400'}`}>
+            {t("Comment *")}
+          </span>
           <textarea
             rows={4}
             placeholder=""
             value={newCommComment}
             onChange={(e) => {
               setNewCommComment(e.target.value);
-              if (commError) setCommError('');
+              if (fieldErrors.comment) {
+                setFieldErrors(prev => ({ ...prev, comment: '' }));
+              }
             }}
-            className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans"
+            className={`block w-full px-3.5 py-4 md:py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 transition-all ${
+              fieldErrors.comment
+                ? 'border-red-500 bg-red-50/10 focus:border-red-500 focus:ring-red-500 text-red-900'
+                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
+            } font-sans`}
           />
-          {commError && (
-            <p className="text-[10px] text-red-600 font-bold mt-1 text-left">{commError}</p>
+          {fieldErrors.comment && (
+            <p className="text-[10px] text-red-500 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
+              {fieldErrors.comment}
+            </p>
           )}
         </div>
       </div>

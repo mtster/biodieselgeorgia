@@ -44,7 +44,7 @@ export default function CommunicationFormModal({
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debouncedSearch = useDebounce(vendorSearch, 300);
+  const debouncedSearch = useDebounce(vendorSearch, 250);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -104,9 +104,9 @@ export default function CommunicationFormModal({
     };
   }, [debouncedSearch, showVendorSuggestions]);
 
-  // Combined suggestions
+  // Combined suggestions with instant local match on vendorSearch
   const filteredSuggestions = useMemo(() => {
-    const term = debouncedSearch.trim().toLowerCase();
+    const term = vendorSearch.trim().toLowerCase();
     const map = new Map<string, Vendor>();
 
     suppliers.forEach((s) => {
@@ -115,9 +115,8 @@ export default function CommunicationFormModal({
       } else {
         const trade = (s.trade_name || '').toLowerCase();
         const comp = (s.company_name || '').toLowerCase();
-        const idCode = (s.id_code || '').toLowerCase();
         const addr = (s.address || '').toLowerCase();
-        if (trade.includes(term) || comp.includes(term) || idCode.includes(term) || addr.includes(term)) {
+        if (trade.includes(term) || comp.includes(term) || addr.includes(term)) {
           map.set(s.id, s);
         }
       }
@@ -128,7 +127,7 @@ export default function CommunicationFormModal({
     });
 
     return Array.from(map.values()).slice(0, 30);
-  }, [suppliers, remoteSuppliers, debouncedSearch]);
+  }, [suppliers, remoteSuppliers, vendorSearch]);
 
   useEffect(() => {
     if (isOpen && editingComm) {
@@ -371,7 +370,7 @@ export default function CommunicationFormModal({
           )}
 
           {showVendorSuggestions && (
-            <div className="absolute left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-50 divide-y divide-gray-50 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 right-0 mt-1.5 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-30 divide-y divide-gray-50 animate-in fade-in zoom-in-95 duration-100">
               {filteredSuggestions.length > 0 ? (
                 filteredSuggestions.map((s) => (
                   <div
@@ -383,11 +382,6 @@ export default function CommunicationFormModal({
                       <p className="text-xs font-bold text-gray-800 group-hover:text-emerald-750 transition-colors">
                         {s.trade_name || s.company_name}
                       </p>
-                      {s.id_code && (
-                        <span className="text-[10px] font-mono text-gray-400 bg-gray-50 group-hover:bg-emerald-100/50 px-1.5 py-0.5 rounded border border-gray-100 transition-colors">
-                          {s.id_code}
-                        </span>
-                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500">
                       {s.company_name && s.company_name !== s.trade_name && (
