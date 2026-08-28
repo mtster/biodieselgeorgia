@@ -607,8 +607,10 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "none": "არცერთი",
 
   // Period / Calendar Presets
-  "Start Date": "დაწყების თარიღი",
-  "End Date": "დასრულების თარიღი",
+  "Start Date": "დან",
+  "End Date": "მდე",
+  "From": "დან",
+  "To": "მდე",
   "Clear Dates": "თარიღების გასუფთავება",
   "Tomorrow": "ხვალ",
 

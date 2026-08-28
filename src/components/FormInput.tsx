@@ -10,7 +10,7 @@ export interface FormInputProps extends React.InputHTMLAttributes<HTMLInputEleme
   children?: React.ReactNode;
 }
 
-export function FormInput({
+export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(function FormInput({
   label,
   error,
   fontClass = 'font-sans',
@@ -19,7 +19,7 @@ export function FormInput({
   labelBgClass = 'bg-white',
   children,
   ...props
-}: FormInputProps) {
+}, ref) {
   let finalValue = props.value;
   if (props.type === 'date' && typeof finalValue === 'string' && finalValue.includes('T')) {
     finalValue = finalValue.split('T')[0];
@@ -35,6 +35,7 @@ export function FormInput({
         {t(label)}
       </span>
       <input
+        ref={ref}
         className={`block w-full px-3.5 py-4 md:py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 transition-all ${fontClass} ${
           error
             ? 'border-red-500 bg-red-50/10 focus:border-red-500 focus:ring-red-500 text-red-900'
@@ -51,7 +52,7 @@ export function FormInput({
       )}
     </div>
   );
-}
+});
 
 export interface FormSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
