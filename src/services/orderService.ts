@@ -4,6 +4,7 @@ import { trackChange } from './historyService';
 import { KEY_ORDERS, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
 import { appCache } from '../utils/cache';
+import { generateUuid, cleanUserUuid } from './vendorService';
 
 export { KEY_ORDERS };
 
@@ -196,21 +197,11 @@ export async function getOrders(): Promise<Order[]> {
 export async function saveOrder(order: Order, loggerName: string, currentUserId?: string): Promise<Order> {
   const isNew = !order.id;
 
-  const cleanUserUuid = (val: string | null | undefined): string | null => {
-    if (!val) return null;
-    if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
-    if (val.startsWith('user-')) {
-      const suffix = val.substring(5).padEnd(11, '0').slice(0, 11);
-      return `00000000-0000-4000-b000-${suffix}`.toLowerCase();
-    }
-    return val;
-  };
-
   const createdByUuid = cleanUserUuid(isNew ? (currentUserId || order.created_by) : order.created_by);
 
   const finalOrder = {
     ...order,
-    id: isNew ? 'ord-' + Math.random().toString(36).substring(2, 9) : order.id,
+    id: isNew ? (order.id || generateUuid()) : order.id,
     operator_id: cleanUserUuid(order.operator_id),
     created_by: createdByUuid,
     driver_id: cleanUserUuid(order.driver_id),
@@ -220,29 +211,34 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // Strip virtual UI helper fields before pushing to Supabase
-      const { 
-        vendor_name, 
-        warehouse_name, 
-        operator_name, 
-        driver_name, 
-        companion_name, 
-        truck_plate,
-        note,
-        ...dbOrder 
-      } = finalOrder as any;
-
-      // Sanitize UUID fields so empty or non-valid UUID strings are saved as null in Supabase
       const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-      
-      dbOrder.operator_id = isValidUuid(dbOrder.operator_id) ? dbOrder.operator_id : null;
-      dbOrder.created_by = isValidUuid(dbOrder.created_by) ? dbOrder.created_by : null;
-      dbOrder.driver_id = isValidUuid(dbOrder.driver_id) ? dbOrder.driver_id : null;
-      dbOrder.companion_id = isValidUuid(dbOrder.companion_id) ? dbOrder.companion_id : null;
-      dbOrder.vehicle_id = isValidUuid(dbOrder.vehicle_id) ? dbOrder.vehicle_id : null;
-      delete dbOrder.truck_plate;
-      delete dbOrder.note;
-      dbOrder.notes = Array.isArray(dbOrder.notes) ? dbOrder.notes : [];
+
+      // Whitelist only columns that exist in the Supabase `orders` table schema
+      const dbOrder: Record<string, any> = {
+        id: finalOrder.id,
+        order_date: finalOrder.order_date || new Date().toISOString(),
+        doc_number: finalOrder.doc_number,
+        vendor_id: finalOrder.vendor_id,
+        warehouse_id: finalOrder.warehouse_id || null,
+        qty_requested: finalOrder.qty_requested ?? null,
+        tanks_to_leave: Number(finalOrder.tanks_to_leave) || 0,
+        tanks_to_bring: Number(finalOrder.tanks_to_bring) || 0,
+        pickup_date_time: finalOrder.pickup_date_time || null,
+        operator_id: isValidUuid(finalOrder.operator_id) ? finalOrder.operator_id : null,
+        created_by: isValidUuid(finalOrder.created_by) ? finalOrder.created_by : null,
+        driver_id: isValidUuid(finalOrder.driver_id) ? finalOrder.driver_id : null,
+        companion_id: isValidUuid(finalOrder.companion_id) ? finalOrder.companion_id : null,
+        vehicle_id: isValidUuid(finalOrder.vehicle_id) ? finalOrder.vehicle_id : null,
+        fact_qty: Number(finalOrder.fact_qty) || 0,
+        fact_tank_dropoff: Number(finalOrder.fact_tank_dropoff) || 0,
+        fact_tank_pickup: Number(finalOrder.fact_tank_pickup) || 0,
+        waybill_qty: Number(finalOrder.waybill_qty) || 0,
+        status: finalOrder.status || 'registered',
+        sms_sent: Boolean(finalOrder.sms_sent),
+        is_deleted: Boolean(finalOrder.is_deleted),
+        contact_id: finalOrder.contact_id || null,
+        notes: Array.isArray(finalOrder.notes) ? finalOrder.notes : []
+      };
 
       if (isNew) {
         const { error } = await supabase.from('orders').insert([dbOrder]);
@@ -256,6 +252,8 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
       throw e; // Propagate the error to show in UI
     }
   }
+
+  appCache.clear();
 
   const list = getLocal<Order[]>(KEY_ORDERS, []);
   if (isNew) {
