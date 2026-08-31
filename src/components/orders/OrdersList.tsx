@@ -54,6 +54,12 @@ export default function OrdersList({
     }
   };
 
+  const findSupplier = (vendorId?: string) => {
+    if (!vendorId) return null;
+    const cleanId = String(vendorId).trim().toLowerCase();
+    return suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) || null;
+  };
+
   const columnMap: Record<string, ColumnConfig<Order>> = {
     order_date: {
       header: t('Date'),
@@ -70,8 +76,8 @@ export default function OrdersList({
       key: 'supplier',
       className: 'max-w-[200px] xl:max-w-[260px]',
       render: (ord) => {
-        const supplierObj = suppliers.find(s => s.id === ord.vendor_id);
-        const name = supplierObj ? (supplierObj.trade_name || supplierObj.company_name) : (ord.vendor_name || 'Dispatched supplier');
+        const supplierObj = findSupplier(ord.vendor_id);
+        const name = (supplierObj?.trade_name || supplierObj?.company_name) || ord.vendor_name || t('Supplier');
         return (
           <div className="max-w-[200px] xl:max-w-[260px] truncate" title={name}>
             <span className="font-semibold text-gray-800">{name}</span>
@@ -141,15 +147,15 @@ export default function OrdersList({
       header: t('Address'),
       key: 'address',
       render: (ord) => {
-        const vendor = suppliers.find(s => s.id === ord.vendor_id);
-        return vendor ? vendor.address : '-';
+        const vendor = findSupplier(ord.vendor_id);
+        return vendor ? vendor.address : (ord.address || '-');
       }
     },
     direction: {
       header: t('Direction'),
       key: 'direction',
       render: (ord) => {
-        const vendor = suppliers.find(s => s.id === ord.vendor_id);
+        const vendor = findSupplier(ord.vendor_id);
         if (!vendor || !vendor.direction_id) return '-';
         const d = directions.find(dir => dir.id === vendor.direction_id);
         return d ? d.name : '-';
@@ -159,16 +165,16 @@ export default function OrdersList({
       header: t('City'),
       key: 'city',
       render: (ord) => {
-        const vendor = suppliers.find(s => s.id === ord.vendor_id);
-        return vendor ? vendor.city : '-';
+        const vendor = findSupplier(ord.vendor_id);
+        return vendor ? vendor.city : (ord.city || '-');
       }
     },
     district: {
       header: t('District'),
       key: 'district',
       render: (ord) => {
-        const vendor = suppliers.find(s => s.id === ord.vendor_id);
-        return vendor ? vendor.district : '-';
+        const vendor = findSupplier(ord.vendor_id);
+        return vendor ? vendor.district : (ord.district || '-');
       }
     },
     truck_plate: {
@@ -198,7 +204,7 @@ export default function OrdersList({
       header: t('Contacts'),
       key: 'contacts',
       render: (ord) => {
-        const vendor = suppliers.find(s => s.id === ord.vendor_id);
+        const vendor = findSupplier(ord.vendor_id);
         if (!vendor || !vendor.contacts || vendor.contacts.length === 0) return '-';
         const mainContact = vendor.contacts.find(c => c.is_default) || vendor.contacts[0];
         return `${mainContact.name} (${mainContact.phone})`;

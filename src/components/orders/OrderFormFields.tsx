@@ -55,7 +55,8 @@ export default function OrderFormFields({
       return;
     }
 
-    const supplier = suppliers.find(s => s.id === editingOrder.vendor_id);
+    const cleanVendorId = String(editingOrder.vendor_id).trim().toLowerCase();
+    const supplier = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
     if (supplier && supplier.contacts && supplier.contacts.length > 0) {
       setFetchedContacts(supplier.contacts);
     } else {
@@ -161,7 +162,8 @@ export default function OrderFormFields({
 
         {/* Contact Dropdown & Contact Card details */}
         {(() => {
-          const selectedSupplier = suppliers.find(s => s.id === editingOrder.vendor_id);
+          const cleanVendorId = String(editingOrder.vendor_id).trim().toLowerCase();
+          const selectedSupplier = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
           const contactsList = (fetchedContacts && fetchedContacts.length > 0)
             ? fetchedContacts
             : (selectedSupplier ? (selectedSupplier.contacts || []) : []);

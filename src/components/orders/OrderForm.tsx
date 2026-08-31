@@ -90,7 +90,8 @@ export default function OrderForm({
       }
     }
 
-    const supplierObj = suppliers.find(s => s.id === finalOrder.vendor_id);
+    const cleanVendorId = String(finalOrder.vendor_id || '').trim().toLowerCase();
+    const supplierObj = suppliers.find(s => s.id === finalOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
     const warehouseObj = warehouses.find(w => w.id === finalOrder.warehouse_id);
     const operatorObj = employees.find(e => e.id === finalOrder.operator_id);
     const driverObj = employees.find(e => e.id === finalOrder.driver_id);
@@ -98,7 +99,7 @@ export default function OrderForm({
 
     const final: Order = {
       ...finalOrder,
-      vendor_name: supplierObj?.trade_name || '',
+      vendor_name: (supplierObj?.trade_name || supplierObj?.company_name) || finalOrder.vendor_name || vendorSearch || '',
       warehouse_name: warehouseObj?.name || '',
       operator_name: operatorObj?.name || currentEmployee.name,
       driver_name: driverObj?.name || '',

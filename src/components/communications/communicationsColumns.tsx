@@ -20,6 +20,12 @@ export function getCommunicationsColumns({
   setSelectedComms
 }: ColumnOptions, managedCols: { id: string; label: string; visible: boolean }[]): ColumnConfig<Communication>[] {
 
+  const findSupplier = (vendorId?: string) => {
+    if (!vendorId) return null;
+    const cleanId = String(vendorId).trim().toLowerCase();
+    return suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) || null;
+  };
+
   const columnMap: Record<string, ColumnConfig<Communication>> = {
     date_time: {
       header: t('Date & Time'),
@@ -54,8 +60,8 @@ export function getCommunicationsColumns({
       key: 'vendor_name',
       className: 'max-w-[180px] truncate',
       render: (comm) => {
-        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-        const name = suppObj ? suppObj.trade_name : (comm.vendor_name || t('Supplier'));
+        const suppObj = findSupplier(comm.vendor_id);
+        const name = (suppObj?.trade_name || suppObj?.company_name) || comm.vendor_name || t('Supplier');
         return (
           <div className="max-w-[180px] truncate" title={name}>
             {name}
@@ -67,15 +73,15 @@ export function getCommunicationsColumns({
       header: t('Company Name'),
       key: 'company_name',
       render: (comm) => {
-        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
-        return suppObj ? suppObj.company_name : '-';
+        const suppObj = findSupplier(comm.vendor_id);
+        return suppObj ? (suppObj.company_name || suppObj.trade_name || '-') : '-';
       }
     },
     id_code: {
       header: t('Identification Code'),
       key: 'id_code',
       render: (comm) => {
-        const suppObj = suppliers.find(s => s.id === comm.vendor_id);
+        const suppObj = findSupplier(comm.vendor_id);
         return suppObj ? suppObj.id_code : '-';
       }
     },

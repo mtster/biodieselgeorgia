@@ -118,10 +118,36 @@ export async function getOrdersPaginated(
           appCache.set(countCacheKey, count);
         }
 
-        const mapped = data.map((o: any) => ({
-          ...o,
-          notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
-        }));
+        // Fetch vendor info for all vendor_ids present on this page (even if soft-deleted/duplicated)
+        const vendorIds = Array.from(new Set((data as any[]).map(item => item.vendor_id).filter(Boolean)));
+        const vendorMap = new Map<string, any>();
+        if (vendorIds.length > 0) {
+          try {
+            const { data: vendorsData } = await supabase
+              .from('vendors')
+              .select('id, trade_name, company_name, id_code, address, city, district, direction_id')
+              .in('id', vendorIds);
+            if (vendorsData) {
+              vendorsData.forEach(v => {
+                vendorMap.set(v.id, v);
+                if (v.id) {
+                  vendorMap.set(v.id.toLowerCase().trim(), v);
+                }
+              });
+            }
+          } catch (vErr) {
+            console.warn('Failed to prefetch vendors for orders page:', vErr);
+          }
+        }
+
+        const mapped = data.map((o: any) => {
+          const v = o.vendor_id ? (vendorMap.get(o.vendor_id) || vendorMap.get(o.vendor_id?.toLowerCase?.().trim())) : null;
+          return {
+            ...o,
+            vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
+            notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
+          };
+        });
         const result = {
           orders: mapped,
           totalCount: finalCount
