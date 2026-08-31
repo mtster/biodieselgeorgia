@@ -112,6 +112,14 @@ export async function getOrdersPaginated(
       query = query.order('order_date', { ascending: false }).range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
+
+      if (error) {
+        if (error.code === 'PGRST103' || error.message?.toLowerCase().includes('satisfiable')) {
+          return { orders: [], totalCount: cachedCount || 0 };
+        }
+        console.error('Supabase getOrdersPaginated error', error);
+      }
+
       if (!error && data) {
         const finalCount = cachedCount !== null ? cachedCount : (count || 0);
         if (cachedCount === null && count !== null) {

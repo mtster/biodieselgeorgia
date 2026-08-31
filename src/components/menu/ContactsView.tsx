@@ -94,9 +94,18 @@ export default function ContactsView({
 
   const { data: paginatedData, isLoading: isContactsLoading } = usePaginatedContacts(page, debouncedSearchTerm, currentUser);
 
+  const findSupplier = (vendorId?: string) => {
+    if (!vendorId) return null;
+    const cleanId = String(vendorId).trim().toLowerCase();
+    return vendors.find(v => v.id === vendorId || (v.id && String(v.id).trim().toLowerCase() === cleanId)) || null;
+  };
+
   const rawContacts = paginatedData?.contacts || [];
   const contactsList: ContactRow[] = rawContacts.map((c: any) => {
-    const vInfo: any = vendors.find((v: any) => v.id === c.vendor_id) || {};
+    const vInfo: any = findSupplier(c.vendor_id) || c.vendor || {};
+    const compName = (vInfo.trade_name || vInfo.company_name) || (c.company_name !== '-' ? c.company_name : '') || c.vendor_name || '-';
+    const compCode = (vInfo.company_code || vInfo.id_code) || (c.company_code !== '-' ? c.company_code : '') || '-';
+
     return {
       id: c.id,
       name: c.name || '',
@@ -104,10 +113,10 @@ export default function ContactsView({
       position: c.position || 'other',
       note: c.note || '',
       email: c.email || '',
-      company_name: vInfo.trade_name || vInfo.company_name || '-',
-      company_code: vInfo.company_code || vInfo.id_code || '-',
+      company_name: compName,
+      company_code: compCode,
       vendor_id: c.vendor_id || '',
-      vendor: vInfo as Vendor
+      vendor: (vInfo && Object.keys(vInfo).length > 0 ? vInfo : c.vendor) as Vendor
     };
   });
   const totalCount = paginatedData?.totalCount || 0;
@@ -429,7 +438,7 @@ export default function ContactsView({
             data={contactsList}
             columns={columns}
             onRowClick={(row) => {
-              const matchedVendor = activeVendors.find(v => v.id === row.vendor_id);
+              const matchedVendor = findSupplier(row.vendor_id) || row.vendor;
               if (matchedVendor) {
                 setSelectedVendorForForm(matchedVendor);
               }

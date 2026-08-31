@@ -19,27 +19,27 @@ export function usePaginatedVendors(
   const isAllowed = hasModuleViewPermission(currentUser, 'suppliers');
   const filterKey = JSON.stringify(filters);
 
-  useEffect(() => {
-    if (isAllowed && currentUser) {
-      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['vendors', page, filterKey]);
-      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
-        return;
-      }
-      queryClient.prefetchQuery({
-        queryKey: ['vendors', page + 1, filterKey],
-        queryFn: () => getVendorsPaginated(12, page * 12, filters),
-        staleTime: 1000 * 60 * 5,
-      });
-    }
-  }, [page, filterKey, isAllowed, currentUser, queryClient]);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: ['vendors', page, filterKey],
     queryFn: () => getVendorsPaginated(12, (page - 1) * 12, filters),
     enabled: isAllowed && !!currentUser,
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 5,
   });
+
+  useEffect(() => {
+    if (isAllowed && currentUser && query.data?.totalCount !== undefined) {
+      if (page * 12 < query.data.totalCount) {
+        queryClient.prefetchQuery({
+          queryKey: ['vendors', page + 1, filterKey],
+          queryFn: () => getVendorsPaginated(12, page * 12, filters),
+          staleTime: 1000 * 60 * 5,
+        });
+      }
+    }
+  }, [page, filterKey, isAllowed, currentUser, queryClient, query.data?.totalCount]);
+
+  return query;
 }
 
 export function usePaginatedOrders(
@@ -51,27 +51,27 @@ export function usePaginatedOrders(
   const isAllowed = hasModuleViewPermission(currentUser, 'orders');
   const filterKey = JSON.stringify(filters);
 
-  useEffect(() => {
-    if (isAllowed && currentUser) {
-      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['orders', page, filterKey]);
-      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
-        return;
-      }
-      queryClient.prefetchQuery({
-        queryKey: ['orders', page + 1, filterKey],
-        queryFn: () => getOrdersPaginated(12, page * 12, filters),
-        staleTime: 1000 * 60 * 5,
-      });
-    }
-  }, [page, filterKey, isAllowed, currentUser, queryClient]);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: ['orders', page, filterKey],
     queryFn: () => getOrdersPaginated(12, (page - 1) * 12, filters),
     enabled: isAllowed && !!currentUser,
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 5,
   });
+
+  useEffect(() => {
+    if (isAllowed && currentUser && query.data?.totalCount !== undefined) {
+      if (page * 12 < query.data.totalCount) {
+        queryClient.prefetchQuery({
+          queryKey: ['orders', page + 1, filterKey],
+          queryFn: () => getOrdersPaginated(12, page * 12, filters),
+          staleTime: 1000 * 60 * 5,
+        });
+      }
+    }
+  }, [page, filterKey, isAllowed, currentUser, queryClient, query.data?.totalCount]);
+
+  return query;
 }
 
 export function usePaginatedCommunications(
@@ -83,27 +83,27 @@ export function usePaginatedCommunications(
   const isAllowed = hasModuleViewPermission(currentUser, 'communications');
   const filterKey = JSON.stringify(filters);
 
-  useEffect(() => {
-    if (isAllowed && currentUser) {
-      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['communications', page, filterKey]);
-      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
-        return;
-      }
-      queryClient.prefetchQuery({
-        queryKey: ['communications', page + 1, filterKey],
-        queryFn: () => getCommunicationsPaginated(12, page * 12, filters),
-        staleTime: 1000 * 60 * 5,
-      });
-    }
-  }, [page, filterKey, isAllowed, currentUser, queryClient]);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: ['communications', page, filterKey],
     queryFn: () => getCommunicationsPaginated(12, (page - 1) * 12, filters),
     enabled: isAllowed && !!currentUser,
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 5,
   });
+
+  useEffect(() => {
+    if (isAllowed && currentUser && query.data?.totalCount !== undefined) {
+      if (page * 12 < query.data.totalCount) {
+        queryClient.prefetchQuery({
+          queryKey: ['communications', page + 1, filterKey],
+          queryFn: () => getCommunicationsPaginated(12, page * 12, filters),
+          staleTime: 1000 * 60 * 5,
+        });
+      }
+    }
+  }, [page, filterKey, isAllowed, currentUser, queryClient, query.data?.totalCount]);
+
+  return query;
 }
 
 export function usePaginatedContacts(
@@ -114,27 +114,27 @@ export function usePaginatedContacts(
   const queryClient = useQueryClient();
   const isAllowed = hasModuleViewPermission(currentUser, 'contacts');
 
-  useEffect(() => {
-    if (isAllowed && currentUser) {
-      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['contacts', page, searchTerm]);
-      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
-        return;
-      }
-      queryClient.prefetchQuery({
-        queryKey: ['contacts', page + 1, searchTerm],
-        queryFn: () => getContactsPaginated(12, page * 12, searchTerm),
-        staleTime: 1000 * 60 * 5,
-      });
-    }
-  }, [page, searchTerm, isAllowed, currentUser, queryClient]);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: ['contacts', page, searchTerm],
     queryFn: () => getContactsPaginated(12, (page - 1) * 12, searchTerm),
     enabled: isAllowed && !!currentUser,
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 5,
   });
+
+  useEffect(() => {
+    if (isAllowed && currentUser && query.data?.totalCount !== undefined) {
+      if (page * 12 < query.data.totalCount) {
+        queryClient.prefetchQuery({
+          queryKey: ['contacts', page + 1, searchTerm],
+          queryFn: () => getContactsPaginated(12, page * 12, searchTerm),
+          staleTime: 1000 * 60 * 5,
+        });
+      }
+    }
+  }, [page, searchTerm, isAllowed, currentUser, queryClient, query.data?.totalCount]);
+
+  return query;
 }
 
 export function usePaginatedUsers(
@@ -145,25 +145,25 @@ export function usePaginatedUsers(
   const queryClient = useQueryClient();
   const isAllowed = hasModuleViewPermission(currentUser, 'users');
 
-  useEffect(() => {
-    if (isAllowed && currentUser) {
-      const currentData = queryClient.getQueryData<{ totalCount?: number }>(['users', page, searchTerm]);
-      if (currentData?.totalCount !== undefined && page * 12 >= currentData.totalCount) {
-        return;
-      }
-      queryClient.prefetchQuery({
-        queryKey: ['users', page + 1, searchTerm],
-        queryFn: () => getUsersPaginated(12, page * 12, searchTerm),
-        staleTime: 1000 * 60 * 5,
-      });
-    }
-  }, [page, searchTerm, isAllowed, currentUser, queryClient]);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: ['users', page, searchTerm],
     queryFn: () => getUsersPaginated(12, (page - 1) * 12, searchTerm),
     enabled: isAllowed && !!currentUser,
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 5,
   });
+
+  useEffect(() => {
+    if (isAllowed && currentUser && query.data?.totalCount !== undefined) {
+      if (page * 12 < query.data.totalCount) {
+        queryClient.prefetchQuery({
+          queryKey: ['users', page + 1, searchTerm],
+          queryFn: () => getUsersPaginated(12, page * 12, searchTerm),
+          staleTime: 1000 * 60 * 5,
+        });
+      }
+    }
+  }, [page, searchTerm, isAllowed, currentUser, queryClient, query.data?.totalCount]);
+
+  return query;
 }

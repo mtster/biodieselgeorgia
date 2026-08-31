@@ -165,6 +165,9 @@ export async function getContactsPaginated(
   }
 
   const cachedCount = appCache.get<number>(countCacheKey);
+  if (cachedCount !== null && offset >= cachedCount && cachedCount > 0) {
+    return { contacts: [], totalCount: cachedCount };
+  }
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -175,9 +178,26 @@ export async function getContactsPaginated(
         .eq('is_deleted', false);
 
       if (searchTerm.trim()) {
-        const term = `%${searchTerm.trim()}%`;
-        // Search across fields
-        query = query.or(`name.ilike.${term},phone.ilike.${term},position.ilike.${term},email.ilike.${term}`);
+        const rawTerm = searchTerm.trim();
+        const term = `%${rawTerm}%`;
+
+        // Search in vendors as well so user can search by company name, trade name or code
+        let matchedVendorIds: string[] = [];
+        try {
+          const { data: matchedVendors } = await supabase
+            .from('vendors')
+            .select('id')
+            .or(`trade_name.ilike.${term},company_name.ilike.${term},company_code.ilike.${term},id_code.ilike.${term}`);
+          matchedVendorIds = (matchedVendors || []).map(v => v.id).filter(Boolean);
+        } catch {
+          // ignore error in vendor search lookup
+        }
+
+        if (matchedVendorIds.length > 0) {
+          query = query.or(`name.ilike.${term},phone.ilike.${term},position.ilike.${term},email.ilike.${term},note.ilike.${term},vendor_id.in.(${matchedVendorIds.join(',')})`);
+        } else {
+          query = query.or(`name.ilike.${term},phone.ilike.${term},position.ilike.${term},email.ilike.${term},note.ilike.${term}`);
+        }
       }
 
       // Always arrange is_default first, then other contacts descending by sort_order
@@ -187,6 +207,14 @@ export async function getContactsPaginated(
         .range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
+
+      if (error) {
+        if (error.code === 'PGRST103' || error.message?.toLowerCase().includes('satisfiable')) {
+          return { contacts: [], totalCount: cachedCount || 0 };
+        }
+        console.error('Supabase getContactsPaginated error', error);
+      }
+
       if (!error && data) {
         const finalCount = cachedCount !== null ? cachedCount : (count || 0);
         if (cachedCount === null && count !== null) {
@@ -197,17 +225,30 @@ export async function getContactsPaginated(
         const vendorIds = Array.from(new Set((data as any[]).map(item => item.vendor_id).filter(Boolean)));
         const vendorsMap = new Map<string, any>();
         if (vendorIds.length > 0) {
-          const { data: vendorsData } = await supabase
-            .from('vendors')
-            .select('id, trade_name, company_name, company_code, id_code')
-            .in('id', vendorIds);
-          if (vendorsData) {
-            vendorsData.forEach(v => vendorsMap.set(v.id, v));
+          try {
+            const { data: vendorsData } = await supabase
+              .from('vendors')
+              .select('id, trade_name, company_name, company_code, id_code, address, city, district, direction_id')
+              .in('id', vendorIds);
+            if (vendorsData) {
+              vendorsData.forEach(v => {
+                vendorsMap.set(v.id, v);
+                if (v.id) {
+                  vendorsMap.set(String(v.id).toLowerCase().trim(), v);
+                }
+              });
+            }
+          } catch (vErr) {
+            console.warn('Failed to prefetch vendors for contacts page:', vErr);
           }
         }
 
         const mapped = (data as any[]).map(item => {
-          const v = vendorsMap.get(item.vendor_id);
+          const cleanId = item.vendor_id ? String(item.vendor_id).toLowerCase().trim() : '';
+          const v = item.vendor_id ? (vendorsMap.get(item.vendor_id) || (cleanId ? vendorsMap.get(cleanId) : null)) : null;
+          const tradeOrCompName = v ? (v.trade_name || v.company_name || '-') : '-';
+          const compCode = v ? (v.company_code || v.id_code || '-') : '-';
+
           return {
             id: item.id,
             vendor_id: item.vendor_id,
@@ -218,8 +259,9 @@ export async function getContactsPaginated(
             email: item.email,
             is_default: item.is_default,
             sort_order: item.sort_order,
-            company_name: v ? (v.trade_name || v.company_name || '-') : '-',
-            company_code: v ? (v.company_code || v.id_code || '-') : '-',
+            company_name: tradeOrCompName,
+            vendor_name: v?.trade_name || v?.company_name || '',
+            company_code: compCode,
             vendor: v ? decodeVendorCustomFields(v) : undefined
           };
         });
@@ -229,8 +271,6 @@ export async function getContactsPaginated(
         };
         appCache.set(pageCacheKey, result);
         return result;
-      } else if (error) {
-        console.error('Supabase getContactsPaginated error', error);
       }
     } catch (e) {
       console.warn('Supabase getContactsPaginated failed', e);
@@ -242,10 +282,12 @@ export async function getContactsPaginated(
   const localVendors = getLocal<Vendor[]>(KEY_VENDORS, []).filter(v => !v.is_deleted);
   
   const mappedContacts = allContacts.map(c => {
-    const v = localVendors.find(vend => vend.id === c.vendor_id);
+    const cleanId = String(c.vendor_id || '').toLowerCase().trim();
+    const v = localVendors.find(vend => vend.id === c.vendor_id || (vend.id && String(vend.id).toLowerCase().trim() === cleanId));
     return {
       ...c,
       company_name: v ? (v.trade_name || v.company_name || '-') : '-',
+      vendor_name: v?.trade_name || v?.company_name || '',
       company_code: v ? (v.company_code || v.id_code || '-') : '-',
       vendor: v
     };
@@ -336,6 +378,14 @@ export async function getVendorsPaginated(
       query = query.order('trade_name', { ascending: true }).range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
+
+      if (error) {
+        if (error.code === 'PGRST103' || error.message?.toLowerCase().includes('satisfiable')) {
+          return { vendors: [], totalCount: cachedCount || 0 };
+        }
+        console.error('Supabase getVendorsPaginated error', error);
+      }
+
       if (!error && data) {
         const finalCount = cachedCount !== null ? cachedCount : (count || 0);
         if (cachedCount === null && count !== null) {

@@ -96,6 +96,14 @@ export async function getCommunicationsPaginated(
       query = query.order('date_time', { ascending: false }).range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
+
+      if (error) {
+        if (error.code === 'PGRST103' || error.message?.toLowerCase().includes('satisfiable')) {
+          return { communications: [], totalCount: cachedCount || 0 };
+        }
+        console.error('Supabase getCommunicationsPaginated error', error);
+      }
+
       if (!error && data) {
         const finalCount = cachedCount !== null ? cachedCount : (count || 0);
         if (cachedCount === null && count !== null) {
