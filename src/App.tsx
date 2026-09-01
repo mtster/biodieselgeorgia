@@ -242,6 +242,10 @@ export default function App() {
                 onDeleteCommunication={handleCommunicationDelete}
                 initialVendorId={selectedContactVendorId}
                 onClearInitialVendorId={() => setSelectedContactVendorId(undefined)}
+                onNavigateToOrdersWithVendor={(vendorId) => {
+                  setSelectedOrderVendorId(vendorId);
+                  setActiveTab('orders');
+                }}
               />
             )}
 

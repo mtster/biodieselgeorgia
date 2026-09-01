@@ -17,6 +17,7 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactPos, setContactPos] = useState<'director' | 'manager' | 'object_number' | 'accountant' | 'cook' | 'other'>('director');
+  const [contactIsActive, setContactIsActive] = useState(true);
   const [contactNote, setContactNote] = useState('');
   const [contactEmail, setContactEmail] = useState('');
 
@@ -26,12 +27,14 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
         setContactName(activeContact.name);
         setContactPhone(activeContact.phone);
         setContactPos(activeContact.position || 'director');
+        setContactIsActive(activeContact.is_active !== false);
         setContactNote(activeContact.note || '');
         setContactEmail(activeContact.email || '');
       } else {
         setContactName('');
         setContactPhone('');
         setContactPos('director');
+        setContactIsActive(true);
         setContactNote('');
         setContactEmail('');
       }
@@ -133,6 +136,7 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
       name: contactName,
       phone: contactPhone,
       position: contactPos,
+      is_active: contactIsActive,
       note: contactNote,
       email: contactEmail
     });
@@ -186,6 +190,14 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           <option value="accountant">{t("Accountant")}</option>
           <option value="cook">{t("Cook")}</option>
           <option value="other">{t("Other Position")}</option>
+        </FormSelect>
+        <FormSelect
+          label="სტატუსი"
+          value={contactIsActive ? 'active' : 'inactive'}
+          onChange={(e) => setContactIsActive(e.target.value === 'active')}
+        >
+          <option value="active">აქტიური</option>
+          <option value="inactive">არააქტიური</option>
         </FormSelect>
         <FormInput
           label={t("Short Note (e.g. call instructions)")}

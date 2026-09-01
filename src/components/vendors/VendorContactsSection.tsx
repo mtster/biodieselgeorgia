@@ -40,6 +40,17 @@ export default function VendorContactsSection({
     setDraggedIndex(null);
   };
 
+  const formatPosition = (pos?: string) => {
+    if (!pos) return '';
+    if (pos === 'other' || pos === 'Other' || pos === 'Other Position') return t('Other Position');
+    if (pos === 'director') return t('Director/Owner');
+    if (pos === 'manager') return t('Manager');
+    if (pos === 'object_number') return t('Object Number');
+    if (pos === 'accountant') return t('Accountant');
+    if (pos === 'cook') return t('Cook');
+    return t(pos) || pos;
+  };
+
   return (
     <div className={`bg-white p-5 border ${error ? 'border-red-500' : 'border-gray-100'} rounded-2xl flex flex-col justify-between`} id="vendor-extra-contacts">
       <div>
@@ -60,6 +71,7 @@ export default function VendorContactsSection({
         <div className="space-y-2.5 max-h-[224px] overflow-y-auto pr-1">
           {contacts.map((c, index) => {
             const isDraggable = !c.is_default;
+            const isInactive = c.is_active === false;
             return (
               <div
                 key={c.id}
@@ -83,9 +95,14 @@ export default function VendorContactsSection({
                     <span className="font-extrabold text-gray-800 truncate flex-1 min-w-0">
                       {c.name}
                     </span>
-                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold truncate shrink min-w-[5ch]" title={t(c.position)}>
-                      {t(c.position)}
+                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold truncate shrink min-w-[5ch]" title={formatPosition(c.position)}>
+                      {formatPosition(c.position)}
                     </span>
+                    {isInactive && (
+                      <span className="text-[9.5px] bg-amber-50 text-amber-700 border border-amber-200/60 font-semibold px-1.5 py-0.5 rounded-md shrink-0">
+                        {t("Inactive")}
+                      </span>
+                    )}
                     <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-1 shrink-0">
                       <Phone size={10} /> {c.phone}
                     </span>

@@ -17,6 +17,7 @@ interface CommunicationFormModalProps {
   onSave: (finalComm: Communication) => void;
   onSaveAndOrder?: (finalComm: Communication, vendorId: string) => void;
   onDelete?: () => void;
+  canAddOrder?: boolean;
 }
 
 export default function CommunicationFormModal({
@@ -28,7 +29,8 @@ export default function CommunicationFormModal({
   suppliers,
   onSave,
   onSaveAndOrder,
-  onDelete
+  onDelete,
+  canAddOrder = true
 }: CommunicationFormModalProps) {
   const [localComm, setLocalComm] = useState<Communication | null>(null);
   const [vendorSearch, setVendorSearch] = useState('');
@@ -301,11 +303,11 @@ export default function CommunicationFormModal({
       title={isNew ? t('New Communication') : t('Edit Communication')}
       maxWidthClass="max-w-md"
       hideCancel={true}
-      leftAction={{
+      leftAction={canAddOrder ? {
         label: t("Add and Order"),
         onClick: handleSaveAndOrder,
         className: "px-4 py-2 border border-emerald-700 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 font-bold rounded-lg text-xs transition cursor-pointer select-none"
-      }}
+      } : undefined}
       onSave={handleSaveLocal}
       saveLabel={isNew ? t('Add Communication') : t('Save Communication')}
       onDelete={!isNew ? onDelete : undefined}

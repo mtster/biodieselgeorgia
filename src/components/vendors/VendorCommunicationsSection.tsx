@@ -135,7 +135,13 @@ export default function VendorCommunicationsSection({
     }
   ];
 
-  const filteredComms = communications.filter(c => c.vendor_id === editingVendor.id && !c.is_deleted);
+  const cleanVendorId = String(editingVendor.id || '').trim().toLowerCase();
+  const filteredComms = communications.filter(c => {
+    if (c.is_deleted) return false;
+    if (c.vendor_id === editingVendor.id) return true;
+    if (cleanVendorId && String(c.vendor_id || '').trim().toLowerCase() === cleanVendorId) return true;
+    return false;
+  });
 
   return (
     <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between">

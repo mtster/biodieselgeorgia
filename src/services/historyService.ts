@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { ChangeHistory, User, Vendor, Order, Vehicle, Warehouse, City, District } from '../types';
 import { KEY_CHANGE_HISTORY, getLocal, setLocal } from './localStorage';
 import { appCache } from '../utils/cache';
+import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
 
 // We import services for revert operations
 import { deleteUser } from './userService';
@@ -104,8 +105,9 @@ export async function getChangeHistoryPaginated(
         query = query.eq('field_name', selectedField);
       }
 
-      if (searchTerm && searchTerm.trim()) {
-        const term = `%${searchTerm.trim()}%`;
+      const safeTerm = sanitizePostgrestSearchTerm(searchTerm);
+      if (safeTerm) {
+        const term = `%${safeTerm}%`;
         query = query.or(`employee_name.ilike.${term},operation.ilike.${term},field_name.ilike.${term},old_value.ilike.${term},new_value.ilike.${term}`);
       }
 

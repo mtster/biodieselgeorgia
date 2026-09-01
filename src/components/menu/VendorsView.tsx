@@ -58,18 +58,21 @@ interface Props {
   onDeleteCommunication?: (id: string) => Promise<void> | void;
   initialVendorId?: string;
   onClearInitialVendorId?: () => void;
+  onNavigateToOrdersWithVendor?: (vendorId: string) => void;
 }
 
 export default function VendorsView({ 
   vendors, warehouses, users, cities, districts, directions,
   currentUser, onSave, onDelete,
   communications = [], onSaveCommunication, onDeleteCommunication,
-  initialVendorId, onClearInitialVendorId
+  initialVendorId, onClearInitialVendorId,
+  onNavigateToOrdersWithVendor
 }: Props) {
 
   const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('add');
   const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('modify');
   const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('delete');
+  const canAddOrder = currentUser?.role === 'admin' || currentUser?.permissions?.['orders']?.includes('add');
 
   const {
     searchTerm,
@@ -177,7 +180,7 @@ export default function VendorsView({
   const [deleteConfirmName, setDeleteConfirmName] = useState<string | null>(null);
 
   // Action triggers for child forms
-  const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
+  const formRef = useRef<{ save: () => void; fillDummy: () => void; saveAndOrder?: (onSuccess?: (savedVendorId: string) => void) => void }>(null);
   
   const scrollMainToTop = () => {
     setTimeout(() => {
@@ -276,10 +279,33 @@ export default function VendorsView({
     setDeleteConfirmName(null);
   };
 
+  const handleSaveAndOrder = () => {
+    if (isFormSaving) return;
+    if (formRef.current?.saveAndOrder) {
+      formRef.current.saveAndOrder((savedVendorId) => {
+        handleCloseForm();
+        if (onNavigateToOrdersWithVendor && savedVendorId) {
+          onNavigateToOrdersWithVendor(savedVendorId);
+        }
+      });
+    }
+  };
+
   const headerActions = (
     <>
       {editingVendor ? (
         <>
+          {canAddOrder && (
+            <button
+              id="btn-vendor-save-and-order"
+              type="button"
+              onClick={handleSaveAndOrder}
+              disabled={isFormSaving}
+              className={`px-4 py-2 border border-emerald-700 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 font-bold rounded-lg text-xs transition cursor-pointer select-none inline-flex items-center gap-1.5 ${isFormSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              {t("Save and Order")}
+            </button>
+          )}
           {isNew && (
             <button 
               onClick={() => formRef.current?.fillDummy()}
@@ -395,7 +421,7 @@ export default function VendorsView({
               <input
                 id="vendors-search-input-standalone"
                 type="text"
-                placeholder={t("Search suppliers by trade name, legal entity, or registered taxation ID coordinates...")}
+                placeholder="ძებნა მომწოდებლის დასახელებით, იურიდიული პირით, ს/კ, მისამართით, შიდა კოდით ან კონტაქტის ნომრით..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => {

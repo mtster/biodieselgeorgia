@@ -173,12 +173,20 @@ export default function OrdersView({
 
   useEffect(() => {
     if (initialVendorId) {
+      const cleanVId = String(initialVendorId).trim().toLowerCase();
+      const suppObj = suppliers.find(s => s.id === initialVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
+      const suppName = suppObj ? (suppObj.trade_name || suppObj.company_name || '') : '';
+
       const defaultOrder: Order = {
         id: '',
         order_date: new Date().toISOString().substring(0, 10),
         doc_number: 'DOC-' + Math.floor(100000 + Math.random() * 900000),
         vendor_id: initialVendorId,
-        warehouse_id: '',
+        vendor_name: suppName,
+        warehouse_id: suppObj?.warehouse_id || '',
+        city: suppObj?.city || '',
+        district: suppObj?.district || '',
+        address: suppObj?.address || '',
         note: '',
         qty_requested: undefined as any,
         fact_qty: undefined,
@@ -201,7 +209,7 @@ export default function OrdersView({
         onClearInitialVendorId();
       }
     }
-  }, [initialVendorId, currentEmployee.id]);
+  }, [initialVendorId, currentEmployee.id, suppliers, onClearInitialVendorId]);
 
   const startNew = () => {
     const defaultOrder: Order = {

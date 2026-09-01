@@ -5,6 +5,7 @@ import {
   Warehouse, User, City, District, Communication, Direction 
 } from '../../types';
 import { saveUser } from '../../services/userService';
+import { getVendorContacts } from '../../services/vendorService';
 
 function getCleanUsername(u: string | undefined): string {
   if (!u) return '';
@@ -48,9 +49,9 @@ interface Props {
   districts: District[];
   directions: Direction[];
   currentUser: User;
-  onSave: (vendor: Vendor) => void;
+  onSave: (vendor: Vendor) => Promise<any> | void;
   onCancel: () => void;
-  formRef?: React.RefObject<{ save: () => void; fillDummy: () => void }>;
+  formRef?: React.RefObject<{ save: () => void; fillDummy: () => void; saveAndOrder?: (onSuccess?: (savedVendorId: string) => void) => void }>;
   isReadOnly?: boolean;
 
   communications?: Communication[];
@@ -86,9 +87,25 @@ export default function VendorForm({
   const [usernameInput, setUsernameInput] = useState(() => getCleanUsername(editingVendor.username));
   const [passwordInput, setPasswordInput] = useState('');
 
+  // Initial snapshot to detect whether any data was modified before saving
+  const initialSnapshotRef = React.useRef<{
+    vendor: Vendor;
+    username: string;
+    contacts: VendorContact[];
+  }>({
+    vendor: JSON.parse(JSON.stringify(editingVendor)),
+    username: getCleanUsername(editingVendor.username),
+    contacts: editingVendor.contacts ? JSON.parse(JSON.stringify(editingVendor.contacts)) : []
+  });
+
   useEffect(() => {
     setUsernameInput(getCleanUsername(editingVendor.username));
     setPasswordInput('');
+    initialSnapshotRef.current = {
+      vendor: JSON.parse(JSON.stringify(editingVendor)),
+      username: getCleanUsername(editingVendor.username),
+      contacts: editingVendor.contacts ? JSON.parse(JSON.stringify(editingVendor.contacts)) : []
+    };
   }, [editingVendor.id, editingVendor.username]);
 
   // Contacts helper states
@@ -108,7 +125,28 @@ export default function VendorForm({
 
   // Initialize contacts list
   useEffect(() => {
-    setTempContacts(editingVendor.contacts || []);
+    let isMounted = true;
+    if (editingVendor.contacts && editingVendor.contacts.length > 0) {
+      setTempContacts(editingVendor.contacts);
+    } else {
+      setTempContacts([]);
+    }
+
+    if (editingVendor.id) {
+      getVendorContacts(editingVendor.id).then(contacts => {
+        if (isMounted && contacts && contacts.length > 0) {
+          setTempContacts(contacts);
+          initialSnapshotRef.current.contacts = JSON.parse(JSON.stringify(contacts));
+          setEditingVendor(prev => prev ? { ...prev, contacts } : prev);
+        }
+      }).catch(err => {
+        console.warn('Failed to load contacts for vendor:', err);
+      });
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [editingVendor.id]);
 
   useEffect(() => {
@@ -122,8 +160,9 @@ export default function VendorForm({
   }, [tempContacts]);
 
   React.useImperativeHandle(formRef, () => ({
-    save: handleSaveAll,
-    fillDummy: fillDummyData
+    save: () => handleSaveAll(),
+    fillDummy: fillDummyData,
+    saveAndOrder: (onSuccess?: (savedVendorId: string) => void) => handleSaveAll(onSuccess)
   }));
 
   // Contacts Actions
@@ -143,6 +182,8 @@ export default function VendorForm({
         phone: contactData.phone || '',
         position: contactData.position as any,
         note: contactData.note,
+        email: contactData.email,
+        is_active: contactData.is_active !== undefined ? contactData.is_active : true,
         is_default: isFirst
       };
       setTempContacts([...tempContacts, newContact]);
@@ -213,7 +254,73 @@ export default function VendorForm({
     }
   };
 
-  const handleSaveAll = async () => {
+  const hasVendorChanges = (): boolean => {
+    // If it's a new vendor without an ID, saving is always required
+    if (!editingVendor.id) return true;
+
+    // Check account changes
+    if (passwordInput.trim() !== '') return true;
+    if (usernameInput.trim() !== initialSnapshotRef.current.username.trim()) return true;
+
+    const initV = initialSnapshotRef.current.vendor;
+
+    // Compare scalar fields
+    const fieldsToCompare: (keyof Vendor)[] = [
+      'trade_name', 'company_name', 'id_code', 'company_code',
+      'city', 'district', 'address', 'warehouse_id', 'direction_id',
+      'manager_id', 'operator_id', 'bank_account',
+      'working_hours', 'planned_weekday'
+    ];
+
+    for (const f of fieldsToCompare) {
+      const v1 = (editingVendor[f] ?? '').toString().trim();
+      const v2 = (initV[f] ?? '').toString().trim();
+      if (v1 !== v2) return true;
+    }
+
+    // Compare numeric and boolean values
+    if (Number(editingVendor.price_per_liter || 0) !== Number(initV.price_per_liter || 0)) return true;
+    if (Number(editingVendor.overdue_threshold_days || 0) !== Number(initV.overdue_threshold_days || 0)) return true;
+    if (Boolean(editingVendor.is_active ?? true) !== Boolean(initV.is_active ?? true)) return true;
+    if (Boolean(editingVendor.is_planned) !== Boolean(initV.is_planned)) return true;
+
+    // Compare custom fields
+    const allKeys = Array.from(new Set([...Object.keys(editingVendor), ...Object.keys(initV)]));
+    for (const k of allKeys) {
+      if (k.startsWith('custom_')) {
+        if ((editingVendor as any)[k] !== (initV as any)[k]) return true;
+      }
+    }
+
+    // Compare comments
+    const initComments = JSON.stringify(initV.comments || []);
+    const currComments = JSON.stringify(editingVendor.comments || []);
+    if (initComments !== currComments) return true;
+
+    // Compare contacts
+    const initContacts = initialSnapshotRef.current.contacts || [];
+    if (tempContacts.length !== initContacts.length) return true;
+
+    for (let i = 0; i < tempContacts.length; i++) {
+      const tc = tempContacts[i];
+      if (tc.id.startsWith('cont-') || tc.id.startsWith('main-cont-')) return true;
+
+      const matchedInit = initContacts.find(c => c.id === tc.id);
+      if (!matchedInit) return true;
+
+      if ((tc.name || '').trim() !== (matchedInit.name || '').trim()) return true;
+      if ((tc.phone || '').trim() !== (matchedInit.phone || '').trim()) return true;
+      if ((tc.position || '').toString() !== (matchedInit.position || '').toString()) return true;
+      if ((tc.email || '').trim() !== (matchedInit.email || '').trim()) return true;
+      if ((tc.note || '').trim() !== (matchedInit.note || '').trim()) return true;
+      if (Boolean(tc.is_active ?? true) !== Boolean(matchedInit.is_active ?? true)) return true;
+      if (Boolean(tc.is_default) !== Boolean(matchedInit.is_default)) return true;
+    }
+
+    return false;
+  };
+
+  const handleSaveAll = async (onSuccessCallback?: (savedVendorId: string) => void) => {
     const errs: Record<string, string> = {};
 
     if (!editingVendor.trade_name || !editingVendor.trade_name.trim()) {
@@ -259,6 +366,19 @@ export default function VendorForm({
     }
 
     setFieldErrors({});
+
+    // If no changes were made to an existing supplier, do NOT send unnecessary DB update request
+    if (!hasVendorChanges()) {
+      onSavingStateChange?.(false);
+      if (onSuccessCallback) {
+        // Direct transition on "Save and Order" without network delay
+        onSuccessCallback(editingVendor.id);
+      } else {
+        // Direct close on "Save"
+        onCancel();
+      }
+      return;
+    }
 
     const executeSave = async () => {
       onSavingStateChange?.(true);
@@ -312,10 +432,15 @@ export default function VendorForm({
       };
 
       try {
-        await onSave(payload);
+        const savedRes = await onSave(payload);
+        const finalSavedId = (savedRes && (savedRes as any).id) || payload.id || editingVendor.id;
         onSavingStateChange?.(false);
-        // On success, close the form in the UI
-        onCancel();
+        if (onSuccessCallback) {
+          onSuccessCallback(finalSavedId);
+        } else {
+          // On success, close the form in the UI
+          onCancel();
+        }
       } catch (e: any) {
         onSavingStateChange?.(false);
         console.error('Error saving supplier:', e);

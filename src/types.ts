@@ -35,6 +35,7 @@ export interface VendorContact {
   note?: string;
   email?: string;
   is_default: boolean;
+  is_active?: boolean;
   sort_order?: number;
   is_deleted?: boolean;
   created_at?: string;

@@ -1,9 +1,10 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Communication } from '../types';
 import { trackChange } from './historyService';
-import { KEY_COMMUNICATIONS, getLocal, setLocal } from './localStorage';
+import { KEY_COMMUNICATIONS, KEY_VENDORS, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
 import { appCache } from '../utils/cache';
+import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
 import { generateUuid, cleanUserUuid } from './vendorService';
 
 export { KEY_COMMUNICATIONS };
@@ -47,17 +48,22 @@ export async function getCommunicationsPaginated(
         .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
-      if (filters?.searchTerm?.trim()) {
-        const rawTerm = filters.searchTerm.trim();
-        const term = `%${rawTerm}%`;
+      const safeTerm = sanitizePostgrestSearchTerm(filters?.searchTerm);
+      if (safeTerm) {
+        const term = `%${safeTerm}%`;
 
-        const { data: matchedVendors } = await supabase
-          .from('vendors')
-          .select('id')
-          .or(`trade_name.ilike.${term},company_name.ilike.${term}`)
-          .eq('is_deleted', false);
+        let matchedVendorIds: string[] = [];
+        try {
+          const { data: matchedVendors } = await supabase
+            .from('vendors')
+            .select('id')
+            .or(`trade_name.ilike.${term},company_name.ilike.${term}`)
+            .eq('is_deleted', false);
 
-        const matchedVendorIds = (matchedVendors || []).map(v => v.id);
+          matchedVendorIds = (matchedVendors || []).map(v => v.id);
+        } catch (mErr) {
+          console.warn('Matching vendors search in communications error:', mErr);
+        }
 
         if (matchedVendorIds.length > 0) {
           query = query.or(`comment.ilike.${term},vendor_id.in.(${matchedVendorIds.join(',')})`);
@@ -87,10 +93,12 @@ export async function getCommunicationsPaginated(
         }
       }
       if (filters?.startDate) {
-        query = query.gte('date_time', `${filters.startDate}T00:00:00`);
+        const cleanStart = filters.startDate.split('T')[0];
+        query = query.gte('date_time', `${cleanStart}T00:00:00`);
       }
       if (filters?.endDate) {
-        query = query.lte('date_time', `${filters.endDate}T23:59:59`);
+        const cleanEnd = filters.endDate.split('T')[0];
+        query = query.lte('date_time', `${cleanEnd}T23:59:59.999Z`);
       }
 
       query = query.order('date_time', { ascending: false }).range(offset, offset + limit - 1);
@@ -136,7 +144,7 @@ export async function getCommunicationsPaginated(
   }
 
   const all = getLocal<Communication[]>(KEY_COMMUNICATIONS, []).filter(c => !c.is_deleted);
-  const localVendors = getLocal<any[]>('biodiesel_vendors', []);
+  const localVendors = getLocal<any[]>(KEY_VENDORS, []);
   const vendorMap = new Map(localVendors.map(v => [v.id, v]));
 
   let filtered = all.map(c => {
@@ -180,10 +188,20 @@ export async function getCommunicationsPaginated(
     }
   }
   if (filters?.startDate) {
-    filtered = filtered.filter(c => c.date_time >= `${filters.startDate}T00:00:00`);
+    const sDate = filters.startDate.split('T')[0];
+    filtered = filtered.filter(c => {
+      if (!c.date_time) return false;
+      const d = c.date_time.split('T')[0].split(' ')[0];
+      return d >= sDate;
+    });
   }
   if (filters?.endDate) {
-    filtered = filtered.filter(c => c.date_time <= `${filters.endDate}T23:59:59`);
+    const eDate = filters.endDate.split('T')[0];
+    filtered = filtered.filter(c => {
+      if (!c.date_time) return false;
+      const d = c.date_time.split('T')[0].split(' ')[0];
+      return d <= eDate;
+    });
   }
 
   return {
@@ -228,11 +246,8 @@ export async function getCommunications(): Promise<Communication[]> {
 
 export async function saveCommunication(comm: Communication, loggerName: string, currentUserId?: string): Promise<Communication> {
   const isNew = !comm.id;
-  const createdBy = isNew 
-    ? (comm.created_by || currentUserId || comm.responsible_user_id || comm.user_id) 
-    : (comm.created_by || currentUserId || comm.responsible_user_id || comm.user_id);
-  const cleanCreatedBy = cleanUserUuid(createdBy) || createdBy;
-  const cleanResponsibleId = cleanUserUuid(comm.responsible_user_id || comm.user_id) || cleanCreatedBy;
+  const createdBy = comm.created_by || currentUserId || comm.responsible_user_id || comm.user_id || 'System';
+  const respUserId = comm.responsible_user_id || comm.user_id || createdBy;
 
   const isCompleted = typeof comm.is_completed === 'boolean' 
     ? comm.is_completed 
@@ -241,11 +256,11 @@ export async function saveCommunication(comm: Communication, loggerName: string,
   const finalComm: Communication = {
     ...comm,
     id: isNew ? generateUuid() : comm.id,
-    responsible_user_id: cleanResponsibleId || undefined,
-    user_id: cleanResponsibleId || undefined,
+    responsible_user_id: respUserId,
+    user_id: respUserId,
     is_completed: isCompleted,
     task_status: isCompleted ? 'completed' : 'pending',
-    created_by: cleanCreatedBy || comm.created_by || currentUserId || createdBy
+    created_by: createdBy
   };
 
   if (isSupabaseConfigured && supabase) {
@@ -261,11 +276,11 @@ export async function saveCommunication(comm: Communication, loggerName: string,
         ...dbComm 
       } = finalComm as any;
 
-      // Sanitize UUID fields so empty or non-valid UUID strings are null
-      dbComm.vendor_id = isValidUuid(dbComm.vendor_id) ? dbComm.vendor_id : null;
-      dbComm.vendor_contact_id = isValidUuid(dbComm.vendor_contact_id) ? dbComm.vendor_contact_id : null;
-      dbComm.created_by = isValidUuid(cleanCreatedBy) ? cleanCreatedBy : null;
-      dbComm.responsible_user_id = isValidUuid(cleanResponsibleId) ? cleanResponsibleId : (dbComm.created_by || null);
+      // Keep vendor_id and vendor_contact_id as strings (or null if empty)
+      dbComm.vendor_id = dbComm.vendor_id && String(dbComm.vendor_id).trim() ? String(dbComm.vendor_id).trim() : null;
+      dbComm.vendor_contact_id = dbComm.vendor_contact_id && String(dbComm.vendor_contact_id).trim() ? String(dbComm.vendor_contact_id).trim() : null;
+      dbComm.created_by = cleanUserUuid(createdBy) || createdBy || null;
+      dbComm.responsible_user_id = cleanUserUuid(respUserId) || respUserId || null;
       dbComm.is_completed = Boolean(isCompleted);
 
       // Clean out any non-existent columns from Supabase schema
@@ -300,7 +315,7 @@ export async function saveCommunication(comm: Communication, loggerName: string,
 
   // Clear query cache and broadcast change
   appCache.clear();
-  notifyDbChange('vendor_communications', isNew ? 'CREATE' : 'UPDATE', finalComm.id);
+  notifyDbChange('communications', isNew ? 'CREATE' : 'UPDATE', finalComm.id);
   return finalComm;
 }
 
@@ -317,6 +332,6 @@ export async function deleteCommunication(id: string, loggerName: string): Promi
   setLocal(KEY_COMMUNICATIONS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Communication deleted', 'ID', id, '');
   appCache.clear();
-  notifyDbChange('vendor_communications', 'DELETE', id);
+  notifyDbChange('communications', 'DELETE', id);
   return true;
 }

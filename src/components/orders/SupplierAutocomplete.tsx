@@ -48,18 +48,31 @@ export default function SupplierAutocomplete({
     };
   }, [setShowVendorSuggestions]);
 
+  // Sync vendorSearch if selectedVendorId is set but vendorSearch is empty
+  useEffect(() => {
+    if (selectedVendorId && !vendorSearch) {
+      const cleanVId = String(selectedVendorId).trim().toLowerCase();
+      const v = suppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
+      if (v) {
+        setVendorSearch(v.trade_name || v.company_name || '');
+      }
+    }
+  }, [selectedVendorId, suppliers, vendorSearch, setVendorSearch]);
+
   // Identify currently matched / selected vendor to display the pale address badge
   const matchedVendor = useMemo(() => {
-    const term = vendorSearch.trim();
-    if (!term) return null;
+    const term = vendorSearch.trim().toLowerCase();
     if (selectedVendorId) {
-      const v = suppliers.find((s) => s.id === selectedVendorId) || remoteSuppliers.find((s) => s.id === selectedVendorId);
-      if (v && (v.trade_name?.trim() === term || v.company_name?.trim() === term)) {
+      const cleanVId = String(selectedVendorId).trim().toLowerCase();
+      const v = suppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId)) || 
+                remoteSuppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
+      if (v) {
         return v;
       }
     }
-    // Check if vendorSearch exactly matches a supplier name
-    return suppliers.find((s) => s.trade_name?.trim() === term || s.company_name?.trim() === term) || null;
+    if (!term) return null;
+    // Check if vendorSearch matches a supplier name
+    return suppliers.find((s) => (s.trade_name?.trim().toLowerCase() === term || s.company_name?.trim().toLowerCase() === term)) || null;
   }, [suppliers, remoteSuppliers, vendorSearch, selectedVendorId]);
 
   const selectedAddress = matchedVendor?.address || '';
@@ -73,6 +86,18 @@ export default function SupplierAutocomplete({
       setRemoteSuppliers([]);
       setIsSearching(false);
       return;
+    }
+
+    // If currently matched vendor already has this exact name, skip redundant remote network call
+    if (matchedVendor) {
+      const matchTrade = (matchedVendor.trade_name || '').trim().toLowerCase();
+      const matchComp = (matchedVendor.company_name || '').trim().toLowerCase();
+      const termLower = term.toLowerCase();
+      if (termLower === matchTrade || termLower === matchComp) {
+        setRemoteSuppliers([]);
+        setIsSearching(false);
+        return;
+      }
     }
 
     setIsSearching(true);
@@ -93,7 +118,7 @@ export default function SupplierAutocomplete({
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, showVendorSuggestions]);
+  }, [debouncedSearch, showVendorSuggestions, matchedVendor]);
 
   // Combine and deduplicate local suppliers and remote fetched suppliers with instant reactivity on vendorSearch
   const filteredSuggestions = useMemo(() => {

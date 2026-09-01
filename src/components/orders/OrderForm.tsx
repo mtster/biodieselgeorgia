@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Order, Vendor, Warehouse, User, Truck, OrderStatus } from '../../types';
 import OrderFormFields from './OrderFormFields';
 import { t } from '../../utils/lang';
+import { getVendorById } from '../../lib/db';
 
 interface Props {
   editingOrder: Order;
@@ -47,12 +48,31 @@ export default function OrderForm({
       setVendorSearch('');
       return;
     }
-    const vendorObj = suppliers.find(s => s.id === editingOrder.vendor_id);
+    const cleanVendorId = String(editingOrder.vendor_id).trim().toLowerCase();
+    const vendorObj = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
     if (vendorObj) {
       const name = vendorObj.trade_name || vendorObj.company_name || '';
       setVendorSearch(name);
+      if (!editingOrder.vendor_name) {
+        setEditingOrder(prev => prev ? { ...prev, vendor_name: name } : null);
+      }
     } else if (editingOrder.vendor_name) {
       setVendorSearch(editingOrder.vendor_name);
+    } else {
+      getVendorById(editingOrder.vendor_id).then(v => {
+        if (v) {
+          const name = v.trade_name || v.company_name || '';
+          setVendorSearch(name);
+          setEditingOrder(prev => prev ? { 
+            ...prev, 
+            vendor_name: name,
+            address: prev.address || v.address,
+            city: prev.city || v.city,
+            district: prev.district || v.district,
+            warehouse_id: prev.warehouse_id || v.warehouse_id
+          } : null);
+        }
+      });
     }
   }, [editingOrder.vendor_id, suppliers]);
 

@@ -11,14 +11,14 @@ import { StandardTable, ColumnConfig } from '../StandardTable';
 import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
 import VendorForm from '../vendors/VendorForm';
-import { getVendorContacts } from '../../services/vendorService';
+import { getVendorContacts, getVendorById } from '../../services/vendorService';
 import { usePaginatedContacts } from '../../hooks/usePaginatedModuleQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 interface ContactsViewProps {
   vendors: Vendor[];
-  onSaveVendor: (vendor: Vendor) => void | Promise<void>;
+  onSaveVendor: (vendor: Vendor) => Promise<any> | void;
   onContactClick: (vendorId: string) => void;
 
   // Needed for rendering VendorForm inline
@@ -252,6 +252,7 @@ export default function ContactsView({
       position: contactPos,
       note: contactNote.trim() || undefined,
       email: contactEmail.trim() || undefined,
+      is_active: true,
       is_default: (targetVendor.contacts || []).length === 0
     };
 
@@ -437,9 +438,20 @@ export default function ContactsView({
           <StandardTable
             data={contactsList}
             columns={columns}
-            onRowClick={(row) => {
-              const matchedVendor = findSupplier(row.vendor_id) || row.vendor;
+            onRowClick={async (row) => {
+              let matchedVendor = findSupplier(row.vendor_id) || row.vendor;
+              if (!matchedVendor && row.vendor_id) {
+                matchedVendor = await getVendorById(row.vendor_id);
+              }
               if (matchedVendor) {
+                if (!matchedVendor.contacts || matchedVendor.contacts.length === 0) {
+                  try {
+                    const contacts = await getVendorContacts(matchedVendor.id);
+                    matchedVendor = { ...matchedVendor, contacts: contacts || [] };
+                  } catch {
+                    // ignore
+                  }
+                }
                 setSelectedVendorForForm(matchedVendor);
               }
             }}

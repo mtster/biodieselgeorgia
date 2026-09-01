@@ -4,6 +4,7 @@ import { trackChange } from './historyService';
 import { KEY_ORDERS, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
 import { appCache } from '../utils/cache';
+import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
 import { generateUuid, cleanUserUuid } from './vendorService';
 
 export { KEY_ORDERS };
@@ -49,18 +50,23 @@ export async function getOrdersPaginated(
         .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
-      if (filters?.searchTerm?.trim()) {
-        const rawTerm = filters.searchTerm.trim();
-        const term = `%${rawTerm}%`;
+      const safeTerm = sanitizePostgrestSearchTerm(filters?.searchTerm);
+      if (safeTerm) {
+        const term = `%${safeTerm}%`;
         
         // Find matching vendor IDs by trade_name or company_name
-        const { data: matchedVendors } = await supabase
-          .from('vendors')
-          .select('id')
-          .or(`trade_name.ilike.${term},company_name.ilike.${term}`)
-          .eq('is_deleted', false);
+        let matchedVendorIds: string[] = [];
+        try {
+          const { data: matchedVendors } = await supabase
+            .from('vendors')
+            .select('id')
+            .or(`trade_name.ilike.${term},company_name.ilike.${term}`)
+            .eq('is_deleted', false);
 
-        const matchedVendorIds = (matchedVendors || []).map(v => v.id);
+          matchedVendorIds = (matchedVendors || []).map(v => v.id);
+        } catch (mErr) {
+          console.warn('Matching vendors search error:', mErr);
+        }
 
         if (matchedVendorIds.length > 0) {
           query = query.or(`doc_number.ilike.${term},vendor_id.in.(${matchedVendorIds.join(',')})`);

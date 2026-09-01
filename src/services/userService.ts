@@ -5,6 +5,7 @@ import { isSupabaseConfigured, supabase } from '../lib/db';
 import { defaultPermissions } from '../components/users/UserForm';
 import { notifyDbChange } from '../lib/realtime';
 import { appCache } from '../utils/cache';
+import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
 
 export { KEY_USERS };
 
@@ -71,8 +72,9 @@ export async function getUsersPaginated(
         .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
-      if (searchTerm?.trim()) {
-        const term = `%${searchTerm.trim()}%`;
+      const safeTerm = sanitizePostgrestSearchTerm(searchTerm);
+      if (safeTerm) {
+        const term = `%${safeTerm}%`;
         query = query.or(`name.ilike.${term},email.ilike.${term},personal_id.ilike.${term}`);
       }
 

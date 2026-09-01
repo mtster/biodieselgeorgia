@@ -244,6 +244,7 @@ CREATE TABLE IF NOT EXISTS public.vendor_contacts (
     note TEXT,
     email TEXT,
     is_default BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
     sort_order INT DEFAULT 1,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_by TEXT DEFAULT NULL,
@@ -252,6 +253,7 @@ CREATE TABLE IF NOT EXISTS public.vendor_contacts (
 
 -- Apply non-destructive updates to public.vendor_contacts table if it pre-exists
 ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
 ALTER TABLE public.vendor_contacts ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 
@@ -742,6 +744,8 @@ CREATE INDEX IF NOT EXISTS idx_vendor_contacts_is_deleted ON public.vendor_conta
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_sort_order ON public.vendor_contacts (sort_order);
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_name ON public.vendor_contacts (name);
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_phone ON public.vendor_contacts (phone);
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_active_phone ON public.vendor_contacts (phone) WHERE is_deleted = false AND is_active = true;
+CREATE INDEX IF NOT EXISTS idx_vendor_contacts_vendor_active ON public.vendor_contacts (vendor_id, is_active, is_deleted);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at_desc ON public.orders (created_at DESC) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_communications_date_time_desc ON public.communications (date_time DESC) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_default_sort ON public.vendor_contacts (is_default DESC, sort_order DESC) WHERE is_deleted = false;

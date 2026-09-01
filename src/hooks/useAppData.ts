@@ -157,8 +157,9 @@ export function useAppData() {
 
   const handleVendorSave = async (vnd: Vendor) => {
     try {
-      await saveVendor(vnd, currentUser?.name || 'System', currentUser?.id);
+      const saved = await saveVendor(vnd, currentUser?.name || 'System', currentUser?.id);
       await refreshAllData();
+      return saved;
     } catch (e: any) {
       console.error('Error saving supplier:', e);
       setErrorModal({
@@ -166,6 +167,7 @@ export function useAppData() {
         title: 'Supplier Save Error',
         errorMsg: e.message || 'Check connection / permissions.'
       });
+      return null;
     }
   };
 

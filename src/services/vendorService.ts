@@ -4,6 +4,7 @@ import { trackChange } from './historyService';
 import { KEY_VENDORS, getLocal, setLocal } from './localStorage';
 import { appCache } from '../utils/cache';
 import { notifyDbChange } from '../lib/realtime';
+import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
 
 export { KEY_VENDORS };
 
@@ -116,6 +117,7 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
           note: c.note || '',
           email: c.email || '',
           is_default: !!c.is_default,
+          is_active: c.is_active !== false,
           sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1),
           created_by: cleanUserUuid(c.created_by || currentUserId) || null,
           is_deleted: false
@@ -139,6 +141,7 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
   const updatedPayloads = contacts.map((c, idx) => ({
     ...c,
     vendor_id: vendorId,
+    is_active: c.is_active !== false,
     sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1)
   }));
   setLocal('local_vendor_contacts', [...otherContacts, ...updatedPayloads]);
@@ -177,9 +180,9 @@ export async function getContactsPaginated(
         .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
-      if (searchTerm.trim()) {
-        const rawTerm = searchTerm.trim();
-        const term = `%${rawTerm}%`;
+      const safeSearch = sanitizePostgrestSearchTerm(searchTerm);
+      if (safeSearch) {
+        const term = `%${safeSearch}%`;
 
         // Search in vendors as well so user can search by company name, trade name or code
         let matchedVendorIds: string[] = [];
@@ -258,6 +261,7 @@ export async function getContactsPaginated(
             note: item.note,
             email: item.email,
             is_default: item.is_default,
+            is_active: item.is_active !== false,
             sort_order: item.sort_order,
             company_name: tradeOrCompName,
             vendor_name: v?.trade_name || v?.company_name || '',
@@ -286,6 +290,7 @@ export async function getContactsPaginated(
     const v = localVendors.find(vend => vend.id === c.vendor_id || (vend.id && String(vend.id).toLowerCase().trim() === cleanId));
     return {
       ...c,
+      is_active: c.is_active !== false,
       company_name: v ? (v.trade_name || v.company_name || '-') : '-',
       vendor_name: v?.trade_name || v?.company_name || '',
       company_code: v ? (v.company_code || v.id_code || '-') : '-',
@@ -355,9 +360,39 @@ export async function getVendorsPaginated(
         .select('*', cachedCount !== null ? {} : { count: 'exact' })
         .eq('is_deleted', false);
 
-      if (filters?.searchTerm?.trim()) {
-        const term = `%${filters.searchTerm.trim()}%`;
-        query = query.or(`trade_name.ilike.${term},company_name.ilike.${term},id_code.ilike.${term},company_code.ilike.${term},address.ilike.${term}`);
+      const safeTerm = sanitizePostgrestSearchTerm(filters?.searchTerm);
+      if (safeTerm) {
+        const term = `%${safeTerm}%`;
+        const digitsOnly = safeTerm.replace(/[^0-9]/g, '');
+
+        let matchedVendorIds: string[] = [];
+        // Perform fast, indexed search across active vendor_contacts phone numbers only
+        try {
+          let contactSearch = supabase
+            .from('vendor_contacts')
+            .select('vendor_id')
+            .eq('is_deleted', false)
+            .eq('is_active', true);
+
+          if (digitsOnly.length >= 3) {
+            contactSearch = contactSearch.or(`phone.ilike.${term},phone.ilike.%${digitsOnly}%`);
+          } else {
+            contactSearch = contactSearch.ilike('phone', term);
+          }
+
+          const { data: matchedContacts } = await contactSearch.limit(500);
+          if (matchedContacts && matchedContacts.length > 0) {
+            matchedVendorIds = Array.from(new Set(matchedContacts.map(c => c.vendor_id).filter(Boolean)));
+          }
+        } catch (cErr) {
+          console.warn('Supabase vendor_contacts phone search failed:', cErr);
+        }
+
+        if (matchedVendorIds.length > 0) {
+          query = query.or(`trade_name.ilike.${term},company_name.ilike.${term},id_code.ilike.${term},company_code.ilike.${term},address.ilike.${term},id.in.(${matchedVendorIds.join(',')})`);
+        } else {
+          query = query.or(`trade_name.ilike.${term},company_name.ilike.${term},id_code.ilike.${term},company_code.ilike.${term},address.ilike.${term}`);
+        }
       }
       if (filters?.city) {
         query = query.eq('city', filters.city);
@@ -397,7 +432,7 @@ export async function getVendorsPaginated(
         if (vendorIds.length > 0) {
           const { data: contactsData } = await supabase
             .from('vendor_contacts')
-            .select('id, vendor_id, name, phone, position, note, email, is_default, sort_order')
+            .select('id, vendor_id, name, phone, position, note, email, is_default, is_active, sort_order')
             .in('vendor_id', vendorIds)
             .eq('is_deleted', false);
           if (contactsData) {
@@ -419,15 +454,32 @@ export async function getVendorsPaginated(
   }
 
   const all = getLocal<Vendor[]>(KEY_VENDORS, []).filter(v => !v.is_deleted).map(v => decodeVendorCustomFields(v));
+  const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []).filter(c => !c.is_deleted);
+  all.forEach(v => {
+    v.contacts = allContacts.filter(c => c.vendor_id === v.id);
+  });
+
   let filtered = all;
   if (filters?.searchTerm?.trim()) {
-    const term = filters.searchTerm.trim().toLowerCase();
-    filtered = filtered.filter(v => 
-      (v.trade_name || '').toLowerCase().includes(term) || 
-      (v.company_name || '').toLowerCase().includes(term) ||
-      (v.company_code || '').toLowerCase().includes(term) ||
-      (v.id_code || '').toLowerCase().includes(term)
-    );
+    const rawTerm = filters.searchTerm.trim().toLowerCase();
+    const digitsOnly = rawTerm.replace(/[^0-9]/g, '');
+    filtered = filtered.filter(v => {
+      const matchDirect = 
+        (v.trade_name || '').toLowerCase().includes(rawTerm) || 
+        (v.company_name || '').toLowerCase().includes(rawTerm) ||
+        (v.company_code || '').toLowerCase().includes(rawTerm) ||
+        (v.id_code || '').toLowerCase().includes(rawTerm) ||
+        (v.address || '').toLowerCase().includes(rawTerm);
+      if (matchDirect) return true;
+
+      // Check active contacts only
+      const activeContacts = (v.contacts || []).filter(c => !c.is_deleted && c.is_active !== false);
+      return activeContacts.some(c => {
+        const phone = (c.phone || '').toLowerCase();
+        const pDigits = phone.replace(/[^0-9]/g, '');
+        return phone.includes(rawTerm) || (digitsOnly.length >= 3 && pDigits.includes(digitsOnly));
+      });
+    });
   }
   if (filters?.managerId) {
     filtered = filtered.filter(v => v.manager_id === filters.managerId);
@@ -436,6 +488,30 @@ export async function getVendorsPaginated(
     vendors: filtered.slice(offset, offset + limit),
     totalCount: filtered.length
   };
+}
+
+export async function getVendorById(id: string): Promise<Vendor | null> {
+  if (!id) return null;
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('vendors').select('*').eq('id', id).single();
+      if (!error && data) {
+        const decoded = decodeVendorCustomFields(data);
+        const contacts = await getVendorContacts(id);
+        decoded.contacts = contacts;
+        return decoded;
+      }
+    } catch (e) {
+      console.warn('Supabase getVendorById failed:', e);
+    }
+  }
+  const localVendors = getLocal<Vendor[]>(KEY_VENDORS, []);
+  const found = localVendors.find(v => v.id === id || String(v.id).toLowerCase().trim() === String(id).toLowerCase().trim());
+  if (found) {
+    const contacts = await getVendorContacts(id);
+    return { ...decodeVendorCustomFields(found), contacts };
+  }
+  return null;
 }
 
 export async function getVendors(): Promise<Vendor[]> {

@@ -9,6 +9,7 @@ export const DB_DEPENDENCY_MAP: Record<string, string[]> = {
   vendors: ['vendors', 'contacts', 'communications', 'orders'],
   orders: ['orders'],
   vendor_contacts: ['contacts', 'vendors'],
+  communications: ['communications', 'vendors'],
   vendor_communications: ['communications', 'vendors'],
   warehouses: ['warehouses', 'vendors', 'orders'],
   cities: ['cities', 'vendors'],
