@@ -15,7 +15,7 @@ interface CommunicationFormModalProps {
   employees: User[];
   suppliers: Vendor[];
   onSave: (finalComm: Communication) => void;
-  onSaveAndOrder?: (finalComm: Communication, vendorId: string) => void;
+  onSaveAndOrder?: (finalComm: Communication, vendorId: string, isUnchanged?: boolean) => void;
   onDelete?: () => void;
   canAddOrder?: boolean;
 }
@@ -131,6 +131,18 @@ export default function CommunicationFormModal({
     return Array.from(map.values()).slice(0, 30);
   }, [suppliers, remoteSuppliers, vendorSearch]);
 
+  const initialSnapshotRef = useRef<{
+    isNew: boolean;
+    vendorId: string;
+    vendorSearch: string;
+    type: string;
+    comment: string;
+    reminderDate: string;
+    reminderTime: string;
+    responsibleUserId: string;
+    isCompletedStatus: boolean;
+  } | null>(null);
+
   useEffect(() => {
     if (isOpen && editingComm) {
       const respId = editingComm.responsible_user_id || editingComm.user_id || employees[0]?.id || '';
@@ -147,36 +159,54 @@ export default function CommunicationFormModal({
       setIsCompletedStatus(isDone);
       setFieldErrors({});
 
+      let initVName = '';
       const suppObj = suppliers.find(s => s.id === editingComm.vendor_id);
       if (suppObj) {
-        const displayName = suppObj.trade_name || suppObj.company_name || '';
-        setVendorSearch(displayName);
+        initVName = suppObj.trade_name || suppObj.company_name || '';
+        setVendorSearch(initVName);
       } else if (editingComm.vendor_name) {
-        setVendorSearch(editingComm.vendor_name);
+        initVName = editingComm.vendor_name;
+        setVendorSearch(initVName);
       } else {
         setVendorSearch('');
       }
 
       // Parse reminder_time into separate Date and Time
+      let parsedRDate = '';
+      let parsedRTime = '';
       if (editingComm.reminder_time) {
         const raw = editingComm.reminder_time;
         if (raw.includes('T')) {
           const parts = raw.split('T');
-          setReminderDate(parts[0]);
+          parsedRDate = parts[0];
+          setReminderDate(parsedRDate);
           if (editingComm.has_time) {
-            const timePart = parts[1].substring(0, 5);
-            setReminderTime(timePart);
+            parsedRTime = parts[1].substring(0, 5);
+            setReminderTime(parsedRTime);
           } else {
             setReminderTime('');
           }
         } else {
-          setReminderDate(raw);
+          parsedRDate = raw;
+          setReminderDate(parsedRDate);
           setReminderTime('');
         }
       } else {
         setReminderDate('');
         setReminderTime('');
       }
+
+      initialSnapshotRef.current = {
+        isNew: Boolean(isNew || !editingComm.id),
+        vendorId: editingComm.vendor_id || '',
+        vendorSearch: initVName,
+        type: editingComm.type || 'action',
+        comment: (editingComm.comment || '').trim(),
+        reminderDate: parsedRDate,
+        reminderTime: parsedRTime,
+        responsibleUserId: respId,
+        isCompletedStatus: isDone
+      };
     } else {
       setLocalComm(null);
       setVendorSearch('');
@@ -184,9 +214,10 @@ export default function CommunicationFormModal({
       setReminderTime('');
       setIsCompletedStatus(false);
       setFieldErrors({});
+      initialSnapshotRef.current = null;
     }
     setShowVendorSuggestions(false);
-  }, [isOpen, editingComm, suppliers, employees]);
+  }, [isOpen, editingComm, isNew, suppliers, employees]);
 
   if (!localComm) return null;
 
@@ -278,9 +309,35 @@ export default function CommunicationFormModal({
     };
   };
 
+  const hasCommChanges = (): boolean => {
+    if (isNew || !editingComm?.id || !initialSnapshotRef.current) return true;
+
+    const snap = initialSnapshotRef.current;
+    if (snap.isNew) return true;
+
+    const currentVendorId = localComm?.vendor_id || matchedVendor?.id || '';
+    if (currentVendorId !== snap.vendorId) return true;
+    if (vendorSearch.trim() !== snap.vendorSearch.trim()) return true;
+    if ((localComm?.type || 'action') !== snap.type) return true;
+    if ((localComm?.comment || '').trim() !== snap.comment) return true;
+    if (reminderDate.trim() !== snap.reminderDate.trim()) return true;
+    if (reminderTime.trim() !== snap.reminderTime.trim()) return true;
+
+    const currentRespId = localComm?.responsible_user_id || localComm?.user_id || '';
+    if (currentRespId !== snap.responsibleUserId) return true;
+
+    if (isCompletedStatus !== snap.isCompletedStatus) return true;
+
+    return false;
+  };
+
   const handleSaveLocal = () => {
     const payload = buildPayload();
     if (payload) {
+      if (!hasCommChanges()) {
+        onClose();
+        return;
+      }
       onSave(payload);
     }
   };
@@ -288,8 +345,15 @@ export default function CommunicationFormModal({
   const handleSaveAndOrder = () => {
     const payload = buildPayload();
     if (payload) {
+      if (!hasCommChanges()) {
+        onClose();
+        if (onSaveAndOrder) {
+          onSaveAndOrder(payload, payload.vendor_id, true);
+        }
+        return;
+      }
       if (onSaveAndOrder) {
-        onSaveAndOrder(payload, payload.vendor_id);
+        onSaveAndOrder(payload, payload.vendor_id, false);
       } else {
         onSave(payload);
       }

@@ -416,8 +416,12 @@ export default function CommunicationsView({
         suppliers={suppliers}
         canAddOrder={currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add')}
         onSave={handleSaveAll}
-        onSaveAndOrder={(payload, vendorId) => {
-          handleSaveAll(payload);
+        onSaveAndOrder={(payload, vendorId, isUnchanged) => {
+          if (!isUnchanged) {
+            handleSaveAll(payload);
+          } else {
+            setEditingComm(null);
+          }
           if (onNavigateToOrdersWithVendor && vendorId) {
             onNavigateToOrdersWithVendor(vendorId);
           }

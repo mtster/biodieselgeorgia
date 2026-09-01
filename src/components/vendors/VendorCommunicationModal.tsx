@@ -83,22 +83,38 @@ export default function VendorCommunicationModal({
   const [newCommIsCompleted, setNewCommIsCompleted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const initialSnapshotRef = React.useRef<{
+    isNew: boolean;
+    type: string;
+    reminderDate: string;
+    reminderTime: string;
+    contactId: string;
+    responsibleUserId: string;
+    comment: string;
+    isCompleted: boolean;
+  } | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       if (activeComm) {
         setNewCommType(activeComm.type);
+        let parsedRDate = '';
+        let parsedRTime = '';
         if (activeComm.reminder_time) {
           const raw = activeComm.reminder_time;
           if (raw.includes('T')) {
             const parts = raw.split('T');
-            setReminderDate(parts[0]);
+            parsedRDate = parts[0];
+            setReminderDate(parsedRDate);
             if (activeComm.has_time) {
-              setReminderTime(parts[1].substring(0, 5));
+              parsedRTime = parts[1].substring(0, 5);
+              setReminderTime(parsedRTime);
             } else {
               setReminderTime('');
             }
           } else {
-            setReminderDate(raw);
+            parsedRDate = raw;
+            setReminderDate(parsedRDate);
             setReminderTime('');
           }
         } else {
@@ -110,27 +126,65 @@ export default function VendorCommunicationModal({
         setNewCommUserId(respId);
         setNewCommResponsibleUserId(respId);
         setNewCommComment(activeComm.comment);
-        setNewCommIsCompleted(typeof activeComm.is_completed === 'boolean' ? activeComm.is_completed : activeComm.task_status === 'completed');
+        const isDone = typeof activeComm.is_completed === 'boolean' ? activeComm.is_completed : activeComm.task_status === 'completed';
+        setNewCommIsCompleted(isDone);
+
+        initialSnapshotRef.current = {
+          isNew: false,
+          type: activeComm.type,
+          reminderDate: parsedRDate,
+          reminderTime: parsedRTime,
+          contactId: activeComm.vendor_contact_id || '',
+          responsibleUserId: respId,
+          comment: (activeComm.comment || '').trim(),
+          isCompleted: isDone
+        };
       } else {
         setNewCommType('action');
         setReminderDate('');
         setReminderTime('');
+        let defaultContact = '';
         const primary = tempContacts.find(c => c.is_default);
         if (primary) {
-          setNewCommContactId(primary.id);
+          defaultContact = primary.id;
         } else if (tempContacts.length > 0) {
-          setNewCommContactId(tempContacts[0].id);
-        } else {
-          setNewCommContactId('');
+          defaultContact = tempContacts[0].id;
         }
+        setNewCommContactId(defaultContact);
         setNewCommUserId(currentUser.id);
         setNewCommResponsibleUserId(currentUser.id);
         setNewCommComment('');
         setNewCommIsCompleted(false);
+
+        initialSnapshotRef.current = {
+          isNew: true,
+          type: 'action',
+          reminderDate: '',
+          reminderTime: '',
+          contactId: defaultContact,
+          responsibleUserId: currentUser.id,
+          comment: '',
+          isCompleted: false
+        };
       }
       setFieldErrors({});
     }
   }, [isOpen, activeComm, currentUser.id, tempContacts]);
+
+  const hasCommChanges = (respId: string): boolean => {
+    if (!activeComm?.id || !initialSnapshotRef.current || initialSnapshotRef.current.isNew) {
+      return true;
+    }
+    const snap = initialSnapshotRef.current;
+    if (newCommType !== snap.type) return true;
+    if (reminderDate.trim() !== snap.reminderDate.trim()) return true;
+    if (reminderTime.trim() !== snap.reminderTime.trim()) return true;
+    if (newCommContactId !== snap.contactId) return true;
+    if (respId !== snap.responsibleUserId) return true;
+    if (newCommComment.trim() !== snap.comment) return true;
+    if (newCommIsCompleted !== snap.isCompleted) return true;
+    return false;
+  };
 
   const handleSave = () => {
     if (!editingVendor.id) {
@@ -206,6 +260,11 @@ export default function VendorCommunicationModal({
       task_status: newCommIsCompleted ? 'completed' : 'pending',
       created_by: activeComm ? activeComm.created_by : currentUser.id
     };
+
+    if (!hasCommChanges(respId)) {
+      onClose();
+      return;
+    }
 
     try {
       // Save instantly in the background and close modal
