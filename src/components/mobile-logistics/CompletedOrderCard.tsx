@@ -41,15 +41,36 @@ export function CompletedOrderCard({ order, supplier }: Props) {
       </div>
 
       {((order.notes && order.notes.length > 0) || order.note) && (
-        <div className="text-[10px] italic bg-slate-50 p-2 rounded-lg border border-slate-100 text-gray-600 space-y-1">
+        <div className="space-y-2 pt-1">
           {order.notes && order.notes.length > 0 ? (
-            order.notes.map((n, idx) => (
-              <div key={n.id || idx}>
-                <strong>{n.user_name || 'შენიშვნა'}:</strong> {n.comment}
-              </div>
-            ))
+            order.notes.map((n, idx) => {
+              const isDepartureAlert = Boolean(n.before_leaving_base);
+              if (isDepartureAlert) {
+                return (
+                  <div key={n.id || idx} className="bg-rose-50 border border-rose-200/90 p-2 rounded-xl text-rose-950 space-y-1 text-xs">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+                      <span className="text-rose-900 font-extrabold">{n.user_name || 'მენეჯერი'}</span>
+                      <span className="text-rose-600 font-bold">·</span>
+                      <span>ბაზიდან გასვლამდე საყურადღებო</span>
+                    </div>
+                    <p className="font-semibold text-rose-950 leading-relaxed">{n.comment}</p>
+                  </div>
+                );
+              }
+              return (
+                <div key={n.id || idx} className="bg-slate-50 border border-slate-200/70 p-2 rounded-xl text-gray-700 space-y-0.5 text-xs">
+                  <div className="text-[10px] font-bold text-gray-500">
+                    {n.user_name || 'შენიშვნა'}:
+                  </div>
+                  <p className="font-medium text-gray-800 leading-snug">{n.comment}</p>
+                </div>
+              );
+            })
           ) : (
-            <div><strong>შენიშვნა:</strong> {order.note}</div>
+            <div className="bg-slate-50 border border-slate-200/70 p-2 rounded-xl text-gray-700 space-y-0.5 text-xs">
+              <div className="text-[10px] font-bold text-gray-500">შენიშვნა:</div>
+              <p className="font-medium text-gray-800 leading-snug">{order.note}</p>
+            </div>
           )}
         </div>
       )}

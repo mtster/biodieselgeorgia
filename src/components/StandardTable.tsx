@@ -22,6 +22,8 @@ interface StandardTableProps<T> {
   serverTotalCount?: number;
   page?: number;
   onPageChange?: (newPage: number) => void;
+  tableScrollClassName?: string;
+  onScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
 export function StandardTable<T>({
@@ -34,7 +36,9 @@ export function StandardTable<T>({
   hidePagination = false,
   serverTotalCount,
   page,
-  onPageChange
+  onPageChange,
+  tableScrollClassName,
+  onScroll
 }: StandardTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
@@ -74,7 +78,10 @@ export function StandardTable<T>({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col relative">
-      <div className="overflow-x-auto">
+      <div 
+        className={`overflow-x-auto ${tableScrollClassName || ''}`}
+        onScroll={onScroll}
+      >
         <table className="w-full text-left border-collapse">                
           <thead className="sticky top-0 z-20">
             <tr className="select-none">

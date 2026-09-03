@@ -57,6 +57,7 @@ export function OrderCompletionModal({
         id: 'c-' + Math.random().toString(36).substring(2, 9),
         comment: note.trim(),
         date: new Date().toISOString(),
+        user_id: currentUser?.id,
         user_name: authorName,
       };
       updatedNotes = [newComment, ...updatedNotes];

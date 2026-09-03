@@ -22,6 +22,14 @@ const CHANNEL_NAME = 'biodiesel_app_live_updates';
 
 let realtimeChannel: any = null;
 let globalQueryClient: QueryClient | null = null;
+const changeListeners = new Set<(table: string, action?: string, recordId?: string) => void>();
+
+export function onRealtimeDbChange(listener: (table: string, action?: string, recordId?: string) => void) {
+  changeListeners.add(listener);
+  return () => {
+    changeListeners.delete(listener);
+  };
+}
 
 export function initRealtimeBroadcast(queryClient: QueryClient) {
   globalQueryClient = queryClient;
@@ -35,7 +43,7 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
     });
 
     realtimeChannel
-      .on('broadcast', { event: 'db_change' }, (payload: { payload?: { table: string } }) => {
+      .on('broadcast', { event: 'db_change' }, (payload: { payload?: { table: string; action?: string; recordId?: string } }) => {
         const table = payload?.payload?.table;
         if (!table) return;
 
@@ -47,6 +55,14 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
         dependentKeys.forEach((key) => {
           queryClient.invalidateQueries({ queryKey: [key] });
         });
+
+        changeListeners.forEach((listener) => {
+          try {
+            listener(table, payload?.payload?.action, payload?.payload?.recordId);
+          } catch (e) {
+            console.warn('Realtime listener callback error:', e);
+          }
+        });
       })
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload: any) => {
         const table = payload?.table;
@@ -57,6 +73,14 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
         const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
         dependentKeys.forEach((key) => {
           queryClient.invalidateQueries({ queryKey: [key] });
+        });
+
+        changeListeners.forEach((listener) => {
+          try {
+            listener(table, payload?.eventType, payload?.new?.id || payload?.old?.id);
+          } catch (e) {
+            console.warn('Realtime postgres change listener error:', e);
+          }
         });
       })
       .subscribe();
@@ -76,6 +100,14 @@ export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DEL
       globalQueryClient?.invalidateQueries({ queryKey: [key] });
     });
   }
+
+  changeListeners.forEach((listener) => {
+    try {
+      listener(table, action, recordId);
+    } catch (e) {
+      console.warn('Local notify listener error:', e);
+    }
+  });
 
   if (realtimeChannel && isSupabaseConfigured) {
     try {

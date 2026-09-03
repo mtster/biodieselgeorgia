@@ -215,7 +215,7 @@ export default function VendorsView({
       operator_id: '', 
       contacts: [],
       comments: [],
-      working_hours: '09:00 - 18:00',
+      working_hours: '10:00 - 19:00',
       created_at: new Date().toISOString()
     };
     setEditingVendor(defaultVendor);

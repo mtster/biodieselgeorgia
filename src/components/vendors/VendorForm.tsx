@@ -101,6 +101,9 @@ export default function VendorForm({
   useEffect(() => {
     setUsernameInput(getCleanUsername(editingVendor.username));
     setPasswordInput('');
+    if (!editingVendor.working_hours) {
+      setEditingVendor(prev => prev ? { ...prev, working_hours: '10:00 - 19:00' } : null);
+    }
     initialSnapshotRef.current = {
       vendor: JSON.parse(JSON.stringify(editingVendor)),
       username: getCleanUsername(editingVendor.username),
@@ -467,7 +470,7 @@ export default function VendorForm({
     const tradeNames = ['GlowFuel Co', 'ECO-Diesel Georgia', 'Green Refine Ltd', 'Batumi Bio Refinery', 'Kutaisi Recyclers', 'Tbilisi Bio-Oil', 'Caucasus Green Fuels', 'Svaneti Pure Energy'];
     const companyNames = ['Biodiesel Processing LLC', 'Eco Logistics Joint Venture', 'Green Oil Corporation', 'Black Sea Bio Refineries Ltd', 'Imeri Recycling Systems LLC', 'Georgian Bioenergy Group JSC'];
     const streets = ['Rustaveli Ave 45', 'Chavchavadze Ave 12', 'Agmashenebeli Alley km 12', 'Melikishvili St 88', 'Parnavaz St 14', 'Gorgasali St 33'];
-    const hours = ['08:00 - 17:00', '09:00 - 18:00', '10:00 - 19:00'];
+    const hours = ['10:00 - 19:00', '10:00 - 19:00', '10:00 - 19:00'];
     const contactNames = ['Giorgi Meladze', 'Nino Abashidze', 'Lasha Kapanadze', 'Mariam Tsereteli', 'Irakli Khizanishvili', 'Ana Shengelia'];
     const commentsTexts = ['Established connection with director', 'Good logistics access. Prompt replies.', 'Agreed on 1.45 base rate fallback.', 'Requested additional tankers for pickup.', 'High quality ester biodiesel provided.'];
 

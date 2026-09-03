@@ -103,20 +103,28 @@ export default function OrderFormFields({
     });
   };
 
-  const handleSaveCommentModal = (text: string) => {
+  const handleSaveCommentModal = (text: string, beforeLeavingBase: boolean) => {
     setEditingOrder(prev => {
       if (!prev) return null;
       const currentList = prev.notes || [];
       let updated: VendorComment[];
       
       if (activeComment) {
-        updated = currentList.map(c => c.id === activeComment.id ? { ...c, comment: text } : c);
+        updated = currentList.map(c => c.id === activeComment.id ? { 
+          ...c, 
+          comment: text,
+          before_leaving_base: beforeLeavingBase,
+          user_id: c.user_id || currentEmployee?.id,
+          user_name: c.user_name || currentEmployee?.name || 'System'
+        } : c);
       } else {
         const newComm: VendorComment = {
           id: 'c-' + Math.random().toString(36).substring(2, 9),
           comment: text,
           date: new Date().toISOString(),
-          user_name: currentEmployee?.name || 'System'
+          user_id: currentEmployee?.id,
+          user_name: currentEmployee?.name || 'System',
+          before_leaving_base: beforeLeavingBase
         };
         updated = [newComm, ...currentList];
       }
@@ -310,18 +318,7 @@ export default function OrderFormFields({
             />
           </div>
 
-          <div>
-            <FormInput
-              label={t("zednadebit raodenoba")}
-              type="number"
-              step="0.01"
-              fontClass="font-mono"
-              value={editingOrder.waybill_qty === undefined || editingOrder.waybill_qty === null ? '' : editingOrder.waybill_qty}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, waybill_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null)}
-            />
-          </div>
-
-          {/* Status Selector moved below zednadebit raodenoba */}
+          {/* Status Selector */}
           <FormSelect
             label={`${t("Fulfillment Status")} *`}
             value={editingOrder.status}
@@ -356,6 +353,7 @@ export default function OrderFormFields({
           onAddComment={handleAddComment}
           onModifyComment={handleModifyComment}
           onRemoveComment={handleRemoveComment}
+          users={employees}
         />
       </div>
 

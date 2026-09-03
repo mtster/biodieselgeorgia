@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { t } from '../../utils/lang';
+import { t, formatContactPhone } from '../../utils/lang';
 import { VendorContact } from '../../types';
 import AddButton from '../AddButton';
 import { Plus, Phone, Star, Pencil, GripVertical } from 'lucide-react';
@@ -68,7 +68,7 @@ export default function VendorContactsSection({
           <p className="text-[10px] text-red-600 font-bold mb-3 px-1">{error}</p>
         )}
 
-        <div className="space-y-2.5 max-h-[224px] overflow-y-auto pr-1">
+        <div className="space-y-2 max-h-[224px] overflow-y-auto pr-1">
           {contacts.map((c, index) => {
             const isDraggable = !c.is_default;
             const isInactive = c.is_active === false;
@@ -103,8 +103,9 @@ export default function VendorContactsSection({
                         {t("Inactive")}
                       </span>
                     )}
-                    <span className="text-[10.5px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-1 shrink-0">
-                      <Phone size={10} /> {c.phone}
+                    <span className="text-xs md:text-[13px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-1 shrink-0 tracking-tight">
+                      <Phone size={11} className="shrink-0 text-emerald-700" />
+                      <span>{formatContactPhone(c.phone, '\u202F')}</span>
                     </span>
                   </div>
                 </div>

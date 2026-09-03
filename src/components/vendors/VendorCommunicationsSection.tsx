@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Communication, Vendor, User } from '../../types';
 import { t, formatDateTime } from '../../utils/lang';
 import { StandardTable, ColumnConfig } from '../StandardTable';
-import { MessageSquare, Edit3, Trash2 } from 'lucide-react';
+import { MessageSquare, Edit3, Trash2, Loader2 } from 'lucide-react';
 import AddButton from '../AddButton';
+import { getCommunicationsPaginated } from '../../services/communicationService';
 
 interface Props {
   communications: Communication[];
@@ -30,6 +31,104 @@ export default function VendorCommunicationsSection({
   onSaveCommunication,
   onDeleteCommunication
 }: Props) {
+  const cleanVendorId = String(editingVendor.id || '').trim().toLowerCase();
+  const [loadedComms, setLoadedComms] = useState<Communication[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const INITIAL_PAGE_SIZE = 4;
+  const SCROLL_PAGE_SIZE = 3;
+
+  // Initial lazy/partial fetch for this supplier (fetch only 4 latest communications)
+  useEffect(() => {
+    let isMounted = true;
+    if (!editingVendor.id) {
+      setLoadedComms([]);
+      setHasMore(false);
+      setOffset(0);
+      return;
+    }
+
+    setIsLoading(true);
+    getCommunicationsPaginated(INITIAL_PAGE_SIZE, 0, { vendorId: editingVendor.id })
+      .then(res => {
+        if (!isMounted) return;
+        const fetched = res.communications || [];
+        setLoadedComms(fetched);
+        setOffset(fetched.length);
+        setHasMore(fetched.length < (res.totalCount || 0));
+      })
+      .catch(err => {
+        console.warn('Failed to lazily load vendor communications:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editingVendor.id]);
+
+  // Load next batch (fetch another 3) when scrolling down the table
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore || !editingVendor.id) return;
+    setIsLoadingMore(true);
+    try {
+      const res = await getCommunicationsPaginated(SCROLL_PAGE_SIZE, offset, { vendorId: editingVendor.id });
+      const newItems = res.communications || [];
+      setLoadedComms(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const toAdd = newItems.filter(c => !existingIds.has(c.id));
+        return [...prev, ...toAdd];
+      });
+      const newOffset = offset + newItems.length;
+      setOffset(newOffset);
+      setHasMore(newOffset < (res.totalCount || 0) && newItems.length > 0);
+    } catch (err) {
+      console.warn('Failed to load more communications:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  const handleTableScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
+      if (hasMore && !isLoadingMore && !isLoading) {
+        handleLoadMore();
+      }
+    }
+  };
+
+  // Keep loadedComms synchronized if a communication was created or updated during this modal session
+  useEffect(() => {
+    if (!communications || communications.length === 0) return;
+    const currentVendorComms = communications.filter(c => 
+      !c.is_deleted && (c.vendor_id === editingVendor.id || (cleanVendorId && String(c.vendor_id || '').trim().toLowerCase() === cleanVendorId))
+    );
+    if (currentVendorComms.length === 0) return;
+
+    setLoadedComms(prev => {
+      if (prev.length === 0) return prev;
+      const prevIds = new Set(prev.map(c => c.id));
+      const newlyCreated = currentVendorComms.filter(c => !prevIds.has(c.id));
+      if (newlyCreated.length === 0) {
+        return prev.map(p => {
+          const match = currentVendorComms.find(c => c.id === p.id);
+          return match || p;
+        });
+      }
+      return [...newlyCreated, ...prev];
+    });
+  }, [communications, editingVendor.id, cleanVendorId]);
+
+  const displayComms = useMemo(() => {
+    return [...loadedComms].sort((a, b) => {
+      return new Date(b.date_time || 0).getTime() - new Date(a.date_time || 0).getTime();
+    });
+  }, [loadedComms]);
 
   const commColumns: ColumnConfig<Communication>[] = [
     {
@@ -135,14 +234,6 @@ export default function VendorCommunicationsSection({
     }
   ];
 
-  const cleanVendorId = String(editingVendor.id || '').trim().toLowerCase();
-  const filteredComms = communications.filter(c => {
-    if (c.is_deleted) return false;
-    if (c.vendor_id === editingVendor.id) return true;
-    if (cleanVendorId && String(c.vendor_id || '').trim().toLowerCase() === cleanVendorId) return true;
-    return false;
-  });
-
   return (
     <div className="bg-white p-5 border border-gray-100 rounded-2xl flex flex-col justify-between">
       <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
@@ -159,14 +250,23 @@ export default function VendorCommunicationsSection({
 
       <div className="pt-1">
         <StandardTable
-          data={filteredComms}
+          data={displayComms}
           columns={commColumns}
           onRowClick={(comm) => {
             onEditComm(comm);
           }}
           emptyMessage={t("No previous interactions logged for this supplier.")}
           hidePagination={true}
+          isLoading={isLoading}
+          tableScrollClassName="max-h-[150px] overflow-y-auto"
+          onScroll={handleTableScroll}
         />
+        {isLoadingMore && (
+          <div className="py-2 text-center text-[11px] text-emerald-800 font-semibold font-sans flex items-center justify-center gap-1.5 bg-slate-50 border border-t-0 border-gray-200 rounded-b-xl">
+            <Loader2 className="animate-spin text-emerald-700" size={13} />
+            <span>{t("Loading more...")}</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -30,6 +30,8 @@ export async function getOrdersPaginated(
     vehicleId?: string;
     driverId?: string;
     vendorId?: string;
+    managerId?: string;
+    salesManagerId?: string;
   }
 ): Promise<PaginatedOrdersResult> {
   const filterKey = JSON.stringify(filters || {});
@@ -45,9 +47,21 @@ export async function getOrdersPaginated(
 
   if (isSupabaseConfigured && supabase) {
     try {
+      // If filtering by location / direction / manager (properties on vendors table)
+      const targetCity = filters?.city;
+      const targetDistrict = filters?.district;
+      const targetDirection = filters?.direction || filters?.directionId;
+      const targetManager = filters?.managerId || filters?.salesManagerId;
+      const hasVendorFilter = Boolean(targetCity || targetDistrict || targetDirection || targetManager);
+
+      const countConfig = cachedCount !== null ? {} : { count: 'exact' as const };
+      const selectQuery = hasVendorFilter 
+        ? '*, vendors!inner(id, manager_id, city, district, direction_id, trade_name, company_name, id_code, address)' 
+        : '*';
+
       let query = supabase
         .from('orders')
-        .select('*', cachedCount !== null ? {} : { count: 'exact' })
+        .select(selectQuery, countConfig)
         .eq('is_deleted', false);
 
       const safeTerm = sanitizePostgrestSearchTerm(filters?.searchTerm);
@@ -69,7 +83,9 @@ export async function getOrdersPaginated(
         }
 
         if (matchedVendorIds.length > 0) {
-          query = query.or(`doc_number.ilike.${term},vendor_id.in.(${matchedVendorIds.join(',')})`);
+          // Guard against URL overflow if too many vendors matched the search term
+          const cappedIds = matchedVendorIds.slice(0, 80);
+          query = query.or(`doc_number.ilike.${term},vendor_id.in.(${cappedIds.join(',')})`);
         } else {
           query = query.ilike('doc_number', term);
         }
@@ -85,23 +101,17 @@ export async function getOrdersPaginated(
         query = query.lte('order_date', filters.endDate + 'T23:59:59');
       }
 
-      // If filtering by location / direction (properties on vendors table)
-      const targetCity = filters?.city;
-      const targetDistrict = filters?.district;
-      const targetDirection = filters?.direction || filters?.directionId;
-      if (targetCity || targetDistrict || targetDirection) {
-        let vQuery = supabase.from('vendors').select('id').eq('is_deleted', false);
-        if (targetCity) vQuery = vQuery.eq('city', targetCity);
-        if (targetDistrict) vQuery = vQuery.eq('district', targetDistrict);
-        if (targetDirection) vQuery = vQuery.eq('direction_id', targetDirection);
-        const { data: vList } = await vQuery;
-        const vIds = (vList || []).map(v => v.id);
-        if (vIds.length > 0) {
-          query = query.in('vendor_id', vIds);
-        } else {
-          // No vendors match criteria
-          return { orders: [], totalCount: 0 };
-        }
+      if (targetCity) {
+        query = query.eq('vendors.city', targetCity);
+      }
+      if (targetDistrict) {
+        query = query.eq('vendors.district', targetDistrict);
+      }
+      if (targetDirection) {
+        query = query.eq('vendors.direction_id', targetDirection);
+      }
+      if (targetManager) {
+        query = query.eq('vendors.manager_id', targetManager);
       }
 
       const vehicleVal = filters?.vehicle || filters?.vehicleId;
@@ -158,7 +168,7 @@ export async function getOrdersPaginated(
           const v = o.vendor_id ? (vendorMap.get(o.vendor_id) || vendorMap.get(o.vendor_id?.toLowerCase?.().trim())) : null;
           return {
             ...o,
-            vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
+            vendor_name: o.vendor_name || o.vendors?.trade_name || o.vendors?.company_name || v?.trade_name || v?.company_name || '',
             notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
           };
         });
@@ -206,6 +216,13 @@ export async function getOrdersPaginated(
   const vehicleVal = filters?.vehicle || filters?.vehicleId;
   if (vehicleVal) {
     filtered = filtered.filter(o => o.vehicle_id === vehicleVal || o.truck_plate === vehicleVal);
+  }
+  const targetMgr = filters?.managerId || filters?.salesManagerId;
+  if (targetMgr) {
+    filtered = filtered.filter(o => {
+      const v = vendorMap.get(o.vendor_id);
+      return v?.manager_id === targetMgr;
+    });
   }
 
   return {
@@ -272,7 +289,6 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         fact_qty: Number(finalOrder.fact_qty) || 0,
         fact_tank_dropoff: Number(finalOrder.fact_tank_dropoff) || 0,
         fact_tank_pickup: Number(finalOrder.fact_tank_pickup) || 0,
-        waybill_qty: Number(finalOrder.waybill_qty) || 0,
         status: finalOrder.status || 'registered',
         sms_sent: Boolean(finalOrder.sms_sent),
         is_deleted: Boolean(finalOrder.is_deleted),

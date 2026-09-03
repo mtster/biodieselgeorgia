@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Order, Vendor, Warehouse, User, Truck, Direction } from '../../types';
 import { getSMSLogs } from '../../lib/db';
 import { Plus, Trash2 } from 'lucide-react';
@@ -77,16 +77,16 @@ export default function OrdersView({
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [selectedDirection, setSelectedDirection] = useState<string>('');
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
+  const [selectedManager, setSelectedManager] = useState<string>('');
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   });
   const [endDate, setEndDate] = useState(() => {
     const now = new Date();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(endOfMonth.getDate())}`;
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   });
 
   const [page, setPage] = useState(1);
@@ -94,7 +94,7 @@ export default function OrdersView({
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, startDate, endDate]);
+  }, [debouncedSearchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, selectedManager, startDate, endDate]);
 
   const filters = {
     searchTerm: debouncedSearchTerm,
@@ -103,6 +103,7 @@ export default function OrdersView({
     district: selectedDistrict,
     directionId: selectedDirection,
     vehicleId: selectedVehicle,
+    managerId: selectedManager,
     startDate,
     endDate
   };
@@ -117,6 +118,15 @@ export default function OrdersView({
   const [isNew, setIsNew] = useState(false);
   const [showSMSLogs, setShowSMSLogs] = useState(false);
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
+
+  const salesManagers = useMemo(() => {
+    return employees.filter(e => {
+      const role = (e.role || '').toLowerCase();
+      const isCandidate = role.includes('manager') || role.includes('sales') || role.includes('შესყიდვ') || role.includes('ადმინ') || role === 'admin' || role === 'super_admin';
+      const isAssigned = suppliers.some(s => s.manager_id === e.id);
+      return isCandidate || isAssigned;
+    }).sort((a, b) => a.name.localeCompare(b.name, 'ka'));
+  }, [employees, suppliers]);
 
   // Bulk-delete selection states
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -542,6 +552,26 @@ export default function OrdersView({
                   <option value="">{t("All Vehicles")}</option>
                   {trucks.map(truck => (
                     <option key={truck.plate_number} value={truck.plate_number}>{truck.plate_number} ({truck.model})</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+                  ▼
+                </div>
+              </div>
+
+              {/* Sales Manager Filter */}
+              <div className="relative w-full md:w-auto min-w-[150px]">
+                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+                  გაყიდვების მენეჯერი
+                </span>
+                <select
+                  value={selectedManager}
+                  onChange={(e) => setSelectedManager(e.target.value)}
+                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+                >
+                  <option value="">{t("All Managers") || "ყველა მენეჯერი"}</option>
+                  {salesManagers.map(mgr => (
+                    <option key={mgr.id} value={mgr.id}>{mgr.name}</option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">

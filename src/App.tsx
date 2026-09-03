@@ -6,6 +6,7 @@
 import React from 'react';
 import { useAppData } from './hooks/useAppData';
 import { usePaginatedVendors } from './hooks/usePaginatedModuleQuery';
+import { Communication } from './types';
 import { t } from './utils/lang';
 import ErrorModal from './components/ErrorModal';
 
@@ -85,6 +86,7 @@ export default function App() {
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
   const [selectedOrderVendorId, setSelectedOrderVendorId] = React.useState<string | undefined>(undefined);
+  const [selectedCommunication, setSelectedCommunication] = React.useState<Communication | null>(null);
   const mainRef = React.useRef<HTMLElement>(null);
 
   React.useEffect(() => {
@@ -197,6 +199,10 @@ export default function App() {
                 employees={users}
                 trucks={trucks}
                 communications={communications}
+                onSelectReminder={(comm) => {
+                  setSelectedCommunication(comm);
+                  setActiveTab('communications');
+                }}
                 onNavigate={(tab) => {
                   if (tab === 'suppliers') {
                     setActiveTab('vendors');
@@ -277,6 +283,8 @@ export default function App() {
                 currentEmployee={currentUser}
                 onSave={handleCommunicationSave}
                 onDelete={handleCommunicationDelete}
+                initialEditingComm={selectedCommunication}
+                onClearInitialEditingComm={() => setSelectedCommunication(null)}
                 onNavigateToOrdersWithVendor={(vendorId) => {
                   setSelectedOrderVendorId(vendorId);
                   setActiveTab('orders');

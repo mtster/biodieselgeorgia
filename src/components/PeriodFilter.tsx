@@ -113,6 +113,8 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
   const containerRef = useRef<HTMLDivElement>(null);
   const startInputRef = useRef<HTMLInputElement>(null);
   const endInputRef = useRef<HTMLInputElement>(null);
+  const hiddenStartPickerRef = useRef<HTMLInputElement>(null);
+  const hiddenEndPickerRef = useRef<HTMLInputElement>(null);
 
   const cleanStartDate = startDate && startDate.includes('T') ? startDate.split('T')[0] : startDate;
   const cleanEndDate = endDate && endDate.includes('T') ? endDate.split('T')[0] : endDate;
@@ -359,49 +361,39 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-    
-    // Week calculations
-    const day = today.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - diff);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    
-    const startOfLastWeek = new Date(startOfWeek);
-    startOfLastWeek.setDate(startOfWeek.getDate() - 7);
-    const endOfLastWeek = new Date(startOfLastWeek);
-    endOfLastWeek.setDate(startOfLastWeek.getDate() + 6);
 
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    const presets = [
-        { label: 'Today', start: today, end: today },
-        { label: 'Yesterday', start: yesterday, end: yesterday },
-        { label: 'Tomorrow', start: tomorrow, end: tomorrow },
-        { label: 'This Week', start: startOfWeek, end: endOfWeek },
-        { label: 'Last Week', start: startOfLastWeek, end: endOfLastWeek },
-        { label: 'This Month', start: startOfMonth, end: endOfMonth },
+    return [
+      { label: 'Today', start: today, end: today },
+      { label: 'Yesterday', start: yesterday, end: yesterday },
+      { label: 'Tomorrow', start: tomorrow, end: tomorrow },
     ];
-
-    // Previous 12 months (force 'en-US' locale to output standard English month names translation-safe)
-    for (let i = 1; i <= 12; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const start = new Date(d.getFullYear(), d.getMonth(), 1);
-        const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        presets.push({ label: d.toLocaleString('en-US', { month: 'long' }), start, end });
-    }
-
-    return presets;
   };
 
   const isPresetSelected = (pStart: Date, pEnd: Date) => {
     return cleanStartDate === formatDate(pStart) && cleanEndDate === formatDate(pEnd);
   };
 
+  const openNativePicker = (inputRef: React.RefObject<any>) => {
+    const el = inputRef.current;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === 'function') {
+        el.showPicker();
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      el.focus();
+      el.click();
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <div ref={containerRef} className="flex items-start gap-2 relative">
+    <div ref={containerRef} className="flex items-start gap-1.5 relative">
       <FormInput
         ref={startInputRef}
         type="text"
@@ -413,8 +405,34 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
         onKeyDown={(e) => handleKeyDown(e, displayStart, setDisplayStart, setStartDate, setStartError, startInputRef.current)}
         onChange={(e) => handleInputChangeWithCursor(e, setDisplayStart, setStartDate, setStartError, startInputRef.current)}
         onBlur={() => handleBlurValidation(displayStart, setStartDate, setStartError)}
-        containerClassName="w-full md:w-auto min-w-[140px]"
-      />
+        containerClassName="w-[130px] flex-shrink-0"
+        className="pr-8"
+      >
+        <div className="group absolute right-2 top-0 h-full flex items-center justify-center z-10">
+          <input
+            type="date"
+            ref={hiddenStartPickerRef}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
+            tabIndex={-1}
+            aria-label={t("Start Date")}
+            value={cleanStartDate || ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val) {
+                setStartDate(val);
+                setDisplayStart(toDisplayFormat(val));
+                setStartError(null);
+              }
+            }}
+          />
+          <div
+            className="p-1 text-gray-400 group-hover:text-gray-700 transition-colors duration-150 flex items-center justify-center pointer-events-none"
+            title={t("Select Date")}
+          >
+            <Calendar size={15} />
+          </div>
+        </div>
+      </FormInput>
 
       <button
         type="button"
@@ -424,12 +442,13 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
             ? 'text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 shadow-sm font-semibold'
             : 'text-emerald-800 hover:bg-emerald-50'
         }`}
+        title={t("Presets")}
       >
         <Calendar size={20} />
       </button>
 
       {showPresets && (
-        <div className="absolute top-full left-12 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 w-52 p-2.5 space-y-1.5 max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-8 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 w-52 p-2.5 space-y-1.5 max-h-80 overflow-y-auto">
           <button
             type="button"
             onClick={() => {
@@ -475,8 +494,34 @@ export default function PeriodFilter({ startDate, setStartDate, endDate, setEndD
         onKeyDown={(e) => handleKeyDown(e, displayEnd, setDisplayEnd, setEndDate, setEndError, endInputRef.current)}
         onChange={(e) => handleInputChangeWithCursor(e, setDisplayEnd, setEndDate, setEndError, endInputRef.current)}
         onBlur={() => handleBlurValidation(displayEnd, setEndDate, setEndError)}
-        containerClassName="w-full md:w-auto min-w-[140px]"
-      />
+        containerClassName="w-[130px] flex-shrink-0"
+        className="pr-8"
+      >
+        <div className="group absolute right-2 top-0 h-full flex items-center justify-center z-10">
+          <input
+            type="date"
+            ref={hiddenEndPickerRef}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-20"
+            tabIndex={-1}
+            aria-label={t("End Date")}
+            value={cleanEndDate || ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val) {
+                setEndDate(val);
+                setDisplayEnd(toDisplayFormat(val));
+                setEndError(null);
+              }
+            }}
+          />
+          <div
+            className="p-1 text-gray-400 group-hover:text-gray-700 transition-colors duration-150 flex items-center justify-center pointer-events-none"
+            title={t("Select Date")}
+          >
+            <Calendar size={15} />
+          </div>
+        </div>
+      </FormInput>
     </div>
   );
 }

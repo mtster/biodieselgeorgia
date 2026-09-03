@@ -7,13 +7,15 @@ interface OrderCommentsSectionProps {
   onAddComment: () => void;
   onModifyComment: (comment: VendorComment) => void;
   onRemoveComment: (id: string) => void;
+  users?: { id: string; name: string }[];
 }
 
 export default function OrderCommentsSection({
   comments,
   onAddComment,
   onModifyComment,
-  onRemoveComment
+  onRemoveComment,
+  users
 }: OrderCommentsSectionProps) {
   return (
     <SharedCommentsSection
@@ -22,6 +24,7 @@ export default function OrderCommentsSection({
       onModifyComment={onModifyComment}
       onRemoveComment={onRemoveComment}
       idPrefix="order-internal-comments"
+      users={users}
     />
   );
 }

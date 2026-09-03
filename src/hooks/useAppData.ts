@@ -26,6 +26,7 @@ import {
   checkVehicleDeletion, 
   checkWarehouseDeletion 
 } from '../utils/deletionValidation';
+import { onRealtimeDbChange } from '../lib/realtime';
 
 export function useAppData() {
   const { currentUser, setCurrentUser, isLoadingAuth, handleLogOut } = useAuth();
@@ -60,9 +61,6 @@ export function useAppData() {
   // Sync data function
   const refreshAllData = async () => {
     try {
-      if (isSupabaseConfigured && supabase) {
-        createDatabaseOrderColumn('waybill_qty').catch(() => {});
-      }
       const [usrs, vnds, ords, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
         getUsers(),
         getVendors(),
@@ -113,6 +111,13 @@ export function useAppData() {
   useEffect(() => {
     if (currentUser) {
       refreshAllData();
+      // Listen for database broadcasts and live changes across the system
+      const unsubscribe = onRealtimeDbChange(() => {
+        refreshAllData();
+      });
+      return () => {
+        unsubscribe();
+      };
     }
   }, [currentUser]);
 

@@ -4,25 +4,49 @@
  */
 
 export const formatPhone = (val: string) => {
+  if (!val) return '';
   let digits = val.replace(/[^0-9]/g, '');
-  let cleaned = '+' + digits;
-  if (cleaned === '+') return '+';
+  if (!digits) return '';
+
+  let hasPlus = val.trim().startsWith('+');
   
-  if (cleaned.startsWith('+995')) {
-    let right = cleaned.slice(4);
+  if (hasPlus || (digits.startsWith('995') && digits.length > 9)) {
+    let right = digits.startsWith('995') ? digits.slice(3) : digits;
     let chunks = [];
     if (right.length > 0) chunks.push(right.slice(0, 3));
-    if (right.length > 3) chunks.push(right.slice(3, 6));
-    if (right.length > 6) chunks.push(right.slice(6, 9));
+    if (right.length > 3) chunks.push(right.slice(3, 5));
+    if (right.length > 5) chunks.push(right.slice(5, 7));
+    if (right.length > 7) chunks.push(right.slice(7, 9));
     let tail = chunks.join(' ');
-    if (right.length > 9) tail += right.slice(9);
-    return '+995' + (tail ? ' ' + tail : '');
+    if (right.length > 9) tail += ' ' + right.slice(9);
+    return '+995 ' + tail;
   }
   
-  let right = cleaned.slice(1);
-  if (right.length < 4) return '+' + right;
-  let chunks = right.match(/.{1,3}/g) || [];
-  return '+' + chunks.join(' ');
+  let chunks = [];
+  if (digits.length > 0) chunks.push(digits.slice(0, 3));
+  if (digits.length > 3) chunks.push(digits.slice(3, 5));
+  if (digits.length > 5) chunks.push(digits.slice(5, 7));
+  if (digits.length > 7) chunks.push(digits.slice(7, 9));
+  let tail = chunks.join(' ');
+  if (digits.length > 9) tail += ' ' + digits.slice(9);
+  return tail;
+};
+
+export const formatContactPhone = (val: string | undefined | null, sep: string = ' '): string => {
+  if (!val) return '';
+  let digits = val.replace(/[^0-9]/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('995') && digits.length >= 12) {
+    digits = digits.slice(3);
+  }
+  let chunks: string[] = [];
+  if (digits.length > 0) chunks.push(digits.slice(0, 3));
+  if (digits.length > 3) chunks.push(digits.slice(3, 5));
+  if (digits.length > 5) chunks.push(digits.slice(5, 7));
+  if (digits.length > 7) chunks.push(digits.slice(7, 9));
+  let tail = chunks.join(sep);
+  if (digits.length > 9) tail += sep + digits.slice(9);
+  return tail;
 };
 
 export const formatWorkingHours = (val: string) => {

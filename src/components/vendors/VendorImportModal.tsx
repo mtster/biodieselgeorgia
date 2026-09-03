@@ -819,7 +819,7 @@ export default function VendorImportModal({
             manager_id: mappedManagerId,
             operator_id: mappedOperatorId,
             direction_id: mappedDirectionId,
-            working_hours: '09:00 - 18:00',
+            working_hours: '10:00 - 19:00',
             status: 'Active',
             barrels_amount: 0,
             is_active: true,

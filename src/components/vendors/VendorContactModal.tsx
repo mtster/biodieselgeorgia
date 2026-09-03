@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { VendorContact } from '../../types';
 import { X, Trash2 } from 'lucide-react';
-import { formatPhone, t } from '../../utils/lang';
+import { formatContactPhone, t } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
 import FormModal from '../FormModal';
 
@@ -25,7 +25,7 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
     if (isOpen) {
       if (activeContact) {
         setContactName(activeContact.name);
-        setContactPhone(activeContact.phone);
+        setContactPhone(formatContactPhone(activeContact.phone));
         setContactPos(activeContact.position || 'director');
         setContactIsActive(activeContact.is_active !== false);
         setContactNote(activeContact.note || '');
@@ -47,9 +47,9 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
     const start = input.selectionStart || 0;
 
     const beforeCursor = val.slice(0, start);
-    const digitsBefore = beforeCursor.replace(/[^0-9+]/g, '').length;
+    const digitsBefore = beforeCursor.replace(/[^0-9]/g, '').length;
 
-    const formatted = formatPhone(val);
+    const formatted = formatContactPhone(val);
     setContactPhone(formatted);
 
     setTimeout(() => {
@@ -64,65 +64,11 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           break;
         }
       }
+      if (digitCount < digitsBefore) {
+        newPos = formatted.length;
+      }
       input.setSelectionRange(newPos, newPos);
     }, 0);
-  };
-
-  const preventCursorBehindPlus = (e: React.SyntheticEvent<HTMLInputElement>) => {
-    const input = e.currentTarget;
-    if (input.selectionStart !== null && input.selectionStart < 1) {
-      input.setSelectionRange(1, Math.max(1, input.selectionEnd || 1));
-    }
-  };
-
-  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace') {
-      const input = e.currentTarget;
-      const start = input.selectionStart;
-      const end = input.selectionEnd;
-
-      if (start === 1 && end === 1) {
-        e.preventDefault();
-        return;
-      }
-
-      if (start === end && start !== null && start > 0) {
-        const val = input.value;
-        const charToLeft = val[start - 1];
-
-        if (charToLeft === ' ') {
-          e.preventDefault();
-
-          let deleteIdx = start - 1;
-          while (deleteIdx >= 0 && val[deleteIdx] === ' ') {
-            deleteIdx--;
-          }
-
-          if (deleteIdx >= 0) {
-            const newVal = val.slice(0, deleteIdx) + val.slice(deleteIdx + 1);
-            const formatted = formatPhone(newVal);
-
-            const digitsBefore = val.slice(0, deleteIdx).replace(/[^0-9+]/g, '').length;
-            setContactPhone(formatted);
-
-            setTimeout(() => {
-              let newPos = 0;
-              let digitCount = 0;
-              for (let i = 0; i < formatted.length; i++) {
-                if (formatted[i] !== ' ') {
-                  digitCount++;
-                }
-                if (digitCount === digitsBefore) {
-                  newPos = i + 1;
-                  break;
-                }
-              }
-              input.setSelectionRange(newPos, newPos);
-            }, 0);
-          }
-        }
-      }
-    }
   };
 
   if (!isOpen) return null;
@@ -161,17 +107,13 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           value={contactName}
           onChange={(e) => setContactName(e.target.value)}
         />
-         <FormInput
+        <FormInput
           label={t("Mobile Phone Number *")}
           type="text"
           value={contactPhone}
+          placeholder="555 11 12 23"
           fontClass="font-mono"
-          onFocus={() => { if(!contactPhone) setContactPhone('+995 ') }}
-          onSelect={preventCursorBehindPlus}
-          onClick={preventCursorBehindPlus}
-          onTouchEnd={preventCursorBehindPlus}
           onChange={handlePhoneChange}
-          onKeyDown={handlePhoneKeyDown}
         />
         <FormInput
           label={t("Email")}

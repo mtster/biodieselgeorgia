@@ -14,16 +14,29 @@ interface Props {
   trucks: Truck[];
   communications?: Communication[];
   onNavigate: (tab: string) => void;
+  onSelectReminder?: (comm: Communication) => void;
 }
 
-export default function DashboardView({ suppliers, totalSuppliersCount, orders, employees, trucks, communications = [], onNavigate }: Props) {
+export default function DashboardView({ 
+  suppliers, 
+  totalSuppliersCount, 
+  orders, 
+  employees, 
+  trucks, 
+  communications = [], 
+  onNavigate,
+  onSelectReminder
+}: Props) {
   const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const completedOrders = orders.filter(o => o.status === 'completed');
   
   const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  
   const todayReminders = (communications || []).filter(c => 
     !c.is_deleted && 
     c.type === 'reminder' && 
@@ -191,23 +204,40 @@ export default function DashboardView({ suppliers, totalSuppliersCount, orders, 
             ) : (
               todayReminders.map(rem => {
                 const supplier = suppliers.find(s => s.id === rem.vendor_id);
-                const timeStr = rem.reminder_time ? rem.reminder_time.substring(11, 16) : '';
+                const hasTime = !!rem.has_time;
+                const timeStr = hasTime && rem.reminder_time ? rem.reminder_time.substring(11, 16) : null;
+                const reminderDate = rem.reminder_time ? new Date(rem.reminder_time) : null;
+                const isPastDue = hasTime && reminderDate && !isNaN(reminderDate.getTime()) ? now.getTime() > reminderDate.getTime() : false;
+
                 return (
-                  <div key={rem.id} className="p-3 bg-rose-50/20 hover:bg-rose-50/40 border border-rose-100/50 rounded-xl space-y-1 transition text-left">
+                  <button
+                    key={rem.id}
+                    type="button"
+                    onClick={() => onSelectReminder?.(rem)}
+                    className={`w-full text-left p-3 rounded-xl space-y-1 transition cursor-pointer border ${
+                      isPastDue
+                        ? 'bg-red-100/90 hover:bg-red-200/80 border-red-300 text-red-950 shadow-xs'
+                        : 'bg-rose-50/30 hover:bg-rose-50/60 border-rose-100/60 text-gray-800'
+                    }`}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-800 leading-none">
+                      <span className={`text-xs font-bold leading-none ${isPastDue ? 'text-red-950 font-black' : 'text-gray-800'}`}>
                         {supplier?.trade_name || rem.vendor_name || t("Direct / General")}
                       </span>
                       {timeStr && (
-                        <span className="text-[10px] font-mono font-semibold text-rose-700 bg-rose-100/40 px-1.5 py-0.5 rounded">
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                          isPastDue
+                            ? 'text-red-900 bg-red-200/90 border border-red-300/60'
+                            : 'text-rose-700 bg-rose-100/50'
+                        }`}>
                           {timeStr}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-600">
+                    <p className={`text-xs line-clamp-2 ${isPastDue ? 'text-red-900' : 'text-gray-600'}`}>
                       {rem.comment}
                     </p>
-                  </div>
+                  </button>
                 );
               })
             )}

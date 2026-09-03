@@ -63,7 +63,7 @@ export default function VendorManagementFormFields({
             {t("Working Hours")}
           </span>
           <WorkingHoursInput
-            value={editingVendor.working_hours || ''}
+            value={editingVendor.working_hours ?? '10:00 - 19:00'}
             onChange={(val) => {
               setEditingVendor(prev => prev ? { ...prev, working_hours: val } : null);
               if (fieldErrors.working_hours) setFieldErrors(prev => ({ ...prev, working_hours: '' }));

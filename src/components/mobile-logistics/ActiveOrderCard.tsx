@@ -10,6 +10,26 @@ interface Props {
 }
 
 export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder }: Props) {
+  // Find the contact selected during order creation, fallback to default or first supplier contact
+  const selectedContact = React.useMemo(() => {
+    if (order.contact_id && supplier?.contacts && supplier.contacts.length > 0) {
+      const matched = supplier.contacts.find(c => c.id === order.contact_id);
+      if (matched) return matched;
+    }
+    if (order.contact_name || order.contact_phone) {
+      return {
+        id: order.contact_id || 'order-contact',
+        name: order.contact_name || 'კონტაქტი',
+        phone: order.contact_phone || '',
+        is_default: false
+      };
+    }
+    if (supplier?.contacts && supplier.contacts.length > 0) {
+      return supplier.contacts.find(c => c.is_default) || supplier.contacts[0];
+    }
+    return null;
+  }, [order.contact_id, order.contact_name, order.contact_phone, supplier?.contacts]);
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3 hover:border-emerald-300 transition">
       <div className="flex items-start justify-between border-b border-gray-50 pb-2">
@@ -34,13 +54,13 @@ export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder
             <span>{supplier.city}, {supplier.district}, {supplier.address}</span>
           </div>
           <div className="flex items-center justify-between pt-1">
-            {supplier.contacts && supplier.contacts.length > 0 ? (
+            {selectedContact ? (
               <a 
-                href={`tel:${supplier.contacts[0].phone}`}
+                href={selectedContact.phone ? `tel:${selectedContact.phone}` : '#'}
                 className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-[10px] font-extrabold hover:bg-emerald-50 hover:text-emerald-800 transition"
               >
                 <Phone size={11} />
-                {supplier.contacts[0].name}
+                {selectedContact.name} {selectedContact.phone ? `(${selectedContact.phone})` : ''}
               </a>
             ) : (
               <span className="text-[10px] text-gray-400">კონტაქტები არ არის</span>
@@ -76,15 +96,36 @@ export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder
       </div>
 
       {((order.notes && order.notes.length > 0) || order.note) && (
-        <div className="text-[10px] italic bg-amber-50/60 p-2 rounded-lg border border-amber-100 text-gray-600 space-y-1">
+        <div className="space-y-2 pt-1">
           {order.notes && order.notes.length > 0 ? (
-            order.notes.map((n, idx) => (
-              <div key={n.id || idx}>
-                <strong>{n.user_name || 'შენიშვნა'}:</strong> {n.comment}
-              </div>
-            ))
+            order.notes.map((n, idx) => {
+              const isDepartureAlert = Boolean(n.before_leaving_base);
+              if (isDepartureAlert) {
+                return (
+                  <div key={n.id || idx} className="bg-rose-50 border border-rose-200/90 p-2.5 rounded-xl text-rose-950 space-y-1 shadow-xs">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+                      <span className="text-rose-900 font-extrabold">{n.user_name || 'მენეჯერი'}</span>
+                      <span className="text-rose-600 font-bold">·</span>
+                      <span>ბაზიდან გასვლამდე საყურადღებო</span>
+                    </div>
+                    <p className="text-xs font-semibold text-rose-950 leading-relaxed">{n.comment}</p>
+                  </div>
+                );
+              }
+              return (
+                <div key={n.id || idx} className="bg-slate-50 border border-slate-200/70 p-2.5 rounded-xl text-gray-700 space-y-0.5 text-xs">
+                  <div className="text-[10px] font-bold text-gray-500">
+                    {n.user_name || 'შენიშვნა'}:
+                  </div>
+                  <p className="font-medium text-gray-800 leading-snug">{n.comment}</p>
+                </div>
+              );
+            })
           ) : (
-            <div><strong>შენიშვნა:</strong> {order.note}</div>
+            <div className="bg-slate-50 border border-slate-200/70 p-2.5 rounded-xl text-gray-700 space-y-0.5 text-xs">
+              <div className="text-[10px] font-bold text-gray-500">შენიშვნა:</div>
+              <p className="font-medium text-gray-800 leading-snug">{order.note}</p>
+            </div>
           )}
         </div>
       )}

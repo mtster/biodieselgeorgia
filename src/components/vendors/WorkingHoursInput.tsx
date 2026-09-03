@@ -63,7 +63,7 @@ export function WorkingHoursInput({ value, onChange }: WorkingHoursInputProps) {
       ref={inputRef}
       id="working-hours-field"
       type="text"
-      placeholder="e.g. 09:00 - 18:00"
+      placeholder="10:00 - 19:00"
       value={value}
       onChange={handleChange}
       className="block w-full px-3.5 py-3 text-xs text-gray-900 bg-white border border-gray-200 focus:border-emerald-600 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-600 font-sans transition-all"

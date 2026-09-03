@@ -34,10 +34,20 @@ interface Props {
   onSave: (comm: Communication) => void;
   onDelete: (id: string) => void;
   onNavigateToOrdersWithVendor?: (vendorId: string) => void;
+  initialEditingComm?: Communication | null;
+  onClearInitialEditingComm?: () => void;
 }
 
 export default function CommunicationsView({ 
-  communications, suppliers, employees, currentEmployee, onSave, onDelete, onNavigateToOrdersWithVendor 
+  communications, 
+  suppliers, 
+  employees, 
+  currentEmployee, 
+  onSave, 
+  onDelete, 
+  onNavigateToOrdersWithVendor,
+  initialEditingComm,
+  onClearInitialEditingComm
 }: Props) {
 
   const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('add');
@@ -69,6 +79,14 @@ export default function CommunicationsView({
   // State
   const [editingComm, setEditingComm] = useState<Communication | null>(null);
   const [isNew, setIsNew] = useState(false);
+
+  React.useEffect(() => {
+    if (initialEditingComm) {
+      setEditingComm(initialEditingComm);
+      setIsNew(false);
+      onClearInitialEditingComm?.();
+    }
+  }, [initialEditingComm, onClearInitialEditingComm]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filters State

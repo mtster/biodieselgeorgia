@@ -257,11 +257,6 @@ export default function CommunicationFormModal({
       errors.responsible_user_id = t("Responsible user is required");
     }
 
-    // Validate comment
-    if (!localComm.comment?.trim()) {
-      errors.comment = t("Comment is required");
-    }
-
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return null;
@@ -571,30 +566,16 @@ export default function CommunicationFormModal({
         </FormSelect>
 
         <div className="relative">
-          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.comment ? 'text-red-500' : 'text-gray-400'}`}>
-            {t("Comment *")}
+          <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">
+            {t("Comment")}
           </span>
           <textarea 
             rows={4}
             placeholder=""
             value={localComm.comment}
-            onChange={(e) => {
-              setLocalComm({...localComm, comment: e.target.value});
-              if (fieldErrors.comment) {
-                setFieldErrors(prev => ({ ...prev, comment: '' }));
-              }
-            }}
-            className={`block w-full px-3.5 py-4 md:py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 transition-all ${
-              fieldErrors.comment
-                ? 'border-red-500 bg-red-50/10 focus:border-red-500 focus:ring-red-500 text-red-900'
-                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
-            } font-sans`}
+            onChange={(e) => setLocalComm({...localComm, comment: e.target.value})}
+            className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans transition-all"
           />
-          {fieldErrors.comment && (
-            <p className="text-[10px] text-red-500 font-bold mt-1 text-left select-none animate-in fade-in duration-100">
-              {fieldErrors.comment}
-            </p>
-          )}
         </div>
       </div>
     </FormModal>

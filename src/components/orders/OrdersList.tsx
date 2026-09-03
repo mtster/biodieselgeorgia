@@ -141,7 +141,42 @@ export default function OrdersList({
     note: {
       header: t('Comment'),
       key: 'comment',
-      render: (ord) => ord.note || '-'
+      render: (ord) => {
+        const notes = ord.notes && ord.notes.length > 0 ? ord.notes : null;
+        if (notes && notes.length > 0) {
+          const hasImportant = notes.some(n => n.before_leaving_base);
+          const priorityNote = notes.find(n => n.before_leaving_base) || notes[0];
+          const author = (employees?.find(e => e.id === priorityNote.user_id)?.name) || priorityNote.user_name || '';
+
+          return (
+            <div 
+              className="flex items-center gap-1.5 max-w-[240px]" 
+              title={notes.map(n => {
+                const a = (employees?.find(e => e.id === n.user_id)?.name) || n.user_name || '';
+                return `${a ? a + ': ' : ''}${n.comment}${n.before_leaving_base ? ' [ბაზიდან გასვლამდე საყურადღებო]' : ''}`;
+              }).join('\n')}
+            >
+              {hasImportant && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold shrink-0 border border-rose-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse shrink-0" />
+                  საყურადღებო
+                </span>
+              )}
+              <span className={`truncate text-xs ${hasImportant ? 'text-rose-700 font-semibold' : 'text-gray-700'}`}>
+                {priorityNote.comment}
+              </span>
+              {notes.length > 1 && (
+                <span className="text-[10px] px-1.5 py-0.2 bg-gray-100 text-gray-500 rounded font-mono shrink-0">
+                  +{notes.length - 1}
+                </span>
+              )}
+            </div>
+          );
+        }
+        return ord.note ? (
+          <span className="truncate text-xs text-gray-700 max-w-[200px] block" title={ord.note}>{ord.note}</span>
+        ) : '-';
+      }
     },
     address: {
       header: t('Address'),

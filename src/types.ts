@@ -46,7 +46,9 @@ export interface VendorComment {
   id: string;
   comment: string;
   date: string;
-  user_name: string;
+  user_name?: string;
+  user_id?: string;
+  before_leaving_base?: boolean;
 }
 
 export interface Vendor {
@@ -107,7 +109,6 @@ export interface Order {
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
   fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
-  waybill_qty?: number;       // ზედნადებით რაოდენობა
   note?: string;              // ძველი შენიშვნა
   notes?: VendorComment[];    // შენიშვნების სია (jsonb)
   tanks_to_leave: number;     // დასატოვებელი ავზები რაოდ
