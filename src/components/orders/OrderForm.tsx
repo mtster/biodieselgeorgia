@@ -86,10 +86,10 @@ export default function OrderForm({
       errs.warehouse_id = 'გთხოვთ აირჩიოთ დანიშნულების საწყობი.';
     }
     if (editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null || isNaN(editingOrder.tanks_to_bring)) {
-      errs.tanks_to_bring = 'კასრების წამოღება სავალდებულოა.';
+      errs.tanks_to_bring = 'ავზების წამოღება სავალდებულოა.';
     }
     if (editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null || isNaN(editingOrder.tanks_to_leave)) {
-      errs.tanks_to_leave = 'კასრების დატოვება სავალდებულოა.';
+      errs.tanks_to_leave = 'ავზების დატოვება სავალდებულოა.';
     }
     if (!editingOrder.contact_id) {
       errs.contact_id = 'გთხოვთ აირჩიოთ კონტაქტი.';
