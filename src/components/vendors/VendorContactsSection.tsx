@@ -105,7 +105,7 @@ export default function VendorContactsSection({
                     )}
                     <span className="text-xs md:text-[13px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-1 shrink-0 tracking-tight">
                       <Phone size={11} className="shrink-0 text-emerald-700" />
-                      <span>{formatContactPhone(c.phone, '\u202F')}</span>
+                      <span>{formatContactPhone(c.phone)}</span>
                     </span>
                   </div>
                 </div>

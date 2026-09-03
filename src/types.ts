@@ -116,8 +116,6 @@ export interface Order {
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
   is_deleted?: boolean;
   contact_id?: string;
-  contact_name?: string;
-  contact_phone?: string;
   address?: string;
   city?: string;
   district?: string;

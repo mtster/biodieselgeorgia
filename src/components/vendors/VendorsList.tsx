@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Vendor, User, VendorComment, Communication, Direction } from '../../types';
-import { t, formatDate, formatDateTime } from '../../utils/lang';
+import { t, formatDate, formatDateTime, formatPhone } from '../../utils/lang';
 import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
@@ -152,7 +152,7 @@ export default function VendorsList({
       render: (vendor) => {
         const additionalContacts = (vendor.contacts || []).filter(c => !c.is_default && c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
         const text = additionalContacts.length > 0
-          ? additionalContacts.map(c => `${c.name} (${c.phone})`).join(', ')
+          ? additionalContacts.map(c => `${c.name} (${formatPhone(c.phone)})`).join(', ')
           : '-';
         return <div className="truncate" title={text}>{text}</div>
       }

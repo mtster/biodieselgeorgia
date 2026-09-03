@@ -1,6 +1,7 @@
-import React from 'react';
-import { Order, Vendor } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Order, Vendor, VendorContact } from '../../types';
 import { MapPin, Phone, Navigation } from 'lucide-react';
+import { getVendorContacts } from '../../services/vendorService';
 
 interface Props {
   order: Order;
@@ -10,25 +11,55 @@ interface Props {
 }
 
 export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder }: Props) {
-  // Find the contact selected during order creation, fallback to default or first supplier contact
-  const selectedContact = React.useMemo(() => {
-    if (order.contact_id && supplier?.contacts && supplier.contacts.length > 0) {
-      const matched = supplier.contacts.find(c => c.id === order.contact_id);
-      if (matched) return matched;
-    }
-    if (order.contact_name || order.contact_phone) {
-      return {
-        id: order.contact_id || 'order-contact',
-        name: order.contact_name || 'კონტაქტი',
-        phone: order.contact_phone || '',
-        is_default: false
-      };
-    }
+  const [asyncContact, setAsyncContact] = useState<VendorContact | null>(null);
+
+  // Find the contact selected during order creation via contact_id (referencing vendor_contacts)
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. If supplier already has contacts in memory
     if (supplier?.contacts && supplier.contacts.length > 0) {
-      return supplier.contacts.find(c => c.is_default) || supplier.contacts[0];
+      if (order.contact_id) {
+        const matched = supplier.contacts.find(c => c.id === order.contact_id);
+        if (matched) {
+          setAsyncContact(matched);
+          return;
+        }
+      }
+      const defaultContact = supplier.contacts.find(c => c.is_default) || supplier.contacts[0];
+      setAsyncContact(defaultContact || null);
+      return;
     }
-    return null;
-  }, [order.contact_id, order.contact_name, order.contact_phone, supplier?.contacts]);
+
+    // 2. Fetch contacts from vendor_contacts if not loaded in supplier object
+    if (order.vendor_id || supplier?.id) {
+      const vId = order.vendor_id || supplier?.id;
+      getVendorContacts(vId).then(contacts => {
+        if (!isMounted) return;
+        if (contacts && contacts.length > 0) {
+          if (order.contact_id) {
+            const matched = contacts.find(c => c.id === order.contact_id);
+            if (matched) {
+              setAsyncContact(matched);
+              return;
+            }
+          }
+          const defaultContact = contacts.find(c => c.is_default) || contacts[0];
+          setAsyncContact(defaultContact || null);
+        } else {
+          setAsyncContact(null);
+        }
+      }).catch(() => {
+        if (isMounted) setAsyncContact(null);
+      });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [order.contact_id, order.vendor_id, supplier?.id, supplier?.contacts]);
+
+  const selectedContact = asyncContact;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3 hover:border-emerald-300 transition">

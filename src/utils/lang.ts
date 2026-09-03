@@ -3,42 +3,65 @@
  * Centralized Georgian terms and common phrases to maintain clean and consistent translations.
  */
 
-export const formatPhone = (val: string) => {
+export const formatPhone = (val: string | undefined | null, sep: string = ' '): string => {
   if (!val) return '';
   let digits = val.replace(/[^0-9]/g, '');
   if (!digits) return '';
 
   let hasPlus = val.trim().startsWith('+');
   
-  if (hasPlus || (digits.startsWith('995') && digits.length > 9)) {
+  if (hasPlus || (digits.startsWith('995') && digits.length >= 11)) {
     let right = digits.startsWith('995') ? digits.slice(3) : digits;
-    let chunks = [];
+    
+    // Landline starting with 032 or 32
+    if (right.startsWith('032')) {
+      let chunks: string[] = [];
+      if (right.length > 0) chunks.push(right.slice(0, 3));
+      if (right.length > 3) chunks.push(right.slice(3, 4));
+      if (right.length > 4) chunks.push(right.slice(4, 6));
+      if (right.length > 6) chunks.push(right.slice(6, 8));
+      if (right.length > 8) chunks.push(right.slice(8, 10));
+      let tail = chunks.join(sep);
+      if (right.length > 10) tail += sep + right.slice(10);
+      return '+995' + sep + tail;
+    }
+    
+    if (right.startsWith('32')) {
+      let chunks: string[] = [];
+      if (right.length > 0) chunks.push(right.slice(0, 2));
+      if (right.length > 2) chunks.push(right.slice(2, 3));
+      if (right.length > 3) chunks.push(right.slice(3, 5));
+      if (right.length > 5) chunks.push(right.slice(5, 7));
+      if (right.length > 7) chunks.push(right.slice(7, 9));
+      let tail = chunks.join(sep);
+      if (right.length > 9) tail += sep + right.slice(9);
+      return '+995' + sep + tail;
+    }
+
+    let chunks: string[] = [];
     if (right.length > 0) chunks.push(right.slice(0, 3));
     if (right.length > 3) chunks.push(right.slice(3, 5));
     if (right.length > 5) chunks.push(right.slice(5, 7));
     if (right.length > 7) chunks.push(right.slice(7, 9));
-    let tail = chunks.join(' ');
-    if (right.length > 9) tail += ' ' + right.slice(9);
-    return '+995 ' + tail;
+    let tail = chunks.join(sep);
+    if (right.length > 9) tail += sep + right.slice(9);
+    return '+995' + sep + tail;
   }
   
-  let chunks = [];
-  if (digits.length > 0) chunks.push(digits.slice(0, 3));
-  if (digits.length > 3) chunks.push(digits.slice(3, 5));
-  if (digits.length > 5) chunks.push(digits.slice(5, 7));
-  if (digits.length > 7) chunks.push(digits.slice(7, 9));
-  let tail = chunks.join(' ');
-  if (digits.length > 9) tail += ' ' + digits.slice(9);
-  return tail;
-};
-
-export const formatContactPhone = (val: string | undefined | null, sep: string = ' '): string => {
-  if (!val) return '';
-  let digits = val.replace(/[^0-9]/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('995') && digits.length >= 12) {
-    digits = digits.slice(3);
+  // Landline 032 (e.g. 032 2 11 12 23)
+  if (digits.startsWith('032')) {
+    let chunks: string[] = [];
+    if (digits.length > 0) chunks.push(digits.slice(0, 3));
+    if (digits.length > 3) chunks.push(digits.slice(3, 4));
+    if (digits.length > 4) chunks.push(digits.slice(4, 6));
+    if (digits.length > 6) chunks.push(digits.slice(6, 8));
+    if (digits.length > 8) chunks.push(digits.slice(8, 10));
+    let tail = chunks.join(sep);
+    if (digits.length > 10) tail += sep + digits.slice(10);
+    return tail;
   }
+
+  // Standard mobile (e.g. 555 11 12 23)
   let chunks: string[] = [];
   if (digits.length > 0) chunks.push(digits.slice(0, 3));
   if (digits.length > 3) chunks.push(digits.slice(3, 5));
@@ -48,6 +71,8 @@ export const formatContactPhone = (val: string | undefined | null, sep: string =
   if (digits.length > 9) tail += sep + digits.slice(9);
   return tail;
 };
+
+export const formatContactPhone = formatPhone;
 
 export const formatWorkingHours = (val: string) => {
   let cleaned = val.replace(/[^0-9]/g, '').slice(0, 8);
@@ -724,6 +749,9 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Loading...": "იტვირთება...",
   "Loading": "იტვირთება...",
   "Loading data...": "მონაცემები იტვირთება...",
+  "Loading more...": "მეტი მონაცემების ჩატვირთვა...",
+  "Loading more": "მეტი მონაცემების ჩატვირთვა...",
+  "Loading data": "მონაცემები იტვირთება...",
   "No supplier data matches current search criteria.": "მომწოდებლის მონაცემები მიმდინარე ძიების პარამეტრებით არ მოიძებნა.",
   "No supplier data matches current search criteria": "მომწოდებლის მონაცემები მიმდინარე ძიების პარამეტრებით არ მოიძებნა.",
   "No supplier data matches current": "მომწოდებლის მონაცემები მიმდინარე ძიების პარამეტრებით არ მოიძებნა.",
@@ -773,7 +801,19 @@ export function t(key: string): string {
 
 export function formatDate(dateString: string | Date | undefined | null): string {
   if (!dateString) return '-';
-  const d = new Date(dateString);
+  let d: Date;
+  if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+') && !/-\d\d:\d\d$/.test(dateString)) {
+    if (dateString.includes('T')) {
+      const [datePart] = dateString.split('T');
+      const [y, m, day] = datePart.split('-').map(Number);
+      d = new Date(y, (m || 1) - 1, day || 1);
+    } else {
+      const [y, m, day] = dateString.split('-').map(Number);
+      d = new Date(y, (m || 1) - 1, day || 1);
+    }
+  } else {
+    d = new Date(dateString);
+  }
   if (isNaN(d.getTime())) return '-';
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -783,7 +823,20 @@ export function formatDate(dateString: string | Date | undefined | null): string
 
 export function formatDateTime(dateString: string | Date | undefined | null): string {
   if (!dateString) return '-';
-  const d = new Date(dateString);
+  let d: Date;
+  if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+') && !/-\d\d:\d\d$/.test(dateString)) {
+    if (dateString.includes('T')) {
+      const [datePart, timePart] = dateString.split('T');
+      const [y, m, day] = datePart.split('-').map(Number);
+      const [h, min] = (timePart || '00:00').split(':').map(Number);
+      d = new Date(y, (m || 1) - 1, day || 1, h || 0, min || 0);
+    } else {
+      const [y, m, day] = dateString.split('-').map(Number);
+      d = new Date(y, (m || 1) - 1, day || 1, 0, 0);
+    }
+  } else {
+    d = new Date(dateString);
+  }
   if (isNaN(d.getTime())) return '-';
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');

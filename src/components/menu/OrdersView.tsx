@@ -20,12 +20,11 @@ import { usePaginatedOrders } from '../../hooks/usePaginatedModuleQuery';
 import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 const defaultOrdersColumns: ManagedColumn[] = [
-  { id: 'order_date', label: 'Date', visible: true },
+  { id: 'order_date', label: 'Dispatch Date', visible: true },
   { id: 'doc_number', label: 'Doc Num', visible: true },
   { id: 'vendor_id', label: 'Supplier', visible: true },
   { id: 'warehouse_id', label: 'Warehouse', visible: true },
   { id: 'status', label: 'Status', visible: true },
-  { id: 'pickup_date_time', label: 'Dispatch Date', visible: true },
   { id: 'planned', label: 'Planned Qty', visible: true },
   { id: 'fact_qty', label: 'Fact QTY', visible: true },
   { id: 'tanks_to_leave', label: 'Dropoff Tanks', visible: true },
@@ -137,7 +136,16 @@ export default function OrdersView({
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
     const loaded = localStorage.getItem('orders_columns_managed');
-    return loaded ? JSON.parse(loaded) : defaultOrdersColumns;
+    if (!loaded) return defaultOrdersColumns;
+    try {
+      const parsed: ManagedColumn[] = JSON.parse(loaded);
+      // Clean out removed pickup_date_time and rename order_date label to Dispatch Date
+      return parsed
+        .filter(c => c.id !== 'pickup_date_time')
+        .map(c => c.id === 'order_date' ? { ...c, label: 'Dispatch Date' } : c);
+    } catch {
+      return defaultOrdersColumns;
+    }
   });
 
   const handleSaveColumns = async (updated: ManagedColumn[]) => {
@@ -189,7 +197,7 @@ export default function OrdersView({
 
       const defaultOrder: Order = {
         id: '',
-        order_date: new Date().toISOString().substring(0, 10),
+        order_date: new Date().toISOString(),
         doc_number: 'DOC-' + Math.floor(100000 + Math.random() * 900000),
         vendor_id: initialVendorId,
         vendor_name: suppName,
@@ -224,7 +232,7 @@ export default function OrdersView({
   const startNew = () => {
     const defaultOrder: Order = {
       id: '',
-      order_date: new Date().toISOString().substring(0, 10),
+      order_date: new Date().toISOString(),
       doc_number: 'DOC-' + Math.floor(100000 + Math.random() * 900000),
       vendor_id: '',
       warehouse_id: '',

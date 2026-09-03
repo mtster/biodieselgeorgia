@@ -24,6 +24,7 @@ interface StandardTableProps<T> {
   onPageChange?: (newPage: number) => void;
   tableScrollClassName?: string;
   onScroll?: React.UIEventHandler<HTMLDivElement>;
+  isLoadingMore?: boolean;
 }
 
 export function StandardTable<T>({
@@ -38,7 +39,8 @@ export function StandardTable<T>({
   page,
   onPageChange,
   tableScrollClassName,
-  onScroll
+  onScroll,
+  isLoadingMore = false
 }: StandardTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
@@ -98,54 +100,68 @@ export function StandardTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
-            {displayedData.map((item, rowIdx) => {
-              const isClickable = !!onRowClick;
-              const customRowClass = rowClassName ? rowClassName(item) : '';
-              return (
-                <tr
-                  key={rowIdx}
-                  onClick={() => onRowClick && onRowClick(item)}
-                  className={`text-xs font-sans text-gray-700 ${
-                    isClickable ? 'cursor-pointer' : ''
-                  } ${customRowClass || (isClickable ? 'hover:bg-slate-50' : '')}`}
-                >
-                  {columns.map((col, colIdx) => {
-                    const isSelectCol = col.key === 'select';
-                    return (
-                      <td
-                        key={col.key || colIdx}
-                        onClick={(e) => {
-                          if (isSelectCol) {
-                            e.stopPropagation();
-                          }
-                        }}
-                        className={`py-3.5 px-4 whitespace-nowrap text-xs font-sans text-gray-700 leading-normal ${
-                          isSelectCol ? 'cursor-default' : ''
-                        } ${col.className || ''}`}
-                      >
-                        {col.render ? col.render(item) : (item as any)[col.key] ?? '-'}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+            {isLoading && displayedData.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="py-12 text-center text-xs text-gray-500 bg-slate-50/40 select-none font-sans font-semibold">
+                  <div className="flex items-center justify-center gap-2 text-emerald-800">
+                    <Loader2 className="animate-spin text-emerald-700" size={16} />
+                    <span>{t("Loading data...")}</span>
+                  </div>
+                </td>
+              </tr>
+            ) : !isLoading && totalItems === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="text-center py-16 text-xs text-gray-400 italic select-none bg-white font-sans">
+                  {t(emptyMessage)}
+                </td>
+              </tr>
+            ) : (
+              displayedData.map((item, rowIdx) => {
+                const isClickable = !!onRowClick;
+                const customRowClass = rowClassName ? rowClassName(item) : '';
+                return (
+                  <tr
+                    key={rowIdx}
+                    onClick={() => onRowClick && onRowClick(item)}
+                    className={`text-xs font-sans text-gray-700 ${
+                      isClickable ? 'cursor-pointer' : ''
+                    } ${customRowClass || (isClickable ? 'hover:bg-slate-50' : '')}`}
+                  >
+                    {columns.map((col, colIdx) => {
+                      const isSelectCol = col.key === 'select';
+                      return (
+                        <td
+                          key={col.key || colIdx}
+                          onClick={(e) => {
+                            if (isSelectCol) {
+                              e.stopPropagation();
+                            }
+                          }}
+                          className={`py-3.5 px-4 whitespace-nowrap text-xs font-sans text-gray-700 leading-normal ${
+                            isSelectCol ? 'cursor-default' : ''
+                          } ${col.className || ''}`}
+                        >
+                          {col.render ? col.render(item) : (item as any)[col.key] ?? '-'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
+            )}
+            {isLoadingMore && (
+              <tr>
+                <td colSpan={columns.length} className="py-2.5 px-4 text-center bg-slate-50/90 border-t border-gray-100">
+                  <div className="inline-flex items-center justify-center gap-1.5 text-[11px] text-emerald-800 font-semibold font-sans">
+                    <Loader2 className="animate-spin text-emerald-700" size={13} />
+                    <span>{t("Loading more...")}</span>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-
-      {isLoading && (
-        <div className="py-12 text-center text-xs text-gray-500 bg-slate-50/60 select-none font-sans font-semibold flex items-center justify-center gap-2 border-b border-gray-200">
-          <Loader2 className="animate-spin text-emerald-700" size={16} />
-          <span>{t("Loading data...")}</span>
-        </div>
-      )}
-
-      {!isLoading && totalItems === 0 && (
-        <div className="text-center py-20 text-xs text-gray-400 italic select-none bg-white font-sans">
-          {t(emptyMessage)}
-        </div>
-      )}
 
       {/* Beautiful High-Contrast Pagination Footer */}
       {!hidePagination && totalItems > 0 && (

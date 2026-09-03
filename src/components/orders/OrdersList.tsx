@@ -62,7 +62,7 @@ export default function OrdersList({
 
   const columnMap: Record<string, ColumnConfig<Order>> = {
     order_date: {
-      header: t('Date'),
+      header: t('Dispatch Date'),
       key: 'order_date',
       render: (ord) => formatDateTime(ord.order_date)
     },
@@ -102,11 +102,6 @@ export default function OrdersList({
         if (s === 'picked_up') return t('Picked Up');
         return t(s);
       }
-    },
-    pickup_date_time: {
-      header: t('Dispatch Date'),
-      key: 'pickup_date_time',
-      render: (ord) => formatDateTime(ord.pickup_date_time)
     },
     planned: {
       header: t('Planned'),

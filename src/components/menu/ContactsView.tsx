@@ -196,7 +196,7 @@ export default function ContactsView({
       render: (row) => (
         <div className="flex items-center gap-1.5 truncate">
           <Phone size={12} className="text-gray-400 shrink-0" />
-          <span className="truncate">{row.phone}</span>
+          <span className="truncate">{formatPhone(row.phone)}</span>
         </div>
       )
     },

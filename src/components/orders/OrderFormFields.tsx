@@ -7,7 +7,7 @@ import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
 import DynamicCustomFields from '../DynamicCustomFields';
 import OrderCommentsSection from './OrderCommentsSection';
 import OrderCommentModal from './OrderCommentModal';
-import { t, formatDateTime } from '../../utils/lang';
+import { t, formatDateTime, formatPhone } from '../../utils/lang';
 import { getVendorContacts } from '../../services/vendorService';
 
 interface OrderFormFieldsProps {
@@ -74,9 +74,7 @@ export default function OrderFormFields({
         if (defaultContact) {
           setEditingOrder(prev => prev ? {
             ...prev,
-            contact_id: defaultContact.id,
-            contact_name: defaultContact.name,
-            contact_phone: defaultContact.phone
+            contact_id: defaultContact.id
           } : null);
         }
       }
@@ -183,12 +181,9 @@ export default function OrderFormFields({
                 value={editingOrder.contact_id || ''}
                 onChange={(e) => {
                   const cid = e.target.value;
-                  const cont = contactsList.find(c => c.id === cid);
                   setEditingOrder(prev => prev ? { 
                     ...prev, 
-                    contact_id: cid,
-                    contact_name: cont?.name || '',
-                    contact_phone: cont?.phone || ''
+                    contact_id: cid
                   } : null);
                   if (fieldErrors.contact_id) setFieldErrors(prev => ({ ...prev, contact_id: '' }));
                 }}
@@ -197,7 +192,7 @@ export default function OrderFormFields({
                 <option value="" disabled>{t("Select contact...")}</option>
                 {contactsList.map(c => {
                   const posStr = c.position ? ` - ${t(c.position)}` : '';
-                  const phoneStr = c.phone ? ` (${c.phone})` : '';
+                  const phoneStr = c.phone ? ` (${formatPhone(c.phone)})` : '';
                   return (
                     <option key={c.id} value={c.id}>
                       {c.name}{posStr}{phoneStr}
@@ -230,9 +225,20 @@ export default function OrderFormFields({
             fontClass="font-mono"
             value={
               editingOrder.order_date
-                ? (editingOrder.order_date.includes('T')
-                    ? editingOrder.order_date.substring(0, 16)
-                    : `${editingOrder.order_date.substring(0, 10)}T00:00`)
+                ? (() => {
+                    const od = editingOrder.order_date;
+                    if (typeof od === 'string' && !od.includes('Z') && !od.includes('+') && !/-\d\d:\d\d$/.test(od)) {
+                      return od.includes('T') ? od.substring(0, 16) : `${od.substring(0, 10)}T00:00`;
+                    }
+                    const d = new Date(od);
+                    if (isNaN(d.getTime())) return '';
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const h = String(d.getHours()).padStart(2, '0');
+                    const min = String(d.getMinutes()).padStart(2, '0');
+                    return `${y}-${m}-${day}T${h}:${min}`;
+                  })()
                 : ''
             }
             onChange={(e) => {

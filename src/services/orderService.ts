@@ -270,17 +270,39 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
     try {
       const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
+      const normalizeOrderDate = (dateVal?: string | null) => {
+        if (!dateVal) return new Date().toISOString();
+        if (typeof dateVal === 'string' && !dateVal.includes('Z') && !dateVal.includes('+') && !/-\d\d:\d\d$/.test(dateVal)) {
+          if (dateVal.includes('T')) {
+            const [datePart, timePart] = dateVal.split('T');
+            const [y, m, day] = datePart.split('-').map(Number);
+            const [h, min] = (timePart || '00:00').split(':').map(Number);
+            const local = new Date(y, (m || 1) - 1, day || 1, h || 0, min || 0);
+            return !isNaN(local.getTime()) ? local.toISOString() : dateVal;
+          } else {
+            const [y, m, day] = dateVal.split('-').map(Number);
+            const local = new Date(y, (m || 1) - 1, day || 1, 0, 0);
+            return !isNaN(local.getTime()) ? local.toISOString() : dateVal;
+          }
+        }
+        const d = new Date(dateVal);
+        return !isNaN(d.getTime()) ? d.toISOString() : dateVal;
+      };
+
+      const normalizedOrderDate = normalizeOrderDate(finalOrder.order_date);
+      finalOrder.order_date = normalizedOrderDate;
+
       // Whitelist only columns that exist in the Supabase `orders` table schema
       const dbOrder: Record<string, any> = {
         id: finalOrder.id,
-        order_date: finalOrder.order_date || new Date().toISOString(),
+        order_date: normalizedOrderDate,
         doc_number: finalOrder.doc_number,
         vendor_id: finalOrder.vendor_id,
         warehouse_id: finalOrder.warehouse_id || null,
         qty_requested: finalOrder.qty_requested ?? null,
         tanks_to_leave: Number(finalOrder.tanks_to_leave) || 0,
         tanks_to_bring: Number(finalOrder.tanks_to_bring) || 0,
-        pickup_date_time: finalOrder.pickup_date_time || null,
+        pickup_date_time: finalOrder.pickup_date_time ? normalizeOrderDate(finalOrder.pickup_date_time) : null,
         operator_id: isValidUuid(finalOrder.operator_id) ? finalOrder.operator_id : null,
         created_by: isValidUuid(finalOrder.created_by) ? finalOrder.created_by : null,
         driver_id: isValidUuid(finalOrder.driver_id) ? finalOrder.driver_id : null,

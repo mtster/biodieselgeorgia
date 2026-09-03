@@ -258,15 +258,10 @@ export default function VendorCommunicationsSection({
           emptyMessage={t("No previous interactions logged for this supplier.")}
           hidePagination={true}
           isLoading={isLoading}
-          tableScrollClassName="max-h-[150px] overflow-y-auto"
+          isLoadingMore={isLoadingMore}
+          tableScrollClassName="max-h-[178px] overflow-y-auto"
           onScroll={handleTableScroll}
         />
-        {isLoadingMore && (
-          <div className="py-2 text-center text-[11px] text-emerald-800 font-semibold font-sans flex items-center justify-center gap-1.5 bg-slate-50 border border-t-0 border-gray-200 rounded-b-xl">
-            <Loader2 className="animate-spin text-emerald-700" size={13} />
-            <span>{t("Loading more...")}</span>
-          </div>
-        )}
       </div>
     </div>
   );
