@@ -14,7 +14,7 @@ import { usePaginatedCommunications } from '../../hooks/usePaginatedModuleQuery'
 import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 const defaultCommunicationsColumns: ManagedColumn[] = [
-  { id: 'date_time', label: 'Date & Time', visible: true },
+  { id: 'reminder_time', label: 'Reminder Time', visible: true },
   { id: 'type', label: 'Type', visible: true },
   { id: 'vendor_name', label: 'Supplier', visible: true },
   { id: 'company_name', label: 'Company Name', visible: true },
@@ -23,7 +23,7 @@ const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'comment', label: 'Interaction Comment', visible: true },
   { id: 'responsible_user_id', label: 'Responsible User', visible: true },
   { id: 'task_status', label: 'Task Status', visible: true },
-  { id: 'reminder_time', label: 'Reminder Time', visible: true }
+  { id: 'date_time', label: 'Created', visible: true }
 ];
 
 interface Props {
@@ -36,6 +36,8 @@ interface Props {
   onNavigateToOrdersWithVendor?: (vendorId: string) => void;
   initialEditingComm?: Communication | null;
   onClearInitialEditingComm?: () => void;
+  initialNewComm?: { vendorId?: string; type?: 'action' | 'reminder' | 'task' } | null;
+  onClearInitialNewComm?: () => void;
 }
 
 export default function CommunicationsView({ 
@@ -47,7 +49,9 @@ export default function CommunicationsView({
   onDelete, 
   onNavigateToOrdersWithVendor,
   initialEditingComm,
-  onClearInitialEditingComm
+  onClearInitialEditingComm,
+  initialNewComm,
+  onClearInitialNewComm
 }: Props) {
 
   const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('add');
@@ -85,8 +89,29 @@ export default function CommunicationsView({
       setEditingComm(initialEditingComm);
       setIsNew(false);
       onClearInitialEditingComm?.();
+    } else if (initialNewComm) {
+      const vId = initialNewComm.vendorId || '';
+      const supp = suppliers.find(s => s.id === vId);
+      const defaultContact = supp?.contacts?.find(c => c.is_default)?.id || supp?.contacts?.[0]?.id || '';
+      const defaultComm: Communication = {
+        id: '',
+        date_time: new Date().toISOString().substring(0, 16),
+        type: initialNewComm.type || 'reminder',
+        reminder_time: undefined,
+        user_id: currentEmployee?.id || employees[0]?.id || '',
+        responsible_user_id: currentEmployee?.id || employees[0]?.id || '',
+        vendor_id: vId,
+        vendor_name: supp?.trade_name || supp?.company_name || '',
+        vendor_contact_id: defaultContact,
+        comment: '',
+        is_completed: false,
+        task_status: 'pending'
+      };
+      setEditingComm(defaultComm);
+      setIsNew(true);
+      onClearInitialNewComm?.();
     }
-  }, [initialEditingComm, onClearInitialEditingComm]);
+  }, [initialEditingComm, onClearInitialEditingComm, initialNewComm, onClearInitialNewComm, suppliers, currentEmployee, employees]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Filters State
@@ -121,7 +146,29 @@ export default function CommunicationsView({
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
     const loaded = localStorage.getItem('communications_columns_managed');
-    return loaded ? JSON.parse(loaded) : defaultCommunicationsColumns;
+    if (!loaded) return defaultCommunicationsColumns;
+    try {
+      let parsed = JSON.parse(loaded) as ManagedColumn[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        if (parsed[0]?.id === 'date_time') {
+          const dtIndex = parsed.findIndex(c => c.id === 'date_time');
+          const rtIndex = parsed.findIndex(c => c.id === 'reminder_time');
+          if (dtIndex !== -1 && rtIndex !== -1) {
+            const dtCol = { ...parsed[dtIndex], label: 'Created' };
+            const rtCol = { ...parsed[rtIndex] };
+            parsed = parsed.filter(c => c.id !== 'date_time' && c.id !== 'reminder_time');
+            parsed.unshift(rtCol);
+            parsed.push(dtCol);
+          }
+        }
+        parsed = parsed.map(c => c.id === 'date_time' ? { ...c, label: 'Created' } : c);
+        localStorage.setItem('communications_columns_managed', JSON.stringify(parsed));
+        return parsed;
+      }
+      return defaultCommunicationsColumns;
+    } catch {
+      return defaultCommunicationsColumns;
+    }
   });
 
   const handleSaveColumns = (updated: ManagedColumn[]) => {

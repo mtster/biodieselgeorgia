@@ -2,7 +2,7 @@ import React from 'react';
 import { Vendor, User } from '../../types';
 import { t } from '../../utils/lang';
 import { WorkingHoursInput } from './WorkingHoursInput';
-import { FormSelect } from '../FormInput';
+import { FormSelect, FormInput } from '../FormInput';
 
 interface Props {
   editingVendor: Vendor;
@@ -142,47 +142,94 @@ export default function VendorManagementFormFields({
       </div>
 
       {/* Automated / Scheduled Order Section */}
-      <div className="border-t border-gray-100 pt-5 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-        <div 
-          className="flex items-center justify-between bg-gray-50 px-3.5 py-4 md:py-3 border border-transparent rounded-xl cursor-pointer hover:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600 transition-all"
-          onClick={() => {
-            const checked = !editingVendor.is_planned;
-            setEditingVendor(prev => prev ? { 
-              ...prev, 
-              is_planned: checked,
-              planned_weekday: checked ? (prev.planned_weekday || 'monday') : null 
-            } : null);
-          }}
-        >
-          <span className="text-xs font-bold uppercase text-gray-500 tracking-wider select-none">
-            {t("gegmiuri")}
-          </span>
+      <div className="border-t border-gray-100 pt-5 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           <div 
-            className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${editingVendor.is_planned ? 'bg-emerald-600' : 'bg-gray-200'}`}
+            className="flex items-center justify-between bg-gray-50 px-3.5 py-4 md:py-3 border border-transparent rounded-xl cursor-pointer hover:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600 transition-all"
+            onClick={() => {
+              const checked = !editingVendor.is_planned;
+              setEditingVendor(prev => prev ? { 
+                ...prev, 
+                is_planned: checked,
+                planned_weekday: checked ? (prev.planned_weekday || 'monday') : null,
+                frequency_weeks: checked ? (prev.frequency_weeks || 1) : 1,
+                tanks_to_bring: checked ? (prev.tanks_to_bring || undefined) : undefined,
+                tanks_to_leave: checked ? (prev.tanks_to_leave || undefined) : undefined
+              } : null);
+            }}
           >
+            <span className="text-xs font-bold uppercase text-gray-500 tracking-wider select-none">
+              {t("gegmiuri")}
+            </span>
             <div 
-              className={`bg-white w-3.5 h-3.5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${editingVendor.is_planned ? 'translate-x-3.5' : 'translate-x-0'}`} 
-            />
+              className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${editingVendor.is_planned ? 'bg-emerald-600' : 'bg-gray-200'}`}
+            >
+              <div 
+                className={`bg-white w-3.5 h-3.5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${editingVendor.is_planned ? 'translate-x-3.5' : 'translate-x-0'}`} 
+              />
+            </div>
           </div>
+
+          {editingVendor.is_planned && (
+            <>
+              <FormSelect
+                label={t("Day of the week")}
+                value={editingVendor.planned_weekday || 'monday'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEditingVendor(prev => prev ? { ...prev, planned_weekday: val } : null);
+                }}
+              >
+                <option value="monday">{t("monday")}</option>
+                <option value="tuesday">{t("tuesday")}</option>
+                <option value="wednesday">{t("wednesday")}</option>
+                <option value="thursday">{t("thursday")}</option>
+                <option value="friday">{t("friday")}</option>
+                <option value="saturday">{t("saturday")}</option>
+                <option value="sunday">{t("sunday")}</option>
+              </FormSelect>
+
+              <FormSelect
+                label={t("სიხშირე კვირებში")}
+                value={String(editingVendor.frequency_weeks || 1)}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10) || 1;
+                  setEditingVendor(prev => prev ? { ...prev, frequency_weeks: val } : null);
+                }}
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </FormSelect>
+            </>
+          )}
         </div>
 
         {editingVendor.is_planned && (
-          <FormSelect
-            label={t("Day of the week")}
-            value={editingVendor.planned_weekday || 'monday'}
-            onChange={(e) => {
-              const val = e.target.value;
-              setEditingVendor(prev => prev ? { ...prev, planned_weekday: val } : null);
-            }}
-          >
-            <option value="monday">{t("monday")}</option>
-            <option value="tuesday">{t("tuesday")}</option>
-            <option value="wednesday">{t("wednesday")}</option>
-            <option value="thursday">{t("thursday")}</option>
-            <option value="friday">{t("friday")}</option>
-            <option value="saturday">{t("saturday")}</option>
-            <option value="sunday">{t("sunday")}</option>
-          </FormSelect>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormInput
+              label={t("ავზების წამოღება")}
+              type="number"
+              min="0"
+              step="1"
+              value={editingVendor.tanks_to_bring === undefined || editingVendor.tanks_to_bring === null || editingVendor.tanks_to_bring === 0 ? '' : editingVendor.tanks_to_bring}
+              onChange={(e) => {
+                const val = e.target.value;
+                setEditingVendor(prev => prev ? { ...prev, tanks_to_bring: val === '' ? undefined as any : parseInt(val, 10) } : null);
+              }}
+            />
+            <FormInput
+              label={t("ავზების დატოვება")}
+              type="number"
+              min="0"
+              step="1"
+              value={editingVendor.tanks_to_leave === undefined || editingVendor.tanks_to_leave === null || editingVendor.tanks_to_leave === 0 ? '' : editingVendor.tanks_to_leave}
+              onChange={(e) => {
+                const val = e.target.value;
+                setEditingVendor(prev => prev ? { ...prev, tanks_to_leave: val === '' ? undefined as any : parseInt(val, 10) } : null);
+              }}
+            />
+          </div>
         )}
       </div>
     </div>

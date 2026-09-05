@@ -54,16 +54,20 @@ interface Props {
   onDelete: (id: string, docNum: string) => void;
   initialVendorId?: string;
   onClearInitialVendorId?: () => void;
+  onNavigateToCommunicationsWithVendor?: (vendorId: string) => void;
 }
 
 export default function OrdersView({ 
   orders, suppliers, warehouses, employees, trucks, directions,
-  currentEmployee, onSave, onDelete, initialVendorId, onClearInitialVendorId 
+  currentEmployee, onSave, onDelete, initialVendorId, onClearInitialVendorId,
+  onNavigateToCommunicationsWithVendor
 }: Props) {
   
   const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add');
   const canModify = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('modify');
   const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('delete');
+  const canAddComm = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('add');
+  const [isFormSaving, setIsFormSaving] = useState(false);
 
   const {
     searchTerm,
@@ -169,7 +173,23 @@ export default function OrdersView({
   const [deleteConfirmDocNum, setDeleteConfirmDocNum] = useState<string | null>(null);
 
   // Action triggers for child forms
-  const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
+  const formRef = useRef<{ 
+    save: () => void; 
+    fillDummy: () => void;
+    saveAndReminder?: (onSuccess?: (vendorId: string) => void) => void;
+  }>(null);
+
+  const handleSaveAndReminder = () => {
+    if (isFormSaving) return;
+    if (formRef.current?.saveAndReminder) {
+      formRef.current.saveAndReminder((vendorId) => {
+        setEditingOrder(null);
+        if (onNavigateToCommunicationsWithVendor && vendorId) {
+          onNavigateToCommunicationsWithVendor(vendorId);
+        }
+      });
+    }
+  };
 
   const scrollMainToTop = () => {
     setTimeout(() => {
@@ -342,6 +362,17 @@ export default function OrdersView({
               }}
             />
           )}
+          {canAddComm && (
+            <button
+              id="btn-order-save-and-reminder"
+              type="button"
+              onClick={handleSaveAndReminder}
+              disabled={isFormSaving}
+              className={`px-4 py-2 border border-emerald-700 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 font-bold rounded-lg text-xs transition cursor-pointer select-none inline-flex items-center gap-1.5 ${isFormSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+            >
+              {t("Save and Reminder")}
+            </button>
+          )}
           <button 
             onClick={() => formRef.current?.fillDummy()}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
@@ -427,6 +458,7 @@ export default function OrdersView({
           onSave={handleSaveFromForm}
           onCancel={() => setEditingOrder(null)}
           formRef={formRef}
+          onSavingStateChange={setIsFormSaving}
         />
       ) : (
         <div className="space-y-6 text-left">

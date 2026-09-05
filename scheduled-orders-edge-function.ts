@@ -100,7 +100,7 @@ serve(async (req) => {
     // Fetch active vendors scheduled for tomorrow
     const { data: vendors, error: selectError } = await supabase
       .from('vendors')
-      .select('id, company_name, trade_name, warehouse_id')
+      .select('id, company_name, trade_name, warehouse_id, frequency_weeks, tanks_to_bring, tanks_to_leave')
       .eq('is_deleted', false)
       .eq('is_planned', true)
       .eq('planned_weekday', targetWeekday)
@@ -124,12 +124,95 @@ serve(async (req) => {
       })
     }
 
+    const vendorIds = vendors.map(v => v.id)
+
+    // Fetch contacts for these vendors to locate the main contact (is_default: true or top sorted)
+    const { data: contacts } = await supabase
+      .from('vendor_contacts')
+      .select('id, vendor_id, is_default, sort_order')
+      .in('vendor_id', vendorIds)
+      .eq('is_deleted', false)
+      .order('sort_order', { ascending: false })
+
+    const mainContactMap: Record<string, string> = {}
+    if (contacts && contacts.length > 0) {
+      for (const c of contacts) {
+        if (!mainContactMap[c.vendor_id] || c.is_default) {
+          mainContactMap[c.vendor_id] = c.id
+        }
+      }
+    }
+
+    // Fetch existing recent orders to respect frequency_weeks and prevent duplicates on tomorrowDate
+    const { data: existingOrders } = await supabase
+      .from('orders')
+      .select('id, vendor_id, order_date')
+      .in('vendor_id', vendorIds)
+      .eq('is_deleted', false)
+      .order('order_date', { ascending: false })
+
+    const latestOrderMap: Record<string, Date> = {}
+    const existingTomorrowOrders = new Set<string>()
+    const tomorrowYMD = tomorrowDate.toISOString().split('T')[0]
+
+    if (existingOrders && existingOrders.length > 0) {
+      for (const ord of existingOrders) {
+        if (!ord.order_date) continue
+        const ordDateStr = ord.order_date.split('T')[0]
+        if (ordDateStr === tomorrowYMD) {
+          existingTomorrowOrders.add(ord.vendor_id)
+        }
+        if (!latestOrderMap[ord.vendor_id]) {
+          latestOrderMap[ord.vendor_id] = new Date(ord.order_date)
+        }
+      }
+    }
+
+    // Filter eligible vendors based on frequency_weeks (1, 2, 3...)
+    const eligibleVendors = vendors.filter(vendor => {
+      // Do not duplicate if an order for tomorrow already exists
+      if (existingTomorrowOrders.has(vendor.id)) {
+        return false
+      }
+
+      const freq = Math.max(1, Number(vendor.frequency_weeks) || 1)
+      const lastOrderDate = latestOrderMap[vendor.id]
+
+      // If never ordered before, trigger immediately
+      if (!lastOrderDate) {
+        return true
+      }
+
+      // Weekly frequency triggers every scheduled weekday
+      if (freq <= 1) {
+        return true
+      }
+
+      // Multi-week frequency: check elapsed days since last order
+      const diffMs = tomorrowDate.getTime() - lastOrderDate.getTime()
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+      const minDaysRequired = (freq * 7) - 3 // e.g. 11 days for 2 weeks, 18 days for 3 weeks
+      return diffDays >= minDaysRequired
+    })
+
+    if (eligibleVendors.length === 0) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: `All scheduled suppliers for ${targetWeekday} were already created or not due based on their weekly frequency.`,
+        weekdayChecked: targetWeekday,
+        ordersCreated: 0 
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      })
+    }
+
     const BATCH_SIZE = 100
     const insertedOrders = []
 
     // Batch insert orders to comply with Supabase limits and optimize compute
-    for (let i = 0; i < vendors.length; i += BATCH_SIZE) {
-      const batchVendors = vendors.slice(i, i + BATCH_SIZE)
+    for (let i = 0; i < eligibleVendors.length; i += BATCH_SIZE) {
+      const batchVendors = eligibleVendors.slice(i, i + BATCH_SIZE)
       const batchOrders = batchVendors.map(vendor => {
         const orderId = 'ord_' + crypto.randomUUID().replace(/-/g, '').substring(0, 12)
         const randomSuffix = Math.floor(100000 + Math.random() * 900000)
@@ -141,9 +224,10 @@ serve(async (req) => {
           doc_number: docNumber,
           vendor_id: vendor.id,
           warehouse_id: vendor.warehouse_id || null,
-          qty_requested: 50,
-          tanks_to_leave: 1,
-          tanks_to_bring: 1,
+          contact_id: mainContactMap[vendor.id] || null,
+          qty_requested: 0,
+          tanks_to_leave: Number(vendor.tanks_to_leave) || 0,
+          tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
           status: 'registered',
           note: `Automated scheduled order for ${vendor.trade_name || vendor.company_name}`
         }

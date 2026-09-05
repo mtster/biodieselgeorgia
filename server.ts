@@ -713,6 +713,310 @@ ${JSON.stringify(rows, null, 2)}
     }
   });
 
+  // Endpoint to run / test scheduled order generation
+  app.all("/api/cron/scheduled-orders", async (req, res) => {
+    try {
+      if (!isSupabaseConfigured || !supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase service role key is not configured on the server." });
+      }
+
+      // Check authorization (Bearer token or SERVICE_ROLE_KEY or internal header)
+      const authHeader = req.headers.authorization;
+      const cronSecret = req.headers['x-cron-secret'];
+      let isAuthorized = false;
+
+      if (process.env.SERVICE_ROLE_KEY && authHeader?.includes(process.env.SERVICE_ROLE_KEY)) {
+        isAuthorized = true;
+      } else if (cronSecret && cronSecret === process.env.SERVICE_ROLE_KEY) {
+        isAuthorized = true;
+      } else if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.split(" ")[1];
+        const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
+        const { data: { user }, error: authErr } = await tempClient.auth.getUser(token);
+        if (!authErr && user) {
+          const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (profile && (profile.role === "admin" || profile.role === "purchasing_head")) {
+            isAuthorized = true;
+          }
+        }
+      }
+
+      if (!isAuthorized) {
+        return res.status(401).json({ error: "Unauthorized access" });
+      }
+
+      // Determine tomorrow in Tbilisi time (UTC+4)
+      const options = {
+        timeZone: 'Asia/Tbilisi',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false
+      } as const;
+
+      const formatter = new Intl.DateTimeFormat('en-US', options);
+      const parts = formatter.formatToParts(new Date());
+
+      const yearPart = parts.find(p => p.type === 'year')?.value;
+      const monthPart = parts.find(p => p.type === 'month')?.value;
+      const dayPart = parts.find(p => p.type === 'day')?.value;
+
+      if (!yearPart || !monthPart || !dayPart) {
+        return res.status(500).json({ error: "Could not parse Tbilisi time" });
+      }
+
+      const tbilisiDate = new Date(parseInt(yearPart), parseInt(monthPart) - 1, parseInt(dayPart), 12, 0, 0);
+      const tomorrowDate = new Date(tbilisiDate);
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+      const tomorrowDayIndex = tomorrowDate.getDay();
+      const weekdaysMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const targetWeekday = weekdaysMap[tomorrowDayIndex];
+
+      const { data: vendors, error: selectError } = await supabaseAdmin
+        .from('vendors')
+        .select('id, company_name, trade_name, warehouse_id, frequency_weeks, tanks_to_bring, tanks_to_leave')
+        .eq('is_deleted', false)
+        .eq('is_planned', true)
+        .eq('planned_weekday', targetWeekday);
+
+      if (selectError) {
+        return res.status(500).json({ error: selectError.message });
+      }
+
+      if (!vendors || vendors.length === 0) {
+        return res.json({
+          success: true,
+          message: `No scheduled suppliers found for target weekday: ${targetWeekday} (tomorrow).`,
+          weekdayChecked: targetWeekday,
+          ordersCreated: 0
+        });
+      }
+
+      const vendorIds = vendors.map(v => v.id);
+
+      // Fetch contacts to get main contact (is_default)
+      const { data: contacts } = await supabaseAdmin
+        .from('vendor_contacts')
+        .select('id, vendor_id, is_default, sort_order')
+        .in('vendor_id', vendorIds)
+        .eq('is_deleted', false)
+        .order('sort_order', { ascending: false });
+
+      const mainContactMap: Record<string, string> = {};
+      if (contacts && contacts.length > 0) {
+        for (const c of contacts) {
+          if (!mainContactMap[c.vendor_id] || c.is_default) {
+            mainContactMap[c.vendor_id] = c.id;
+          }
+        }
+      }
+
+      // Fetch existing orders to check frequency_weeks and prevent duplicates
+      const { data: existingOrders } = await supabaseAdmin
+        .from('orders')
+        .select('id, vendor_id, order_date')
+        .in('vendor_id', vendorIds)
+        .eq('is_deleted', false)
+        .order('order_date', { ascending: false });
+
+      const latestOrderMap: Record<string, Date> = {};
+      const existingTomorrowOrders = new Set<string>();
+      const tomorrowYMD = tomorrowDate.toISOString().split('T')[0];
+
+      if (existingOrders && existingOrders.length > 0) {
+        for (const ord of existingOrders) {
+          if (!ord.order_date) continue;
+          const ordDateStr = ord.order_date.split('T')[0];
+          if (ordDateStr === tomorrowYMD) {
+            existingTomorrowOrders.add(ord.vendor_id);
+          }
+          if (!latestOrderMap[ord.vendor_id]) {
+            latestOrderMap[ord.vendor_id] = new Date(ord.order_date);
+          }
+        }
+      }
+
+      const eligibleVendors = vendors.filter(vendor => {
+        if (existingTomorrowOrders.has(vendor.id)) {
+          return false;
+        }
+
+        const freq = Math.max(1, Number(vendor.frequency_weeks) || 1);
+        const lastOrderDate = latestOrderMap[vendor.id];
+
+        if (!lastOrderDate) return true;
+        if (freq <= 1) return true;
+
+        const diffMs = tomorrowDate.getTime() - lastOrderDate.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const minDaysRequired = (freq * 7) - 3;
+        return diffDays >= minDaysRequired;
+      });
+
+      if (eligibleVendors.length === 0) {
+        return res.json({
+          success: true,
+          message: `All scheduled suppliers for ${targetWeekday} were already created or not due based on their weekly frequency.`,
+          weekdayChecked: targetWeekday,
+          ordersCreated: 0
+        });
+      }
+
+      const insertedOrders = [];
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < eligibleVendors.length; i += BATCH_SIZE) {
+        const batchVendors = eligibleVendors.slice(i, i + BATCH_SIZE);
+        const batchOrders = batchVendors.map(vendor => {
+          const orderId = 'ord_' + Math.random().toString(36).substring(2, 14);
+          const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+          const docNumber = `AUTO-${tomorrowDate.toISOString().split('T')[0].replace(/-/g, '')}-${randomSuffix}`;
+
+          return {
+            id: orderId,
+            order_date: tomorrowDate.toISOString(),
+            doc_number: docNumber,
+            vendor_id: vendor.id,
+            warehouse_id: vendor.warehouse_id || null,
+            contact_id: mainContactMap[vendor.id] || null,
+            qty_requested: 0,
+            tanks_to_leave: Number(vendor.tanks_to_leave) || 0,
+            tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
+            status: 'registered',
+            note: `Automated scheduled order for ${vendor.trade_name || vendor.company_name}`
+          };
+        });
+
+        const { data, error: insertError } = await supabaseAdmin
+          .from('orders')
+          .insert(batchOrders)
+          .select('id, doc_number');
+
+        if (insertError) {
+          return res.status(500).json({ error: insertError.message });
+        }
+        if (data) {
+          insertedOrders.push(...data);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Successfully generated automated orders for ${targetWeekday}.`,
+        weekdayChecked: targetWeekday,
+        ordersCreated: insertedOrders.length,
+        orders: insertedOrders
+      });
+    } catch (e: any) {
+      console.error("Scheduled orders error:", e);
+      res.status(500).json({ error: e.message || "Internal server error" });
+    }
+  });
+
+  // Overdue vendors report endpoint using LEFT JOIN LATERAL
+  app.get("/api/reports/overdue-vendors", async (req, res) => {
+    try {
+      if (!isSupabaseConfigured || !supabaseAdmin) {
+        return res.status(500).json({ error: "Supabase service role is not configured" });
+      }
+
+      // First attempt PostgreSQL RPC function get_overdue_vendors()
+      const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc("get_overdue_vendors");
+      if (!rpcError && rpcData) {
+        return res.json({ success: true, data: rpcData });
+      }
+
+      // Second attempt view overdue_vendors_view
+      const { data: viewData, error: viewError } = await supabaseAdmin
+        .from("overdue_vendors_view")
+        .select("*")
+        .order("overdue_days", { ascending: false });
+
+      if (!viewError && viewData) {
+        return res.json({ success: true, data: viewData });
+      }
+
+      // Fallback: Query active vendors and newest orders
+      const { data: vendors, error: vErr } = await supabaseAdmin
+        .from("vendors")
+        .select("id, id_code, company_name, trade_name, city, district, manager_id, is_active, overdue_threshold_days, created_at")
+        .eq("is_deleted", false)
+        .eq("is_active", true);
+
+      if (vErr) {
+        return res.status(500).json({ error: vErr.message });
+      }
+
+      const { data: orders, error: oErr } = await supabaseAdmin
+        .from("orders")
+        .select("vendor_id, order_date")
+        .eq("is_deleted", false)
+        .eq("status", "completed")
+        .order("order_date", { ascending: false });
+
+      if (oErr) {
+        return res.status(500).json({ error: oErr.message });
+      }
+
+      const latestOrderMap: Record<string, string> = {};
+      for (const ord of orders || []) {
+        if (ord.vendor_id && !latestOrderMap[ord.vendor_id] && ord.order_date) {
+          latestOrderMap[ord.vendor_id] = ord.order_date;
+        }
+      }
+
+      const now = new Date();
+      const results = [];
+
+      for (const v of vendors || []) {
+        const lastOrderDateStr = latestOrderMap[v.id];
+        if (lastOrderDateStr) {
+          const threshold = v.overdue_threshold_days;
+          if (threshold !== null && threshold !== undefined && threshold > 0) {
+            const diffDays = Math.floor((now.getTime() - new Date(lastOrderDateStr).getTime()) / (1000 * 60 * 60 * 24));
+            const overdueDays = diffDays - threshold;
+            if (overdueDays > 0) {
+              results.push({
+                ...v,
+                status: 'Active',
+                last_order_date: lastOrderDateStr,
+                days_ago: diffDays,
+                overdue_days: overdueDays
+              });
+            }
+          }
+        } else {
+          // No orders placed: check if 30 days have passed since created_at
+          const createdTime = v.created_at ? new Date(v.created_at).getTime() : now.getTime();
+          const daysSinceCreation = Math.floor((now.getTime() - createdTime) / (1000 * 60 * 60 * 24));
+          if (daysSinceCreation > 30) {
+            const overdueDays = daysSinceCreation - 30;
+            results.push({
+              ...v,
+              status: 'Active',
+              last_order_date: null,
+              days_ago: daysSinceCreation,
+              overdue_days: overdueDays
+            });
+          }
+        }
+      }
+
+      results.sort((a, b) => b.overdue_days - a.overdue_days);
+      res.json({ success: true, data: results });
+    } catch (err: any) {
+      console.error("Overdue vendors error:", err);
+      res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
   // Serve static assets and frontend index
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

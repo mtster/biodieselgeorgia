@@ -87,6 +87,7 @@ export default function App() {
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
   const [selectedOrderVendorId, setSelectedOrderVendorId] = React.useState<string | undefined>(undefined);
   const [selectedCommunication, setSelectedCommunication] = React.useState<Communication | null>(null);
+  const [selectedNewComm, setSelectedNewComm] = React.useState<{ vendorId?: string; type?: 'action' | 'reminder' | 'task' } | null>(null);
   const mainRef = React.useRef<HTMLElement>(null);
 
   React.useEffect(() => {
@@ -285,6 +286,8 @@ export default function App() {
                 onDelete={handleCommunicationDelete}
                 initialEditingComm={selectedCommunication}
                 onClearInitialEditingComm={() => setSelectedCommunication(null)}
+                initialNewComm={selectedNewComm}
+                onClearInitialNewComm={() => setSelectedNewComm(null)}
                 onNavigateToOrdersWithVendor={(vendorId) => {
                   setSelectedOrderVendorId(vendorId);
                   setActiveTab('orders');
@@ -305,6 +308,10 @@ export default function App() {
                 onDelete={handleOrderDelete}
                 initialVendorId={selectedOrderVendorId}
                 onClearInitialVendorId={() => setSelectedOrderVendorId(undefined)}
+                onNavigateToCommunicationsWithVendor={(vendorId) => {
+                  setSelectedNewComm({ vendorId, type: 'reminder' });
+                  setActiveTab('communications');
+                }}
               />
             )}
 

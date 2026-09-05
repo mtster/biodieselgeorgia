@@ -211,6 +211,11 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     working_hours TEXT,                     -- Working Hours
     is_active BOOLEAN DEFAULT TRUE,        -- Active status
     is_deleted BOOLEAN DEFAULT FALSE,
+    is_planned BOOLEAN DEFAULT FALSE,
+    planned_weekday TEXT DEFAULT NULL,
+    frequency_weeks INT DEFAULT 1,
+    tanks_to_bring NUMERIC(10, 2) DEFAULT 0,
+    tanks_to_leave NUMERIC(10, 2) DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     username TEXT,
@@ -229,6 +234,9 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NU
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS overdue_threshold_days INT DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_planned BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday TEXT DEFAULT NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS frequency_weeks INT DEFAULT 1;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS tanks_to_bring NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS tanks_to_leave NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.vendors DROP CONSTRAINT IF EXISTS vendors_user_id_fkey;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS username TEXT;
@@ -749,5 +757,141 @@ CREATE INDEX IF NOT EXISTS idx_vendor_contacts_vendor_active ON public.vendor_co
 CREATE INDEX IF NOT EXISTS idx_orders_created_at_desc ON public.orders (created_at DESC) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_communications_date_time_desc ON public.communications (date_time DESC) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_vendor_contacts_default_sort ON public.vendor_contacts (is_default DESC, sort_order DESC) WHERE is_deleted = false;
+
+-- High-performance indexes for Overdue Vendors (ვადაგადაცილებული მომწოდებლები)
+-- Index for LATERAL order lookup in O(1) single index scan per vendor
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_completed_date_desc 
+ON public.orders (vendor_id, order_date DESC) 
+WHERE is_deleted = false AND status = 'completed';
+
+-- Filtered partial index for active vendors: excludes inactive and deleted suppliers
+CREATE INDEX IF NOT EXISTS idx_vendors_overdue_lookup 
+ON public.vendors (is_deleted, is_active, created_at DESC) 
+WHERE is_deleted = false AND is_active = true;
+
+-- Left Join Lateral View for Overdue Vendors (Strictly Active Suppliers Only)
+CREATE OR REPLACE VIEW public.overdue_vendors_view AS
+SELECT 
+    v.id::TEXT AS id,
+    v.id_code,
+    v.company_name,
+    v.trade_name,
+    v.city,
+    v.district,
+    v.manager_id,
+    v.is_active,
+    'Active'::TEXT AS status,
+    v.overdue_threshold_days,
+    v.created_at,
+    lo.order_date AS last_order_date,
+    CASE 
+        WHEN lo.order_date IS NOT NULL THEN 
+            GREATEST(0, (CURRENT_DATE - lo.order_date::date))::INT
+        ELSE 
+            GREATEST(0, (CURRENT_DATE - v.created_at::date))::INT
+    END AS days_ago,
+    CASE 
+        WHEN lo.order_date IS NOT NULL THEN 
+            ((CURRENT_DATE - lo.order_date::date) - COALESCE(v.overdue_threshold_days, 0))::INT
+        ELSE 
+            ((CURRENT_DATE - v.created_at::date) - 30)::INT
+    END AS overdue_days
+FROM public.vendors v
+LEFT JOIN LATERAL (
+    SELECT o.id, o.order_date
+    FROM public.orders o
+    WHERE o.vendor_id = v.id 
+      AND o.is_deleted = false 
+      AND o.status = 'completed'
+    ORDER BY o.order_date DESC
+    LIMIT 1
+) lo ON true
+WHERE v.is_deleted = false
+  AND v.is_active = true
+  AND (
+      (lo.order_date IS NOT NULL 
+       AND v.overdue_threshold_days IS NOT NULL 
+       AND v.overdue_threshold_days > 0 
+       AND ((CURRENT_DATE - lo.order_date::date) > v.overdue_threshold_days))
+      OR
+      (lo.order_date IS NULL 
+       AND (CURRENT_DATE - v.created_at::date) > 30)
+  );
+
+GRANT SELECT ON public.overdue_vendors_view TO authenticated, anon;
+
+-- RPC Function for Overdue Vendors using LEFT JOIN LATERAL (Strictly Active Suppliers Only)
+CREATE OR REPLACE FUNCTION public.get_overdue_vendors()
+RETURNS TABLE (
+    id TEXT,
+    id_code TEXT,
+    company_name TEXT,
+    trade_name TEXT,
+    city TEXT,
+    district TEXT,
+    manager_id UUID,
+    is_active BOOLEAN,
+    status TEXT,
+    overdue_threshold_days INT,
+    created_at TIMESTAMPTZ,
+    last_order_date TIMESTAMPTZ,
+    days_ago INT,
+    overdue_days INT
+) 
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+    SELECT 
+        v.id::TEXT AS id,
+        v.id_code,
+        v.company_name,
+        v.trade_name,
+        v.city,
+        v.district,
+        v.manager_id,
+        v.is_active,
+        'Active'::TEXT AS status,
+        v.overdue_threshold_days,
+        v.created_at,
+        lo.order_date AS last_order_date,
+        CASE 
+            WHEN lo.order_date IS NOT NULL THEN 
+                GREATEST(0, (CURRENT_DATE - lo.order_date::date))::INT
+            ELSE 
+                GREATEST(0, (CURRENT_DATE - v.created_at::date))::INT
+        END AS days_ago,
+        CASE 
+            WHEN lo.order_date IS NOT NULL THEN 
+                ((CURRENT_DATE - lo.order_date::date) - COALESCE(v.overdue_threshold_days, 0))::INT
+            ELSE 
+                ((CURRENT_DATE - v.created_at::date) - 30)::INT
+        END AS overdue_days
+    FROM public.vendors v
+    LEFT JOIN LATERAL (
+        SELECT o.id, o.order_date
+        FROM public.orders o
+        WHERE o.vendor_id = v.id 
+          AND o.is_deleted = false 
+          AND o.status = 'completed'
+        ORDER BY o.order_date DESC
+        LIMIT 1
+    ) lo ON true
+    WHERE v.is_deleted = false
+      AND v.is_active = true
+      AND (
+          (lo.order_date IS NOT NULL 
+           AND v.overdue_threshold_days IS NOT NULL 
+           AND v.overdue_threshold_days > 0 
+           AND ((CURRENT_DATE - lo.order_date::date) > v.overdue_threshold_days))
+          OR
+          (lo.order_date IS NULL 
+           AND (CURRENT_DATE - v.created_at::date) > 30)
+      )
+    ORDER BY overdue_days DESC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_overdue_vendors() TO authenticated, anon;
+
 
 

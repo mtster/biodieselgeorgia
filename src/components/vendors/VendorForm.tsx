@@ -286,6 +286,9 @@ export default function VendorForm({
     if (Number(editingVendor.overdue_threshold_days || 0) !== Number(initV.overdue_threshold_days || 0)) return true;
     if (Boolean(editingVendor.is_active ?? true) !== Boolean(initV.is_active ?? true)) return true;
     if (Boolean(editingVendor.is_planned) !== Boolean(initV.is_planned)) return true;
+    if (Number(editingVendor.frequency_weeks || 1) !== Number(initV.frequency_weeks || 1)) return true;
+    if (Number(editingVendor.tanks_to_bring || 0) !== Number(initV.tanks_to_bring || 0)) return true;
+    if (Number(editingVendor.tanks_to_leave || 0) !== Number(initV.tanks_to_leave || 0)) return true;
 
     // Compare custom fields
     const allKeys = Array.from(new Set([...Object.keys(editingVendor), ...Object.keys(initV)]));

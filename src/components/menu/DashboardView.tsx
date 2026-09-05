@@ -37,12 +37,17 @@ export default function DashboardView({
   const pad = (n: number) => String(n).padStart(2, '0');
   const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   
-  const todayReminders = (communications || []).filter(c => 
-    !c.is_deleted && 
-    c.type === 'reminder' && 
-    c.reminder_time &&
-    c.reminder_time.split('T')[0] === todayStr
-  );
+  const todayReminders = (communications || []).filter(c => {
+    if (c.is_deleted || c.type !== 'reminder' || !c.reminder_time) return false;
+    if (c.has_time) {
+      const d = new Date(c.reminder_time);
+      if (!isNaN(d.getTime())) {
+        const dStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        return dStr === todayStr;
+      }
+    }
+    return c.reminder_time.split('T')[0] === todayStr;
+  });
 
   return (
     <div className="space-y-6 pt-4 md:pt-6" id="dashboard-view-panel">
@@ -205,8 +210,10 @@ export default function DashboardView({
               todayReminders.map(rem => {
                 const supplier = suppliers.find(s => s.id === rem.vendor_id);
                 const hasTime = !!rem.has_time;
-                const timeStr = hasTime && rem.reminder_time ? rem.reminder_time.substring(11, 16) : null;
                 const reminderDate = rem.reminder_time ? new Date(rem.reminder_time) : null;
+                const timeStr = hasTime && reminderDate && !isNaN(reminderDate.getTime())
+                  ? `${pad(reminderDate.getHours())}:${pad(reminderDate.getMinutes())}`
+                  : null;
                 const isPastDue = hasTime && reminderDate && !isNaN(reminderDate.getTime()) ? now.getTime() > reminderDate.getTime() : false;
 
                 return (

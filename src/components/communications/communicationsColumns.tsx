@@ -28,7 +28,7 @@ export function getCommunicationsColumns({
 
   const columnMap: Record<string, ColumnConfig<Communication>> = {
     date_time: {
-      header: t('Date & Time'),
+      header: t('Created'),
       key: 'date_time',
       render: (comm) => formatDateTime(comm.date_time)
     },

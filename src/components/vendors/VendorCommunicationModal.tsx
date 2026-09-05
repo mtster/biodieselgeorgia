@@ -102,21 +102,27 @@ export default function VendorCommunicationModal({
         let parsedRTime = '';
         if (activeComm.reminder_time) {
           const raw = activeComm.reminder_time;
-          if (raw.includes('T')) {
-            const parts = raw.split('T');
-            parsedRDate = parts[0];
-            setReminderDate(parsedRDate);
-            if (activeComm.has_time) {
-              parsedRTime = parts[1].substring(0, 5);
-              setReminderTime(parsedRTime);
+          if (activeComm.has_time) {
+            const d = new Date(raw);
+            if (!isNaN(d.getTime())) {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              parsedRDate = `${y}-${m}-${day}`;
+              const h = String(d.getHours()).padStart(2, '0');
+              const min = String(d.getMinutes()).padStart(2, '0');
+              parsedRTime = `${h}:${min}`;
             } else {
-              setReminderTime('');
+              const parts = raw.split('T');
+              parsedRDate = parts[0];
+              parsedRTime = (parts[1] || '').substring(0, 5);
             }
           } else {
-            parsedRDate = raw;
-            setReminderDate(parsedRDate);
-            setReminderTime('');
+            parsedRDate = raw.includes('T') ? raw.split('T')[0] : raw;
+            parsedRTime = '';
           }
+          setReminderDate(parsedRDate);
+          setReminderTime(parsedRTime);
         } else {
           setReminderDate('');
           setReminderTime('');

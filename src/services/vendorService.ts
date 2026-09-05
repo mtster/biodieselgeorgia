@@ -594,7 +594,10 @@ export function cleanVendorDbPayload(vendor: any): any {
     username: vendor.username || null,
     overdue_threshold_days: (vendor.overdue_threshold_days === undefined || vendor.overdue_threshold_days === null || vendor.overdue_threshold_days === '') ? null : Number(vendor.overdue_threshold_days),
     is_planned: vendor.is_planned !== undefined ? !!vendor.is_planned : false,
-    planned_weekday: vendor.planned_weekday || null
+    planned_weekday: vendor.planned_weekday || null,
+    frequency_weeks: vendor.frequency_weeks ? Number(vendor.frequency_weeks) : 1,
+    tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
+    tanks_to_leave: Number(vendor.tanks_to_leave) || 0
   };
 
   // Explicitly strip redundant and moved columns from payload
