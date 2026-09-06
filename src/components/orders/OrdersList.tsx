@@ -54,7 +54,10 @@ export default function OrdersList({
     }
   };
 
-  const findSupplier = (vendorId?: string) => {
+  const findSupplier = (vendorId?: string, ord?: Order) => {
+    if (ord && (ord as any).vendor) {
+      return (ord as any).vendor;
+    }
     if (!vendorId) return null;
     const cleanId = String(vendorId).trim().toLowerCase();
     return suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) || null;
@@ -76,7 +79,7 @@ export default function OrdersList({
       key: 'supplier',
       className: 'max-w-[200px] xl:max-w-[260px]',
       render: (ord) => {
-        const supplierObj = findSupplier(ord.vendor_id);
+        const supplierObj = findSupplier(ord.vendor_id, ord);
         const name = (supplierObj?.trade_name || supplierObj?.company_name) || ord.vendor_name || t('Supplier');
         return (
           <div className="max-w-[200px] xl:max-w-[260px] truncate" title={name}>
@@ -177,17 +180,18 @@ export default function OrdersList({
       header: t('Address'),
       key: 'address',
       render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id);
-        return vendor ? vendor.address : (ord.address || '-');
+        const vendor = findSupplier(ord.vendor_id, ord);
+        return vendor?.address || ord.address || '-';
       }
     },
     direction: {
       header: t('Direction'),
       key: 'direction',
       render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id);
-        if (!vendor || !vendor.direction_id) return '-';
-        const d = directions.find(dir => dir.id === vendor.direction_id);
+        const vendor = findSupplier(ord.vendor_id, ord);
+        const dirId = vendor?.direction_id || ord.direction_id;
+        if (!dirId) return '-';
+        const d = directions.find(dir => dir.id === dirId);
         return d ? d.name : '-';
       }
     },
@@ -195,16 +199,16 @@ export default function OrdersList({
       header: t('City'),
       key: 'city',
       render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id);
-        return vendor ? vendor.city : (ord.city || '-');
+        const vendor = findSupplier(ord.vendor_id, ord);
+        return vendor?.city || ord.city || '-';
       }
     },
     district: {
       header: t('District'),
       key: 'district',
       render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id);
-        return vendor ? vendor.district : (ord.district || '-');
+        const vendor = findSupplier(ord.vendor_id, ord);
+        return vendor?.district || ord.district || '-';
       }
     },
     truck_plate: {

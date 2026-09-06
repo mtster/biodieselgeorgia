@@ -76,11 +76,14 @@ export interface Vendor {
   created_at: string;
   direction_id?: string;      // მიმართულება
   overdue_threshold_days?: number | null; // ვადა (დღეები)
+  last_order_date?: string | null;        // ბოლო მიწოდების თარიღი
   is_planned?: boolean;       // გეგმიური
   planned_weekday?: string;   // კვირის დღე
   frequency_weeks?: number;   // სიხშირე კვირებში (1, 2, 3...)
   tanks_to_bring?: number;    // ავზების წამოღება
   tanks_to_leave?: number;    // ავზების დატოვება
+  latitude?: number | null;   // გეოლოკაციის განედი
+  longitude?: number | null;  // გეოლოკაციის გრძედი
   user_id?: string;           // მომხმარებლის ID
   username?: string;          // მომხმარებლის სახელი
   email?: string;             // ელ ფოსტა
@@ -100,6 +103,7 @@ export interface Order {
   pickup_date_time?: string;  // წამოღების თარიღი და დრო
   operator_id: string;        // შეკვეთის თანამშრომელი (ვინც შექმნა)
   created_by?: string;
+  created_at?: string;
   operator_name?: string;
   driver_id?: string;         // მძღოლი თანამშრომელი
   driver_name?: string;
@@ -112,6 +116,7 @@ export interface Order {
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
   fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
+  route_rank?: string | null; // მარშრუტის Lexorank თანმიმდევრობა
   note?: string;              // ძველი შენიშვნა
   notes?: VendorComment[];    // შენიშვნების სია (jsonb)
   tanks_to_leave: number;     // დასატოვებელი ავზები რაოდ

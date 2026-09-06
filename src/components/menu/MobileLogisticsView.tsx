@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Order, Vendor, Warehouse, Truck } from '../../types';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, List } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { MobileLogisticsHeader } from '../mobile-logistics/MobileLogisticsHeader';
 import { ActiveOrderCard } from '../mobile-logistics/ActiveOrderCard';
 import { CompletedOrderCard } from '../mobile-logistics/CompletedOrderCard';
 import { OrderCompletionModal } from '../mobile-logistics/OrderCompletionModal';
+import { OrderSequenceModal } from '../logistics/OrderSequenceModal';
+import { sortOrdersByRouteRank } from '../../utils/lexorank';
 
 interface Props {
   currentUser: User;
@@ -22,6 +25,12 @@ export default function MobileLogisticsView({
 }: Props) {
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showSequenceModal, setShowSequenceModal] = useState<boolean>(false);
+  const [localOrders, setLocalOrders] = useState<Order[]>(orders);
+
+  useEffect(() => {
+    setLocalOrders(orders);
+  }, [orders]);
 
   // Helper function to sanitize a string for comparison
   const cleanStr = (str?: string) => str ? str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
@@ -117,10 +126,33 @@ export default function MobileLogisticsView({
   if (!assignedCompanionName) assignedCompanionName = 'არ არის მინიჭებული';
 
   const vehiclePlateText = myTruck?.plate_number || (uEmailPart ? uEmailPart.toUpperCase() : '') || currentUser.name || '';
+  const vehicleId = myTruck?.id || '';
 
-  // Filter orders assigned to this vehicle or driver or plate
-  const myOrders = orders.filter(o => {
+  // Strict current date helper for Asia/Tbilisi timezone
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
+
+  const isTodayOrder = (o: Order): boolean => {
     if (!o || o.is_deleted) return false;
+    const rawDate = o.order_date || o.pickup_date_time || o.created_at;
+    if (!rawDate) return false;
+    try {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
+        return dStr === todayStr;
+      }
+    } catch {}
+    const str = String(rawDate);
+    const datePart = str.includes('T') ? str.split('T')[0] : str.slice(0, 10);
+    return datePart === todayStr;
+  };
+
+  // Filter orders assigned to this vehicle or driver or plate AND strictly for the current date
+  const myOrders = localOrders.filter(o => {
+    if (!o || o.is_deleted) return false;
+
+    // Must be for the current date only
+    if (!isTodayOrder(o)) return false;
 
     // 1. Match by vehicle_id
     if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;
@@ -154,7 +186,11 @@ export default function MobileLogisticsView({
   });
 
   const activeOrders = myOrders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up' || o.status === 'uncompleted');
+  const sortedActiveOrders = sortOrdersByRouteRank(activeOrders);
   const completedOrders = myOrders.filter(o => o.status === 'completed');
+
+  // Rearrangement page: shows exactly the same orders as active orders page
+  const sequenceOrders = sortedActiveOrders;
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -181,28 +217,39 @@ export default function MobileLogisticsView({
 
       {/* Primary list space */}
       <main className="flex-1 p-4 max-w-md mx-auto w-full space-y-4">
-        {/* Toggle active / completed */}
-        <div className="flex bg-gray-200/70 p-1 rounded-xl shadow-inner">
+        {/* Toggle active / completed and sequence order button */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => { setActiveTab('active'); setSelectedOrder(null); }}
-            className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition tracking-tight cursor-pointer ${
-              activeTab === 'active' 
-                ? 'bg-white text-emerald-900 shadow-sm border border-gray-100' 
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
+            id="btn-open-order-sequence"
+            onClick={() => setShowSequenceModal(true)}
+            className="w-10 h-9.5 bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-700 hover:text-emerald-900 rounded-xl border border-gray-200/90 shadow-xs transition flex items-center justify-center cursor-pointer select-none flex-shrink-0"
+            title="შეკვეთების თანმიმდევრობა"
           >
-            აქტიური შეკვეთები ({activeOrders.length})
+            <List size={20} className="stroke-[2.3]" />
           </button>
-          <button
-            onClick={() => { setActiveTab('completed'); setSelectedOrder(null); }}
-            className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition tracking-tight cursor-pointer ${
-              activeTab === 'completed' 
-                ? 'bg-white text-emerald-900 shadow-sm border border-gray-100' 
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            დასრულებული ({completedOrders.length})
-          </button>
+
+          <div className="flex-1 flex bg-gray-200/70 p-1 rounded-xl shadow-inner">
+            <button
+              onClick={() => { setActiveTab('active'); setSelectedOrder(null); }}
+              className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition tracking-tight cursor-pointer ${
+                activeTab === 'active' 
+                  ? 'bg-white text-emerald-900 shadow-sm border border-gray-100' 
+                  : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              აქტიური შეკვეთები ({activeOrders.length})
+            </button>
+            <button
+              onClick={() => { setActiveTab('completed'); setSelectedOrder(null); }}
+              className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition tracking-tight cursor-pointer ${
+                activeTab === 'completed' 
+                  ? 'bg-white text-emerald-900 shadow-sm border border-gray-100' 
+                  : 'text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              დასრულებული ({completedOrders.length})
+            </button>
+          </div>
         </div>
 
         {/* Current task form if an order is selected */}
@@ -224,7 +271,7 @@ export default function MobileLogisticsView({
                   <p className="text-xs font-medium">თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
                 </div>
               ) : (
-                activeOrders.map(order => (
+                sortedActiveOrders.map(order => (
                   <ActiveOrderCard
                     key={order.id}
                     order={order}
@@ -253,6 +300,26 @@ export default function MobileLogisticsView({
           </div>
         )}
       </main>
+
+      {/* Reordering Modal (slides in from left) */}
+      <AnimatePresence>
+        {showSequenceModal && (
+          <OrderSequenceModal
+            isOpen={showSequenceModal}
+            onClose={() => setShowSequenceModal(false)}
+            orders={sequenceOrders}
+            suppliers={suppliers}
+            vehiclePlateText={vehiclePlateText}
+            vehicleId={vehicleId}
+            driverId={currentUser.id}
+            dateStr={todayStr}
+            onOrdersReordered={(reorderedItems) => {
+              const reorderedMap = new Map(reorderedItems.map(i => [i.id, i]));
+              setLocalOrders(prev => prev.map(o => reorderedMap.get(o.id) || o));
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

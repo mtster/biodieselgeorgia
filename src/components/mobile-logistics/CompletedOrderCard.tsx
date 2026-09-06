@@ -17,7 +17,7 @@ export function CompletedOrderCard({ order, supplier }: Props) {
             {order.doc_number}
           </span>
           <h3 className="font-extrabold text-xs text-gray-800 mt-1 leading-none">
-            {supplier?.trade_name || order.vendor_name || 'მიმწოდებელი'}
+            {supplier?.trade_name || (order as any).vendor?.trade_name || order.vendor_name || 'მიმწოდებელი'}
           </h3>
         </div>
         <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full flex items-center gap-1">

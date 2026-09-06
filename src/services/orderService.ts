@@ -169,6 +169,11 @@ export async function getOrdersPaginated(
           return {
             ...o,
             vendor_name: o.vendor_name || o.vendors?.trade_name || o.vendors?.company_name || v?.trade_name || v?.company_name || '',
+            address: o.address || v?.address || '',
+            city: o.city || v?.city || '',
+            district: o.district || v?.district || '',
+            direction_id: o.direction_id || v?.direction_id || null,
+            vendor: v || o.vendors || null,
             notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
           };
         });
@@ -234,9 +239,37 @@ export async function getOrdersPaginated(
 export async function getOrders(): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('orders').select('*').eq('is_deleted', false).order('order_date', { ascending: false });
-      if (!error && data) {
-        return data.map((o: any) => ({
+      const CHUNK_SIZE = 1000;
+      let from = 0;
+      let hasMore = true;
+      const allRows: any[] = [];
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('is_deleted', false)
+          .order('order_date', { ascending: false })
+          .range(from, from + CHUNK_SIZE - 1);
+
+        if (error) {
+          console.warn('Supabase getOrders chunk error:', error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allRows.push(...data);
+          from += CHUNK_SIZE;
+          if (data.length < CHUNK_SIZE) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allRows.length > 0) {
+        return allRows.map((o: any) => ({
           ...o,
           notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
         }));
@@ -315,6 +348,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         sms_sent: Boolean(finalOrder.sms_sent),
         is_deleted: Boolean(finalOrder.is_deleted),
         contact_id: finalOrder.contact_id || null,
+        route_rank: finalOrder.route_rank || null,
         notes: Array.isArray(finalOrder.notes) ? finalOrder.notes : []
       };
 
@@ -348,6 +382,20 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
     
     setLocal(KEY_ORDERS, list.map(item => item.id === finalOrder.id ? finalOrder : item));
     await trackChange(loggerName, 'Order updated', 'Status', oldOrder?.status || '', finalOrder.status);
+  }
+
+  // Update vendor's last_order_date on database if order is completed
+  if (finalOrder.status === 'completed' && finalOrder.vendor_id) {
+    const orderDate = finalOrder.order_date || finalOrder.pickup_date_time || new Date().toISOString();
+    if (isSupabaseConfigured && supabase) {
+      void (async () => {
+        try {
+          await supabase.from('vendors').update({ last_order_date: orderDate }).eq('id', finalOrder.vendor_id);
+        } catch {
+          // Ignore background update errors
+        }
+      })();
+    }
   }
 
   notifyDbChange('orders', isNew ? 'CREATE' : 'UPDATE', finalOrder.id);
@@ -401,4 +449,36 @@ export async function deleteOrder(id: string, docNum: string, loggerName: string
   await trackChange(loggerName, 'Order deleted', 'Document #', docNum, '');
   notifyDbChange('orders', 'DELETE', id);
   return true;
+}
+
+export async function updateOrdersRouteRanks(updates: { id: string; route_rank: string }[]): Promise<void> {
+  if (!updates || updates.length === 0) return;
+
+  // 1. Instantly update client local storage cache
+  const list = getLocal<Order[]>(KEY_ORDERS, []);
+  const updateMap = new Map(updates.map(u => [u.id, u.route_rank]));
+  const updatedList = list.map(o => {
+    if (updateMap.has(o.id)) {
+      return { ...o, route_rank: updateMap.get(o.id)! };
+    }
+    return o;
+  });
+  setLocal(KEY_ORDERS, updatedList);
+  appCache.clear();
+
+  // 2. Persist to Supabase in parallel
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await Promise.all(
+        updates.map(u =>
+          supabase
+            .from('orders')
+            .update({ route_rank: u.route_rank })
+            .eq('id', u.id)
+        )
+      );
+    } catch (e) {
+      console.warn('Supabase updateOrdersRouteRanks error:', e);
+    }
+  }
 }

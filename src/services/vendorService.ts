@@ -58,20 +58,53 @@ export function decodeVendorCustomFields(vendor: Vendor): Vendor {
 export async function getVendorContacts(vendorId?: string): Promise<VendorContact[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      let query = supabase.from('vendor_contacts').select('*').eq('is_deleted', false);
       if (vendorId) {
-        query = query.eq('vendor_id', vendorId);
-      }
-      const { data, error } = await query;
-      if (!error && data) {
-        // Sort according to rule:
-        // 1. is_default / ismain (true first)
-        // 2. descending order of sort_order (highest sort_order is top/latest, 1 is bottom/oldest)
-        return (data as any[]).sort((a, b) => {
-          if (a.is_default && !b.is_default) return -1;
-          if (!a.is_default && b.is_default) return 1;
-          return (b.sort_order || 0) - (a.sort_order || 0);
-        });
+        const { data, error } = await supabase
+          .from('vendor_contacts')
+          .select('*')
+          .eq('is_deleted', false)
+          .eq('vendor_id', vendorId);
+        if (!error && data) {
+          return (data as any[]).sort((a, b) => {
+            if (a.is_default && !b.is_default) return -1;
+            if (!a.is_default && b.is_default) return 1;
+            return (b.sort_order || 0) - (a.sort_order || 0);
+          });
+        }
+      } else {
+        // Fetch all contacts in chunks to bypass 1000 row limit
+        const CHUNK_SIZE = 1000;
+        let from = 0;
+        let hasMore = true;
+        const allContacts: any[] = [];
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('vendor_contacts')
+            .select('*')
+            .eq('is_deleted', false)
+            .order('id')
+            .range(from, from + CHUNK_SIZE - 1);
+          if (error) {
+            console.warn('Error fetching vendor contacts chunk:', error);
+            break;
+          }
+          if (data && data.length > 0) {
+            allContacts.push(...data);
+            from += CHUNK_SIZE;
+            if (data.length < CHUNK_SIZE) {
+              hasMore = false;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+        if (allContacts.length > 0) {
+          return allContacts.sort((a, b) => {
+            if (a.is_default && !b.is_default) return -1;
+            if (!a.is_default && b.is_default) return 1;
+            return (b.sort_order || 0) - (a.sort_order || 0);
+          });
+        }
       }
     } catch (e) {
       console.warn('Supabase getVendorContacts failed', e);
@@ -518,9 +551,37 @@ export async function getVendors(): Promise<Vendor[]> {
   let vendors: Vendor[] = [];
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('vendors').select('*').eq('is_deleted', false).order('trade_name').limit(10000);
-      if (!error && data) {
-        vendors = data.map(v => decodeVendorCustomFields(v));
+      const CHUNK_SIZE = 1000;
+      let from = 0;
+      let hasMore = true;
+      const allRows: any[] = [];
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('vendors')
+          .select('*')
+          .eq('is_deleted', false)
+          .order('id')
+          .range(from, from + CHUNK_SIZE - 1);
+
+        if (error) {
+          console.warn('Supabase getVendors chunk error:', error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allRows.push(...data);
+          from += CHUNK_SIZE;
+          if (data.length < CHUNK_SIZE) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allRows.length > 0) {
+        vendors = allRows.map(v => decodeVendorCustomFields(v));
       }
     } catch (e) {
       console.warn('Supabase getVendors failed', e);
@@ -593,11 +654,14 @@ export function cleanVendorDbPayload(vendor: any): any {
     user_id: vendor.user_id || null,
     username: vendor.username || null,
     overdue_threshold_days: (vendor.overdue_threshold_days === undefined || vendor.overdue_threshold_days === null || vendor.overdue_threshold_days === '') ? null : Number(vendor.overdue_threshold_days),
+    last_order_date: vendor.last_order_date || null,
     is_planned: vendor.is_planned !== undefined ? !!vendor.is_planned : false,
     planned_weekday: vendor.planned_weekday || null,
     frequency_weeks: vendor.frequency_weeks ? Number(vendor.frequency_weeks) : 1,
     tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
-    tanks_to_leave: Number(vendor.tanks_to_leave) || 0
+    tanks_to_leave: Number(vendor.tanks_to_leave) || 0,
+    latitude: (vendor.latitude !== undefined && vendor.latitude !== null && vendor.latitude !== '') ? Number(vendor.latitude) : null,
+    longitude: (vendor.longitude !== undefined && vendor.longitude !== null && vendor.longitude !== '') ? Number(vendor.longitude) : null
   };
 
   // Explicitly strip redundant and moved columns from payload

@@ -14,8 +14,10 @@ import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
 import DeleteButton from '../DeleteButton';
+import { VendorGeolocationModal } from '../vendors/VendorGeolocationModal';
 import { createDatabaseColumn } from '../../services/vendorService';
 import { usePaginatedVendors } from '../../hooks/usePaginatedModuleQuery';
+import { useQueryClient } from '@tanstack/react-query';
 import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 const defaultSuppliersColumns: ManagedColumn[] = [
@@ -86,6 +88,8 @@ export default function VendorsView({
   const [selectedOperationManager, setSelectedOperationManager] = useState('');
   const [selectedDirection, setSelectedDirection] = useState('');
   const [page, setPage] = useState(1);
+  const [showGeolocationModal, setShowGeolocationModal] = useState(false);
+  const queryClient = useQueryClient();
 
   // Reset page to 1 when filters change
   useEffect(() => {
@@ -101,7 +105,7 @@ export default function VendorsView({
     operatorId: selectedOperationManager,
     directionId: selectedDirection
   };
-  const { data: paginatedData, isLoading: isVendorsLoading } = usePaginatedVendors(page, filters, currentUser);
+  const { data: paginatedData, isLoading: isVendorsLoading, refetch: refetchVendors } = usePaginatedVendors(page, filters, currentUser);
 
   const displayVendors = paginatedData?.vendors || [];
   const totalVendorsCount = paginatedData?.totalCount || 0;
@@ -346,6 +350,8 @@ export default function VendorsView({
                   setShowBulkDeleteConfirm(true);
                 } else if (val === 'col_manager') {
                   setIsColModalOpen(true);
+                } else if (val === 'geolocation') {
+                  setShowGeolocationModal(true);
                 }
                 e.target.value = ''; // Reset select trigger
               }}
@@ -357,6 +363,7 @@ export default function VendorsView({
                 {t("Delete")} {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
               </option>
               <option value="col_manager">{t("Columns Manager")}</option>
+              <option value="geolocation">გეოკოდინგი</option>
             </select>
             <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
               ▼
@@ -631,6 +638,17 @@ export default function VendorsView({
           </div>
         </div>
       )}
+
+      {/* VENDOR GEOLOCATION PROGRESS MODAL */}
+      <VendorGeolocationModal
+        isOpen={showGeolocationModal}
+        onClose={() => setShowGeolocationModal(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['vendors'] });
+          refetchVendors();
+        }}
+        vendors={vendors}
+      />
 
     </div>
   );

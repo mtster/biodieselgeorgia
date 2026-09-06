@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Order, Vendor, VendorContact } from '../../types';
 import { MapPin, Phone, Navigation } from 'lucide-react';
-import { getVendorContacts } from '../../services/vendorService';
+import { getVendorContacts, getVendorById } from '../../services/vendorService';
 
 interface Props {
   order: Order;
@@ -11,29 +11,55 @@ interface Props {
 }
 
 export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder }: Props) {
+  const [resolvedVendor, setResolvedVendor] = useState<Vendor | null>(supplier || (order as any).vendor || null);
   const [asyncContact, setAsyncContact] = useState<VendorContact | null>(null);
+
+  // Sync or resolve vendor
+  useEffect(() => {
+    let isMounted = true;
+    if (supplier) {
+      setResolvedVendor(supplier);
+      return;
+    }
+    if ((order as any).vendor) {
+      setResolvedVendor((order as any).vendor);
+      return;
+    }
+    if (order.vendor_id) {
+      getVendorById(order.vendor_id).then(v => {
+        if (isMounted && v) {
+          setResolvedVendor(v);
+        }
+      }).catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [supplier, order.vendor_id, (order as any).vendor]);
+
+  const currentSupplier = resolvedVendor || supplier || (order as any).vendor;
 
   // Find the contact selected during order creation via contact_id (referencing vendor_contacts)
   useEffect(() => {
     let isMounted = true;
 
-    // 1. If supplier already has contacts in memory
-    if (supplier?.contacts && supplier.contacts.length > 0) {
+    // 1. If currentSupplier already has contacts in memory
+    if (currentSupplier?.contacts && currentSupplier.contacts.length > 0) {
       if (order.contact_id) {
-        const matched = supplier.contacts.find(c => c.id === order.contact_id);
+        const matched = currentSupplier.contacts.find(c => c.id === order.contact_id);
         if (matched) {
           setAsyncContact(matched);
           return;
         }
       }
-      const defaultContact = supplier.contacts.find(c => c.is_default) || supplier.contacts[0];
+      const defaultContact = currentSupplier.contacts.find(c => c.is_default) || currentSupplier.contacts[0];
       setAsyncContact(defaultContact || null);
       return;
     }
 
     // 2. Fetch contacts from vendor_contacts if not loaded in supplier object
-    if (order.vendor_id || supplier?.id) {
-      const vId = order.vendor_id || supplier?.id;
+    if (order.vendor_id || currentSupplier?.id) {
+      const vId = order.vendor_id || currentSupplier?.id;
       getVendorContacts(vId).then(contacts => {
         if (!isMounted) return;
         if (contacts && contacts.length > 0) {
@@ -57,9 +83,15 @@ export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder
     return () => {
       isMounted = false;
     };
-  }, [order.contact_id, order.vendor_id, supplier?.id, supplier?.contacts]);
+  }, [order.contact_id, order.vendor_id, currentSupplier?.id, currentSupplier?.contacts]);
 
   const selectedContact = asyncContact;
+
+  const displayAddress = [
+    currentSupplier?.city || order.city,
+    currentSupplier?.district || order.district,
+    currentSupplier?.address || order.address
+  ].filter(Boolean).join(', ') || order.address || (currentSupplier?.address || '');
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs space-y-3 hover:border-emerald-300 transition">
@@ -69,7 +101,7 @@ export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder
             {order.doc_number}
           </span>
           <h3 className="font-extrabold text-xs text-gray-800 mt-1.5">
-            {supplier?.trade_name || order.vendor_name || 'მიმწოდებლის შეკვეთა'}
+            {currentSupplier?.trade_name || currentSupplier?.company_name || order.vendor_name || 'მიმწოდებლის შეკვეთა'}
           </h3>
         </div>
         <span className="text-[9px] font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full capitalize">
@@ -78,12 +110,14 @@ export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder
       </div>
 
       {/* Location & Contacts */}
-      {supplier && (
+      {(displayAddress || currentSupplier || selectedContact) && (
         <div className="space-y-2.5 text-[11px] text-gray-600">
-          <div className="flex items-start gap-1.5">
-            <MapPin size={13} className="text-gray-400 mt-0.5 flex-shrink-0" />
-            <span>{supplier.city}, {supplier.district}, {supplier.address}</span>
-          </div>
+          {displayAddress ? (
+            <div className="flex items-start gap-1.5">
+              <MapPin size={13} className="text-gray-400 mt-0.5 flex-shrink-0" />
+              <span>{displayAddress}</span>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between pt-1">
             {selectedContact ? (
               <a 
@@ -97,15 +131,17 @@ export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder
               <span className="text-[10px] text-gray-400">კონტაქტები არ არის</span>
             )}
 
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(supplier.city + ', ' + supplier.address)}`}
-              target="_blank"
-              rel="referrer"
-              className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-750 px-3 py-1.5 rounded-xl text-[10px] font-extrabold hover:bg-emerald-50 hover:text-emerald-800 transition"
-            >
-              <Navigation size={11} />
-              რუკაზე გახსნა
-            </a>
+            {displayAddress ? (
+              <a
+                href={`https://maps.google.com/?q=${encodeURIComponent(displayAddress)}`}
+                target="_blank"
+                rel="referrer"
+                className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 text-gray-750 px-3 py-1.5 rounded-xl text-[10px] font-extrabold hover:bg-emerald-50 hover:text-emerald-800 transition"
+              >
+                <Navigation size={11} />
+                რუკაზე გახსნა
+              </a>
+            ) : null}
           </div>
         </div>
       )}

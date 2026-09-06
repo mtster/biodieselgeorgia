@@ -69,44 +69,113 @@ export default function LastDeliveries({
   useEffect(() => {
     let isCancelled = false;
 
-    async function fetchOverdueVendors() {
+    async function calculateOverdueVendors() {
       setLoading(true);
       try {
-        if (isSupabaseConfigured && supabase) {
-          // 1. Primary: Execute high-speed LEFT JOIN LATERAL PostgreSQL RPC function
-          // Index used: idx_orders_vendor_completed_date_desc (vendor_id, order_date DESC) WHERE status = 'completed'
-          const { data, error } = await supabase.rpc('get_overdue_vendors');
+        const latestMap: Record<string, string> = {};
 
-          if (!error && Array.isArray(data) && !isCancelled) {
-            const mapped: OverdueVendorRow[] = data.map((row: any) => {
-              const managerObj = users.find(u => u.id === row.manager_id);
-              const managerName = managerObj ? managerObj.name : t('Unassigned');
-              const finalDeliveryDate = row.last_order_date ? row.last_order_date.split('T')[0] : t('No deliveries');
-              return {
-                id: row.id,
-                id_code: row.id_code || 'N/A',
-                company_name: row.company_name || '',
-                trade_name: row.trade_name || '',
-                city: row.city || '',
-                region: row.district || '',
-                managerName,
-                status: 'Active',
-                finalDeliveryDate,
-                daysAgo: row.days_ago,
-                overdueDays: row.overdue_days,
-                threshold: row.overdue_threshold_days || 30,
-              };
-            });
-            setOverdueRecords(mapped);
-            return;
+        // 1. Gather latest completed order dates from Supabase if configured
+        if (isSupabaseConfigured && supabase) {
+          try {
+            const { data: ords } = await supabase
+              .from('orders')
+              .select('vendor_id, order_date')
+              .eq('is_deleted', false)
+              .eq('status', 'completed')
+              .order('order_date', { ascending: false });
+
+            if (ords && ords.length > 0) {
+              for (const ord of ords) {
+                if (ord.vendor_id && !latestMap[ord.vendor_id] && ord.order_date) {
+                  latestMap[ord.vendor_id] = ord.order_date;
+                }
+              }
+            }
+          } catch (fetchErr) {
+            console.warn('Direct Supabase orders fetch fallback to props:', fetchErr);
           }
         }
 
-        // 2. Fallback: Query single newest completed order per vendor and evaluate overdue criteria
-        await runClientFallback();
+        // 2. Fallback / supplement with completed orders from props
+        const completedOrders = (orders || []).filter(o => o && o.status === 'completed' && !o.is_deleted && o.order_date);
+        for (const ord of completedOrders) {
+          if (!latestMap[ord.vendor_id] || new Date(ord.order_date) > new Date(latestMap[ord.vendor_id])) {
+            latestMap[ord.vendor_id] = ord.order_date;
+          }
+        }
+
+        if (isCancelled) return;
+
+        // 3. Strictly active suppliers only (is_active !== false and not deleted)
+        const activeSuppliers = (suppliers || []).filter(s => s && !s.is_deleted && s.is_active !== false);
+        const calculated: OverdueVendorRow[] = [];
+
+        for (const s of activeSuppliers) {
+          // Resolve last order date: prioritize whichever is newest between vendor's last_order_date and completed orders
+          let lastDateStr: string | null = null;
+          const orderDateFromList = latestMap[s.id];
+          const vendorLastOrderDate = s.last_order_date;
+
+          if (orderDateFromList && vendorLastOrderDate) {
+            lastDateStr = new Date(orderDateFromList) > new Date(vendorLastOrderDate) ? orderDateFromList : vendorLastOrderDate;
+          } else {
+            lastDateStr = orderDateFromList || vendorLastOrderDate || null;
+          }
+
+          const managerObj = users.find(u => u.id === s.manager_id);
+          const managerName = managerObj ? managerObj.name : t('Unassigned');
+
+          if (lastDateStr) {
+            // Vendor had deliveries: evaluate against overdue_threshold_days
+            const threshold = s.overdue_threshold_days;
+            if (threshold !== null && threshold !== undefined && threshold > 0) {
+              const daysAgo = getDaysDiff(lastDateStr);
+              const overdueDays = daysAgo - threshold;
+              if (overdueDays > 0) {
+                calculated.push({
+                  id: s.id,
+                  id_code: s.id_code || 'N/A',
+                  company_name: s.company_name || '',
+                  trade_name: s.trade_name || '',
+                  city: s.city || '',
+                  region: s.district || '',
+                  managerName,
+                  status: 'Active',
+                  finalDeliveryDate: lastDateStr.split('T')[0],
+                  daysAgo,
+                  overdueDays,
+                  threshold,
+                });
+              }
+            }
+          } else {
+            // Newly added vendor with NO deliveries: check if 30 days have passed since created_at
+            const daysSinceCreation = getDaysDiff(s.created_at || new Date().toISOString());
+            if (daysSinceCreation > 30) {
+              const overdueDays = daysSinceCreation - 30;
+              calculated.push({
+                id: s.id,
+                id_code: s.id_code || 'N/A',
+                company_name: s.company_name || '',
+                trade_name: s.trade_name || '',
+                city: s.city || '',
+                region: s.district || '',
+                managerName,
+                status: 'Active',
+                finalDeliveryDate: t('No deliveries'),
+                daysAgo: daysSinceCreation,
+                overdueDays,
+                threshold: 30,
+              });
+            }
+          }
+        }
+
+        if (!isCancelled) {
+          setOverdueRecords(calculated);
+        }
       } catch (err) {
-        console.warn('Failed to load via RPC, running fallback:', err);
-        await runClientFallback();
+        console.error('Error calculating overdue vendors:', err);
       } finally {
         if (!isCancelled) {
           setLoading(false);
@@ -114,94 +183,7 @@ export default function LastDeliveries({
       }
     }
 
-    async function runClientFallback() {
-      if (isCancelled) return;
-      const latestMap: Record<string, string> = {};
-
-      if (isSupabaseConfigured && supabase) {
-        // Leverages (vendor_id, order_date DESC) index
-        const { data: ords } = await supabase
-          .from('orders')
-          .select('vendor_id, order_date')
-          .eq('is_deleted', false)
-          .eq('status', 'completed')
-          .order('order_date', { ascending: false });
-
-        if (ords && ords.length > 0) {
-          for (const ord of ords) {
-            if (ord.vendor_id && !latestMap[ord.vendor_id] && ord.order_date) {
-              latestMap[ord.vendor_id] = ord.order_date;
-            }
-          }
-        }
-      } else {
-        const completedOrders = orders.filter(o => o.status === 'completed' && !o.is_deleted && o.order_date);
-        for (const ord of completedOrders) {
-          if (!latestMap[ord.vendor_id] || new Date(ord.order_date) > new Date(latestMap[ord.vendor_id])) {
-            latestMap[ord.vendor_id] = ord.order_date;
-          }
-        }
-      }
-
-      // Strictly active suppliers only (is_active !== false)
-      const activeSuppliers = suppliers.filter(s => !s.is_deleted && s.is_active !== false);
-      const calculated: OverdueVendorRow[] = [];
-
-      for (const s of activeSuppliers) {
-        const lastDateStr = latestMap[s.id];
-        const managerObj = users.find(u => u.id === s.manager_id);
-        const managerName = managerObj ? managerObj.name : t('Unassigned');
-
-        if (lastDateStr) {
-          // Vendor had orders: check overdue_threshold_days
-          const threshold = s.overdue_threshold_days;
-          if (threshold !== null && threshold !== undefined && threshold > 0) {
-            const daysAgo = getDaysDiff(lastDateStr);
-            const overdueDays = daysAgo - threshold;
-            if (overdueDays > 0) {
-              calculated.push({
-                id: s.id,
-                id_code: s.id_code || 'N/A',
-                company_name: s.company_name,
-                trade_name: s.trade_name,
-                city: s.city,
-                region: s.district,
-                managerName,
-                status: 'Active',
-                finalDeliveryDate: lastDateStr.split('T')[0],
-                daysAgo,
-                overdueDays,
-                threshold,
-              });
-            }
-          }
-        } else {
-          // Newly added vendor with NO orders: check if 30 days have passed since created_at
-          const daysSinceCreation = getDaysDiff(s.created_at || new Date().toISOString());
-          if (daysSinceCreation > 30) {
-            const overdueDays = daysSinceCreation - 30;
-            calculated.push({
-              id: s.id,
-              id_code: s.id_code || 'N/A',
-              company_name: s.company_name,
-              trade_name: s.trade_name,
-              city: s.city,
-              region: s.district,
-              managerName,
-              status: 'Active',
-              finalDeliveryDate: t('No deliveries'),
-              daysAgo: daysSinceCreation,
-              overdueDays,
-              threshold: 30,
-            });
-          }
-        }
-      }
-
-      setOverdueRecords(calculated);
-    }
-
-    fetchOverdueVendors();
+    calculateOverdueVendors();
 
     return () => {
       isCancelled = true;

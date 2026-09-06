@@ -241,6 +241,11 @@ ALTER TABLE public.vendors DROP CONSTRAINT IF EXISTS vendors_user_id_fkey;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS latitude NUMERIC(10, 7) DEFAULT NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS longitude NUMERIC(10, 7) DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_vendors_lat_lon ON public.vendors(latitude, longitude) WHERE is_deleted = false;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS last_order_date TIMESTAMPTZ DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_vendors_last_order_date ON public.vendors(last_order_date) WHERE is_deleted = false;
 
 -- 6b. Vendor Contacts
 CREATE TABLE IF NOT EXISTS public.vendor_contacts (
@@ -306,9 +311,11 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes JSONB DEFAULT '[]'::JSO
 ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
 ALTER TABLE public.orders DROP COLUMN IF EXISTS truck_plate CASCADE;
 ALTER TABLE public.orders DROP COLUMN IF EXISTS note CASCADE;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS route_rank TEXT DEFAULT NULL;
 
 -- Performance Indexes for Driver Logistics & Orders Portal & Global Search
 CREATE INDEX IF NOT EXISTS idx_orders_vehicle_id ON public.orders(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_orders_route_rank ON public.orders(vehicle_id, route_rank) WHERE is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_orders_driver_id ON public.orders(driver_id);
 CREATE INDEX IF NOT EXISTS idx_orders_vendor_id ON public.orders(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_orders_doc_number ON public.orders(doc_number);
@@ -769,129 +776,6 @@ CREATE INDEX IF NOT EXISTS idx_vendors_overdue_lookup
 ON public.vendors (is_deleted, is_active, created_at DESC) 
 WHERE is_deleted = false AND is_active = true;
 
--- Left Join Lateral View for Overdue Vendors (Strictly Active Suppliers Only)
-CREATE OR REPLACE VIEW public.overdue_vendors_view AS
-SELECT 
-    v.id::TEXT AS id,
-    v.id_code,
-    v.company_name,
-    v.trade_name,
-    v.city,
-    v.district,
-    v.manager_id,
-    v.is_active,
-    'Active'::TEXT AS status,
-    v.overdue_threshold_days,
-    v.created_at,
-    lo.order_date AS last_order_date,
-    CASE 
-        WHEN lo.order_date IS NOT NULL THEN 
-            GREATEST(0, (CURRENT_DATE - lo.order_date::date))::INT
-        ELSE 
-            GREATEST(0, (CURRENT_DATE - v.created_at::date))::INT
-    END AS days_ago,
-    CASE 
-        WHEN lo.order_date IS NOT NULL THEN 
-            ((CURRENT_DATE - lo.order_date::date) - COALESCE(v.overdue_threshold_days, 0))::INT
-        ELSE 
-            ((CURRENT_DATE - v.created_at::date) - 30)::INT
-    END AS overdue_days
-FROM public.vendors v
-LEFT JOIN LATERAL (
-    SELECT o.id, o.order_date
-    FROM public.orders o
-    WHERE o.vendor_id = v.id 
-      AND o.is_deleted = false 
-      AND o.status = 'completed'
-    ORDER BY o.order_date DESC
-    LIMIT 1
-) lo ON true
-WHERE v.is_deleted = false
-  AND v.is_active = true
-  AND (
-      (lo.order_date IS NOT NULL 
-       AND v.overdue_threshold_days IS NOT NULL 
-       AND v.overdue_threshold_days > 0 
-       AND ((CURRENT_DATE - lo.order_date::date) > v.overdue_threshold_days))
-      OR
-      (lo.order_date IS NULL 
-       AND (CURRENT_DATE - v.created_at::date) > 30)
-  );
-
-GRANT SELECT ON public.overdue_vendors_view TO authenticated, anon;
-
--- RPC Function for Overdue Vendors using LEFT JOIN LATERAL (Strictly Active Suppliers Only)
-CREATE OR REPLACE FUNCTION public.get_overdue_vendors()
-RETURNS TABLE (
-    id TEXT,
-    id_code TEXT,
-    company_name TEXT,
-    trade_name TEXT,
-    city TEXT,
-    district TEXT,
-    manager_id UUID,
-    is_active BOOLEAN,
-    status TEXT,
-    overdue_threshold_days INT,
-    created_at TIMESTAMPTZ,
-    last_order_date TIMESTAMPTZ,
-    days_ago INT,
-    overdue_days INT
-) 
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-AS $$
-    SELECT 
-        v.id::TEXT AS id,
-        v.id_code,
-        v.company_name,
-        v.trade_name,
-        v.city,
-        v.district,
-        v.manager_id,
-        v.is_active,
-        'Active'::TEXT AS status,
-        v.overdue_threshold_days,
-        v.created_at,
-        lo.order_date AS last_order_date,
-        CASE 
-            WHEN lo.order_date IS NOT NULL THEN 
-                GREATEST(0, (CURRENT_DATE - lo.order_date::date))::INT
-            ELSE 
-                GREATEST(0, (CURRENT_DATE - v.created_at::date))::INT
-        END AS days_ago,
-        CASE 
-            WHEN lo.order_date IS NOT NULL THEN 
-                ((CURRENT_DATE - lo.order_date::date) - COALESCE(v.overdue_threshold_days, 0))::INT
-            ELSE 
-                ((CURRENT_DATE - v.created_at::date) - 30)::INT
-        END AS overdue_days
-    FROM public.vendors v
-    LEFT JOIN LATERAL (
-        SELECT o.id, o.order_date
-        FROM public.orders o
-        WHERE o.vendor_id = v.id 
-          AND o.is_deleted = false 
-          AND o.status = 'completed'
-        ORDER BY o.order_date DESC
-        LIMIT 1
-    ) lo ON true
-    WHERE v.is_deleted = false
-      AND v.is_active = true
-      AND (
-          (lo.order_date IS NOT NULL 
-           AND v.overdue_threshold_days IS NOT NULL 
-           AND v.overdue_threshold_days > 0 
-           AND ((CURRENT_DATE - lo.order_date::date) > v.overdue_threshold_days))
-          OR
-          (lo.order_date IS NULL 
-           AND (CURRENT_DATE - v.created_at::date) > 30)
-      )
-    ORDER BY overdue_days DESC;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_overdue_vendors() TO authenticated, anon;
 
 
 
