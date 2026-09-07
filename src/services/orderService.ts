@@ -44,6 +44,9 @@ export async function getOrdersPaginated(
   }
 
   const cachedCount = appCache.get<number>(countCacheKey);
+  if (cachedCount !== null && offset >= cachedCount && cachedCount > 0) {
+    return { orders: [], totalCount: cachedCount };
+  }
 
   if (isSupabaseConfigured && supabase) {
     try {

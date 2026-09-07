@@ -22,32 +22,12 @@ export function useAuth() {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             let dbUser: any = null;
-            if (session.access_token) {
-              try {
-                const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
-                  headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                  }
-                });
-                if (res.ok) {
-                  const profiles = await res.json();
-                  if (profiles && profiles.length > 0) {
-                    dbUser = profiles[0];
-                  }
-                }
-              } catch (err) {
-                console.warn('Failed to load profile via proxy', err);
-              }
-            }
-
-            if (!dbUser) {
-              const { data: directUser } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('email', session.user.email)
-                .maybeSingle();
-              dbUser = directUser;
-            }
+            const { data: directUser } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('email', session.user.email)
+              .maybeSingle();
+            dbUser = directUser;
               
             if (dbUser) {
               if (dbUser.is_deleted || dbUser.is_blocked) {
@@ -112,32 +92,12 @@ export function useAuth() {
           }
           try {
             let dbUser: any = null;
-            if (session?.access_token) {
-              try {
-                const res = await fetch(`/api/profiles?email=${encodeURIComponent(session.user.email || '')}`, {
-                  headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                  }
-                });
-                if (res.ok) {
-                  const profiles = await res.json();
-                  if (profiles && profiles.length > 0) {
-                    dbUser = profiles[0];
-                  }
-                }
-              } catch (err) {
-                console.warn('Live Event: Failed to load profile via proxy', err);
-              }
-            }
-
-            if (!dbUser) {
-              const { data: directUser } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('email', session.user.email)
-                .maybeSingle();
-              dbUser = directUser;
-            }
+            const { data: directUser } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('email', session.user.email)
+              .maybeSingle();
+            dbUser = directUser;
 
             if (dbUser) {
               if (dbUser.is_deleted || dbUser.is_blocked) {
@@ -188,44 +148,20 @@ export function useAuth() {
 
     const refreshCurrentProfile = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        let freshProfile: any = null;
+        const { data: dbProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .maybeSingle();
 
-        if (session?.access_token) {
-          try {
-            const res = await fetch(`/api/profiles?id=${currentUser.id}`, {
-              headers: {
-                Authorization: `Bearer ${session.access_token}`
-              }
-            });
-            if (res.ok) {
-              const profiles = await res.json();
-              if (profiles && profiles.length > 0) {
-                freshProfile = profiles[0];
-              }
-            }
-          } catch (e) {
-            console.warn('Proxy profile refresh failed, falling back', e);
-          }
-        }
-
-        if (!freshProfile) {
-          const { data: dbProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .maybeSingle();
-          freshProfile = dbProfile;
-        }
-
-        if (freshProfile) {
-          if (freshProfile.is_blocked || freshProfile.is_deleted) {
+        if (dbProfile) {
+          if (dbProfile.is_blocked || dbProfile.is_deleted) {
             console.warn('User access revoked in real-time. Signing out.');
             await supabase.auth.signOut();
             setCurrentUser(null);
           } else {
             await supabase.auth.refreshSession();
-            setCurrentUser(decodeProfile(freshProfile));
+            setCurrentUser(decodeProfile(dbProfile));
           }
         }
       } catch (err) {

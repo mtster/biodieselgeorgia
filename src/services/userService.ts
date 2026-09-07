@@ -35,38 +35,6 @@ export async function getUsersPaginated(
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
-
-      // 1. Try server proxy with auth token first if proxy is active
-      if (token && useProxy) {
-        try {
-          const searchParam = searchTerm?.trim() ? `&search=${encodeURIComponent(searchTerm.trim())}` : '';
-          const res = await fetch(`/api/profiles?limit=${limit}&offset=${offset}${searchParam}`, {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          if (res.ok) {
-            const json = await res.json();
-            if (json && Array.isArray(json.users)) {
-              const decoded = json.users.map((u: any) => decodeProfile(u));
-              const result = {
-                users: decoded,
-                totalCount: json.totalCount !== undefined ? json.totalCount : decoded.length
-              };
-              appCache.set(countCacheKey, result.totalCount);
-              appCache.set(pageCacheKey, result);
-              return result;
-            }
-          }
-        } catch {
-          // Fallback to direct db call silently
-        }
-      }
-
-      // 2. Direct Supabase call
       let query = supabase
         .from('profiles')
         .select('*', cachedCount !== null ? {} : { count: 'exact' })
@@ -164,30 +132,9 @@ export function decodeProfile(p: any): User {
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      let data = null;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (token) {
-          const res = await fetch('/api/profiles', {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          if (res.ok) {
-            data = await res.json();
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to load profiles via proxy, falling back to direct db call', err);
-      }
-
-      if (!data) {
-        const { data: profiles, error } = await supabase.from('profiles').select('*').eq('is_deleted', false);
-        if (error) throw error;
-        data = profiles;
-      }
-      return (data || []).map(decodeProfile);
+      const { data: profiles, error } = await supabase.from('profiles').select('*').eq('is_deleted', false);
+      if (error) throw error;
+      return (profiles || []).map(decodeProfile);
     } catch (e) {
       console.error('Supabase users loading failed', e);
       return [];

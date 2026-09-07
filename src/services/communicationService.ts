@@ -40,6 +40,9 @@ export async function getCommunicationsPaginated(
   }
 
   const cachedCount = appCache.get<number>(countCacheKey);
+  if (cachedCount !== null && offset >= cachedCount && cachedCount > 0) {
+    return { communications: [], totalCount: cachedCount };
+  }
 
   if (isSupabaseConfigured && supabase) {
     try {

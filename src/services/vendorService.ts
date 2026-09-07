@@ -385,6 +385,9 @@ export async function getVendorsPaginated(
   }
 
   const cachedCount = appCache.get<number>(countCacheKey);
+  if (cachedCount !== null && offset >= cachedCount && cachedCount > 0) {
+    return { vendors: [], totalCount: cachedCount };
+  }
 
   if (isSupabaseConfigured && supabase) {
     try {
