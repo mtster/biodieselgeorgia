@@ -282,10 +282,64 @@ export async function getOrders(limit = 100): Promise<Order[]> {
         .limit(limit);
 
       if (!error && data && data.length > 0) {
-        return data.map((o: any) => ({
-          ...o,
-          notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
-        }));
+        const vendorIds = Array.from(new Set(data.map((o: any) => o.vendor_id).filter(Boolean)));
+        const warehouseIds = Array.from(new Set(data.map((o: any) => o.warehouse_id).filter(Boolean)));
+
+        const vendorMap = new Map<string, any>();
+        const warehouseMap = new Map<string, any>();
+
+        if (vendorIds.length > 0) {
+          try {
+            const { data: vData } = await supabase
+              .from('vendors')
+              .select('id, trade_name, company_name, warehouse_id')
+              .in('id', vendorIds);
+            if (vData) {
+              vData.forEach(v => {
+                if (v.id) vendorMap.set(v.id, v);
+              });
+            }
+          } catch (ve) {
+            console.warn('getOrders vendor lookup error:', ve);
+          }
+        }
+
+        // Gather any additional warehouse IDs referenced by vendors
+        vendorMap.forEach(v => {
+          if (v.warehouse_id && !warehouseIds.includes(v.warehouse_id)) {
+            warehouseIds.push(v.warehouse_id);
+          }
+        });
+
+        if (warehouseIds.length > 0) {
+          try {
+            const { data: wData } = await supabase
+              .from('warehouses')
+              .select('id, name')
+              .in('id', warehouseIds);
+            if (wData) {
+              wData.forEach(w => {
+                if (w.id) warehouseMap.set(w.id, w.name);
+              });
+            }
+          } catch (we) {
+            console.warn('getOrders warehouse lookup error:', we);
+          }
+        }
+
+        return data.map((o: any) => {
+          const v = o.vendor_id ? vendorMap.get(o.vendor_id) : null;
+          const targetWhId = o.warehouse_id || v?.warehouse_id;
+          const wName = targetWhId ? warehouseMap.get(targetWhId) : null;
+
+          return {
+            ...o,
+            vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
+            warehouse_name: o.warehouse_name || wName || '',
+            warehouse_id: o.warehouse_id || v?.warehouse_id || '',
+            notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
+          };
+        });
       }
     } catch (e) {
       console.warn('Supabase getOrders failed', e);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, User, Order, Vendor, Warehouse } from '../../types';
 import { FormSelect } from '../FormInput';
+import FormModal from '../FormModal';
 import { t } from '../../utils/lang';
 
 interface AssignDriverModalProps {
@@ -15,13 +16,21 @@ interface AssignDriverModalProps {
 }
 
 export default function AssignDriverModal({
-  isOpen, onClose, onSave, orders, employees, trucks, suppliers, warehouses
+  isOpen,
+  onClose,
+  onSave,
+  orders,
+  employees,
+  trucks,
+  suppliers,
+  warehouses
 }: AssignDriverModalProps) {
+  const [selectedTruckPlate, setSelectedTruckPlate] = useState('');
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [selectedCompanionId, setSelectedCompanionId] = useState('');
-  const [selectedTruckPlate, setSelectedTruckPlate] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // 1. Identify relevant warehouses
+  // Identify relevant warehouses for selected orders to prioritize drivers if needed
   const vendorIds = Array.from(new Set(orders.map(o => o.vendor_id)));
   const relevantWarehouseIds = Array.from(new Set(
     suppliers
@@ -30,84 +39,135 @@ export default function AssignDriverModal({
       .filter(Boolean) as string[]
   ));
 
-  // 2. Filter drivers (Role 'driver') + check warehouse
-  const drivers = employees.filter(e => e.role === 'driver' && 
-    (relevantWarehouseIds.length === 0 || !e.warehouse_id || relevantWarehouseIds.includes(e.warehouse_id))
-  );
+  // Available drivers & companions
+  const drivers = employees.filter(e => e.role === 'driver');
+  const companions = employees;
 
-  const companions = employees; 
-
+  // Reset or prefill when modal opens
   useEffect(() => {
-    if (selectedDriverId) {
-      console.log('Driver selected:', selectedDriverId);
-      // Find truck where this driver is driver_id OR companion_id
-      const truck = trucks.find(t => t.driver_id === selectedDriverId || t.companion_id === selectedDriverId);
-      console.log('Truck found:', truck);
-      if (truck) {
-        setSelectedTruckPlate(truck.plate_number);
-        // Set companion to the OTHER person in the truck
-        if (truck.driver_id === selectedDriverId) {
-          console.log('Setting companion to companion_id:', truck.companion_id);
-          setSelectedCompanionId(truck.companion_id || '');
-        } else {
-          console.log('Setting companion to driver_id:', truck.driver_id);
-          setSelectedCompanionId(truck.driver_id || '');
-        }
+    if (isOpen) {
+      setErrorMessage('');
+      // If all selected orders share the same vehicle/driver, prefill
+      if (orders.length > 0) {
+        const firstOrder = orders[0];
+        const samePlate = orders.every(o => o.truck_plate === firstOrder.truck_plate) ? firstOrder.truck_plate : '';
+        const sameDriver = orders.every(o => o.driver_id === firstOrder.driver_id) ? firstOrder.driver_id : '';
+        const sameComp = orders.every(o => o.companion_id === firstOrder.companion_id) ? firstOrder.companion_id : '';
+
+        setSelectedTruckPlate(samePlate || '');
+        setSelectedDriverId(sameDriver || '');
+        setSelectedCompanionId(sameComp || '');
       } else {
-        console.log('No truck found for driver', selectedDriverId);
+        setSelectedTruckPlate('');
+        setSelectedDriverId('');
+        setSelectedCompanionId('');
       }
     }
-  }, [selectedDriverId, trucks]);
+  }, [isOpen, orders]);
+
+  // When vehicle is selected, autofill driver and companion from the vehicle
+  const handleVehicleChange = (plate: string) => {
+    setSelectedTruckPlate(plate);
+    setErrorMessage('');
+    if (!plate) return;
+
+    const truck = trucks.find(t => t.plate_number === plate || t.id === plate);
+    if (truck) {
+      if (truck.driver_id) {
+        setSelectedDriverId(truck.driver_id);
+      }
+      if (truck.companion_id) {
+        setSelectedCompanionId(truck.companion_id);
+      }
+    }
+  };
+
+  const handleSave = () => {
+    if (!selectedTruckPlate && !selectedDriverId) {
+      setErrorMessage('გთხოვთ აირჩიოთ ტრანსპორტი ან მძღოლი');
+      return;
+    }
+
+    onSave(selectedDriverId, selectedCompanionId, selectedTruckPlate);
+    onClose();
+  };
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl p-6 space-y-4">
-        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">{t("Assign Driver")} ({orders.length} {t("orders")})</h3>
-        
-        <div className="space-y-4">
-          <FormSelect
-            label={t("Driver")}
-            value={selectedDriverId}
-            onChange={(e) => setSelectedDriverId(e.target.value)}
-          >
-            <option value="">{t("Select Driver")}</option>
-            {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </FormSelect>
-          
-          <FormSelect
-            label={t("Vehicle")}
-            value={selectedTruckPlate}
-            onChange={(e) => setSelectedTruckPlate(e.target.value)}
-          >
-            <option value="">{t("Select Vehicle")}</option>
-            {trucks.map(tOption => <option key={tOption.plate_number} value={tOption.plate_number}>{tOption.model} ({tOption.plate_number})</option>)}
-          </FormSelect>
-          
-          <FormSelect
-            label={t("Companion")}
-            value={selectedCompanionId}
-            onChange={(e) => setSelectedCompanionId(e.target.value)}
-          >
-            <option value="">{t("Select Companion")}</option>
-            {companions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </FormSelect>
-        </div>
+  const countText = orders.length === 1 ? '1 შეკვეთა' : `${orders.length} შეკვეთა`;
+  const modalTitle = `ეკიპაჟის მინიჭება (${countText})`;
 
-        <div className="flex gap-2 pt-4">
-          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100">{t("Cancel")}</button>
-          <button 
-            onClick={() => {
-              onSave(selectedDriverId, selectedCompanionId, selectedTruckPlate);
-              onClose();
-            }}
-            className="flex-1 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900"
-          >
-            {t("Assign")}
-          </button>
-        </div>
+  return (
+    <FormModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={modalTitle}
+      maxWidthClass="max-w-md"
+      onCancel={onClose}
+      cancelLabel="Cancel"
+      onSave={handleSave}
+      saveLabel="Assign"
+    >
+      <div className="space-y-4 pt-1">
+        {errorMessage && (
+          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl text-center">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* 1. ტრანსპორტი (Vehicle) */}
+        <FormSelect
+          label={`${t("Vehicle")}`}
+          value={selectedTruckPlate}
+          onChange={(e) => handleVehicleChange(e.target.value)}
+        >
+          <option value="">{t("Select Vehicle")}</option>
+          {trucks.map(truck => (
+            <option key={truck.id || truck.plate_number} value={truck.plate_number}>
+              {truck.plate_number} {truck.model ? `(${truck.model})` : ''}
+            </option>
+          ))}
+        </FormSelect>
+
+        {/* 2. მძღოლი (Driver) */}
+        <FormSelect
+          label={`${t("Driver")}`}
+          value={selectedDriverId}
+          onChange={(e) => {
+            setSelectedDriverId(e.target.value);
+            setErrorMessage('');
+          }}
+        >
+          <option value="">{t("Select Driver")}</option>
+          {drivers.map(d => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </FormSelect>
+
+        {/* 3. დამხმარე (Assistant / Companion) */}
+        <FormSelect
+          label={`${t("Assistant")}`}
+          value={selectedCompanionId}
+          onChange={(e) => setSelectedCompanionId(e.target.value)}
+        >
+          <option value="">{t("Select Assistant")}</option>
+          {companions.map(c => {
+            const translatedRole = c.role === 'admin' ? t('Admin') :
+              (c.role === 'manager' || c.role === 'purchasing_head') ? t('Purchasing Group Leader') :
+              c.role === 'logistics_manager' ? t('Logistics Manager') :
+              c.role === 'purchasing_manager' ? t('Purchasing Manager') :
+              c.role === 'driver' ? t('Logistics/Driver') :
+              c.role === 'operator' ? t('Operator') : c.role;
+            return (
+              <option key={c.id} value={c.id}>
+                {c.name} {translatedRole ? `(${translatedRole})` : ''}
+              </option>
+            );
+          })}
+        </FormSelect>
       </div>
-    </div>
+    </FormModal>
   );
 }

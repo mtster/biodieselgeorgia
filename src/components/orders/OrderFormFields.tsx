@@ -298,7 +298,7 @@ export default function OrderFormFields({
               label={t("Fact QTY (L)")}
               type="number"
               step="0.01"
-              fontClass="font-mono font-bold"
+              fontClass="font-mono"
               value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
               onChange={(e) => {
                 setEditingOrder(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null);

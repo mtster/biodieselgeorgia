@@ -199,6 +199,7 @@ export default function App() {
                 orders={orders}
                 employees={users}
                 trucks={trucks}
+                warehouses={warehouses}
                 communications={communications}
                 onSelectReminder={(comm) => {
                   setSelectedCommunication(comm);

@@ -117,7 +117,7 @@ export function useAppData() {
       const [usrs, vnds, ords, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
         getUsers(),
         getVendors(),
-        getOrders(),
+        getOrders(5),
         getCommunications(),
         getTrucks(),
         getChangeHistory(50, 0),
@@ -225,7 +225,7 @@ export function useAppData() {
         const usrs = await getUsers();
         setUsers(usrs);
       } else if (t === 'orders') {
-        const ords = await getOrders(50);
+        const ords = await getOrders(5);
         setOrders(ords);
       } else if (t === 'vendors') {
         const vnds = await getVendors(100);

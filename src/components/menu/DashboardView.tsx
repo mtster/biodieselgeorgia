@@ -1,5 +1,5 @@
 import React from 'react';
-import { Vendor, Order, User, Truck, Communication } from '../../types';
+import { Vendor, Order, User, Truck, Communication, Warehouse } from '../../types';
 import { 
   Building2, ShoppingBag, Truck as TruckIcon, 
   Users, Fuel, Calendar, HelpCircle 
@@ -12,6 +12,7 @@ interface Props {
   orders: Order[];
   employees: User[];   // Pass users from parent App
   trucks: Truck[];
+  warehouses?: Warehouse[];
   communications?: Communication[];
   onNavigate: (tab: string) => void;
   onSelectReminder?: (comm: Communication) => void;
@@ -23,14 +24,15 @@ export default function DashboardView({
   orders, 
   employees, 
   trucks, 
+  warehouses = [],
   communications = [], 
   onNavigate,
   onSelectReminder
 }: Props) {
   const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
-  const completedOrders = orders.filter(o => o.status === 'completed');
+  const displayOrders = activeOrders.length > 0 ? activeOrders : orders;
   
-  const totalLiters = completedOrders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
+  const totalLiters = orders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
   const now = new Date();
@@ -143,27 +145,39 @@ export default function DashboardView({
             </button>
           </div>
 
-          {activeOrders.length === 0 ? (
+          {displayOrders.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-xs">
               {t("No active orders are currently registered.")}
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {activeOrders.slice(0, 5).map(order => {
-                const supplierObj = suppliers.find(s => s.id === order.vendor_id);
+              {displayOrders.slice(0, 5).map(order => {
+                const supplierObj = suppliers.find(s => 
+                  (s.id && order.vendor_id && s.id.toLowerCase() === order.vendor_id.toLowerCase()) ||
+                  (s.trade_name && order.vendor_name && s.trade_name.toLowerCase() === order.vendor_name.toLowerCase()) ||
+                  (s.company_name && order.vendor_name && s.company_name.toLowerCase() === order.vendor_name.toLowerCase())
+                );
+                const vendorDisplayName = supplierObj?.trade_name || supplierObj?.company_name || order.vendor_name || (order as any).vendors?.trade_name || (order as any).vendors?.company_name || t('Unknown Supplier');
+
+                const warehouseObj = warehouses?.find(w => 
+                  (w.id && order.warehouse_id && w.id === order.warehouse_id) ||
+                  (w.id && supplierObj?.warehouse_id && w.id === supplierObj.warehouse_id)
+                );
+                const warehouseDisplayName = order.warehouse_name || warehouseObj?.name || (order as any).warehouses?.name || t('Unspecified');
+
                 return (
                   <div key={order.id} className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-gray-800">
-                          {supplierObj ? supplierObj.trade_name : (order.vendor_name || t('Unknown Supplier'))}
+                          {vendorDisplayName}
                         </span>
                         <span className="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
                           {order.doc_number}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-450 font-sans">
-                        {t("Warehouse")}: {order.warehouse_name || t('Unspecified')} • {t("Qty")}: {order.qty_requested} L.
+                        {t("Warehouse")}: {warehouseDisplayName} • {t("Qty")}: {order.qty_requested || order.fact_qty || 0} L.
                       </p>
                     </div>
                     <div>

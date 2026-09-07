@@ -410,7 +410,7 @@ export default function OrdersView({
               <option value="" disabled hidden>{t("Actions")}</option>
               <option value="sms_logs">{t("SMS Logs")} ({smsLogs.length})</option>
               <option value="assign_driver" disabled={selectedOrders.length === 0}>
-                {t("Assign Driver")} {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
+                {t("Assign Crew")} {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
               </option>
               <option value="delete" disabled={selectedOrders.length === 0}>
                 {t("Delete")} {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
@@ -675,24 +675,27 @@ export default function OrdersView({
       <AssignDriverModal
         isOpen={showAssignDriverModal}
         onClose={() => setShowAssignDriverModal(false)}
-        onSave={(driverId, companionId, truckPlate) => {
-          const matchingTruck = trucks.find(t => t.plate_number === truckPlate);
-          selectedOrders.forEach(id => {
-            const ord = orders.find(o => o.id === id);
+        onSave={async (driverId, companionId, truckPlate) => {
+          const matchingTruck = trucks.find(t => t.plate_number === truckPlate || t.id === truckPlate);
+          const finalPlate = matchingTruck?.plate_number || truckPlate;
+          const finalVehicleId = matchingTruck?.id;
+          
+          for (const id of selectedOrders) {
+            const ord = (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id);
             if (ord) {
-              onSave({
+              await onSave({
                 ...ord,
-                driver_id: driverId,
-                companion_id: companionId,
-                truck_plate: truckPlate,
-                vehicle_id: matchingTruck?.id,
+                driver_id: driverId || undefined,
+                companion_id: companionId || undefined,
+                truck_plate: finalPlate || undefined,
+                vehicle_id: finalVehicleId || ord.vehicle_id,
                 status: 'driver_assigned'
               });
             }
-          });
+          }
           setSelectedOrders([]);
         }}
-        orders={selectedOrders.map(id => orders.find(o => o.id === id)!).filter(Boolean)}
+        orders={selectedOrders.map(id => (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id)!).filter(Boolean)}
         employees={employees}
         trucks={trucks}
         suppliers={suppliers}
