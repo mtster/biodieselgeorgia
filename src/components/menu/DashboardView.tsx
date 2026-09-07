@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Vendor, Order, User, Truck, Communication, Warehouse } from '../../types';
 import { 
   Building2, ShoppingBag, Truck as TruckIcon, 
   Users, Fuel, Calendar, HelpCircle 
 } from 'lucide-react';
 import { t } from '../../utils/lang';
+import { getActiveOrdersCount } from '../../lib/db';
 
 interface Props {
   suppliers: Vendor[]; // Pass vendors from parent App
   totalSuppliersCount?: number;
+  activeOrdersCount?: number;
   orders: Order[];
   employees: User[];   // Pass users from parent App
   trucks: Truck[];
@@ -21,6 +23,7 @@ interface Props {
 export default function DashboardView({ 
   suppliers, 
   totalSuppliersCount, 
+  activeOrdersCount,
   orders, 
   employees, 
   trucks, 
@@ -29,6 +32,16 @@ export default function DashboardView({
   onNavigate,
   onSelectReminder
 }: Props) {
+  const [internalActiveOrdersCount, setInternalActiveOrdersCount] = useState<number | undefined>(activeOrdersCount);
+
+  useEffect(() => {
+    if (activeOrdersCount !== undefined) {
+      setInternalActiveOrdersCount(activeOrdersCount);
+    } else {
+      getActiveOrdersCount().then(cnt => setInternalActiveOrdersCount(cnt));
+    }
+  }, [activeOrdersCount]);
+
   const activeOrders = orders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up');
   const displayOrders = activeOrders.length > 0 ? activeOrders : orders;
   
@@ -96,7 +109,7 @@ export default function DashboardView({
           </div>
           <span className="text-xs text-gray-400 font-medium block">{t("Active Orders")}</span>
           <span className="text-xl font-extrabold text-gray-800 font-mono">
-            {activeOrders.length}
+            {internalActiveOrdersCount !== undefined ? internalActiveOrdersCount : orders.filter(o => !o.is_deleted && o.status === 'registered').length}
           </span>
         </button>
 

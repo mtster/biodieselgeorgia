@@ -41,6 +41,7 @@ export default function App() {
     users,
     vendors,
     orders,
+    activeOrdersCount,
     communications,
     trucks,
     changeHistory,
@@ -196,6 +197,7 @@ export default function App() {
               <DashboardView 
                 suppliers={vendors}
                 totalSuppliersCount={totalVendorsCount}
+                activeOrdersCount={activeOrdersCount}
                 orders={orders}
                 employees={users}
                 trucks={trucks}

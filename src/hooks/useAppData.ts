@@ -8,7 +8,7 @@ import { t } from '../utils/lang';
 import { 
   getUsers, saveUser, deleteUser,
   getVendors, saveVendor, deleteVendor,
-  getOrders, saveOrder, deleteOrder,
+  getOrders, getActiveOrdersCount, saveOrder, deleteOrder,
   getCommunications, saveCommunication, deleteCommunication,
   getVehicles as getTrucks, saveVehicle as saveTruck, deleteVehicle as deleteTruck,
   getChangeHistory,
@@ -42,6 +42,7 @@ export function useAppData() {
   const [users, setUsers] = useState<User[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [activeOrdersCount, setActiveOrdersCount] = useState<number>(0);
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [changeHistory, setChangeHistory] = useState<ChangeHistory[]>([]);
@@ -114,10 +115,11 @@ export function useAppData() {
       }
 
       // 3. Full management system data sync for admin / managers
-      const [usrs, vnds, ords, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
+      const [usrs, vnds, ords, activeOrdCount, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
         getUsers(),
         getVendors(),
         getOrders(5),
+        getActiveOrdersCount(),
         getCommunications(),
         getTrucks(),
         getChangeHistory(50, 0),
@@ -131,6 +133,7 @@ export function useAppData() {
       setUsers(usrs);
       setVendors(vnds);
       setOrders(ords);
+      setActiveOrdersCount(activeOrdCount);
       setCommunications(comms);
       setTrucks(trks);
       setChangeHistory(hist);
@@ -225,8 +228,12 @@ export function useAppData() {
         const usrs = await getUsers();
         setUsers(usrs);
       } else if (t === 'orders') {
-        const ords = await getOrders(5);
+        const [ords, activeOrdCount] = await Promise.all([
+          getOrders(5),
+          getActiveOrdersCount()
+        ]);
         setOrders(ords);
+        setActiveOrdersCount(activeOrdCount);
       } else if (t === 'vendors') {
         const vnds = await getVendors(100);
         setVendors(vnds);
@@ -485,6 +492,7 @@ export function useAppData() {
     users,
     vendors,
     orders,
+    activeOrdersCount,
     communications,
     trucks,
     changeHistory,

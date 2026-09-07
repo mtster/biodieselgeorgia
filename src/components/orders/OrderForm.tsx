@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Order, Vendor, Warehouse, User, Truck } from '../../types';
+import { Order, Vendor, Warehouse, User, Truck, VendorComment } from '../../types';
 import OrderFormFields from './OrderFormFields';
+import SupplierCommentsSidePanel from './SupplierCommentsSidePanel';
 import { t } from '../../utils/lang';
 import { getVendorById } from '../../lib/db';
 
@@ -42,6 +43,7 @@ export default function OrderForm({
   // Search state for autocomplete select
   const [vendorSearch, setVendorSearch] = useState('');
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<Vendor | null>(null);
 
   const initialSnapshotRef = useRef<{
     isNew: boolean;
@@ -57,25 +59,40 @@ export default function OrderForm({
     }
   }, [editingOrder?.id]);
 
-  // Pre-fill vendorSearch term with company name
+  // Pre-fill vendorSearch term and resolve selectedSupplier with its comments
   useEffect(() => {
     if (!editingOrder.vendor_id) {
       setVendorSearch('');
+      setSelectedSupplier(null);
       return;
     }
     const cleanVendorId = String(editingOrder.vendor_id).trim().toLowerCase();
     const vendorObj = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
     if (vendorObj) {
+      setSelectedSupplier(vendorObj);
       const name = vendorObj.trade_name || vendorObj.company_name || '';
       setVendorSearch(name);
       if (!editingOrder.vendor_name) {
         setEditingOrder(prev => prev ? { ...prev, vendor_name: name } : null);
       }
+      if (!vendorObj.comments || vendorObj.comments.length === 0) {
+        getVendorById(editingOrder.vendor_id).then(v => {
+          if (v && v.comments && v.comments.length > 0) {
+            setSelectedSupplier(v);
+          }
+        });
+      }
     } else if (editingOrder.vendor_name) {
       setVendorSearch(editingOrder.vendor_name);
+      getVendorById(editingOrder.vendor_id).then(v => {
+        if (v) {
+          setSelectedSupplier(v);
+        }
+      });
     } else {
       getVendorById(editingOrder.vendor_id).then(v => {
         if (v) {
+          setSelectedSupplier(v);
           const name = v.trade_name || v.company_name || '';
           setVendorSearch(name);
           setEditingOrder(prev => prev ? { 
@@ -221,25 +238,71 @@ export default function OrderForm({
     setVendorSearch(suppliers[0]?.trade_name || '');
   };
 
+  const handleAddCommentToOrder = (comment: VendorComment) => {
+    setEditingOrder(prev => {
+      if (!prev) return null;
+      const currentNotes = prev.notes || [];
+      const newNote: VendorComment = {
+        id: 'c-' + Math.random().toString(36).substring(2, 9),
+        comment: comment.comment,
+        date: new Date().toISOString(),
+        user_id: currentEmployee?.id || comment.user_id,
+        user_name: currentEmployee?.name || comment.user_name || 'System',
+        before_leaving_base: Boolean(comment.before_leaving_base)
+      };
+      return {
+        ...prev,
+        notes: [newNote, ...currentNotes]
+      };
+    });
+  };
+
+  const handleRemoveCommentFromOrder = (commentText: string) => {
+    setEditingOrder(prev => {
+      if (!prev) return null;
+      const currentNotes = prev.notes || [];
+      return {
+        ...prev,
+        notes: currentNotes.filter(n => n.comment?.trim() !== commentText.trim())
+      };
+    });
+  };
+
   return (
-    <div className="animate-in fade-in duration-200 max-w-2xl text-left" id="orders-form-panel">
-      <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
-        <OrderFormFields
-          editingOrder={editingOrder}
-          setEditingOrder={setEditingOrder}
-          fieldErrors={fieldErrors}
-          setFieldErrors={setFieldErrors}
-          suppliers={suppliers}
-          warehouses={warehouses}
-          employees={employees}
-          trucks={trucks}
-          vendorSearch={vendorSearch}
-          setVendorSearch={setVendorSearch}
-          showVendorSuggestions={showVendorSuggestions}
-          setShowVendorSuggestions={setShowVendorSuggestions}
-          currentEmployee={currentEmployee}
-        />
-      </fieldset>
+    <div className="animate-in fade-in duration-200 flex flex-col xl:flex-row items-start gap-6 text-left w-full" id="orders-form-panel">
+      {/* Primary Form Container */}
+      <div className="w-full max-w-2xl flex-shrink-0">
+        <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
+          <OrderFormFields
+            editingOrder={editingOrder}
+            setEditingOrder={setEditingOrder}
+            fieldErrors={fieldErrors}
+            setFieldErrors={setFieldErrors}
+            suppliers={suppliers}
+            warehouses={warehouses}
+            employees={employees}
+            trucks={trucks}
+            vendorSearch={vendorSearch}
+            setVendorSearch={setVendorSearch}
+            showVendorSuggestions={showVendorSuggestions}
+            setShowVendorSuggestions={setShowVendorSuggestions}
+            currentEmployee={currentEmployee}
+          />
+        </fieldset>
+      </div>
+
+      {/* Supplier Comments Side Wrapper - appears when supplier is selected */}
+      {selectedSupplier && (
+        <div className="w-full min-w-0 max-w-2xl xl:max-w-none xl:flex-1 xl:min-w-[300px] 2xl:max-w-xl xl:sticky xl:top-6 overflow-hidden">
+          <SupplierCommentsSidePanel
+            supplier={selectedSupplier}
+            orderNotes={editingOrder.notes || []}
+            onAddCommentToOrder={handleAddCommentToOrder}
+            onRemoveCommentFromOrder={handleRemoveCommentFromOrder}
+            users={employees}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -271,6 +271,30 @@ export async function getOrdersPaginated(
   };
 }
 
+/**
+ * Ultra-efficient indexed query to count non-deleted orders with status = 'registered'.
+ * Uses PostgREST HEAD count request to return only the integer amount with zero row transfer.
+ */
+export async function getActiveOrdersCount(): Promise<number> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_deleted', false)
+        .eq('status', 'registered');
+
+      if (!error && typeof count === 'number') {
+        return count;
+      }
+    } catch (e) {
+      console.warn('Supabase getActiveOrdersCount failed:', e);
+    }
+  }
+
+  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted && item.status === 'registered').length;
+}
+
 export async function getOrders(limit = 100): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
