@@ -271,40 +271,18 @@ export async function getOrdersPaginated(
   };
 }
 
-export async function getOrders(): Promise<Order[]> {
+export async function getOrders(limit = 100): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const CHUNK_SIZE = 1000;
-      let from = 0;
-      let hasMore = true;
-      const allRows: any[] = [];
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('order_date', { ascending: false })
+        .limit(limit);
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('is_deleted', false)
-          .order('order_date', { ascending: false })
-          .range(from, from + CHUNK_SIZE - 1);
-
-        if (error) {
-          console.warn('Supabase getOrders chunk error:', error);
-          break;
-        }
-
-        if (data && data.length > 0) {
-          allRows.push(...data);
-          from += CHUNK_SIZE;
-          if (data.length < CHUNK_SIZE) {
-            hasMore = false;
-          }
-        } else {
-          hasMore = false;
-        }
-      }
-
-      if (allRows.length > 0) {
-        return allRows.map((o: any) => ({
+      if (!error && data && data.length > 0) {
+        return data.map((o: any) => ({
           ...o,
           notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
         }));
@@ -313,7 +291,7 @@ export async function getOrders(): Promise<Order[]> {
       console.warn('Supabase getOrders failed', e);
     }
   }
-  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted).map((o: any) => ({
+  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted).slice(0, limit).map((o: any) => ({
     ...o,
     notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
   }));

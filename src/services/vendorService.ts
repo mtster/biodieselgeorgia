@@ -550,48 +550,26 @@ export async function getVendorById(id: string): Promise<Vendor | null> {
   return null;
 }
 
-export async function getVendors(): Promise<Vendor[]> {
+export async function getVendors(limit = 250): Promise<Vendor[]> {
   let vendors: Vendor[] = [];
   if (isSupabaseConfigured && supabase) {
     try {
-      const CHUNK_SIZE = 1000;
-      let from = 0;
-      let hasMore = true;
-      const allRows: any[] = [];
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('trade_name', { ascending: true })
+        .limit(limit);
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('vendors')
-          .select('*')
-          .eq('is_deleted', false)
-          .order('id')
-          .range(from, from + CHUNK_SIZE - 1);
-
-        if (error) {
-          console.warn('Supabase getVendors chunk error:', error);
-          break;
-        }
-
-        if (data && data.length > 0) {
-          allRows.push(...data);
-          from += CHUNK_SIZE;
-          if (data.length < CHUNK_SIZE) {
-            hasMore = false;
-          }
-        } else {
-          hasMore = false;
-        }
-      }
-
-      if (allRows.length > 0) {
-        vendors = allRows.map(v => decodeVendorCustomFields(v));
+      if (!error && data && data.length > 0) {
+        vendors = data.map(v => decodeVendorCustomFields(v));
       }
     } catch (e) {
       console.warn('Supabase getVendors failed', e);
     }
   }
   if (vendors.length === 0) {
-    vendors = getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted).map(v => decodeVendorCustomFields(v));
+    vendors = getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted).slice(0, limit).map(v => decodeVendorCustomFields(v));
   }
 
   // Populate dynamic contacts

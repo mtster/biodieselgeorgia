@@ -207,41 +207,32 @@ export function useAppData() {
 
       const t = table.toLowerCase();
       if (t === 'vehicles' || t === 'trucks') {
-        const [trks, hist] = await Promise.all([getTrucks(), getChangeHistory(50, 0)]);
+        const trks = await getTrucks();
         setTrucks(trks);
-        setChangeHistory(hist);
       } else if (t === 'cities') {
-        const [cts, hist] = await Promise.all([getCities(), getChangeHistory(50, 0)]);
+        const cts = await getCities();
         setCities(cts);
-        setChangeHistory(hist);
       } else if (t === 'districts') {
-        const [dsts, hist] = await Promise.all([getDistricts(), getChangeHistory(50, 0)]);
+        const dsts = await getDistricts();
         setDistricts(dsts);
-        setChangeHistory(hist);
       } else if (t === 'directions') {
-        const [dirs, hist] = await Promise.all([getDirections(), getChangeHistory(50, 0)]);
+        const dirs = await getDirections();
         setDirections(dirs);
-        setChangeHistory(hist);
       } else if (t === 'warehouses') {
-        const [whs, hist] = await Promise.all([getWarehouses(), getChangeHistory(50, 0)]);
+        const whs = await getWarehouses();
         setWarehouses(whs);
-        setChangeHistory(hist);
       } else if (t === 'profiles' || t === 'users') {
-        const [usrs, hist] = await Promise.all([getUsers(), getChangeHistory(50, 0)]);
+        const usrs = await getUsers();
         setUsers(usrs);
-        setChangeHistory(hist);
       } else if (t === 'orders') {
-        const [ords, hist] = await Promise.all([getOrders(), getChangeHistory(50, 0)]);
+        const ords = await getOrders(50);
         setOrders(ords);
-        setChangeHistory(hist);
       } else if (t === 'vendors') {
-        const [vnds, hist] = await Promise.all([getVendors(), getChangeHistory(50, 0)]);
+        const vnds = await getVendors(100);
         setVendors(vnds);
-        setChangeHistory(hist);
       } else if (t === 'communications' || t === 'vendor_communications') {
-        const [comms, hist] = await Promise.all([getCommunications(), getChangeHistory(50, 0)]);
+        const comms = await getCommunications(50);
         setCommunications(comms);
-        setChangeHistory(hist);
       } else if (t === 'change_history') {
         const hist = await getChangeHistory(50, 0);
         setChangeHistory(hist);
@@ -278,11 +269,15 @@ export function useAppData() {
   // Operations
   const handleUserSave = async (user: User) => {
     try {
-      await saveUser(user, currentUser?.name || 'System');
-      await refreshTable('profiles');
+      const saved = await saveUser(user, currentUser?.name || 'System');
+      setUsers(prev => {
+        const exists = prev.some(u => u.id === saved.id);
+        return exists ? prev.map(u => u.id === saved.id ? saved : u) : [saved, ...prev];
+      });
       if (currentUser && user.id === currentUser.id) {
         setCurrentUser(user);
       }
+      return saved;
     } catch (e: any) {
       console.error('Error saving user:', e);
       setErrorModal({
@@ -296,7 +291,7 @@ export function useAppData() {
   const handleUserDelete = async (id: string, name: string) => {
     try {
       await deleteUser(id, name, currentUser?.name || 'System', currentUser?.role);
-      await refreshTable('profiles');
+      setUsers(prev => prev.filter(u => u.id !== id));
     } catch (e: any) {
       console.error('Error deleting user:', e);
       setErrorModal({
@@ -310,7 +305,10 @@ export function useAppData() {
   const handleVendorSave = async (vnd: Vendor) => {
     try {
       const saved = await saveVendor(vnd, currentUser?.name || 'System', currentUser?.id);
-      await refreshTable('vendors');
+      setVendors(prev => {
+        const exists = prev.some(v => v.id === saved.id);
+        return exists ? prev.map(v => v.id === saved.id ? saved : v) : [saved, ...prev];
+      });
       return saved;
     } catch (e: any) {
       console.error('Error saving supplier:', e);
@@ -326,7 +324,7 @@ export function useAppData() {
   const handleVendorDelete = async (id: string, tradeName: string) => {
     try {
       await deleteVendor(id, tradeName, currentUser?.name || 'System');
-      await refreshTable('vendors');
+      setVendors(prev => prev.filter(v => v.id !== id));
     } catch (e: any) {
       console.error('Error deleting supplier:', e);
       setErrorModal({
@@ -339,8 +337,12 @@ export function useAppData() {
 
   const handleOrderSave = async (ord: Order) => {
     try {
-      await saveOrder(ord, currentUser?.name || 'System');
-      await refreshTable('orders');
+      const saved = await saveOrder(ord, currentUser?.name || 'System');
+      setOrders(prev => {
+        const exists = prev.some(o => o.id === saved.id);
+        return exists ? prev.map(o => o.id === saved.id ? saved : o) : [saved, ...prev];
+      });
+      return saved;
     } catch (e: any) {
       console.error('Error saving order:', e);
       setErrorModal({
@@ -354,7 +356,7 @@ export function useAppData() {
   const handleOrderDelete = async (id: string, docNum: string) => {
     try {
       await deleteOrder(id, docNum, currentUser?.name || 'System');
-      await refreshTable('orders');
+      setOrders(prev => prev.filter(o => o.id !== id));
     } catch (e: any) {
       console.error('Error deleting order:', e);
       setErrorModal({
@@ -365,14 +367,25 @@ export function useAppData() {
     }
   };
 
-  const handleCommunicationSave = async (comm: Communication) => {
-    await saveCommunication(comm, currentUser?.name || 'System', currentUser?.id);
-    await refreshTable('communications');
+  const handleCommunicationSave = async (comm: Communication): Promise<void> => {
+    try {
+      const saved = await saveCommunication(comm, currentUser?.name || 'System', currentUser?.id);
+      setCommunications(prev => {
+        const exists = prev.some(c => c.id === saved.id);
+        return exists ? prev.map(c => c.id === saved.id ? saved : c) : [saved, ...prev];
+      });
+    } catch (e: any) {
+      console.error('Error saving communication:', e);
+    }
   };
 
   const handleCommunicationDelete = async (id: string) => {
-    await deleteCommunication(id, currentUser?.name || 'System');
-    await refreshTable('communications');
+    try {
+      await deleteCommunication(id, currentUser?.name || 'System');
+      setCommunications(prev => prev.filter(c => c.id !== id));
+    } catch (e: any) {
+      console.error('Error deleting communication:', e);
+    }
   };
 
   // Lookups updates

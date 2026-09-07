@@ -213,10 +213,15 @@ export async function getCommunicationsPaginated(
   };
 }
 
-export async function getCommunications(): Promise<Communication[]> {
+export async function getCommunications(limit = 100): Promise<Communication[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase.from('communications').select('*').eq('is_deleted', false).order('date_time', { ascending: false });
+      const { data, error } = await supabase
+        .from('communications')
+        .select('*')
+        .eq('is_deleted', false)
+        .order('date_time', { ascending: false })
+        .limit(limit);
       if (!error && data) {
         return (data as any[]).map(c => {
           const isDone = typeof c.is_completed === 'boolean' ? c.is_completed : (c.task_status === 'completed' || c.task_status === 'done');
@@ -235,6 +240,7 @@ export async function getCommunications(): Promise<Communication[]> {
   }
   return getLocal<Communication[]>(KEY_COMMUNICATIONS, [])
     .filter(item => !item.is_deleted)
+    .slice(0, limit)
     .map(c => {
       const isDone = typeof c.is_completed === 'boolean' ? c.is_completed : (c.task_status === 'completed' || c.task_status === 'done');
       return {
