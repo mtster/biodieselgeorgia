@@ -430,10 +430,14 @@ export default function VendorsView({
                 type="text"
                 placeholder="ძებნა მომწოდებლის დასახელებით, იურიდიული პირით, ს/კ, მისამართით, შიდა კოდით ან კონტაქტის ნომრით..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
+                    setPage(1);
                     triggerImmediateSearch();
                   }
                 }}
@@ -452,6 +456,7 @@ export default function VendorsView({
                   onChange={(e) => {
                     setSelectedCity(e.target.value);
                     setSelectedDistrict('');
+                    setPage(1);
                   }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
@@ -471,7 +476,10 @@ export default function VendorsView({
                 </span>
                 <select
                   value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedDistrict(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Districts")}</option>
@@ -495,7 +503,10 @@ export default function VendorsView({
                 </span>
                 <select
                   value={selectedSalesManager}
-                  onChange={(e) => setSelectedSalesManager(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedSalesManager(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Sales Managers")}</option>
@@ -516,7 +527,10 @@ export default function VendorsView({
                 </span>
                 <select
                   value={selectedOperationManager}
-                  onChange={(e) => setSelectedOperationManager(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedOperationManager(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Operation Managers")}</option>
@@ -535,7 +549,10 @@ export default function VendorsView({
                 </span>
                 <select
                   value={selectedDirection}
-                  onChange={(e) => setSelectedDirection(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedDirection(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Directions")}</option>

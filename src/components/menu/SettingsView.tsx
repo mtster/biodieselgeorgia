@@ -108,6 +108,8 @@ export default function SettingsView({
         </button>
         <HistoryView 
           history={changeHistory}
+          users={users}
+          currentUser={currentUser}
           loadMore={loadMore}
           isLoadingMore={isLoadingMore}
         />

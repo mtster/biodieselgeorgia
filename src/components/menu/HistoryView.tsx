@@ -1,18 +1,22 @@
-import React, { useState } from 'react';
-import { ChangeHistory } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { ChangeHistory, User } from '../../types';
 import PageHeader from '../PageHeader';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
 import { t, formatDateTime } from '../../utils/lang';
+import { useDebouncedSearch } from '../../hooks/useDebounce';
+import { usePaginatedHistory } from '../../hooks/usePaginatedModuleQuery';
 
 interface Props {
   history?: ChangeHistory[];
+  users?: User[];
+  currentUser?: User | null;
   loadMore?: () => Promise<void>;
   isLoadingMore?: boolean;
 }
 
-export default function HistoryView({ history = [] }: Props) {
+export default function HistoryView({ history = [], users = [], currentUser = null }: Props) {
   // Filter States
   const [startDate, setStartDate] = useState(() => {
     const now = new Date();
@@ -28,44 +32,60 @@ export default function HistoryView({ history = [] }: Props) {
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedOperation, setSelectedOperation] = useState('');
   const [selectedField, setSelectedField] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
 
-  // Compute dynamic filter dropdown options directly from the history data
-  const uniqueUsers = Array.from(new Set(history.map(d => d.employee_name).filter(Boolean))).sort() as string[];
-  const uniqueOperations = Array.from(new Set(history.map(d => d.operation).filter(Boolean))).sort() as string[];
-  const uniqueFields = Array.from(new Set(history.map(d => d.field_name).filter(Boolean))).sort() as string[];
+  const {
+    searchTerm,
+    setSearchTerm,
+    debouncedSearchTerm
+  } = useDebouncedSearch('', 350);
 
-  // Filter logs in-memory
-  const filteredLogs = history.filter(log => {
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const logDate = new Date(log.date_time);
-      if (logDate < start) return false;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      const logDate = new Date(log.date_time);
-      if (logDate > end) return false;
-    }
-    if (selectedUser && log.employee_name !== selectedUser) return false;
-    if (selectedOperation && log.operation !== selectedOperation) return false;
-    if (selectedField && log.field_name !== selectedField) return false;
+  // Reset page to 1 whenever any filter or search term changes
+  useEffect(() => {
+    setPage(1);
+  }, [startDate, endDate, debouncedSearchTerm, selectedUser, selectedOperation, selectedField]);
 
-    if (searchTerm && searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      const matchUser = log.employee_name?.toLowerCase().includes(term);
-      const matchOp = log.operation?.toLowerCase().includes(term);
-      const matchField = log.field_name?.toLowerCase().includes(term);
-      const matchOld = log.old_value?.toLowerCase().includes(term);
-      const matchNew = log.new_value?.toLowerCase().includes(term);
-      if (!matchUser && !matchOp && !matchField && !matchOld && !matchNew) {
-        return false;
-      }
-    }
-    return true;
-  });
+  const historyFilters = {
+    startDate,
+    endDate,
+    searchTerm: debouncedSearchTerm,
+    selectedUser,
+    selectedOperation,
+    selectedField
+  };
+
+  const { data: paginatedData, isLoading } = usePaginatedHistory(
+    page,
+    historyFilters,
+    currentUser
+  );
+
+  // Compute dynamic filter dropdown options
+  const userOptions = Array.from(new Set([
+    ...users.map(u => u.name).filter(Boolean),
+    ...history.map(d => d.employee_name).filter(Boolean)
+  ])).sort() as string[];
+
+  const commonOperations = [
+    'Supplier added', 'Supplier updated', 'Supplier deleted',
+    'Order added', 'Order updated', 'Order status changed', 'Order deleted',
+    'Vehicle added', 'Vehicle updated', 'Vehicle deleted',
+    'Communication added', 'Communication deleted',
+    'User added', 'User updated', 'User deleted',
+    'Direction added', 'Direction updated', 'Direction deleted',
+    'Warehouse added', 'Warehouse updated', 'Warehouse deleted',
+    'City added', 'City updated', 'City deleted',
+    'District added', 'District updated', 'District deleted'
+  ];
+  const uniqueOperations = Array.from(new Set([
+    ...commonOperations,
+    ...history.map(d => d.operation).filter(Boolean)
+  ])).sort() as string[];
+
+  const uniqueFields = Array.from(new Set([
+    'Name', 'Status', 'Driver', 'Assistant', 'Vehicle', 'Price', 'Address', 'Direction', 'Warehouse', 'City', 'District', 'Role',
+    ...history.map(d => d.field_name).filter(Boolean)
+  ])).sort() as string[];
 
   const columns: ColumnConfig<ChangeHistory>[] = [
     {
@@ -100,9 +120,11 @@ export default function HistoryView({ history = [] }: Props) {
     }
   ];
 
+  const logs = paginatedData?.logs ?? [];
+  const totalCount = paginatedData?.totalCount ?? 0;
+
   return (
     <div className="space-y-6 text-left">
-      
       {/* 1. Header */}
       <PageHeader title={t("Change History")} />
 
@@ -127,7 +149,7 @@ export default function HistoryView({ history = [] }: Props) {
                 value: selectedUser,
                 placeholder: t("All Users"),
                 onChange: setSelectedUser,
-                options: uniqueUsers.map(user => ({ value: user, label: user }))
+                options: userOptions.map(user => ({ value: user, label: user }))
               },
               {
                 label: t("Operation"),
@@ -148,15 +170,18 @@ export default function HistoryView({ history = [] }: Props) {
         </div>
       </div>
 
-      {/* 3. Table element with built-in pagination */}
+      {/* 3. Table element with built-in server-side pagination */}
       <div className="space-y-4">
         <StandardTable
-          data={filteredLogs}
+          data={logs}
           columns={columns}
+          serverTotalCount={totalCount}
+          page={page}
+          onPageChange={setPage}
+          isLoading={isLoading}
           emptyMessage={t("No change history logs match current filters.")}
         />
       </div>
-
     </div>
   );
 }

@@ -494,7 +494,10 @@ export default function OrdersView({
                 </span>
                 <select
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Statuses")}</option>
@@ -519,6 +522,7 @@ export default function OrdersView({
                   onChange={(e) => {
                     setSelectedCity(e.target.value);
                     setSelectedDistrict(''); // Reset district when city changes
+                    setPage(1);
                   }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
@@ -539,7 +543,10 @@ export default function OrdersView({
                 </span>
                 <select
                   value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedDistrict(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Districts")}</option>
@@ -566,7 +573,10 @@ export default function OrdersView({
                 </span>
                 <select
                   value={selectedDirection}
-                  onChange={(e) => setSelectedDirection(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedDirection(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Directions")}</option>
@@ -586,12 +596,15 @@ export default function OrdersView({
                 </span>
                 <select
                   value={selectedVehicle}
-                  onChange={(e) => setSelectedVehicle(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedVehicle(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Vehicles")}</option>
                   {trucks.map(truck => (
-                    <option key={truck.plate_number} value={truck.plate_number}>{truck.plate_number} ({truck.model})</option>
+                    <option key={truck.id || truck.plate_number} value={truck.id || truck.plate_number}>{truck.plate_number} ({truck.model})</option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
@@ -606,7 +619,10 @@ export default function OrdersView({
                 </span>
                 <select
                   value={selectedManager}
-                  onChange={(e) => setSelectedManager(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedManager(e.target.value);
+                    setPage(1);
+                  }}
                   className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
                 >
                   <option value="">{t("All Managers") || "ყველა მენეჯერი"}</option>

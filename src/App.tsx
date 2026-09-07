@@ -397,6 +397,8 @@ export default function App() {
             {activeTab === 'history' && (
               <HistoryView 
                 history={changeHistory}
+                users={users}
+                currentUser={currentUser}
                 loadMore={handleLoadMoreHistory}
                 isLoadingMore={isLoadingMore}
               />

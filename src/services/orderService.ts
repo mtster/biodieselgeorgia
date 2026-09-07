@@ -9,6 +9,8 @@ import { generateUuid, cleanUserUuid } from './vendorService';
 
 export { KEY_ORDERS };
 
+const isValidUuid = (val: any): boolean => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
 export interface PaginatedOrdersResult {
   orders: Order[];
   totalCount: number;
@@ -114,17 +116,47 @@ export async function getOrdersPaginated(
         query = query.eq('vendors.direction_id', targetDirection);
       }
       if (targetManager) {
-        query = query.eq('vendors.manager_id', targetManager);
+        if (isValidUuid(targetManager)) {
+          query = query.eq('vendors.manager_id', targetManager);
+        }
       }
 
       const vehicleVal = filters?.vehicle || filters?.vehicleId;
       if (vehicleVal) {
-        query = query.eq('vehicle_id', vehicleVal);
+        if (isValidUuid(vehicleVal)) {
+          query = query.eq('vehicle_id', vehicleVal);
+        } else {
+          // Plate number was provided, look up the corresponding vehicle ID
+          try {
+            const { data: vData } = await supabase
+              .from('vehicles')
+              .select('id')
+              .eq('plate_number', vehicleVal)
+              .maybeSingle();
+
+            if (vData?.id && isValidUuid(vData.id)) {
+              query = query.eq('vehicle_id', vData.id);
+            } else {
+              const { data: tData } = await supabase
+                .from('trucks')
+                .select('id')
+                .eq('plate_number', vehicleVal)
+                .maybeSingle();
+              if (tData?.id && isValidUuid(tData.id)) {
+                query = query.eq('vehicle_id', tData.id);
+              } else {
+                query = query.eq('vehicle_id', '00000000-0000-0000-0000-000000000000');
+              }
+            }
+          } catch {
+            query = query.eq('vehicle_id', '00000000-0000-0000-0000-000000000000');
+          }
+        }
       }
-      if (filters?.driverId) {
+      if (filters?.driverId && isValidUuid(filters.driverId)) {
         query = query.eq('driver_id', filters.driverId);
       }
-      if (filters?.vendorId) {
+      if (filters?.vendorId && isValidUuid(filters.vendorId)) {
         query = query.eq('vendor_id', filters.vendorId);
       }
 

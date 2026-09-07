@@ -101,7 +101,8 @@ export default function OrderForm({
     const fieldsToCompare: (keyof Order)[] = [
       'vendor_id', 'order_date', 'warehouse_id', 'contact_id',
       'driver_id', 'companion_id', 'truck_plate', 'direction_id',
-      'status', 'note', 'address', 'city', 'district'
+      'status', 'note', 'address', 'city', 'district', 'vehicle_id',
+      'doc_number', 'operator_id', 'created_by', 'pickup_date_time'
     ];
 
     for (const f of fieldsToCompare) {
@@ -116,6 +117,12 @@ export default function OrderForm({
     if (Number(editingOrder.fact_qty || 0) !== Number(initO.fact_qty || 0)) return true;
     if (Number(editingOrder.fact_tank_dropoff || 0) !== Number(initO.fact_tank_dropoff || 0)) return true;
     if (Number(editingOrder.fact_tank_pickup || 0) !== Number(initO.fact_tank_pickup || 0)) return true;
+
+    // Check notes / comments array changes (add, edit, delete)
+    const currentNotes = editingOrder.notes || [];
+    const initNotes = initO.notes || [];
+    if (currentNotes.length !== initNotes.length) return true;
+    if (JSON.stringify(currentNotes) !== JSON.stringify(initNotes)) return true;
 
     return false;
   };

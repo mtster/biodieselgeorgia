@@ -369,6 +369,7 @@ export default function CommunicationsView({
                 setTaskResponsibleFilter('');
                 setTaskStatusFilter('');
               }
+              setPage(1);
             }}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
@@ -392,7 +393,10 @@ export default function CommunicationsView({
               </span>
               <select
                 value={taskResponsibleFilter}
-                onChange={(e) => setTaskResponsibleFilter(e.target.value)}
+                onChange={(e) => {
+                  setTaskResponsibleFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-blue-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
               >
                 <option value="">{t("All Responsible")}</option>
@@ -412,7 +416,10 @@ export default function CommunicationsView({
               </span>
               <select
                 value={taskStatusFilter}
-                onChange={(e) => setTaskStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setTaskStatusFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-blue-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
               >
                 <option value="">{t("All Statuses")}</option>
@@ -434,7 +441,10 @@ export default function CommunicationsView({
           </span>
           <select
             value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value)}
+            onChange={(e) => {
+              setUserFilter(e.target.value);
+              setPage(1);
+            }}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
             <option value="">{t("All Users")}</option>

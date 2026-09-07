@@ -31,57 +31,51 @@ export function onRealtimeDbChange(listener: (table: string, action?: string, re
   };
 }
 
+const lastTableUpdate: Record<string, number> = {};
+
 export function initRealtimeBroadcast(queryClient: QueryClient) {
   globalQueryClient = queryClient;
   if (!isSupabaseConfigured || !supabase) return;
 
+  const handleTableUpdate = (table: string, action?: string, recordId?: string) => {
+    if (!table) return;
+    const now = Date.now();
+    const last = lastTableUpdate[table] || 0;
+    if (now - last < 1000) {
+      return; // Deduplicate rapid multiple events / self-echoes for the same table
+    }
+    lastTableUpdate[table] = now;
+
+    // Clear in-memory query cache so refetches get fresh data
+    appCache.clear();
+
+    const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
+    dependentKeys.forEach((key) => {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    });
+
+    changeListeners.forEach((listener) => {
+      try {
+        listener(table, action, recordId);
+      } catch (e) {
+        console.warn('Realtime listener callback error:', e);
+      }
+    });
+  };
+
   try {
     realtimeChannel = supabase.channel(CHANNEL_NAME, {
       config: {
-        broadcast: { self: true },
+        broadcast: { self: false },
       },
     });
 
     realtimeChannel
       .on('broadcast', { event: 'db_change' }, (payload: { payload?: { table: string; action?: string; recordId?: string } }) => {
-        const table = payload?.payload?.table;
-        if (!table) return;
-
-        // Clear in-memory query cache so refetches get fresh data
-        appCache.clear();
-
-        const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
-        
-        dependentKeys.forEach((key) => {
-          queryClient.invalidateQueries({ queryKey: [key] });
-        });
-
-        changeListeners.forEach((listener) => {
-          try {
-            listener(table, payload?.payload?.action, payload?.payload?.recordId);
-          } catch (e) {
-            console.warn('Realtime listener callback error:', e);
-          }
-        });
+        handleTableUpdate(payload?.payload?.table, payload?.payload?.action, payload?.payload?.recordId);
       })
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload: any) => {
-        const table = payload?.table;
-        if (!table) return;
-
-        appCache.clear();
-
-        const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
-        dependentKeys.forEach((key) => {
-          queryClient.invalidateQueries({ queryKey: [key] });
-        });
-
-        changeListeners.forEach((listener) => {
-          try {
-            listener(table, payload?.eventType, payload?.new?.id || payload?.old?.id);
-          } catch (e) {
-            console.warn('Realtime postgres change listener error:', e);
-          }
-        });
+        handleTableUpdate(payload?.table, payload?.eventType, payload?.new?.id || payload?.old?.id);
       })
       .subscribe();
   } catch (err) {
@@ -90,6 +84,9 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
 }
 
 export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DELETE' = 'UPDATE', recordId?: string) {
+  // Mark local update timestamp to ignore subsequent echo from realtime websocket
+  lastTableUpdate[table] = Date.now();
+
   // Clear in-memory query cache immediately
   appCache.clear();
 

@@ -1,56 +1,75 @@
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { User } from '../types';
 import { 
   getVendorsPaginated,
   getOrdersPaginated,
   getCommunicationsPaginated,
   getContactsPaginated,
-  getUsersPaginated
+  getUsersPaginated,
+  getChangeHistoryPaginated
 } from '../lib/db';
 import { hasModuleViewPermission } from '../lib/realtime';
+
+export function usePaginatedHistory(
+  page: number,
+  filters: {
+    startDate?: string;
+    endDate?: string;
+    searchTerm?: string;
+    selectedUser?: string;
+    selectedOperation?: string;
+    selectedField?: string;
+  },
+  currentUser: User | null
+) {
+  const isAllowed = hasModuleViewPermission(currentUser, 'history') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
+  const filterKey = JSON.stringify(filters);
+
+  const query = useQuery({
+    queryKey: ['change_history', page, filterKey],
+    queryFn: () => getChangeHistoryPaginated(
+      12,
+      (page - 1) * 12,
+      filters.startDate,
+      filters.endDate,
+      filters.searchTerm,
+      filters.selectedUser,
+      filters.selectedOperation,
+      filters.selectedField
+    ),
+    enabled: isAllowed && !!currentUser,
+    placeholderData: (previousData, previousQuery) => {
+      if (previousQuery && previousQuery.queryKey[2] === filterKey) {
+        return previousData;
+      }
+      return undefined;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return query;
+}
 
 export function usePaginatedVendors(
   page: number,
   filters: any,
   currentUser: User | null
 ) {
-  const queryClient = useQueryClient();
-  const isAllowed = hasModuleViewPermission(currentUser, 'suppliers');
+  const isAllowed = hasModuleViewPermission(currentUser, 'suppliers') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
   const filterKey = JSON.stringify(filters);
-  const prevFilterKeyRef = useRef(filterKey);
-
-  // If filters changed, ensure we query page 1 immediately
-  const effectivePage = prevFilterKeyRef.current !== filterKey ? 1 : page;
-  useEffect(() => {
-    prevFilterKeyRef.current = filterKey;
-  }, [filterKey]);
 
   const query = useQuery({
-    queryKey: ['vendors', effectivePage, filterKey],
-    queryFn: () => getVendorsPaginated(12, (effectivePage - 1) * 12, filters),
+    queryKey: ['vendors', page, filterKey],
+    queryFn: () => getVendorsPaginated(12, (page - 1) * 12, filters),
     enabled: isAllowed && !!currentUser,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      if (previousQuery && previousQuery.queryKey[2] === filterKey) {
+        return previousData;
+      }
+      return undefined;
+    },
     staleTime: 1000 * 60 * 5,
   });
-
-  useEffect(() => {
-    if (
-      isAllowed && 
-      currentUser && 
-      !query.isPlaceholderData && 
-      query.data?.totalCount !== undefined && 
-      query.data.totalCount > 0
-    ) {
-      if (effectivePage * 12 < query.data.totalCount) {
-        queryClient.prefetchQuery({
-          queryKey: ['vendors', effectivePage + 1, filterKey],
-          queryFn: () => getVendorsPaginated(12, effectivePage * 12, filters),
-          staleTime: 1000 * 60 * 5,
-        });
-      }
-    }
-  }, [effectivePage, filterKey, isAllowed, currentUser, queryClient, query.isPlaceholderData, query.data?.totalCount]);
 
   return query;
 }
@@ -60,42 +79,21 @@ export function usePaginatedOrders(
   filters: any,
   currentUser: User | null
 ) {
-  const queryClient = useQueryClient();
-  const isAllowed = hasModuleViewPermission(currentUser, 'orders');
+  const isAllowed = hasModuleViewPermission(currentUser, 'orders') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
   const filterKey = JSON.stringify(filters);
-  const prevFilterKeyRef = useRef(filterKey);
-
-  // If filters changed, ensure we query page 1 immediately
-  const effectivePage = prevFilterKeyRef.current !== filterKey ? 1 : page;
-  useEffect(() => {
-    prevFilterKeyRef.current = filterKey;
-  }, [filterKey]);
 
   const query = useQuery({
-    queryKey: ['orders', effectivePage, filterKey],
-    queryFn: () => getOrdersPaginated(12, (effectivePage - 1) * 12, filters),
+    queryKey: ['orders', page, filterKey],
+    queryFn: () => getOrdersPaginated(12, (page - 1) * 12, filters),
     enabled: isAllowed && !!currentUser,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      if (previousQuery && previousQuery.queryKey[2] === filterKey) {
+        return previousData;
+      }
+      return undefined;
+    },
     staleTime: 1000 * 60 * 5,
   });
-
-  useEffect(() => {
-    if (
-      isAllowed && 
-      currentUser && 
-      !query.isPlaceholderData && 
-      query.data?.totalCount !== undefined && 
-      query.data.totalCount > 0
-    ) {
-      if (effectivePage * 12 < query.data.totalCount) {
-        queryClient.prefetchQuery({
-          queryKey: ['orders', effectivePage + 1, filterKey],
-          queryFn: () => getOrdersPaginated(12, effectivePage * 12, filters),
-          staleTime: 1000 * 60 * 5,
-        });
-      }
-    }
-  }, [effectivePage, filterKey, isAllowed, currentUser, queryClient, query.isPlaceholderData, query.data?.totalCount]);
 
   return query;
 }
@@ -105,42 +103,21 @@ export function usePaginatedCommunications(
   filters: any,
   currentUser: User | null
 ) {
-  const queryClient = useQueryClient();
-  const isAllowed = hasModuleViewPermission(currentUser, 'communications');
+  const isAllowed = hasModuleViewPermission(currentUser, 'communications') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
   const filterKey = JSON.stringify(filters);
-  const prevFilterKeyRef = useRef(filterKey);
-
-  // If filters changed, ensure we query page 1 immediately
-  const effectivePage = prevFilterKeyRef.current !== filterKey ? 1 : page;
-  useEffect(() => {
-    prevFilterKeyRef.current = filterKey;
-  }, [filterKey]);
 
   const query = useQuery({
-    queryKey: ['communications', effectivePage, filterKey],
-    queryFn: () => getCommunicationsPaginated(12, (effectivePage - 1) * 12, filters),
+    queryKey: ['communications', page, filterKey],
+    queryFn: () => getCommunicationsPaginated(12, (page - 1) * 12, filters),
     enabled: isAllowed && !!currentUser,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      if (previousQuery && previousQuery.queryKey[2] === filterKey) {
+        return previousData;
+      }
+      return undefined;
+    },
     staleTime: 1000 * 60 * 5,
   });
-
-  useEffect(() => {
-    if (
-      isAllowed && 
-      currentUser && 
-      !query.isPlaceholderData && 
-      query.data?.totalCount !== undefined && 
-      query.data.totalCount > 0
-    ) {
-      if (effectivePage * 12 < query.data.totalCount) {
-        queryClient.prefetchQuery({
-          queryKey: ['communications', effectivePage + 1, filterKey],
-          queryFn: () => getCommunicationsPaginated(12, effectivePage * 12, filters),
-          staleTime: 1000 * 60 * 5,
-        });
-      }
-    }
-  }, [effectivePage, filterKey, isAllowed, currentUser, queryClient, query.isPlaceholderData, query.data?.totalCount]);
 
   return query;
 }
@@ -150,41 +127,20 @@ export function usePaginatedContacts(
   searchTerm: string,
   currentUser: User | null
 ) {
-  const queryClient = useQueryClient();
-  const isAllowed = hasModuleViewPermission(currentUser, 'contacts');
-  const prevSearchRef = useRef(searchTerm);
-
-  // If search term changed, ensure we query page 1 immediately
-  const effectivePage = prevSearchRef.current !== searchTerm ? 1 : page;
-  useEffect(() => {
-    prevSearchRef.current = searchTerm;
-  }, [searchTerm]);
+  const isAllowed = hasModuleViewPermission(currentUser, 'contacts') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
 
   const query = useQuery({
-    queryKey: ['contacts', effectivePage, searchTerm],
-    queryFn: () => getContactsPaginated(12, (effectivePage - 1) * 12, searchTerm),
+    queryKey: ['contacts', page, searchTerm],
+    queryFn: () => getContactsPaginated(12, (page - 1) * 12, searchTerm),
     enabled: isAllowed && !!currentUser,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      if (previousQuery && previousQuery.queryKey[2] === searchTerm) {
+        return previousData;
+      }
+      return undefined;
+    },
     staleTime: 1000 * 60 * 5,
   });
-
-  useEffect(() => {
-    if (
-      isAllowed && 
-      currentUser && 
-      !query.isPlaceholderData && 
-      query.data?.totalCount !== undefined && 
-      query.data.totalCount > 0
-    ) {
-      if (effectivePage * 12 < query.data.totalCount) {
-        queryClient.prefetchQuery({
-          queryKey: ['contacts', effectivePage + 1, searchTerm],
-          queryFn: () => getContactsPaginated(12, effectivePage * 12, searchTerm),
-          staleTime: 1000 * 60 * 5,
-        });
-      }
-    }
-  }, [effectivePage, searchTerm, isAllowed, currentUser, queryClient, query.isPlaceholderData, query.data?.totalCount]);
 
   return query;
 }
@@ -194,41 +150,20 @@ export function usePaginatedUsers(
   searchTerm: string,
   currentUser: User | null
 ) {
-  const queryClient = useQueryClient();
-  const isAllowed = hasModuleViewPermission(currentUser, 'users');
-  const prevSearchRef = useRef(searchTerm);
-
-  // If search term changed, ensure we query page 1 immediately
-  const effectivePage = prevSearchRef.current !== searchTerm ? 1 : page;
-  useEffect(() => {
-    prevSearchRef.current = searchTerm;
-  }, [searchTerm]);
+  const isAllowed = hasModuleViewPermission(currentUser, 'users') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
 
   const query = useQuery({
-    queryKey: ['users', effectivePage, searchTerm],
-    queryFn: () => getUsersPaginated(12, (effectivePage - 1) * 12, searchTerm),
+    queryKey: ['users', page, searchTerm],
+    queryFn: () => getUsersPaginated(12, (page - 1) * 12, searchTerm),
     enabled: isAllowed && !!currentUser,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      if (previousQuery && previousQuery.queryKey[2] === searchTerm) {
+        return previousData;
+      }
+      return undefined;
+    },
     staleTime: 1000 * 60 * 5,
   });
-
-  useEffect(() => {
-    if (
-      isAllowed && 
-      currentUser && 
-      !query.isPlaceholderData && 
-      query.data?.totalCount !== undefined && 
-      query.data.totalCount > 0
-    ) {
-      if (effectivePage * 12 < query.data.totalCount) {
-        queryClient.prefetchQuery({
-          queryKey: ['users', effectivePage + 1, searchTerm],
-          queryFn: () => getUsersPaginated(12, effectivePage * 12, searchTerm),
-          staleTime: 1000 * 60 * 5,
-        });
-      }
-    }
-  }, [effectivePage, searchTerm, isAllowed, currentUser, queryClient, query.isPlaceholderData, query.data?.totalCount]);
 
   return query;
 }

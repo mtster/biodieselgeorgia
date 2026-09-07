@@ -6,3 +6,4 @@ export * from './vehicleService';
 export * from './lookupService';
 export * from './historyService';
 export * from './localStorage';
+export * from './roleDataService';

@@ -27,6 +27,11 @@ import {
   checkWarehouseDeletion 
 } from '../utils/deletionValidation';
 import { onRealtimeDbChange } from '../lib/realtime';
+import { 
+  getDriverLogisticsData, 
+  getDriverOrdersAndVendors, 
+  getSupplierAppData 
+} from '../services/roleDataService';
 
 export function useAppData() {
   const { currentUser, setCurrentUser, isLoadingAuth, handleLogOut } = useAuth();
@@ -58,9 +63,57 @@ export function useAppData() {
     errorMsg: ''
   });
 
+  const isRefreshingRef = useRef(false);
+  const lastLoadedUserIdRef = useRef<string | null>(null);
+  const trucksRef = useRef<Truck[]>([]);
+  const usersRef = useRef<User[]>([]);
+  useEffect(() => {
+    trucksRef.current = trucks;
+  }, [trucks]);
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
+
   // Sync data function
   const refreshAllData = async () => {
+    if (isRefreshingRef.current) {
+      return;
+    }
+    isRefreshingRef.current = true;
     try {
+      // 1. Specialized lightweight loader for Drivers / Mobile Logistics
+      if (currentUser?.role === 'driver') {
+        const driverData = await getDriverLogisticsData(currentUser);
+        setTrucks(driverData.trucks);
+        setUsers(driverData.employees);
+        setWarehouses(driverData.warehouses);
+        setOrders(driverData.orders);
+        setVendors(driverData.suppliers);
+        setCommunications([]);
+        setChangeHistory([]);
+        setCities([]);
+        setDistricts([]);
+        setDirections([]);
+        return;
+      }
+
+      // 2. Specialized lightweight loader for Suppliers / Vendors
+      if (currentUser?.role === 'vendor') {
+        const supplierData = await getSupplierAppData(currentUser);
+        setVendors(supplierData.vendor ? [supplierData.vendor] : []);
+        setOrders(supplierData.orders);
+        setWarehouses(supplierData.warehouses);
+        setTrucks([]);
+        setUsers([]);
+        setCommunications([]);
+        setChangeHistory([]);
+        setCities([]);
+        setDistricts([]);
+        setDirections([]);
+        return;
+      }
+
+      // 3. Full management system data sync for admin / managers
       const [usrs, vnds, ords, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
         getUsers(),
         getVendors(),
@@ -88,6 +141,7 @@ export function useAppData() {
     } catch (e) {
       console.error('Error synchronizing database:', e);
     } finally {
+      isRefreshingRef.current = false;
       setIsLoading(false);
     }
   };
@@ -108,18 +162,112 @@ export function useAppData() {
     }
   };
 
+  // Targeted sync data function
+  const refreshTable = async (table?: string) => {
+    try {
+      if (!table) {
+        await refreshAllData();
+        return;
+      }
+
+      // Role-specific targeted refreshes
+      if (currentUser?.role === 'driver') {
+        const t = table.toLowerCase();
+        if (t === 'orders' || t === 'vendors' || t === 'vendor_contacts') {
+          const { orders: dOrders, suppliers: dSuppliers } = await getDriverOrdersAndVendors(
+            currentUser,
+            trucksRef.current.length > 0 ? trucksRef.current : await getTrucks(),
+            usersRef.current.length > 0 ? usersRef.current : await getUsers()
+          );
+          setOrders(dOrders);
+          setVendors(dSuppliers);
+        } else if (t === 'vehicles' || t === 'trucks') {
+          const trks = await getTrucks();
+          setTrucks(trks);
+        } else if (t === 'warehouses') {
+          const whs = await getWarehouses();
+          setWarehouses(whs);
+        } else if (t === 'profiles' || t === 'users') {
+          const usrs = await getUsers();
+          setUsers(usrs);
+        }
+        return;
+      }
+
+      if (currentUser?.role === 'vendor') {
+        const t = table.toLowerCase();
+        if (t === 'orders' || t === 'vendors' || t === 'warehouses') {
+          const supplierData = await getSupplierAppData(currentUser);
+          setVendors(supplierData.vendor ? [supplierData.vendor] : []);
+          setOrders(supplierData.orders);
+          setWarehouses(supplierData.warehouses);
+        }
+        return;
+      }
+
+      const t = table.toLowerCase();
+      if (t === 'vehicles' || t === 'trucks') {
+        const [trks, hist] = await Promise.all([getTrucks(), getChangeHistory(50, 0)]);
+        setTrucks(trks);
+        setChangeHistory(hist);
+      } else if (t === 'cities') {
+        const [cts, hist] = await Promise.all([getCities(), getChangeHistory(50, 0)]);
+        setCities(cts);
+        setChangeHistory(hist);
+      } else if (t === 'districts') {
+        const [dsts, hist] = await Promise.all([getDistricts(), getChangeHistory(50, 0)]);
+        setDistricts(dsts);
+        setChangeHistory(hist);
+      } else if (t === 'directions') {
+        const [dirs, hist] = await Promise.all([getDirections(), getChangeHistory(50, 0)]);
+        setDirections(dirs);
+        setChangeHistory(hist);
+      } else if (t === 'warehouses') {
+        const [whs, hist] = await Promise.all([getWarehouses(), getChangeHistory(50, 0)]);
+        setWarehouses(whs);
+        setChangeHistory(hist);
+      } else if (t === 'profiles' || t === 'users') {
+        const [usrs, hist] = await Promise.all([getUsers(), getChangeHistory(50, 0)]);
+        setUsers(usrs);
+        setChangeHistory(hist);
+      } else if (t === 'orders') {
+        const [ords, hist] = await Promise.all([getOrders(), getChangeHistory(50, 0)]);
+        setOrders(ords);
+        setChangeHistory(hist);
+      } else if (t === 'vendors') {
+        const [vnds, hist] = await Promise.all([getVendors(), getChangeHistory(50, 0)]);
+        setVendors(vnds);
+        setChangeHistory(hist);
+      } else if (t === 'communications' || t === 'vendor_communications') {
+        const [comms, hist] = await Promise.all([getCommunications(), getChangeHistory(50, 0)]);
+        setCommunications(comms);
+        setChangeHistory(hist);
+      } else if (t === 'change_history') {
+        const hist = await getChangeHistory(50, 0);
+        setChangeHistory(hist);
+      }
+    } catch (e) {
+      console.error(`Error refreshing table ${table}:`, e);
+    }
+  };
+
   useEffect(() => {
     if (currentUser) {
-      refreshAllData();
-      // Listen for database broadcasts and live changes across the system
-      const unsubscribe = onRealtimeDbChange(() => {
+      if (lastLoadedUserIdRef.current !== currentUser.id) {
+        lastLoadedUserIdRef.current = currentUser.id;
         refreshAllData();
+      }
+      // Listen for database broadcasts and live changes across the system
+      const unsubscribe = onRealtimeDbChange((table) => {
+        refreshTable(table);
       });
       return () => {
         unsubscribe();
       };
+    } else {
+      lastLoadedUserIdRef.current = null;
     }
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     if (!isLoadingAuth && !currentUser) {
@@ -131,10 +279,9 @@ export function useAppData() {
   const handleUserSave = async (user: User) => {
     try {
       await saveUser(user, currentUser?.name || 'System');
-      const updatedUsers = await getUsers();
-      setUsers(updatedUsers);
+      await refreshTable('profiles');
       if (currentUser && user.id === currentUser.id) {
-        setCurrentUser(updatedUsers.find(u => u.id === user.id) || null);
+        setCurrentUser(user);
       }
     } catch (e: any) {
       console.error('Error saving user:', e);
@@ -149,7 +296,7 @@ export function useAppData() {
   const handleUserDelete = async (id: string, name: string) => {
     try {
       await deleteUser(id, name, currentUser?.name || 'System', currentUser?.role);
-      await refreshAllData();
+      await refreshTable('profiles');
     } catch (e: any) {
       console.error('Error deleting user:', e);
       setErrorModal({
@@ -163,7 +310,7 @@ export function useAppData() {
   const handleVendorSave = async (vnd: Vendor) => {
     try {
       const saved = await saveVendor(vnd, currentUser?.name || 'System', currentUser?.id);
-      await refreshAllData();
+      await refreshTable('vendors');
       return saved;
     } catch (e: any) {
       console.error('Error saving supplier:', e);
@@ -179,7 +326,7 @@ export function useAppData() {
   const handleVendorDelete = async (id: string, tradeName: string) => {
     try {
       await deleteVendor(id, tradeName, currentUser?.name || 'System');
-      await refreshAllData();
+      await refreshTable('vendors');
     } catch (e: any) {
       console.error('Error deleting supplier:', e);
       setErrorModal({
@@ -193,7 +340,7 @@ export function useAppData() {
   const handleOrderSave = async (ord: Order) => {
     try {
       await saveOrder(ord, currentUser?.name || 'System');
-      await refreshAllData();
+      await refreshTable('orders');
     } catch (e: any) {
       console.error('Error saving order:', e);
       setErrorModal({
@@ -207,7 +354,7 @@ export function useAppData() {
   const handleOrderDelete = async (id: string, docNum: string) => {
     try {
       await deleteOrder(id, docNum, currentUser?.name || 'System');
-      await refreshAllData();
+      await refreshTable('orders');
     } catch (e: any) {
       console.error('Error deleting order:', e);
       setErrorModal({
@@ -220,49 +367,49 @@ export function useAppData() {
 
   const handleCommunicationSave = async (comm: Communication) => {
     await saveCommunication(comm, currentUser?.name || 'System', currentUser?.id);
-    await refreshAllData();
+    await refreshTable('communications');
   };
 
   const handleCommunicationDelete = async (id: string) => {
     await deleteCommunication(id, currentUser?.name || 'System');
-    await refreshAllData();
+    await refreshTable('communications');
   };
 
   // Lookups updates
   const handleSaveCity = async (c: City) => {
     await saveCity(c, currentUser?.name || 'System', currentUser?.id);
-    await refreshAllData();
+    await refreshTable('cities');
   };
   const handleDeleteCity = async (id: string, name: string) => {
     await deleteCity(id, name, currentUser?.name || 'System');
-    await refreshAllData();
+    await refreshTable('cities');
   };
 
   const handleSaveDistrict = async (d: District) => {
     await saveDistrict(d, currentUser?.name || 'System', currentUser?.id);
-    await refreshAllData();
+    await refreshTable('districts');
   };
   const handleDeleteDistrict = async (id: string, name: string) => {
     await deleteDistrict(id, name, currentUser?.name || 'System');
-    await refreshAllData();
+    await refreshTable('districts');
   };
 
   const handleSaveDirection = async (d: Direction) => {
     await saveDirection(d, currentUser?.name || 'System', currentUser?.id);
-    await refreshAllData();
+    await refreshTable('directions');
   };
   const handleDeleteDirection = async (id: string, name: string) => {
     await deleteDirection(id, name, currentUser?.name || 'System');
-    await refreshAllData();
+    await refreshTable('directions');
   };
 
   const handleSaveTruck = async (t: Truck) => {
     await saveTruck(t, currentUser?.name || 'System', currentUser?.id);
-    await refreshAllData();
+    await refreshTable('vehicles');
   };
   const handleDeleteTruck = async (plate: string) => {
     await deleteTruck(plate, currentUser?.name || 'System');
-    await refreshAllData();
+    await refreshTable('vehicles');
   };
 
   const handleAddCityDirect = async (name: string) => {
@@ -291,17 +438,17 @@ export function useAppData() {
       created_by: currentUser?.id
     };
     await saveWarehouse(newWh, currentUser?.name || 'System', currentUser?.id);
-    await refreshAllData();
+    await refreshTable('warehouses');
   };
 
   const handleSaveWarehouse = async (wh: Warehouse) => {
     await saveWarehouse(wh, currentUser?.name || 'System', currentUser?.id);
-    await refreshAllData();
+    await refreshTable('warehouses');
   };
 
   const handleDeleteWarehouse = async (id: string, name: string) => {
     await deleteWarehouse(id, name, currentUser?.name || 'System');
-    await refreshAllData();
+    await refreshTable('warehouses');
   };
 
   const handleRevertChange = async (log: ChangeHistory): Promise<boolean> => {
