@@ -20,26 +20,27 @@ import { usePaginatedOrders } from '../../hooks/usePaginatedModuleQuery';
 import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 
 const defaultOrdersColumns: ManagedColumn[] = [
-  { id: 'order_date', label: 'Dispatch Date', visible: true },
-  { id: 'doc_number', label: 'Doc Num', visible: true },
-  { id: 'vendor_id', label: 'Supplier', visible: true },
-  { id: 'warehouse_id', label: 'Warehouse', visible: true },
+  { id: 'order_date', label: 'Order Date', visible: true },
   { id: 'status', label: 'Status', visible: true },
-  { id: 'planned', label: 'Planned Qty', visible: true },
-  { id: 'fact_qty', label: 'Fact QTY', visible: true },
-  { id: 'tanks_to_leave', label: 'Dropoff Tanks', visible: true },
-  { id: 'fact_tank_dropoff', label: 'Fact Tank Dropoff', visible: true },
-  { id: 'tanks_to_bring', label: 'Pickup Tanks', visible: true },
-  { id: 'fact_tank_pickup', label: 'Fact Tank Pickup', visible: true },
-  { id: 'note', label: 'Comment', visible: true },
-  { id: 'address', label: 'Address', visible: true },
-  { id: 'direction', label: 'Direction', visible: true },
+  { id: 'vendor_id', label: 'Supplier', visible: true },
   { id: 'city', label: 'City', visible: true },
+  { id: 'address', label: 'Address', visible: true },
+  { id: 'contacts', label: 'Contact', visible: true },
+  { id: 'note', label: 'Comment', visible: true },
+  { id: 'planned', label: 'Order Qty (L)', visible: true },
+  { id: 'tanks_to_bring', label: 'Order Pickup', visible: true },
+  { id: 'tanks_to_leave', label: 'Order Dropoff', visible: true },
+  { id: 'fact_qty', label: 'Fact Qty (L)', visible: true },
+  { id: 'fact_tank_pickup', label: 'Fact Pickup', visible: true },
+  { id: 'fact_tank_dropoff', label: 'Fact Dropoff', visible: true },
   { id: 'district', label: 'District', visible: true },
+  { id: 'direction', label: 'Direction', visible: true },
   { id: 'truck_plate', label: 'Vehicle', visible: true },
   { id: 'driver_id', label: 'Driver', visible: true },
   { id: 'companion_id', label: 'Assistant', visible: true },
-  { id: 'contacts', label: 'Contacts', visible: true }
+  { id: 'doc_number', label: 'Doc Num', visible: true },
+  { id: 'warehouse_id', label: 'Warehouse', visible: true },
+  { id: 'operator_id', label: 'Operations Manager', visible: true }
 ];
 
 interface Props {
@@ -139,14 +140,45 @@ export default function OrdersView({
   // Columns Manager State
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
+    const CURRENT_VERSION = 'v5_canonical_reorder';
+    const versionKey = 'orders_columns_version';
+    const loadedVersion = localStorage.getItem(versionKey);
     const loaded = localStorage.getItem('orders_columns_managed');
-    if (!loaded) return defaultOrdersColumns;
+
+    if (!loaded || loadedVersion !== CURRENT_VERSION) {
+      let customCols: ManagedColumn[] = [];
+      const visibilityMap = new Map<string, boolean>();
+
+      if (loaded) {
+        try {
+          const parsed: ManagedColumn[] = JSON.parse(loaded);
+          parsed.forEach(c => {
+            if (c.isCustom) {
+              customCols.push(c);
+            } else {
+              visibilityMap.set(c.id, c.visible);
+            }
+          });
+        } catch (e) {
+          console.warn('Could not parse previous orders columns', e);
+        }
+      }
+
+      // Reconstruct with the new canonical order and new labels
+      const migrated = defaultOrdersColumns.map(col => ({
+        ...col,
+        visible: visibilityMap.has(col.id) ? visibilityMap.get(col.id)! : col.visible
+      }));
+
+      const finalCols = [...migrated, ...customCols];
+      localStorage.setItem('orders_columns_managed', JSON.stringify(finalCols));
+      localStorage.setItem(versionKey, CURRENT_VERSION);
+      return finalCols;
+    }
+
     try {
       const parsed: ManagedColumn[] = JSON.parse(loaded);
-      // Clean out removed pickup_date_time and rename order_date label to Dispatch Date
-      return parsed
-        .filter(c => c.id !== 'pickup_date_time')
-        .map(c => c.id === 'order_date' ? { ...c, label: 'Dispatch Date' } : c);
+      return parsed.filter(c => c.id !== 'pickup_date_time');
     } catch {
       return defaultOrdersColumns;
     }
@@ -643,6 +675,7 @@ export default function OrdersView({
             warehouses={warehouses}
             employees={employees}
             directions={directions}
+            trucks={trucks}
             startEdit={startEdit} 
             askDelete={askDelete}
             selectedOrders={selectedOrders}

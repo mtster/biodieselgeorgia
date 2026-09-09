@@ -199,10 +199,33 @@ export async function getOrdersPaginated(
           }
         }
 
+        // Prefetch vehicle info for plate numbers
+        const vehicleIds = Array.from(new Set((data as any[]).map(item => item.vehicle_id).filter(Boolean)));
+        const vehicleMap = new Map<string, string>();
+        if (vehicleIds.length > 0) {
+          try {
+            const { data: vhData } = await supabase
+              .from('vehicles')
+              .select('id, plate_number')
+              .in('id', vehicleIds);
+            if (vhData) {
+              vhData.forEach(vh => {
+                if (vh.id) {
+                  vehicleMap.set(vh.id, vh.plate_number);
+                }
+              });
+            }
+          } catch (vhErr) {
+            console.warn('Failed to prefetch vehicles for orders page:', vhErr);
+          }
+        }
+
         const mapped = data.map((o: any) => {
           const v = o.vendor_id ? (vendorMap.get(o.vendor_id) || vendorMap.get(o.vendor_id?.toLowerCase?.().trim())) : null;
+          const plate = o.truck_plate || (o.vehicle_id ? vehicleMap.get(o.vehicle_id) : '') || '';
           return {
             ...o,
+            truck_plate: plate,
             vendor_name: o.vendor_name || o.vendors?.trade_name || o.vendors?.company_name || v?.trade_name || v?.company_name || '',
             address: o.address || v?.address || '',
             city: o.city || v?.city || '',
@@ -351,13 +374,33 @@ export async function getOrders(limit = 100): Promise<Order[]> {
           }
         }
 
+        const vehicleIds = Array.from(new Set(data.map((o: any) => o.vehicle_id).filter(Boolean)));
+        const vehicleMap = new Map<string, string>();
+        if (vehicleIds.length > 0) {
+          try {
+            const { data: vhData } = await supabase
+              .from('vehicles')
+              .select('id, plate_number')
+              .in('id', vehicleIds);
+            if (vhData) {
+              vhData.forEach(vh => {
+                if (vh.id) vehicleMap.set(vh.id, vh.plate_number);
+              });
+            }
+          } catch (ve) {
+            console.warn('getOrders vehicle lookup error:', ve);
+          }
+        }
+
         return data.map((o: any) => {
           const v = o.vendor_id ? vendorMap.get(o.vendor_id) : null;
           const targetWhId = o.warehouse_id || v?.warehouse_id;
           const wName = targetWhId ? warehouseMap.get(targetWhId) : null;
+          const plate = o.truck_plate || (o.vehicle_id ? vehicleMap.get(o.vehicle_id) : '') || '';
 
           return {
             ...o,
+            truck_plate: plate,
             vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
             warehouse_name: o.warehouse_name || wName || '',
             warehouse_id: o.warehouse_id || v?.warehouse_id || '',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Order, Vendor, User, Warehouse, Direction } from '../../types';
+import { Order, Vendor, User, Warehouse, Direction, Truck } from '../../types';
 import { Edit2, Trash2, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
@@ -12,6 +12,7 @@ interface Props {
   warehouses: Warehouse[];
   employees: User[];
   directions: Direction[];
+  trucks?: Truck[];
   startEdit: (ord: Order, readOnly?: boolean) => void;
   askDelete: (id: string, docNum: string) => void;
   selectedOrders?: string[];
@@ -30,6 +31,7 @@ export default function OrdersList({
   warehouses,
   employees,
   directions,
+  trucks = [],
   startEdit,
   askDelete,
   selectedOrders = [],
@@ -65,14 +67,19 @@ export default function OrdersList({
 
   const columnMap: Record<string, ColumnConfig<Order>> = {
     order_date: {
-      header: t('Dispatch Date'),
+      header: t('Order Date'),
       key: 'order_date',
       render: (ord) => formatDateTime(ord.order_date)
     },
-    doc_number: {
-      header: t('Doc Num'),
-      key: 'doc_number',
-      render: (ord) => ord.doc_number
+    status: {
+      header: t('Status'),
+      key: 'status',
+      render: (ord) => {
+        const s = ord.status;
+        if (s === 'driver_assigned') return t('Driver Assigned');
+        if (s === 'picked_up') return t('Picked Up');
+        return t(s);
+      }
     },
     vendor_id: {
       header: t('Supplier'),
@@ -88,53 +95,34 @@ export default function OrdersList({
         );
       }
     },
-    warehouse_id: {
-      header: t('Warehouse'),
-      key: 'warehouse_name',
+    city: {
+      header: t('City'),
+      key: 'city',
       render: (ord) => {
-        const wh = warehouses.find(w => w.id === ord.warehouse_id);
-        return wh ? wh.name : (ord.warehouse_name || 'Unassigned Warehouse');
+        const vendor = findSupplier(ord.vendor_id, ord);
+        const val = vendor?.city || ord.city || '-';
+        return <div className="max-w-[140px] truncate" title={val}>{val}</div>;
       }
     },
-    status: {
-      header: t('Status'),
-      key: 'status',
+    address: {
+      header: t('Address'),
+      key: 'address',
       render: (ord) => {
-        const s = ord.status;
-        if (s === 'driver_assigned') return t('Driver Assigned');
-        if (s === 'picked_up') return t('Picked Up');
-        return t(s);
+        const vendor = findSupplier(ord.vendor_id, ord);
+        const val = vendor?.address || ord.address || '-';
+        return <div className="max-w-[220px] truncate" title={val}>{val}</div>;
       }
     },
-    planned: {
-      header: t('Planned'),
-      key: 'planned',
-      render: (ord) => `${ord.qty_requested} L`
-    },
-    tanks_to_leave: {
-      header: t('Dropoff'),
-      key: 'tanks_to_leave',
-      render: (ord) => `${ord.tanks_to_leave}`
-    },
-    tanks_to_bring: {
-      header: t('Pickup'),
-      key: 'tanks_to_bring',
-      render: (ord) => `${ord.tanks_to_bring}`
-    },
-    fact_qty: {
-      header: t('Fact QTY'),
-      key: 'fact_qty',
-      render: (ord) => ord.fact_qty === undefined || ord.fact_qty === null ? '-' : ord.fact_qty
-    },
-    fact_tank_dropoff: {
-      header: t('Fact Tank Dropoff'),
-      key: 'fact_tank_dropoff',
-      render: (ord) => ord.fact_tank_dropoff === undefined || ord.fact_tank_dropoff === null ? '-' : ord.fact_tank_dropoff
-    },
-    fact_tank_pickup: {
-      header: t('Fact Tank Pickup'),
-      key: 'fact_tank_pickup',
-      render: (ord) => ord.fact_tank_pickup === undefined || ord.fact_tank_pickup === null ? '-' : ord.fact_tank_pickup
+    contacts: {
+      header: t('Contact'),
+      key: 'contacts',
+      render: (ord) => {
+        const vendor = findSupplier(ord.vendor_id);
+        if (!vendor || !vendor.contacts || vendor.contacts.length === 0) return '-';
+        const mainContact = vendor.contacts.find(c => c.is_default) || vendor.contacts[0];
+        const val = `${mainContact.name} (${mainContact.phone})`;
+        return <div className="max-w-[200px] truncate" title={val}>{val}</div>;
+      }
     },
     note: {
       header: t('Comment'),
@@ -176,12 +164,42 @@ export default function OrdersList({
         ) : '-';
       }
     },
-    address: {
-      header: t('Address'),
-      key: 'address',
+    planned: {
+      header: t('Order Qty (L)'),
+      key: 'planned',
+      render: (ord) => `${ord.qty_requested} L`
+    },
+    tanks_to_bring: {
+      header: t('Order Pickup'),
+      key: 'tanks_to_bring',
+      render: (ord) => `${ord.tanks_to_bring}`
+    },
+    tanks_to_leave: {
+      header: t('Order Dropoff'),
+      key: 'tanks_to_leave',
+      render: (ord) => `${ord.tanks_to_leave}`
+    },
+    fact_qty: {
+      header: t('Fact Qty (L)'),
+      key: 'fact_qty',
+      render: (ord) => ord.fact_qty === undefined || ord.fact_qty === null ? '-' : ord.fact_qty
+    },
+    fact_tank_pickup: {
+      header: t('Fact Pickup'),
+      key: 'fact_tank_pickup',
+      render: (ord) => ord.fact_tank_pickup === undefined || ord.fact_tank_pickup === null ? '-' : ord.fact_tank_pickup
+    },
+    fact_tank_dropoff: {
+      header: t('Fact Dropoff'),
+      key: 'fact_tank_dropoff',
+      render: (ord) => ord.fact_tank_dropoff === undefined || ord.fact_tank_dropoff === null ? '-' : ord.fact_tank_dropoff
+    },
+    district: {
+      header: t('District'),
+      key: 'district',
       render: (ord) => {
         const vendor = findSupplier(ord.vendor_id, ord);
-        return vendor?.address || ord.address || '-';
+        return vendor?.district || ord.district || '-';
       }
     },
     direction: {
@@ -195,26 +213,24 @@ export default function OrdersList({
         return d ? d.name : '-';
       }
     },
-    city: {
-      header: t('City'),
-      key: 'city',
-      render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id, ord);
-        return vendor?.city || ord.city || '-';
-      }
-    },
-    district: {
-      header: t('District'),
-      key: 'district',
-      render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id, ord);
-        return vendor?.district || ord.district || '-';
-      }
-    },
     truck_plate: {
       header: t('Vehicle'),
       key: 'truck_plate',
-      render: (ord) => ord.truck_plate || '-'
+      render: (ord) => {
+        const isValidUuid = (val?: string) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+        if (ord.truck_plate && !isValidUuid(ord.truck_plate) && ord.truck_plate.trim()) {
+          return ord.truck_plate;
+        }
+        if (ord.vehicle_id && trucks && trucks.length > 0) {
+          const matched = trucks.find(t => t.id === ord.vehicle_id || t.plate_number === ord.vehicle_id);
+          if (matched?.plate_number) return matched.plate_number;
+        }
+        if (ord.truck_plate && trucks && trucks.length > 0) {
+          const matched = trucks.find(t => t.id === ord.truck_plate || t.plate_number === ord.truck_plate);
+          if (matched?.plate_number) return matched.plate_number;
+        }
+        return ord.truck_plate || '-';
+      }
     },
     driver_id: {
       header: t('Driver'),
@@ -234,14 +250,27 @@ export default function OrdersList({
         return emp ? emp.name : '-';
       }
     },
-    contacts: {
-      header: t('Contacts'),
-      key: 'contacts',
+    doc_number: {
+      header: t('Doc Num'),
+      key: 'doc_number',
+      render: (ord) => ord.doc_number
+    },
+    warehouse_id: {
+      header: t('Warehouse'),
+      key: 'warehouse_name',
       render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id);
-        if (!vendor || !vendor.contacts || vendor.contacts.length === 0) return '-';
-        const mainContact = vendor.contacts.find(c => c.is_default) || vendor.contacts[0];
-        return `${mainContact.name} (${mainContact.phone})`;
+        const wh = warehouses.find(w => w.id === ord.warehouse_id);
+        return wh ? wh.name : (ord.warehouse_name || 'Unassigned Warehouse');
+      }
+    },
+    operator_id: {
+      header: t('Operations Manager'),
+      key: 'operator_id',
+      render: (ord) => {
+        const creatorId = ord.operator_id || ord.created_by;
+        if (!creatorId) return ord.operator_name || '-';
+        const emp = employees.find(e => e.id === creatorId);
+        return emp ? emp.name : (ord.operator_name || '-');
       }
     }
   };
