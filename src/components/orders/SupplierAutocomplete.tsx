@@ -31,6 +31,11 @@ export default function SupplierAutocomplete({
   const debouncedSearch = useDebounce(vendorSearch, 250);
   const [remoteSuppliers, setRemoteSuppliers] = useState<Vendor[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [remoteOffset, setRemoteOffset] = useState(0);
+  const [displayLimit, setDisplayLimit] = useState(5);
+  const [selectedVendorObj, setSelectedVendorObj] = useState<Vendor | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -48,63 +53,79 @@ export default function SupplierAutocomplete({
     };
   }, [setShowVendorSuggestions]);
 
-  // Sync vendorSearch if selectedVendorId is set but vendorSearch is empty
+  // Sync selected vendor object and search text when selectedVendorId changes
   useEffect(() => {
-    if (selectedVendorId && !vendorSearch) {
+    if (selectedVendorId) {
       const cleanVId = String(selectedVendorId).trim().toLowerCase();
       const v = suppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
       if (v) {
-        setVendorSearch(v.trade_name || v.company_name || '');
+        setSelectedVendorObj(v);
+        if (!vendorSearch) {
+          setVendorSearch(v.trade_name || v.company_name || '');
+        }
       }
+    } else {
+      setSelectedVendorObj(null);
     }
-  }, [selectedVendorId, suppliers, vendorSearch, setVendorSearch]);
+  }, [selectedVendorId, suppliers]);
 
-  // Identify currently matched / selected vendor to display the pale address badge
+  // Identify currently matched / selected vendor to display the address badge
   const matchedVendor = useMemo(() => {
-    const term = vendorSearch.trim().toLowerCase();
     if (selectedVendorId) {
-      const cleanVId = String(selectedVendorId).trim().toLowerCase();
-      const v = suppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId)) || 
-                remoteSuppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
-      if (v) {
-        return v;
+      if (selectedVendorObj && (selectedVendorObj.id === selectedVendorId || String(selectedVendorObj.id).trim().toLowerCase() === String(selectedVendorId).trim().toLowerCase())) {
+        return selectedVendorObj;
       }
+      const cleanVId = String(selectedVendorId).trim().toLowerCase();
+      const v = suppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
+      if (v) return v;
     }
+    const term = vendorSearch.trim().toLowerCase();
     if (!term) return null;
-    // Check if vendorSearch matches a supplier name
     return suppliers.find((s) => (s.trade_name?.trim().toLowerCase() === term || s.company_name?.trim().toLowerCase() === term)) || null;
-  }, [suppliers, remoteSuppliers, vendorSearch, selectedVendorId]);
+  }, [selectedVendorId, selectedVendorObj, suppliers, vendorSearch]);
 
-  const selectedAddress = matchedVendor?.address || '';
+  const selectedAddress = matchedVendor?.address || selectedVendorObj?.address || '';
 
-  // Background search for suppliers not in local cache
+  // Background search for suppliers not in local cache (fetching 5 at a time)
   useEffect(() => {
     let isMounted = true;
     const term = debouncedSearch.trim();
 
     if (!term || !showVendorSuggestions) {
-      setRemoteSuppliers([]);
+      setRemoteSuppliers((prev) => (prev.length > 0 ? [] : prev));
       setIsSearching(false);
+      setIsLoadingMore(false);
+      setHasMore(false);
+      setRemoteOffset(0);
+      setDisplayLimit(5);
       return;
     }
 
-    // If currently matched vendor already has this exact name, skip redundant remote network call
-    if (matchedVendor) {
-      const matchTrade = (matchedVendor.trade_name || '').trim().toLowerCase();
-      const matchComp = (matchedVendor.company_name || '').trim().toLowerCase();
+    // If currently selected vendor matches this exact name, skip redundant remote network call
+    const activeVendor = selectedVendorObj || suppliers.find((s) => s.id === selectedVendorId);
+    if (activeVendor) {
+      const matchTrade = (activeVendor.trade_name || '').trim().toLowerCase();
+      const matchComp = (activeVendor.company_name || '').trim().toLowerCase();
       const termLower = term.toLowerCase();
       if (termLower === matchTrade || termLower === matchComp) {
-        setRemoteSuppliers([]);
         setIsSearching(false);
+        setIsLoadingMore(false);
+        setHasMore(false);
         return;
       }
     }
 
     setIsSearching(true);
-    getVendorsPaginated(30, 0, { searchTerm: term })
+    setRemoteOffset(0);
+    setDisplayLimit(5);
+
+    getVendorsPaginated(5, 0, { searchTerm: term }, { includeContacts: false })
       .then((res) => {
         if (isMounted) {
-          setRemoteSuppliers(res.vendors || []);
+          const fetched = res.vendors || [];
+          setRemoteSuppliers(fetched);
+          setRemoteOffset(fetched.length);
+          setHasMore(fetched.length === 5 && (res.totalCount ? fetched.length < res.totalCount : true));
           setIsSearching(false);
         }
       })
@@ -118,12 +139,55 @@ export default function SupplierAutocomplete({
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, showVendorSuggestions, matchedVendor]);
+  }, [debouncedSearch, showVendorSuggestions, selectedVendorId, selectedVendorObj, suppliers]);
+
+  // Load next 5 suppliers on scrolling to the bottom of the dropdown
+  const handleLoadMore = () => {
+    if (isLoadingMore || isSearching) return;
+
+    if (displayLimit < allCombinedSuggestions.length) {
+      setDisplayLimit((prev) => prev + 5);
+    }
+
+    if (hasMore) {
+      const term = debouncedSearch.trim();
+      if (!term) return;
+
+      setIsLoadingMore(true);
+      getVendorsPaginated(5, remoteOffset, { searchTerm: term }, { includeContacts: false })
+        .then((res) => {
+          const fetched = res.vendors || [];
+          setRemoteSuppliers((prev) => {
+            const ids = new Set(prev.map((v) => v.id));
+            const newVendors = fetched.filter((v) => !ids.has(v.id));
+            return [...prev, ...newVendors];
+          });
+          setRemoteOffset((prev) => prev + fetched.length);
+          setDisplayLimit((prev) => prev + 5);
+          setHasMore(fetched.length === 5 && (res.totalCount ? remoteOffset + fetched.length < res.totalCount : true));
+          setIsLoadingMore(false);
+        })
+        .catch((err) => {
+          console.warn('Failed to load more autocomplete suppliers', err);
+          setIsLoadingMore(false);
+        });
+    }
+  };
 
   // Combine and deduplicate local suppliers and remote fetched suppliers with instant reactivity on vendorSearch
-  const filteredSuggestions = useMemo(() => {
+  const allCombinedSuggestions = useMemo(() => {
     const term = vendorSearch.trim().toLowerCase();
     const map = new Map<string, Vendor>();
+
+    // If a vendor is currently selected, ensure it is in the list if it matches
+    if (selectedVendorObj) {
+      const trade = (selectedVendorObj.trade_name || '').toLowerCase();
+      const comp = (selectedVendorObj.company_name || '').toLowerCase();
+      const addr = (selectedVendorObj.address || '').toLowerCase();
+      if (!term || trade.includes(term) || comp.includes(term) || addr.includes(term)) {
+        map.set(selectedVendorObj.id, selectedVendorObj);
+      }
+    }
 
     // Instant local matching on every keystroke (zero lag)
     suppliers.forEach((s) => {
@@ -144,11 +208,16 @@ export default function SupplierAutocomplete({
       map.set(s.id, s);
     });
 
-    return Array.from(map.values()).slice(0, 30);
-  }, [suppliers, remoteSuppliers, vendorSearch]);
+    return Array.from(map.values());
+  }, [suppliers, remoteSuppliers, vendorSearch, selectedVendorObj]);
+
+  const filteredSuggestions = useMemo(() => {
+    return allCombinedSuggestions.slice(0, displayLimit);
+  }, [allCombinedSuggestions, displayLimit]);
 
   const handleSelectVendor = (s: Vendor) => {
     const displayName = s.trade_name || s.company_name || '';
+    setSelectedVendorObj(s);
 
     setEditingOrder((prev) =>
       prev
@@ -198,6 +267,7 @@ export default function SupplierAutocomplete({
             setVendorSearch(val);
             setShowVendorSuggestions(true);
             if (val === '') {
+              setSelectedVendorObj(null);
               setEditingOrder((prev) => (prev ? { ...prev, vendor_id: '', vendor_name: '', address: '' } : null));
             }
             if (fieldErrors.vendor_id) {
@@ -233,35 +303,51 @@ export default function SupplierAutocomplete({
       )}
 
       {showVendorSuggestions && (
-        <div className="absolute left-0 right-0 mt-1.5 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-30 divide-y divide-gray-50 animate-in fade-in zoom-in-95 duration-100">
+        <div
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
+              handleLoadMore();
+            }
+          }}
+          className="absolute left-0 right-0 mt-1.5 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-30 divide-y divide-gray-50 animate-in fade-in zoom-in-95 duration-100"
+        >
           {filteredSuggestions.length > 0 ? (
-            filteredSuggestions.map((s) => (
-              <div
-                key={s.id}
-                onClick={() => handleSelectVendor(s)}
-                className="px-3.5 py-2.5 hover:bg-emerald-50/40 cursor-pointer text-left transition duration-100 group"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-gray-800 group-hover:text-emerald-750 transition-colors">
-                    {s.trade_name || s.company_name}
-                  </p>
+            <>
+              {filteredSuggestions.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => handleSelectVendor(s)}
+                  className="px-3.5 py-2.5 hover:bg-emerald-50/40 cursor-pointer text-left transition duration-100 group"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-gray-800 group-hover:text-emerald-750 transition-colors">
+                      {s.trade_name || s.company_name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500">
+                    {s.company_name && s.company_name !== s.trade_name && (
+                      <span className="flex items-center gap-1">
+                        <Building2 className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                        {s.company_name}
+                      </span>
+                    )}
+                    {s.address && (
+                      <span className="flex items-center gap-1 text-gray-400">
+                        <MapPin className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                        {s.address}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500">
-                  {s.company_name && s.company_name !== s.trade_name && (
-                    <span className="flex items-center gap-1">
-                      <Building2 className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                      {s.company_name}
-                    </span>
-                  )}
-                  {s.address && (
-                    <span className="flex items-center gap-1 text-gray-400">
-                      <MapPin className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                      {s.address}
-                    </span>
-                  )}
+              ))}
+              {isLoadingMore && (
+                <div className="py-2.5 flex items-center justify-center gap-1.5 text-[11px] text-emerald-600 font-medium bg-slate-50/70 border-t border-gray-100">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>{t("Loading more...")}</span>
                 </div>
-              </div>
-            ))
+              )}
+            </>
           ) : (
             <div className="px-4 py-4 text-xs text-gray-400 text-center flex flex-col items-center justify-center gap-1">
               {isSearching ? (

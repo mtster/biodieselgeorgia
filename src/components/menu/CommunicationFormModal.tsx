@@ -87,7 +87,7 @@ export default function CommunicationFormModal({
     }
 
     setIsSearching(true);
-    getVendorsPaginated(30, 0, { searchTerm: term })
+    getVendorsPaginated(30, 0, { searchTerm: term }, { includeContacts: false })
       .then((res) => {
         if (isMounted) {
           setRemoteSuppliers(res.vendors || []);

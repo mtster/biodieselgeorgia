@@ -373,10 +373,13 @@ export async function getVendorsPaginated(
     managerId?: string;
     operatorId?: string;
     directionId?: string;
+  },
+  options?: {
+    includeContacts?: boolean;
   }
 ): Promise<PaginatedVendorsResult> {
-  const filterKey = JSON.stringify(filters || {});
-  const countCacheKey = `count_vendors_${filterKey}`;
+  const filterKey = JSON.stringify({ filters: filters || {}, options: options || {} });
+  const countCacheKey = `count_vendors_${JSON.stringify(filters || {})}`;
   const pageCacheKey = `vendors_limit_${limit}_offset_${offset}_${filterKey}`;
 
   const cachedPage = appCache.get<PaginatedVendorsResult>(pageCacheKey);
@@ -402,26 +405,27 @@ export async function getVendorsPaginated(
         const digitsOnly = safeTerm.replace(/[^0-9]/g, '');
 
         let matchedVendorIds: string[] = [];
-        // Perform fast, indexed search across active vendor_contacts phone numbers only
-        try {
-          let contactSearch = supabase
-            .from('vendor_contacts')
-            .select('vendor_id')
-            .eq('is_deleted', false)
-            .eq('is_active', true);
+        // Only search contacts phone numbers if the user typed at least 3 digits (e.g., phone numbers).
+        // If the user typed letters/words (e.g. Georgian letters), skip querying contacts by phone completely.
+        if (digitsOnly.length >= 3) {
+          try {
+            let contactSearch = supabase
+              .from('vendor_contacts')
+              .select('vendor_id')
+              .eq('is_deleted', false)
+              .eq('is_active', true);
 
-          if (digitsOnly.length >= 3) {
             contactSearch = contactSearch.or(`phone.ilike.${term},phone.ilike.%${digitsOnly}%`);
-          } else {
-            contactSearch = contactSearch.ilike('phone', term);
-          }
 
-          const { data: matchedContacts } = await contactSearch.limit(500);
-          if (matchedContacts && matchedContacts.length > 0) {
-            matchedVendorIds = Array.from(new Set(matchedContacts.map(c => c.vendor_id).filter(Boolean)));
+            // Logical limit scaled to search page size instead of fetching 500 rows
+            const contactLimit = Math.max(5, Math.min(limit * 2, 20));
+            const { data: matchedContacts } = await contactSearch.limit(contactLimit);
+            if (matchedContacts && matchedContacts.length > 0) {
+              matchedVendorIds = Array.from(new Set(matchedContacts.map(c => c.vendor_id).filter(Boolean)));
+            }
+          } catch (cErr) {
+            console.warn('Supabase vendor_contacts phone search failed:', cErr);
           }
-        } catch (cErr) {
-          console.warn('Supabase vendor_contacts phone search failed:', cErr);
         }
 
         if (matchedVendorIds.length > 0) {
@@ -465,7 +469,8 @@ export async function getVendorsPaginated(
 
         const decoded = data.map(v => decodeVendorCustomFields(v));
         const vendorIds = decoded.map(v => v.id);
-        if (vendorIds.length > 0) {
+        // Only fetch contacts if includeContacts is not explicitly false (e.g. autocomplete doesn't need all contacts)
+        if (vendorIds.length > 0 && options?.includeContacts !== false) {
           const { data: contactsData } = await supabase
             .from('vendor_contacts')
             .select('id, vendor_id, name, phone, position, note, email, is_default, is_active, sort_order')

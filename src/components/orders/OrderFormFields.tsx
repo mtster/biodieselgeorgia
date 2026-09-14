@@ -71,15 +71,18 @@ export default function OrderFormFields({
       const currentContactExists = fetchedContacts.some(c => c.id === editingOrder.contact_id);
       if (!editingOrder.contact_id || !currentContactExists) {
         const defaultContact = fetchedContacts.find(c => c.is_default) || fetchedContacts[0];
-        if (defaultContact) {
-          setEditingOrder(prev => prev ? {
-            ...prev,
-            contact_id: defaultContact.id
-          } : null);
+        if (defaultContact && defaultContact.id !== editingOrder.contact_id) {
+          setEditingOrder(prev => {
+            if (!prev || prev.contact_id === defaultContact.id) return prev;
+            return {
+              ...prev,
+              contact_id: defaultContact.id
+            };
+          });
         }
       }
     }
-  }, [editingOrder.vendor_id, fetchedContacts]);
+  }, [editingOrder.vendor_id, editingOrder.contact_id, fetchedContacts]);
 
   const comments = editingOrder.notes || [];
 

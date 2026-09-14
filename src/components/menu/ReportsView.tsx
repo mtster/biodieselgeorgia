@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Vendor, Order, User, City, District } from '../../types';
+import { Vendor, Order, User, City, District, Warehouse as WarehouseType } from '../../types';
 import PageHeader from '../PageHeader';
 import { t } from '../../utils/lang';
 
+import OrdersByPeriod from '../reports/OrdersByPeriod';
+import OrdersByWarehouse from '../reports/OrdersByWarehouse';
 import DeliveredOrdersBySuppliers from '../reports/DeliveredOrdersBySuppliers';
 import DeliveredOrdersByRegions from '../reports/DeliveredOrdersByRegions';
 import DeliveredOrdersByManagers from '../reports/DeliveredOrdersByManagers';
@@ -10,13 +12,13 @@ import TanksTurnoverBySuppliers from '../reports/TanksTurnoverBySuppliers';
 import LastDeliveries from '../reports/LastDeliveries';
 
 import { 
+  CalendarRange,
+  Warehouse,
   Truck, 
   MapPin, 
   Users, 
   RefreshCw, 
-  Clock, 
-  ArrowRight,
-  FileSpreadsheet
+  Clock
 } from 'lucide-react';
 
 interface Props {
@@ -25,9 +27,10 @@ interface Props {
   users?: User[];
   cities?: City[];
   districts?: District[];
+  warehouses?: WarehouseType[];
 }
 
-type ReportType = 'suppliers' | 'regions' | 'managers' | 'turnover' | 'last_deliveries' | null;
+type ReportType = 'period' | 'warehouses' | 'suppliers' | 'regions' | 'managers' | 'turnover' | 'last_deliveries' | null;
 
 export default function ReportsView({
   suppliers,
@@ -35,10 +38,36 @@ export default function ReportsView({
   users = [],
   cities = [],
   districts = [],
+  warehouses = [],
 }: Props) {
   const [selectedReport, setSelectedReport] = useState<ReportType>(null);
 
   // Render the matching report screen
+  if (selectedReport === 'period') {
+    return (
+      <OrdersByPeriod
+        suppliers={suppliers}
+        orders={orders}
+        users={users}
+        cities={cities}
+        onBack={() => setSelectedReport(null)}
+      />
+    );
+  }
+
+  if (selectedReport === 'warehouses') {
+    return (
+      <OrdersByWarehouse
+        suppliers={suppliers}
+        orders={orders}
+        users={users}
+        cities={cities}
+        warehouses={warehouses}
+        onBack={() => setSelectedReport(null)}
+      />
+    );
+  }
+
   if (selectedReport === 'suppliers') {
     return (
       <DeliveredOrdersBySuppliers
@@ -47,6 +76,7 @@ export default function ReportsView({
         users={users}
         cities={cities}
         districts={districts}
+        warehouses={warehouses}
         onBack={() => setSelectedReport(null)}
       />
     );
@@ -102,20 +132,28 @@ export default function ReportsView({
   // Cards Configuration
   const reportCards = [
     {
+      id: 'period' as const,
+      title: 'Orders by Period',
+      description: 'Review orders by custom period with factual pickup quantities, city, and manager breakdown.',
+      icon: CalendarRange,
+      color: 'bg-emerald-50 text-emerald-800 border-emerald-100',
+      badge: 'Period Analysis',
+    },
+    {
       id: 'suppliers' as const,
       title: 'Delivered Orders by Suppliers',
       description: 'Review total liters, visit counts, and total cost aggregated per individual commercial supplier.',
       icon: Truck,
-      color: 'bg-emerald-50 text-emerald-800 border-emerald-100',
+      color: 'bg-teal-50 text-teal-800 border-teal-100',
       badge: 'Supplier Insights',
     },
     {
-      id: 'regions' as const,
-      title: 'Delivered Orders by Regions',
-      description: 'Analyze localized biodiesel feedstock collections by regional city and municipality districts.',
-      icon: MapPin,
-      color: 'bg-indigo-50 text-indigo-800 border-indigo-100',
-      badge: 'Geographic Analysis',
+      id: 'warehouses' as const,
+      title: 'Orders by Warehouses',
+      description: 'Review orders and factual collected volumes segregated by storage warehouses and locations.',
+      icon: Warehouse,
+      color: 'bg-cyan-50 text-cyan-800 border-cyan-100',
+      badge: 'Warehouse Audit',
     },
     {
       id: 'managers' as const,
@@ -124,6 +162,14 @@ export default function ReportsView({
       icon: Users,
       color: 'bg-sky-50 text-sky-800 border-sky-100',
       badge: 'Staff Ledger',
+    },
+    {
+      id: 'regions' as const,
+      title: 'Delivered Orders by Regions',
+      description: 'Analyze localized biodiesel feedstock collections by regional city and municipality districts.',
+      icon: MapPin,
+      color: 'bg-indigo-50 text-indigo-800 border-indigo-100',
+      badge: 'Geographic Analysis',
     },
     {
       id: 'turnover' as const,

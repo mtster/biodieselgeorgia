@@ -167,31 +167,37 @@ export default function OrdersList({
     planned: {
       header: t('Order Qty (L)'),
       key: 'planned',
+      className: 'bg-amber-50/60 font-semibold text-gray-950',
       render: (ord) => `${ord.qty_requested} L`
     },
     tanks_to_bring: {
       header: t('Order Pickup'),
       key: 'tanks_to_bring',
+      className: 'bg-amber-50/60 font-semibold text-gray-950',
       render: (ord) => `${ord.tanks_to_bring}`
     },
     tanks_to_leave: {
       header: t('Order Dropoff'),
       key: 'tanks_to_leave',
+      className: 'bg-amber-50/60 font-semibold text-gray-950',
       render: (ord) => `${ord.tanks_to_leave}`
     },
     fact_qty: {
       header: t('Fact Qty (L)'),
       key: 'fact_qty',
+      className: 'bg-amber-50/60 font-semibold text-gray-950',
       render: (ord) => ord.fact_qty === undefined || ord.fact_qty === null ? '-' : ord.fact_qty
     },
     fact_tank_pickup: {
       header: t('Fact Pickup'),
       key: 'fact_tank_pickup',
+      className: 'bg-amber-50/60 font-semibold text-gray-950',
       render: (ord) => ord.fact_tank_pickup === undefined || ord.fact_tank_pickup === null ? '-' : ord.fact_tank_pickup
     },
     fact_tank_dropoff: {
       header: t('Fact Dropoff'),
       key: 'fact_tank_dropoff',
+      className: 'bg-amber-50/60 font-semibold text-gray-950',
       render: (ord) => ord.fact_tank_dropoff === undefined || ord.fact_tank_dropoff === null ? '-' : ord.fact_tank_dropoff
     },
     district: {

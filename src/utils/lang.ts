@@ -559,6 +559,12 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Assign": "მინიჭება",
 
   // Reports
+  "Orders by Period": "შეკვეთები პერიოდის მიხედვით",
+  "Review orders by custom period with factual pickup quantities, city, and manager breakdown.": "იხილეთ შეკვეთები პერიოდის მიხედვით ფაქტიური რაოდენობებით, ქალაქისა და მენეჯერების ჭრილში.",
+  "Period Analysis": "პერიოდის ანალიზი",
+  "Orders by Warehouses": "შეკვეთები საწყობების მიხედვით",
+  "Review orders and factual collected volumes segregated by storage warehouses and locations.": "იხილეთ შეკვეთები და ფაქტიური რაოდენობები საწყობებისა და ლოკაციების მიხედვით.",
+  "Warehouse Audit": "საწყობის აუდიტი",
   "Delivered Orders by Suppliers": "მიწოდებული შეკვეთები მომწოდებლების მიხედვით",
   "Review total liters, visit counts, and total cost aggregated per individual commercial supplier.": "იხილეთ ჯამური ლიტრები, ვიზიტების რაოდენობა და ჯამური ღირებულება თითოეული მომწოდებლის ჭრილში.",
   "Supplier Insights": "მომწოდებლის ანალიტიკა",
@@ -587,8 +593,11 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Region": "რეგიონი",
   "All Regions": "ყველა რეგიონი",
   "All Managers": "ყველა მენეჯერი",
+  "All Warehouses": "ყველა საწყობი",
+  "Picked Up Quantity (L)": "გამოტანილი რაოდენობა(ლ)",
+  "Delivered Quantity (L)": "შემოტანილი რაოდენობა(ლ)",
 
-  "Company Name": "კომპანიის სახელი",
+  "Company Name": "კომპანიის დასახელება",
   "Visits Amount": "ვიზიტების რაოდენობა",
   "Oil Amount (Liters)": "ზეთის რაოდენობა (ლიტრები)",
   "Cost (₾)": "ღირებულება (₾)",
