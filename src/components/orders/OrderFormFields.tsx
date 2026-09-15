@@ -156,7 +156,7 @@ export default function OrderFormFields({
         {/* Destination storage dropdown */}
         <FormSelect
           label={`${t("Warehouse")} *`}
-          value={editingOrder.warehouse_id}
+          value={editingOrder.warehouse_id || ''}
           onChange={(e) => {
             setEditingOrder(prev => prev ? { ...prev, warehouse_id: e.target.value } : null);
             if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
@@ -330,7 +330,7 @@ export default function OrderFormFields({
           {/* Status Selector */}
           <FormSelect
             label={`${t("Fulfillment Status")} *`}
-            value={editingOrder.status}
+            value={editingOrder.status || 'registered'}
             className="bg-emerald-50 text-emerald-800 font-bold"
             onChange={(e) => {
               const statusVal = e.target.value as OrderStatus;
@@ -405,7 +405,7 @@ export default function OrderFormFields({
         {/* Driver select */}
         <FormSelect
           label={t("Assigned Fleet Driver")}
-          value={editingOrder.driver_id}
+          value={editingOrder.driver_id || ''}
           onChange={(e) => {
             setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null);
             if (fieldErrors.driver_id) setFieldErrors(prev => ({ ...prev, driver_id: '' }));
@@ -421,7 +421,7 @@ export default function OrderFormFields({
         {/* Co-Driver helper select */}
         <FormSelect
           label={t("Assistant")}
-          value={editingOrder.companion_id}
+          value={editingOrder.companion_id || ''}
           onChange={(e) => setEditingOrder(prev => prev ? { ...prev, companion_id: e.target.value } : null)}
         >
           <option value=""></option>

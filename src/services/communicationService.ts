@@ -377,6 +377,7 @@ export async function saveCommunication(comm: Communication, loggerName: string,
     try {
       // Strip virtual UI helper fields before pushing to Supabase
       const { 
+        vendor,
         vendor_name, 
         user_name, 
         vendor_contact_name, 
@@ -394,6 +395,11 @@ export async function saveCommunication(comm: Communication, loggerName: string,
       dbComm.is_completed = Boolean(isCompleted);
 
       // Clean out any non-existent columns from Supabase schema
+      delete dbComm.vendor;
+      delete dbComm.vendor_name;
+      delete dbComm.user_name;
+      delete dbComm.vendor_contact_name;
+      delete dbComm.responsible_user_name;
       delete dbComm.task_status;
       delete dbComm.user_id;
 

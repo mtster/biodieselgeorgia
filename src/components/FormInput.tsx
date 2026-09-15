@@ -20,7 +20,7 @@ export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(func
   children,
   ...props
 }, ref) {
-  let finalValue = props.value;
+  let finalValue = props.value === null ? '' : props.value;
   if (props.type === 'date' && typeof finalValue === 'string' && finalValue.includes('T')) {
     finalValue = finalValue.split('T')[0];
   }
@@ -72,6 +72,8 @@ export function FormSelect({
   children,
   ...props
 }: FormSelectProps) {
+  const selectValue = props.value === null ? '' : props.value;
+
   return (
     <div className={`relative ${containerClassName}`}>
       <span
@@ -88,6 +90,7 @@ export function FormSelect({
             : 'border-transparent bg-gray-50 focus:border-emerald-600 focus:ring-emerald-600 text-gray-900'
         } ${className}`}
         {...props}
+        value={selectValue}
       >
         {children}
       </select>
