@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
-import { Vendor, Order, User, City, District } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronRight, ArrowUpDown } from 'lucide-react';
+import { Vendor, Order, User, City, District, Warehouse } from '../../types';
 import PageHeader from '../PageHeader';
-import CentralSearchBar from '../CentralSearchBar';
+import CentralSearchBar, { SearchSuggestionItem } from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
 import { t } from '../../utils/lang';
+import { useDebounce } from '../../hooks/useDebounce';
+import { getVendorsPaginated } from '../../services/vendorService';
 
 interface Props {
   suppliers: Vendor[];
@@ -12,7 +14,19 @@ interface Props {
   users: User[];
   cities: City[];
   districts: District[];
+  warehouses?: Warehouse[];
   onBack: () => void;
+}
+
+interface VendorTurnoverRow {
+  vendorId: string;
+  tradeName: string;
+  companyName?: string;
+  address?: string;
+  totalQty: number;      // რაოდენობა(ლ)
+  totalPickup: number;   // გამოტანა (fact_tank_pickup)
+  totalDropoff: number;  // დატოვება (fact_tank_dropoff)
+  ordersCount: number;
 }
 
 export default function TanksTurnoverBySuppliers({
@@ -21,121 +35,353 @@ export default function TanksTurnoverBySuppliers({
   users,
   cities,
   districts,
+  warehouses = [],
   onBack,
 }: Props) {
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const now = new Date();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(endOfMonth.getDate())}`;
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedManager, setSelectedManager] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 250);
+  const [remoteSuppliers, setRemoteSuppliers] = useState<Vendor[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [remoteOffset, setRemoteOffset] = useState(0);
+  const [displayLimit, setDisplayLimit] = useState(5);
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
+  const [selectedVendorObj, setSelectedVendorObj] = useState<Vendor | null>(null);
+  const [sortBy, setSortBy] = useState<'trade_name' | 'qty' | 'pickup' | 'dropoff'>('qty');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // 1. Identify active suppliers
+  // Active suppliers, warehouses, and completed orders
   const activeSuppliers = suppliers.filter(s => !s.is_deleted);
+  const activeWarehouses = (warehouses || []).filter(w => !w.is_deleted);
+  const completedOrders = orders.filter(o => 
+    !o.is_deleted && 
+    (o.status === 'completed' || String(o.status).toLowerCase() === 'completed')
+  );
 
-  // 2. Fetch completed orders
-  const completedOrders = orders.filter(o => o.status === 'completed' && !o.is_deleted);
+  // Helper to find vendor across local cached suppliers, remote fetched suppliers, or currently selected vendor
+  const findVendor = (vendorId?: string, order?: Order): Vendor | null => {
+    if (!vendorId) return null;
+    const cleanId = String(vendorId).trim().toLowerCase();
+    if (selectedVendorObj && (selectedVendorObj.id === vendorId || (selectedVendorObj.id && String(selectedVendorObj.id).trim().toLowerCase() === cleanId))) {
+      return selectedVendorObj;
+    }
+    const fromSuppliers = suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId));
+    if (fromSuppliers) return fromSuppliers;
+    return remoteSuppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) || null;
+  };
 
-  // 3. Compute tank turnover stats
-  const turnoverRows = activeSuppliers
-    .map(s => {
-      const sOrders = completedOrders.filter(o => o.vendor_id === s.id);
+  // Compute selected address badge for the search input
+  const selectedAddress = useMemo(() => {
+    if (selectedVendorObj && selectedVendorObj.address) {
+      return selectedVendorObj.address;
+    }
+    if (!searchTerm) return '';
+    const termLower = searchTerm.trim().toLowerCase();
+    const match = suppliers.find(
+      (s) =>
+        s.trade_name?.trim().toLowerCase() === termLower ||
+        s.company_name?.trim().toLowerCase() === termLower
+    ) || remoteSuppliers.find(
+      (s) =>
+        s.trade_name?.trim().toLowerCase() === termLower ||
+        s.company_name?.trim().toLowerCase() === termLower
+    );
+    return match?.address || '';
+  }, [selectedVendorObj, suppliers, remoteSuppliers, searchTerm]);
 
-      // A. COMPUTE LEDGER FOR HISTORY BEFORE THE PERIOD STARTED
-      const ordersBefore = sOrders.filter(o => {
-        if (!startDate) return false;
-        const oDateStr = o.pickup_date_time || o.order_date;
-        if (!oDateStr) return false;
-        const datePart = oDateStr.split('T')[0];
-        return datePart < startDate;
-      });
+  // Remote fetching for suppliers (fetching 5 at a time, identical to DeliveredOrdersBySuppliers)
+  useEffect(() => {
+    let isMounted = true;
+    const term = debouncedSearch.trim();
 
-      const dropoffBefore = ordersBefore.reduce(
-        (sum, o) => sum + (o.fact_tank_dropoff !== undefined ? o.fact_tank_dropoff : o.tanks_to_leave),
-        0
-      );
-      const pickupBefore = ordersBefore.reduce(
-        (sum, o) => sum + (o.fact_tank_pickup !== undefined ? o.fact_tank_pickup : o.tanks_to_bring),
-        0
-      );
+    if (!term) {
+      setRemoteSuppliers((prev) => (prev.length > 0 ? [] : prev));
+      setIsSearching(false);
+      setIsLoadingMore(false);
+      setHasMore(false);
+      setRemoteOffset(0);
+      setDisplayLimit(5);
+      return;
+    }
 
-      // Standard base barrels of this vendor is s.barrels_amount
-      const baseBarrels = s.barrels_amount || 0;
-      const openingBalance = baseBarrels + dropoffBefore - pickupBefore;
-
-      // B. COMPUTE LEDGER WITHIN FILTERED PERIOD
-      const ordersInPeriod = sOrders.filter(o => {
-        const oDateStr = o.pickup_date_time || o.order_date;
-        if (!oDateStr) return true;
-        const datePart = oDateStr.split('T')[0];
-        if (startDate && datePart < startDate) return false;
-        if (endDate && datePart > endDate) return false;
-        return true;
-      });
-
-      const filled = ordersInPeriod.reduce(
-        (sum, o) => sum + (o.fact_tank_dropoff !== undefined ? o.fact_tank_dropoff : o.tanks_to_leave),
-        0
-      );
-      const returned = ordersInPeriod.reduce(
-        (sum, o) => sum + (o.fact_tank_pickup !== undefined ? o.fact_tank_pickup : o.tanks_to_bring),
-        0
-      );
-
-      // C. FINAL BALANCE
-      const finalBalance = openingBalance + filled - returned;
-
-      const managerObj = users.find(u => u.id === s.manager_id);
-      const managerName = managerObj ? managerObj.name : t('Unassigned');
-
-      return {
-        id: s.id,
-        id_code: s.id_code || 'N/A',
-        company_name: s.company_name,
-        trade_name: s.trade_name,
-        city: s.city,
-        district: s.district,
-        managerId: s.manager_id,
-        managerName,
-        openingBalance,
-        filled,
-        returned,
-        finalBalance,
-      };
-    })
-    // Apply supplier filters
-    .filter(row => {
-      if (selectedCity && row.city !== selectedCity) return false;
-      if (selectedDistrict && row.district !== selectedDistrict) return false;
-      if (selectedManager && row.managerId !== selectedManager) return false;
-
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const matchesIdCode = row.id_code.toLowerCase().includes(term);
-        const matchesCompanyName = row.company_name.toLowerCase().includes(term);
-        const matchesTradeName = row.trade_name.toLowerCase().includes(term);
-        const matchesManager = row.managerName.toLowerCase().includes(term);
-        return matchesIdCode || matchesCompanyName || matchesTradeName || matchesManager;
+    if (selectedVendorObj) {
+      const matchTrade = (selectedVendorObj.trade_name || '').trim().toLowerCase();
+      const matchComp = (selectedVendorObj.company_name || '').trim().toLowerCase();
+      const termLower = term.toLowerCase();
+      if (termLower === matchTrade || termLower === matchComp) {
+        setIsSearching(false);
+        setIsLoadingMore(false);
+        setHasMore(false);
+        return;
       }
-      return true;
+    }
+
+    setIsSearching(true);
+    setRemoteOffset(0);
+    setDisplayLimit(5);
+
+    getVendorsPaginated(5, 0, { searchTerm: term }, { includeContacts: false })
+      .then((res) => {
+        if (isMounted) {
+          const fetched = res.vendors || [];
+          setRemoteSuppliers(fetched);
+          setRemoteOffset(fetched.length);
+          setHasMore(fetched.length === 5 && (res.totalCount ? fetched.length < res.totalCount : true));
+          setIsSearching(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch autocomplete suppliers', err);
+        if (isMounted) {
+          setIsSearching(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedSearch, selectedVendorObj]);
+
+  // Load next 5 suppliers on scrolling to the bottom of the dropdown
+  const handleLoadMore = () => {
+    if (isLoadingMore || isSearching) return;
+
+    if (displayLimit < allSearchSuggestions.length) {
+      setDisplayLimit((prev) => prev + 5);
+    }
+
+    if (hasMore) {
+      const term = debouncedSearch.trim();
+      if (!term) return;
+
+      setIsLoadingMore(true);
+      getVendorsPaginated(5, remoteOffset, { searchTerm: term }, { includeContacts: false })
+        .then((res) => {
+          const fetched = res.vendors || [];
+          setRemoteSuppliers((prev) => {
+            const ids = new Set(prev.map((v) => v.id));
+            const newVendors = fetched.filter((v) => !ids.has(v.id));
+            return [...prev, ...newVendors];
+          });
+          setRemoteOffset((prev) => prev + fetched.length);
+          setDisplayLimit((prev) => prev + 5);
+          setHasMore(fetched.length === 5 && (res.totalCount ? remoteOffset + fetched.length < res.totalCount : true));
+          setIsLoadingMore(false);
+        })
+        .catch((err) => {
+          console.warn('Failed to load more autocomplete suppliers', err);
+          setIsLoadingMore(false);
+        });
+    }
+  };
+
+  // Autocomplete search suggestions (cached + remote)
+  const allSearchSuggestions: SearchSuggestionItem[] = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return [];
+    const map = new Map<string, Vendor>();
+
+    if (selectedVendorObj) {
+      const trade = (selectedVendorObj.trade_name || '').toLowerCase();
+      const comp = (selectedVendorObj.company_name || '').toLowerCase();
+      const addr = (selectedVendorObj.address || '').toLowerCase();
+      if (!term || trade.includes(term) || comp.includes(term) || addr.includes(term)) {
+        map.set(selectedVendorObj.id, selectedVendorObj);
+      }
+    }
+
+    activeSuppliers.forEach((s) => {
+      const trade = (s.trade_name || '').toLowerCase();
+      const comp = (s.company_name || '').toLowerCase();
+      const code = (s.id_code || '').toLowerCase();
+      const addr = (s.address || '').toLowerCase();
+      if (trade.includes(term) || comp.includes(term) || code.includes(term) || addr.includes(term)) {
+        map.set(s.id, s);
+      }
     });
 
-  // Summary counts
-  const totalOpening = turnoverRows.reduce((sum, r) => sum + r.openingBalance, 0);
-  const totalFilled = turnoverRows.reduce((sum, r) => sum + r.filled, 0);
-  const totalReturned = turnoverRows.reduce((sum, r) => sum + r.returned, 0);
-  const totalFinal = turnoverRows.reduce((sum, r) => sum + r.finalBalance, 0);
+    remoteSuppliers.forEach((s) => {
+      map.set(s.id, s);
+    });
 
-  const filterManagers = users.filter(u => u.role === 'manager' || u.role === 'purchasing_head' || u.role === 'admin');
+    return Array.from(map.values())
+      .map((s) => ({
+        id: s.id,
+        title: s.trade_name || s.company_name || '',
+        subtitle: s.company_name,
+        address: s.address,
+      }));
+  }, [searchTerm, activeSuppliers, remoteSuppliers, selectedVendorObj]);
+
+  const searchSuggestions = useMemo(() => {
+    return allSearchSuggestions.slice(0, displayLimit);
+  }, [allSearchSuggestions, displayLimit]);
+
+  // Managers list for dropdown filter
+  const filterManagers = users.filter(
+    u => !u.is_deleted && (u.role === 'manager' || u.role === 'purchasing_head' || u.role === 'admin' || u.role === 'operator')
+  );
+
+  // Filter completed orders exactly identical to DeliveredOrdersBySuppliers
+  const filteredOrders = useMemo(() => {
+    return completedOrders.filter(o => {
+      // Period filter
+      if (startDate || endDate) {
+        const oDateStr = o.pickup_date_time || o.order_date || o.created_at;
+        if (oDateStr) {
+          const datePart = oDateStr.split('T')[0];
+          if (startDate && datePart < startDate) return false;
+          if (endDate && datePart > endDate) return false;
+        }
+      }
+
+      const vendor = findVendor(o.vendor_id, o);
+
+      // Warehouse filter
+      if (selectedWarehouse) {
+        const orderWarehouseId = o.warehouse_id || vendor?.warehouse_id;
+        if (orderWarehouseId !== selectedWarehouse) return false;
+      }
+
+      // City filter
+      const cityVal = vendor?.city || o.city || '';
+      if (selectedCity && cityVal !== selectedCity) return false;
+
+      // Region/District filter
+      const districtVal = vendor?.district || o.district || '';
+      if (selectedDistrict && districtVal !== selectedDistrict) return false;
+
+      // Manager filter
+      const managerId = vendor?.manager_id || o.operator_id || o.created_by;
+      if (selectedManager && managerId !== selectedManager) return false;
+
+      // Search filter
+      if (selectedVendorId) {
+        if (o.vendor_id !== selectedVendorId) return false;
+      } else if (searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        const trade = (vendor?.trade_name || o.vendor_name || '').toLowerCase();
+        const comp = (vendor?.company_name || '').toLowerCase();
+        const addr = (vendor?.address || o.address || '').toLowerCase();
+        const code = (vendor?.id_code || '').toLowerCase();
+        const matchingRemoteIds = new Set(
+          remoteSuppliers
+            .filter(rs => {
+              const rTrade = (rs.trade_name || '').toLowerCase();
+              const rComp = (rs.company_name || '').toLowerCase();
+              const rAddr = (rs.address || '').toLowerCase();
+              const rCode = (rs.id_code || '').toLowerCase();
+              return rTrade.includes(term) || rComp.includes(term) || rAddr.includes(term) || rCode.includes(term);
+            })
+            .map(rs => rs.id)
+        );
+
+        if (!trade.includes(term) && !comp.includes(term) && !addr.includes(term) && !code.includes(term) && !matchingRemoteIds.has(o.vendor_id)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [completedOrders, startDate, endDate, selectedWarehouse, selectedCity, selectedDistrict, selectedManager, selectedVendorId, searchTerm, remoteSuppliers, suppliers, selectedVendorObj]);
+
+  // Aggregate factual quantity, factual pickup, factual dropoff per individual vendor
+  const turnoverRows = useMemo(() => {
+    const map = new Map<string, VendorTurnoverRow>();
+
+    filteredOrders.forEach((o) => {
+      const vId = o.vendor_id || 'unknown';
+      const vendor = findVendor(o.vendor_id, o);
+      const tradeName = vendor?.trade_name || vendor?.company_name || o.vendor_name || t('Unnamed Supplier');
+      const companyName = vendor?.company_name;
+      const address = vendor?.address || o.address;
+
+      const qty = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : Number(o.qty_requested || 0);
+      const pickup = o.fact_tank_pickup !== undefined && o.fact_tank_pickup !== null ? Number(o.fact_tank_pickup) : Number(o.tanks_to_bring || 0);
+      const dropoff = o.fact_tank_dropoff !== undefined && o.fact_tank_dropoff !== null ? Number(o.fact_tank_dropoff) : Number(o.tanks_to_leave || 0);
+
+      const existing = map.get(vId);
+      if (existing) {
+        existing.totalQty += (isNaN(qty) ? 0 : qty);
+        existing.totalPickup += (isNaN(pickup) ? 0 : pickup);
+        existing.totalDropoff += (isNaN(dropoff) ? 0 : dropoff);
+        existing.ordersCount += 1;
+      } else {
+        map.set(vId, {
+          vendorId: vId,
+          tradeName,
+          companyName,
+          address,
+          totalQty: isNaN(qty) ? 0 : qty,
+          totalPickup: isNaN(pickup) ? 0 : pickup,
+          totalDropoff: isNaN(dropoff) ? 0 : dropoff,
+          ordersCount: 1,
+        });
+      }
+    });
+
+    // If a specific vendor is selected or searched, ensure it appears even if it had 0 flow in this period
+    if (selectedVendorObj && !map.has(selectedVendorObj.id)) {
+      map.set(selectedVendorObj.id, {
+        vendorId: selectedVendorObj.id,
+        tradeName: selectedVendorObj.trade_name || selectedVendorObj.company_name || t('Unnamed Supplier'),
+        companyName: selectedVendorObj.company_name,
+        address: selectedVendorObj.address,
+        totalQty: 0,
+        totalPickup: 0,
+        totalDropoff: 0,
+        ordersCount: 0,
+      });
+    }
+
+    const rows = Array.from(map.values());
+
+    // Sort rows
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === 'trade_name') {
+        cmp = a.tradeName.localeCompare(b.tradeName, 'ka');
+      } else if (sortBy === 'qty') {
+        cmp = a.totalQty - b.totalQty;
+      } else if (sortBy === 'pickup') {
+        cmp = a.totalPickup - b.totalPickup;
+      } else if (sortBy === 'dropoff') {
+        cmp = a.totalDropoff - b.totalDropoff;
+      }
+      return sortOrder === 'desc' ? -cmp : cmp;
+    });
+
+    return rows;
+  }, [filteredOrders, selectedVendorObj, sortBy, sortOrder]);
+
+  // Overall totals across all filtered vendors
+  const totalSummary = useMemo(() => {
+    return turnoverRows.reduce(
+      (acc, r) => {
+        acc.qty += r.totalQty;
+        acc.pickup += r.totalPickup;
+        acc.dropoff += r.totalDropoff;
+        return acc;
+      },
+      { qty: 0, pickup: 0, dropoff: 0 }
+    );
+  }, [turnoverRows]);
+
+  const handleSort = (field: 'trade_name' | 'qty' | 'pickup' | 'dropoff') => {
+    if (sortBy === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortOrder(field === 'trade_name' ? 'asc' : 'desc');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -145,7 +391,7 @@ export default function TanksTurnoverBySuppliers({
         backButtonId="reports-turnover-back"
       />
 
-      {/* FILTER BAR DESIGNS */}
+      {/* FILTER BAR DESIGNS - IDENTICAL TO DeliveredOrdersBySuppliers */}
       <div className="text-left">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-4">
@@ -159,9 +405,50 @@ export default function TanksTurnoverBySuppliers({
             <div className="flex-1 min-w-[200px]">
               <CentralSearchBar
                 searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                searchPlaceholder={t("Search suppliers by name, code, or account managers...")}
+                onSearchChange={(val) => {
+                  setSearchTerm(val);
+                  if (!val) {
+                    setSelectedVendorId(null);
+                    setSelectedVendorObj(null);
+                  } else if (selectedVendorObj) {
+                    const matchTrade = (selectedVendorObj.trade_name || '').trim().toLowerCase();
+                    const matchComp = (selectedVendorObj.company_name || '').trim().toLowerCase();
+                    const valLower = val.trim().toLowerCase();
+                    if (valLower !== matchTrade && valLower !== matchComp) {
+                      setSelectedVendorId(null);
+                      setSelectedVendorObj(null);
+                    }
+                  }
+                }}
+                suggestions={searchSuggestions}
+                isSearching={isSearching}
+                isLoadingMore={isLoadingMore}
+                onLoadMore={handleLoadMore}
+                selectedAddress={selectedAddress}
+                onSelectSuggestion={(item) => {
+                  setSearchTerm(item.title);
+                  setSelectedVendorId(item.id);
+                  const found = remoteSuppliers.find(s => s.id === item.id) || suppliers.find(s => s.id === item.id);
+                  if (found) {
+                    setSelectedVendorObj(found);
+                  } else if (item.address) {
+                    setSelectedVendorObj({
+                      id: item.id,
+                      trade_name: item.title,
+                      address: item.address,
+                      is_deleted: false,
+                    } as Vendor);
+                  }
+                }}
+                searchPlaceholder={t("Search suppliers by name, legal entity or taxation credentials...")}
                 filters={[
+                  {
+                    label: t('Warehouse'),
+                    value: selectedWarehouse,
+                    placeholder: t('All Warehouses'),
+                    onChange: setSelectedWarehouse,
+                    options: activeWarehouses.map(w => ({ value: w.id, label: w.name })),
+                  },
                   {
                     label: t('City'),
                     value: selectedCity,
@@ -195,75 +482,78 @@ export default function TanksTurnoverBySuppliers({
         </div>
       </div>
 
-      {/* TABLE DATA SPREADSHEET CANVAS */}
+      {/* TABLE: კომპანიის დასახელება(trade_name), რაოდენობა(ლ), გამოტანა, დატოვება */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col relative text-left">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="select-none bg-slate-50 border-b border-gray-200">
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Identification Code")}
+                <th 
+                  onClick={() => handleSort('trade_name')}
+                  className="py-3.5 px-4 text-[11px] text-gray-500 uppercase font-sans font-bold tracking-wider cursor-pointer hover:bg-slate-100/70 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>{t("კომპანიის დასახელება(trade_name)")}</span>
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  </div>
                 </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Company Name")}
+                <th 
+                  onClick={() => handleSort('qty')}
+                  className="py-3.5 px-4 text-[11px] text-gray-500 uppercase font-sans font-bold tracking-wider text-right cursor-pointer hover:bg-slate-100/70 transition-colors"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>{t("რაოდენობა(ლ)")}</span>
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  </div>
                 </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("City / Region")}
+                <th 
+                  onClick={() => handleSort('pickup')}
+                  className="py-3.5 px-4 text-[11px] text-gray-500 uppercase font-sans font-bold tracking-wider text-right cursor-pointer hover:bg-slate-100/70 transition-colors"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>{t("გამოტანა")}</span>
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  </div>
                 </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Manager")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  {t("Opening Balance")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  {t("Filled")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  {t("Returned")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-center">
-                  {t("Final Balance")}
+                <th 
+                  onClick={() => handleSort('dropoff')}
+                  className="py-3.5 px-4 text-[11px] text-gray-500 uppercase font-sans font-bold tracking-wider text-right cursor-pointer hover:bg-slate-100/70 transition-colors"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>{t("დატოვება")}</span>
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  </div>
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {turnoverRows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
-                  <td className="py-3.5 px-4 font-mono font-semibold text-gray-500">
-                    {row.id_code}
+                <tr key={row.vendorId} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
+                  <td className="py-3.5 px-4">
+                    <div className="font-semibold text-gray-900 text-xs">
+                      {row.tradeName}
+                    </div>
+                    {row.address && (
+                      <div className="text-[11px] text-gray-400 font-normal truncate max-w-[320px] mt-0.5" title={row.address}>
+                        {row.address}
+                      </div>
+                    )}
                   </td>
-                  <td className="py-3.5 px-4 font-semibold text-gray-900">
-                    {row.company_name}
-                    <span className="text-[10px] text-gray-400 font-normal block mt-0.5">
-                      {row.trade_name}
-                    </span>
+                  <td className="py-3.5 px-4 font-mono font-bold text-emerald-800 text-right">
+                    {row.totalQty.toLocaleString()} L
                   </td>
-                  <td className="py-3.5 px-4 text-gray-600">
-                    {row.city}
-                    <span className="text-[10px] text-gray-400 block mt-0.5">{row.district}</span>
+                  <td className="py-3.5 px-4 font-mono font-bold text-sky-800 text-right">
+                    {row.totalPickup}
                   </td>
-                  <td className="py-3.5 px-4 text-gray-600 font-medium">
-                    {row.managerName}
-                  </td>
-                  <td className="py-3.5 px-4 text-center font-mono font-semibold text-gray-750">
-                    {row.openingBalance}
-                  </td>
-                  <td className="py-3.5 px-4 text-center font-mono font-semibold text-emerald-800">
-                    {row.filled}
-                  </td>
-                  <td className="py-3.5 px-4 text-center font-mono font-semibold text-amber-800">
-                    {row.returned}
-                  </td>
-                  <td className="py-3.5 px-4 text-center font-mono font-bold text-gray-900 bg-slate-50/25">
-                    {row.finalBalance}
+                  <td className="py-3.5 px-4 font-mono font-bold text-amber-800 text-right">
+                    {row.totalDropoff}
                   </td>
                 </tr>
               ))}
 
               {turnoverRows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center py-20 text-xs text-gray-400 italic">
+                  <td colSpan={4} className="text-center py-20 text-xs text-gray-400 italic">
                     {t("No matching supplier records found for tank turnovers.")}
                   </td>
                 </tr>
@@ -271,25 +561,23 @@ export default function TanksTurnoverBySuppliers({
 
               {/* SUMMARY ROW */}
               {turnoverRows.length > 0 && (
-                <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
-                  <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
-                    {t("TOTAL SUMMARY")}
-                  </td>
+                <tr className="bg-emerald-50/40 text-emerald-950 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4">
-                    {turnoverRows.length} {t("active suppliers")}
+                    <span className="uppercase tracking-wider text-[10px] text-emerald-900 font-bold block">
+                      {t("TOTAL SUMMARY")}
+                    </span>
+                    <span className="text-[11px] text-emerald-700 font-normal">
+                      {turnoverRows.length} {t("active suppliers")}
+                    </span>
                   </td>
-                  <td colSpan={2} className="py-4 px-4"></td>
-                  <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">
-                    {totalOpening}
+                  <td className="py-4 px-4 text-right font-mono text-sm text-emerald-950 font-black">
+                    {totalSummary.qty.toLocaleString()} L
                   </td>
-                  <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">
-                    {totalFilled}
+                  <td className="py-4 px-4 text-right font-mono text-sm text-sky-950 font-black">
+                    {totalSummary.pickup}
                   </td>
-                  <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">
-                    {totalReturned}
-                  </td>
-                  <td className="py-4 px-4 text-center font-mono text-sm text-emerald-950">
-                    {totalFinal}
+                  <td className="py-4 px-4 text-right font-mono text-sm text-amber-950 font-black">
+                    {totalSummary.dropoff}
                   </td>
                 </tr>
               )}
@@ -300,3 +588,4 @@ export default function TanksTurnoverBySuppliers({
     </div>
   );
 }
+

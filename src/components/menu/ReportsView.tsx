@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Vendor, Order, User, City, District, Warehouse as WarehouseType } from '../../types';
+import { Vendor, Order, User, City, District, Warehouse as WarehouseType, Truck as TruckType } from '../../types';
 import PageHeader from '../PageHeader';
 import { t } from '../../utils/lang';
 import { getOrders } from '../../services/orderService';
@@ -11,6 +11,7 @@ import DeliveredOrdersByRegions from '../reports/DeliveredOrdersByRegions';
 import DeliveredOrdersByManagers from '../reports/DeliveredOrdersByManagers';
 import TanksTurnoverBySuppliers from '../reports/TanksTurnoverBySuppliers';
 import LastDeliveries from '../reports/LastDeliveries';
+import OrdersReport from '../reports/OrdersReport';
 
 import { 
   CalendarRange,
@@ -19,7 +20,8 @@ import {
   MapPin, 
   Users, 
   RefreshCw, 
-  Clock
+  Clock,
+  ClipboardList
 } from 'lucide-react';
 
 interface Props {
@@ -29,9 +31,10 @@ interface Props {
   cities?: City[];
   districts?: District[];
   warehouses?: WarehouseType[];
+  trucks?: TruckType[];
 }
 
-type ReportType = 'period' | 'warehouses' | 'suppliers' | 'regions' | 'managers' | 'turnover' | 'last_deliveries' | null;
+type ReportType = 'period' | 'warehouses' | 'suppliers' | 'regions' | 'managers' | 'turnover' | 'last_deliveries' | 'orders' | null;
 
 export default function ReportsView({
   suppliers,
@@ -40,6 +43,7 @@ export default function ReportsView({
   cities = [],
   districts = [],
   warehouses = [],
+  trucks = [],
 }: Props) {
   const [selectedReport, setSelectedReport] = useState<ReportType>(null);
   const [reportOrders, setReportOrders] = useState<Order[]>(orders);
@@ -139,6 +143,22 @@ export default function ReportsView({
         users={users}
         cities={cities}
         districts={districts}
+        warehouses={warehouses}
+        onBack={() => setSelectedReport(null)}
+      />
+    );
+  }
+
+  if (selectedReport === 'orders') {
+    return (
+      <OrdersReport
+        suppliers={suppliers}
+        orders={reportOrders}
+        users={users}
+        cities={cities}
+        districts={districts}
+        warehouses={warehouses}
+        trucks={trucks}
         onBack={() => setSelectedReport(null)}
       />
     );
@@ -164,6 +184,14 @@ export default function ReportsView({
       icon: CalendarRange,
       color: 'bg-emerald-50 text-emerald-800 border-emerald-100',
       badge: 'Period Analysis',
+    },
+    {
+      id: 'orders' as const,
+      title: 'შეკვეთები',
+      description: 'Review orders list with company trade name, creation timestamp, and latest handover comment.',
+      icon: ClipboardList,
+      color: 'bg-violet-50 text-violet-800 border-violet-100',
+      badge: 'Orders Ledger',
     },
     {
       id: 'suppliers' as const,

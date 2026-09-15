@@ -343,6 +343,7 @@ export default function App() {
                 cities={cities}
                 districts={districts}
                 warehouses={warehouses}
+                trucks={trucks}
               />
             )}
 
