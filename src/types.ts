@@ -139,6 +139,7 @@ export interface Communication {
   user_name?: string;
   vendor_id: string;          // მომწოდებელი (Vendor)
   vendor_name?: string;
+  vendor?: any;
   vendor_contact_id: string;  // მომწოდებლის კონტაქტი
   vendor_contact_name?: string;
   comment: string;            // კომენტარი

@@ -20,17 +20,9 @@ export default function OrdersByPeriod({
   cities,
   onBack,
 }: Props) {
-  // Period filter defaults to current date
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  });
+  // Period filter defaults to empty to show all completed records
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedManager, setSelectedManager] = useState('');
@@ -51,43 +43,59 @@ export default function OrdersByPeriod({
   const getManagerName = (vendor: Vendor | null, order: Order) => {
     const managerId = vendor?.manager_id || order.operator_id || order.created_by;
     if (managerId) {
-      const u = users.find(user => user.id === managerId);
+      const cleanId = String(managerId).trim().toLowerCase();
+      const u = users.find(user => user.id === managerId || (user.id && String(user.id).trim().toLowerCase() === cleanId));
       if (u) return u.name;
     }
     return order.operator_name || '-';
   };
 
-  // Filter orders
-  const filteredOrders = orders
-    .filter(o => !o.is_deleted)
+  // Filter completed orders
+  const completedOrders = orders.filter(o => 
+    !o.is_deleted && 
+    (o.status === 'completed' || String(o.status).toLowerCase() === 'completed')
+  );
+
+  const filteredOrders = completedOrders
     .filter(o => {
       // Period filter
-      const oDateStr = o.pickup_date_time || o.order_date;
-      if (oDateStr) {
-        const datePart = oDateStr.split('T')[0];
-        if (startDate && datePart < startDate) return false;
-        if (endDate && datePart > endDate) return false;
+      if (startDate || endDate) {
+        const oDateStr = o.pickup_date_time || o.order_date || o.created_at;
+        if (oDateStr) {
+          const datePart = oDateStr.split('T')[0];
+          if (startDate && datePart < startDate) return false;
+          if (endDate && datePart > endDate) return false;
+        }
       }
 
       // City filter
       const vendor = findVendor(o.vendor_id, o);
-      const cityVal = vendor?.city || o.city || '';
-      if (selectedCity && cityVal !== selectedCity) return false;
+      if (selectedCity) {
+        const cityVal = vendor?.city || o.city || '';
+        if (cityVal.toLowerCase() !== selectedCity.toLowerCase()) return false;
+      }
 
       // Manager filter
-      const managerId = vendor?.manager_id || o.operator_id || o.created_by;
-      if (selectedManager && managerId !== selectedManager) return false;
+      if (selectedManager) {
+        const managerId = vendor?.manager_id || o.operator_id || o.created_by;
+        const cleanSelected = String(selectedManager).trim().toLowerCase();
+        const cleanMid = managerId ? String(managerId).trim().toLowerCase() : '';
+        if (cleanMid !== cleanSelected) return false;
+      }
 
       return true;
     })
     .sort((a, b) => {
-      const dateA = a.order_date || a.pickup_date_time || '';
-      const dateB = b.order_date || b.pickup_date_time || '';
+      const dateA = a.order_date || a.pickup_date_time || a.created_at || '';
+      const dateB = b.order_date || b.pickup_date_time || b.created_at || '';
       return dateB.localeCompare(dateA);
     });
 
   // Totals
-  const totalFactQty = filteredOrders.reduce((sum, o) => sum + (Number(o.fact_qty) || 0), 0);
+  const totalFactQty = filteredOrders.reduce((sum, o) => {
+    const q = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : Number(o.qty_requested || 0);
+    return sum + (isNaN(q) ? 0 : q);
+  }, 0);
 
   return (
     <div className="space-y-6">
@@ -159,7 +167,7 @@ export default function OrdersByPeriod({
                   {t("Company Name")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Picked Up Quantity (L)")}
+                  {t("Delivered Quantity (L)")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
                   {t("Date")}
@@ -179,8 +187,9 @@ export default function OrdersByPeriod({
                 const address = vendor?.address || ord.address || '';
                 const city = vendor?.city || ord.city || '-';
                 const manager = getManagerName(vendor, ord);
-                const factVal = ord.fact_qty !== undefined && ord.fact_qty !== null ? `${ord.fact_qty} L` : '-';
-                const dateStr = formatDate(ord.order_date || ord.pickup_date_time);
+                const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
+                const factVal = `${factQty} L`;
+                const dateStr = formatDate(ord.order_date || ord.pickup_date_time || ord.created_at);
 
                 return (
                   <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">

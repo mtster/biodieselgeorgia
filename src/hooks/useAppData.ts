@@ -117,8 +117,8 @@ export function useAppData() {
       // 3. Full management system data sync for admin / managers
       const [usrs, vnds, ords, activeOrdCount, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
         getUsers(),
-        getVendors(),
-        getOrders(5),
+        getVendors(1000),
+        getOrders(1000),
         getActiveOrdersCount(),
         getCommunications(),
         getTrucks(),
@@ -229,7 +229,7 @@ export function useAppData() {
         setUsers(usrs);
       } else if (t === 'orders') {
         const [ords, activeOrdCount] = await Promise.all([
-          getOrders(5),
+          getOrders(1000),
           getActiveOrdersCount()
         ]);
         setOrders(ords);

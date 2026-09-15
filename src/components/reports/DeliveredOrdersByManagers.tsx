@@ -19,22 +19,16 @@ export default function DeliveredOrdersByManagers({
   users,
   onBack,
 }: Props) {
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const now = new Date();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(endOfMonth.getDate())}`;
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [selectedManager, setSelectedManager] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Fetch completed orders
-  const completedOrders = orders.filter(o => o.status === 'completed' && !o.is_deleted);
+  // 1. Fetch completed orders (not deleted)
+  const completedOrders = orders.filter(o => 
+    !o.is_deleted && 
+    (o.status === 'completed' || String(o.status).toLowerCase() === 'completed')
+  );
 
   // Helper to find vendor
   const findVendor = (vendorId?: string, order?: Order) => {
@@ -47,7 +41,8 @@ export default function DeliveredOrdersByManagers({
   const getManagerName = (vendor: Vendor | null, order: Order) => {
     const managerId = vendor?.manager_id || order.operator_id || order.created_by;
     if (managerId) {
-      const u = users.find(user => user.id === managerId);
+      const cleanId = String(managerId).trim().toLowerCase();
+      const u = users.find(user => user.id === managerId || (user.id && String(user.id).trim().toLowerCase() === cleanId));
       if (u) return u.name;
     }
     return order.operator_name || '-';
@@ -62,18 +57,24 @@ export default function DeliveredOrdersByManagers({
   const filteredOrders = completedOrders
     .filter(o => {
       // Period filter
-      const oDateStr = o.pickup_date_time || o.order_date;
-      if (oDateStr) {
-        const datePart = oDateStr.split('T')[0];
-        if (startDate && datePart < startDate) return false;
-        if (endDate && datePart > endDate) return false;
+      if (startDate || endDate) {
+        const oDateStr = o.pickup_date_time || o.order_date || o.created_at;
+        if (oDateStr) {
+          const datePart = oDateStr.split('T')[0];
+          if (startDate && datePart < startDate) return false;
+          if (endDate && datePart > endDate) return false;
+        }
       }
 
       const vendor = findVendor(o.vendor_id, o);
 
       // Manager filter
-      const managerId = vendor?.manager_id || o.operator_id || o.created_by;
-      if (selectedManager && managerId !== selectedManager) return false;
+      if (selectedManager) {
+        const managerId = vendor?.manager_id || o.operator_id || o.created_by;
+        const cleanSelected = String(selectedManager).trim().toLowerCase();
+        const cleanMid = managerId ? String(managerId).trim().toLowerCase() : '';
+        if (cleanMid !== cleanSelected) return false;
+      }
 
       // Search filter
       if (searchTerm) {
@@ -90,13 +91,16 @@ export default function DeliveredOrdersByManagers({
       return true;
     })
     .sort((a, b) => {
-      const dateA = a.order_date || a.pickup_date_time || '';
-      const dateB = b.order_date || b.pickup_date_time || '';
+      const dateA = a.order_date || a.pickup_date_time || a.created_at || '';
+      const dateB = b.order_date || b.pickup_date_time || b.created_at || '';
       return dateB.localeCompare(dateA);
     });
 
   // Totals
-  const totalFactQty = filteredOrders.reduce((sum, o) => sum + (Number(o.fact_qty) || 0), 0);
+  const totalFactQty = filteredOrders.reduce((sum, o) => {
+    const q = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : Number(o.qty_requested || 0);
+    return sum + (isNaN(q) ? 0 : q);
+  }, 0);
 
   return (
     <div className="space-y-6">
@@ -158,7 +162,7 @@ export default function DeliveredOrdersByManagers({
                   {t("Company Name")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Picked Up Quantity (L)")}
+                  {t("Delivered Quantity (L)")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
                   {t("Date")}
@@ -178,8 +182,9 @@ export default function DeliveredOrdersByManagers({
                 const address = vendor?.address || ord.address || '';
                 const city = vendor?.city || ord.city || '-';
                 const manager = getManagerName(vendor, ord);
-                const factVal = ord.fact_qty !== undefined && ord.fact_qty !== null ? `${ord.fact_qty} L` : '-';
-                const dateStr = formatDate(ord.order_date || ord.pickup_date_time);
+                const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
+                const factVal = `${factQty} L`;
+                const dateStr = formatDate(ord.order_date || ord.pickup_date_time || ord.created_at);
 
                 return (
                   <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">

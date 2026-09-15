@@ -318,7 +318,7 @@ export async function getActiveOrdersCount(): Promise<number> {
   return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted && item.status === 'registered').length;
 }
 
-export async function getOrders(limit = 100): Promise<Order[]> {
+export async function getOrders(limit = 1000): Promise<Order[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase

@@ -21,74 +21,65 @@ export default function DeliveredOrdersByRegions({
   districts,
   onBack,
 }: Props) {
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const now = new Date();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(endOfMonth.getDate())}`;
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Fetch completed orders
-  const completedOrders = orders.filter(o => o.status === 'completed' && !o.is_deleted);
+  // 1. Fetch completed orders (not deleted)
+  const completedOrders = orders.filter(o => 
+    !o.is_deleted && 
+    (o.status === 'completed' || String(o.status).toLowerCase() === 'completed')
+  );
 
-  // 2. Identify unique city-district pairs from active vendors
-  const activeSuppliers = suppliers.filter(s => !s.is_deleted);
-  
-  // Group key is City + ':::' + District
-  const regionGroupsMap: Record<string, { city: string; district: string; sIds: string[] }> = {};
-  
-  activeSuppliers.forEach(s => {
-    const key = `${s.city}:::${s.district}`;
-    if (!regionGroupsMap[key]) {
-      regionGroupsMap[key] = {
-        city: s.city,
-        district: s.district,
-        sIds: [],
+  // Helper to find vendor
+  const findVendor = (vendorId?: string, order?: Order) => {
+    if (!vendorId) return null;
+    const cleanId = String(vendorId).trim().toLowerCase();
+    return suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) || null;
+  };
+
+  // 2. Identify and aggregate by region from completed orders
+  const regionMap: Record<string, { city: string; region: string; visitsAmount: number; oilAmount: number; cost: number }> = {};
+
+  completedOrders.forEach(o => {
+    // Period filter
+    if (startDate || endDate) {
+      const oDateStr = o.pickup_date_time || o.order_date || o.created_at;
+      if (oDateStr) {
+        const datePart = oDateStr.split('T')[0];
+        if (startDate && datePart < startDate) return;
+        if (endDate && datePart > endDate) return;
+      }
+    }
+
+    const v = findVendor(o.vendor_id, o);
+    const rawCity = o.city || v?.city || t('Other City');
+    const rawDistrict = o.district || v?.district || '-';
+    const city = rawCity ? String(rawCity).trim() : t('Other City');
+    const district = rawDistrict ? String(rawDistrict).trim() : '-';
+    const key = `${city}:::${district}`;
+
+    if (!regionMap[key]) {
+      regionMap[key] = {
+        city,
+        region: district,
+        visitsAmount: 0,
+        oilAmount: 0,
+        cost: 0,
       };
     }
-    regionGroupsMap[key].sIds.push(s.id);
+
+    const liters = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : Number(o.qty_requested || 0);
+    const validLiters = isNaN(liters) ? 0 : liters;
+    const price = v?.price_per_liter || 0;
+
+    regionMap[key].visitsAmount += 1;
+    regionMap[key].oilAmount += validLiters;
+    regionMap[key].cost += validLiters * price;
   });
 
-  // 3. Map aggregates per group
-  const regionRows = Object.values(regionGroupsMap)
-    .map(g => {
-      // Find completed orders for these suppliers
-      const regionOrders = completedOrders.filter(o => g.sIds.includes(o.vendor_id));
-
-      // Filter by period
-      const filteredOrders = regionOrders.filter(o => {
-        const oDateStr = o.pickup_date_time || o.order_date;
-        if (!oDateStr) return true;
-        const datePart = oDateStr.split('T')[0];
-        if (startDate && datePart < startDate) return false;
-        if (endDate && datePart > endDate) return false;
-        return true;
-      });
-
-      const visitsAmount = filteredOrders.length;
-      const oilAmount = filteredOrders.reduce((sum, o) => sum + (o.fact_qty || o.qty_requested || 0), 0);
-      const cost = filteredOrders.reduce((sum, o) => {
-        const liters = o.fact_qty || o.qty_requested || 0;
-        const s = activeSuppliers.find(x => x.id === o.vendor_id);
-        const price = s ? (s.price_per_liter || 0) : 0;
-        return sum + (liters * price);
-      }, 0);
-
-      return {
-        city: g.city,
-        region: g.district,
-        visitsAmount,
-        oilAmount,
-        cost,
-      };
-    })
-    // Apply search filter (matching city or region)
+  // 3. Map aggregates per group and apply search
+  const regionRows = Object.values(regionMap)
     .filter(row => {
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
@@ -99,8 +90,7 @@ export default function DeliveredOrdersByRegions({
       }
       return true;
     })
-    // Show only regions with visits to be clean and accurate
-    .filter(row => row.visitsAmount > 0);
+    .sort((a, b) => b.visitsAmount - a.visitsAmount || b.oilAmount - a.oilAmount);
 
   // Summary row calculations
   const totalVisits = regionRows.reduce((sum, r) => sum + r.visitsAmount, 0);

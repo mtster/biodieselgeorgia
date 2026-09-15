@@ -4,7 +4,7 @@ import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
 import { t } from '../../utils/lang';
 import { useDebounce } from '../../hooks/useDebounce';
-import { getVendorsPaginated } from '../../services/vendorService';
+import { getVendorsPaginated, getVendorById } from '../../services/vendorService';
 import { Loader2, Search, Building2, MapPin, X } from 'lucide-react';
 
 interface CommunicationFormModalProps {
@@ -62,15 +62,23 @@ export default function CommunicationFormModal({
 
   // Matched supplier for address display
   const matchedVendor = useMemo(() => {
-    const term = vendorSearch.trim();
-    if (!term) return null;
+    const term = vendorSearch.trim().toLowerCase();
     if (localComm?.vendor_id) {
-      const v = suppliers.find((s) => s.id === localComm.vendor_id) || remoteSuppliers.find((s) => s.id === localComm.vendor_id);
-      if (v && (v.trade_name?.trim() === term || v.company_name?.trim() === term)) {
-        return v;
-      }
+      const cleanLId = String(localComm.vendor_id).trim().toLowerCase();
+      const v = suppliers.find((s) => s.id === localComm.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanLId)) || 
+                remoteSuppliers.find((s) => s.id === localComm.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanLId));
+      if (v) return v;
     }
-    return suppliers.find((s) => s.trade_name?.trim() === term || s.company_name?.trim() === term) || null;
+    if (!term) return null;
+    return suppliers.find((s) => {
+      const trade = (s.trade_name || '').trim().toLowerCase();
+      const comp = (s.company_name || '').trim().toLowerCase();
+      return trade === term || comp === term;
+    }) || remoteSuppliers.find((s) => {
+      const trade = (s.trade_name || '').trim().toLowerCase();
+      const comp = (s.company_name || '').trim().toLowerCase();
+      return trade === term || comp === term;
+    }) || null;
   }, [suppliers, remoteSuppliers, vendorSearch, localComm?.vendor_id]);
 
   const selectedAddress = matchedVendor?.address || '';
@@ -160,13 +168,27 @@ export default function CommunicationFormModal({
       setFieldErrors({});
 
       let initVName = '';
-      const suppObj = suppliers.find(s => s.id === editingComm.vendor_id);
+      const vId = editingComm.vendor_id ? String(editingComm.vendor_id).trim() : '';
+      const cleanVId = vId.toLowerCase();
+      const suppObj = suppliers.find(s => s.id === vId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
       if (suppObj) {
         initVName = suppObj.trade_name || suppObj.company_name || '';
         setVendorSearch(initVName);
       } else if (editingComm.vendor_name) {
         initVName = editingComm.vendor_name;
         setVendorSearch(initVName);
+      } else if (vId) {
+        getVendorById(vId).then(v => {
+          if (v) {
+            const name = v.trade_name || v.company_name || '';
+            setVendorSearch(name);
+            setLocalComm(prev => prev ? {
+              ...prev,
+              vendor_id: v.id,
+              vendor_name: name
+            } : null);
+          }
+        });
       } else {
         setVendorSearch('');
       }
@@ -296,11 +318,12 @@ export default function CommunicationFormModal({
 
     const finalRespId = respId || employees[0]?.id || '';
     const finalVendorId = currentVendorId || '';
+    const finalVendorName = (matchedVendor?.trade_name || matchedVendor?.company_name) || localComm.vendor_name || vendorSearch.trim() || '';
 
     return {
       ...localComm,
       vendor_id: finalVendorId,
-      vendor_name: localComm.vendor_name || matchedVendor?.trade_name || matchedVendor?.company_name || vendorSearch.trim(),
+      vendor_name: finalVendorName,
       responsible_user_id: finalRespId,
       user_id: finalRespId,
       is_completed: isCompletedStatus,

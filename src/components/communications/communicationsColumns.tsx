@@ -20,10 +20,20 @@ export function getCommunicationsColumns({
   setSelectedComms
 }: ColumnOptions, managedCols: { id: string; label: string; visible: boolean }[]): ColumnConfig<Communication>[] {
 
-  const findSupplier = (vendorId?: string) => {
+  const findSupplier = (vendorId?: string, comm?: Communication) => {
+    if (comm && (comm as any).vendor) {
+      return (comm as any).vendor;
+    }
     if (!vendorId) return null;
     const cleanId = String(vendorId).trim().toLowerCase();
-    return suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) || null;
+    return suppliers.find(s => 
+      s.id === vendorId || 
+      (s.id && String(s.id).trim().toLowerCase() === cleanId) ||
+      (s.company_code && String(s.company_code).trim().toLowerCase() === cleanId) ||
+      (s.id_code && String(s.id_code).trim().toLowerCase() === cleanId) ||
+      (s.trade_name && s.trade_name.trim().toLowerCase() === cleanId) ||
+      (s.company_name && s.company_name.trim().toLowerCase() === cleanId)
+    ) || null;
   };
 
   const columnMap: Record<string, ColumnConfig<Communication>> = {
@@ -60,10 +70,10 @@ export function getCommunicationsColumns({
       key: 'vendor_name',
       className: 'max-w-[180px] truncate',
       render: (comm) => {
-        const suppObj = findSupplier(comm.vendor_id);
-        const name = (suppObj?.trade_name || suppObj?.company_name) || comm.vendor_name || t('Supplier');
+        const suppObj = findSupplier(comm.vendor_id, comm);
+        const name = (suppObj?.trade_name || suppObj?.company_name) || comm.vendor_name || (comm.vendor_id && !comm.vendor_id.includes('-') && comm.vendor_id.length < 50 ? comm.vendor_id : '') || '-';
         return (
-          <div className="max-w-[180px] truncate" title={name}>
+          <div className="max-w-[180px] truncate" title={name !== '-' ? name : ''}>
             {name}
           </div>
         );
@@ -73,16 +83,16 @@ export function getCommunicationsColumns({
       header: t('Company Name'),
       key: 'company_name',
       render: (comm) => {
-        const suppObj = findSupplier(comm.vendor_id);
-        return suppObj ? (suppObj.company_name || suppObj.trade_name || '-') : '-';
+        const suppObj = findSupplier(comm.vendor_id, comm);
+        return suppObj ? (suppObj.company_name || suppObj.trade_name || '-') : (comm.vendor_name || '-');
       }
     },
     id_code: {
       header: t('Identification Code'),
       key: 'id_code',
       render: (comm) => {
-        const suppObj = findSupplier(comm.vendor_id);
-        return suppObj ? suppObj.id_code : '-';
+        const suppObj = findSupplier(comm.vendor_id, comm);
+        return suppObj ? (suppObj.id_code || '-') : '-';
       }
     },
     user_name: {

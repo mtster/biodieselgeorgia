@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Communication, Vendor, User } from '../../types';
 import { Plus, Trash2 } from 'lucide-react';
 import { t } from '../../utils/lang';
@@ -12,6 +12,7 @@ import CommunicationFormModal from './CommunicationFormModal';
 import { getCommunicationsColumns } from '../communications/communicationsColumns';
 import { usePaginatedCommunications } from '../../hooks/usePaginatedModuleQuery';
 import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
+import { getVendorById } from '../../services/vendorService';
 
 const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'reminder_time', label: 'Reminder Time', visible: true },
@@ -36,7 +37,7 @@ interface Props {
   onNavigateToOrdersWithVendor?: (vendorId: string) => void;
   initialEditingComm?: Communication | null;
   onClearInitialEditingComm?: () => void;
-  initialNewComm?: { vendorId?: string; type?: 'action' | 'reminder' | 'task' } | null;
+  initialNewComm?: { vendorId?: string; vendorName?: string; type?: 'action' | 'reminder' | 'task' } | null;
   onClearInitialNewComm?: () => void;
 }
 
@@ -90,9 +91,11 @@ export default function CommunicationsView({
       setIsNew(false);
       onClearInitialEditingComm?.();
     } else if (initialNewComm) {
-      const vId = initialNewComm.vendorId || '';
-      const supp = suppliers.find(s => s.id === vId);
+      const vId = initialNewComm.vendorId ? String(initialNewComm.vendorId).trim() : '';
+      const cleanVId = vId.toLowerCase();
+      const supp = suppliers.find(s => s.id === vId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
       const defaultContact = supp?.contacts?.find(c => c.is_default)?.id || supp?.contacts?.[0]?.id || '';
+      const resolvedName = (supp?.trade_name || supp?.company_name) || initialNewComm.vendorName || '';
       const defaultComm: Communication = {
         id: '',
         date_time: new Date().toISOString().substring(0, 16),
@@ -101,7 +104,7 @@ export default function CommunicationsView({
         user_id: currentEmployee?.id || employees[0]?.id || '',
         responsible_user_id: currentEmployee?.id || employees[0]?.id || '',
         vendor_id: vId,
-        vendor_name: supp?.trade_name || supp?.company_name || '',
+        vendor_name: resolvedName,
         vendor_contact_id: defaultContact,
         comment: '',
         is_completed: false,
@@ -110,6 +113,25 @@ export default function CommunicationsView({
       setEditingComm(defaultComm);
       setIsNew(true);
       onClearInitialNewComm?.();
+
+      if (vId && !supp) {
+        getVendorById(vId).then(fetched => {
+          if (fetched) {
+            const fName = fetched.trade_name || fetched.company_name || '';
+            const fContact = fetched.contacts?.find(c => c.is_default)?.id || fetched.contacts?.[0]?.id || '';
+            setEditingComm(prev => {
+              if (prev && prev.vendor_id === vId) {
+                return {
+                  ...prev,
+                  vendor_name: fName,
+                  vendor_contact_id: prev.vendor_contact_id || fContact
+                };
+              }
+              return prev;
+            });
+          }
+        });
+      }
     }
   }, [initialEditingComm, onClearInitialEditingComm, initialNewComm, onClearInitialNewComm, suppliers, currentEmployee, employees]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -141,6 +163,82 @@ export default function CommunicationsView({
 
   const displayComms = paginatedData?.communications || [];
   const totalCommsCount = paginatedData?.totalCount || 0;
+
+  // Extra suppliers fetched on demand for vendors not present in suppliers prop
+  const [extraSuppliers, setExtraSuppliers] = useState<Record<string, Vendor>>({});
+  const requestedVendorIdsRef = React.useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!displayComms || displayComms.length === 0) return;
+
+    const knownIds = new Set<string>();
+    suppliers.forEach(s => {
+      if (s?.id) knownIds.add(String(s.id).trim().toLowerCase());
+    });
+
+    const missingIds: string[] = [];
+
+    displayComms.forEach(c => {
+      if (c.vendor && c.vendor.id) {
+        knownIds.add(String(c.vendor.id).trim().toLowerCase());
+      }
+      if (c.vendor_id) {
+        const clean = String(c.vendor_id).trim().toLowerCase();
+        if (!knownIds.has(clean) && !requestedVendorIdsRef.current.has(clean)) {
+          requestedVendorIdsRef.current.add(clean);
+          missingIds.push(String(c.vendor_id).trim());
+        }
+      }
+    });
+
+    if (missingIds.length === 0) return;
+
+    let isMounted = true;
+    Promise.all(missingIds.map(id => getVendorById(id))).then(results => {
+      if (!isMounted) return;
+      const newEntries: Record<string, Vendor> = {};
+      results.forEach(v => {
+        if (v && v.id) {
+          newEntries[v.id] = v;
+          newEntries[String(v.id).trim().toLowerCase()] = v;
+        }
+      });
+      if (Object.keys(newEntries).length > 0) {
+        setExtraSuppliers(prev => ({ ...prev, ...newEntries }));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [displayComms, suppliers]);
+
+  const allSuppliers = useMemo(() => {
+    const seen = new Set<string>();
+    const res: Vendor[] = [];
+
+    const addVendor = (v: any) => {
+      if (!v || !v.id) return;
+      const key = String(v.id).trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        res.push(v);
+      }
+    };
+
+    // 1. Prop suppliers
+    suppliers.forEach(addVendor);
+
+    // 2. Direct attached vendors from communications
+    displayComms.forEach(c => {
+      if (c.vendor) addVendor(c.vendor);
+    });
+
+    // 3. Extra fetched vendors
+    Object.values(extraSuppliers).forEach(addVendor);
+
+    return res;
+  }, [suppliers, displayComms, extraSuppliers]);
 
   // Columns Manager State
   const [isColModalOpen, setIsColModalOpen] = useState(false);
@@ -213,19 +311,26 @@ export default function CommunicationsView({
       return;
     }
 
-    const supplierObj = suppliers.find(s => s.id === payload.vendor_id);
-    const employeeObj = employees.find(e => e.id === payload.user_id);
-    const responsibleObj = employees.find(e => e.id === payload.responsible_user_id);
+    const cleanVId = payload.vendor_id ? String(payload.vendor_id).trim().toLowerCase() : '';
+    const cleanUId = payload.user_id ? String(payload.user_id).trim().toLowerCase() : '';
+    const cleanRId = payload.responsible_user_id ? String(payload.responsible_user_id).trim().toLowerCase() : '';
+
+    const supplierObj = suppliers.find(s => s.id === payload.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
+    const employeeObj = employees.find(e => e.id === payload.user_id || (e.id && String(e.id).trim().toLowerCase() === cleanUId));
+    const responsibleObj = employees.find(e => e.id === payload.responsible_user_id || (e.id && String(e.id).trim().toLowerCase() === cleanRId));
     const defaultContactId = supplierObj?.contacts?.[0]?.id || '';
     const defaultContactName = supplierObj?.contacts?.[0]?.name || '';
 
+    const resolvedVendorName = (supplierObj?.trade_name || supplierObj?.company_name) || payload.vendor_name || '';
+
     const final: Communication = {
       ...payload,
-      vendor_name: supplierObj?.trade_name || '',
-      user_name: employeeObj?.name || currentEmployee.name,
+      vendor_id: payload.vendor_id || supplierObj?.id || '',
+      vendor_name: resolvedVendorName,
+      user_name: employeeObj?.name || currentEmployee?.name || '',
       responsible_user_name: responsibleObj?.name || '',
       vendor_contact_id: payload.vendor_contact_id || defaultContactId,
-      vendor_contact_name: defaultContactName
+      vendor_contact_name: payload.vendor_contact_name || defaultContactName
     };
 
     onSave(final);
@@ -285,7 +390,7 @@ export default function CommunicationsView({
   });
 
   const columns = getCommunicationsColumns({
-    suppliers,
+    suppliers: allSuppliers,
     employees,
     currentEmployee,
     selectedComms,
@@ -488,7 +593,7 @@ export default function CommunicationsView({
         editingComm={editingComm}
         isNew={isNew}
         employees={employees}
-        suppliers={suppliers}
+        suppliers={allSuppliers}
         canAddOrder={currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add')}
         onSave={handleSaveAll}
         onSaveAndOrder={(payload, vendorId, isUnchanged) => {

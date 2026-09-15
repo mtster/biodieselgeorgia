@@ -88,7 +88,7 @@ export default function App() {
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
   const [selectedOrderVendorId, setSelectedOrderVendorId] = React.useState<string | undefined>(undefined);
   const [selectedCommunication, setSelectedCommunication] = React.useState<Communication | null>(null);
-  const [selectedNewComm, setSelectedNewComm] = React.useState<{ vendorId?: string; type?: 'action' | 'reminder' | 'task' } | null>(null);
+  const [selectedNewComm, setSelectedNewComm] = React.useState<{ vendorId?: string; vendorName?: string; type?: 'action' | 'reminder' | 'task' } | null>(null);
   const mainRef = React.useRef<HTMLElement>(null);
 
   React.useEffect(() => {
@@ -312,7 +312,10 @@ export default function App() {
                 initialVendorId={selectedOrderVendorId}
                 onClearInitialVendorId={() => setSelectedOrderVendorId(undefined)}
                 onNavigateToCommunicationsWithVendor={(vendorId) => {
-                  setSelectedNewComm({ vendorId, type: 'reminder' });
+                  const cleanVId = vendorId ? String(vendorId).trim().toLowerCase() : '';
+                  const vObj = vendors.find(v => v.id === vendorId || (v.id && String(v.id).trim().toLowerCase() === cleanVId));
+                  const vName = vObj?.trade_name || vObj?.company_name || '';
+                  setSelectedNewComm({ vendorId, vendorName: vName, type: 'reminder' });
                   setActiveTab('communications');
                 }}
               />

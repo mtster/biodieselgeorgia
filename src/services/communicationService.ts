@@ -16,6 +16,43 @@ export interface PaginatedCommunicationsResult {
 
 const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
+async function resolveVendorsMap(vendorIds: string[]): Promise<Map<string, any>> {
+  const vendorMap = new Map<string, any>();
+  const localVendors = getLocal<any[]>(KEY_VENDORS, []);
+  localVendors.forEach(v => {
+    if (v && v.id) {
+      vendorMap.set(v.id, v);
+      vendorMap.set(String(v.id).trim().toLowerCase(), v);
+      if (v.company_code) vendorMap.set(String(v.company_code).trim().toLowerCase(), v);
+      if (v.id_code) vendorMap.set(String(v.id_code).trim().toLowerCase(), v);
+    }
+  });
+
+  const uniqueIds = Array.from(new Set(vendorIds.map(id => String(id || '').trim()).filter(Boolean)));
+  if (uniqueIds.length > 0 && isSupabaseConfigured && supabase) {
+    try {
+      const { data: vendorsData } = await supabase
+        .from('vendors')
+        .select('id, trade_name, company_name, id_code, address, company_code')
+        .in('id', uniqueIds);
+      if (vendorsData) {
+        vendorsData.forEach(v => {
+          if (v && v.id) {
+            vendorMap.set(v.id, v);
+            vendorMap.set(String(v.id).trim().toLowerCase(), v);
+            if (v.company_code) vendorMap.set(String(v.company_code).trim().toLowerCase(), v);
+            if (v.id_code) vendorMap.set(String(v.id_code).trim().toLowerCase(), v);
+          }
+        });
+      }
+    } catch (vErr) {
+      console.warn('Failed to prefetch vendors for communications:', vErr);
+    }
+  }
+
+  return vendorMap;
+}
+
 export async function getCommunicationsPaginated(
   limit: number = 12,
   offset: number = 0,
@@ -121,12 +158,22 @@ export async function getCommunicationsPaginated(
           appCache.set(countCacheKey, count);
         }
 
+        const vendorIds = (data || []).map((item: any) => item.vendor_id).filter(Boolean);
+        const vendorMap = await resolveVendorsMap(vendorIds);
+
         const normalizedData = (data || []).map((comm: any) => {
           const isDone = typeof comm.is_completed === 'boolean' 
             ? comm.is_completed 
             : (comm.task_status === 'completed' || comm.task_status === 'done');
+
+          const cleanVId = comm.vendor_id ? String(comm.vendor_id).trim().toLowerCase() : '';
+          const v = comm.vendor_id ? (vendorMap.get(comm.vendor_id) || vendorMap.get(cleanVId)) : null;
+          const resolvedVendorName = (v?.trade_name || v?.company_name) || comm.vendor_name || '';
+
           return {
             ...comm,
+            vendor_name: resolvedVendorName,
+            vendor: v || null,
             is_completed: isDone,
             task_status: isDone ? 'completed' : 'pending',
             responsible_user_id: comm.responsible_user_id || comm.user_id,
@@ -148,12 +195,26 @@ export async function getCommunicationsPaginated(
 
   const all = getLocal<Communication[]>(KEY_COMMUNICATIONS, []).filter(c => !c.is_deleted);
   const localVendors = getLocal<any[]>(KEY_VENDORS, []);
-  const vendorMap = new Map(localVendors.map(v => [v.id, v]));
+  const vendorMap = new Map<string, any>();
+  localVendors.forEach(v => {
+    if (v && v.id) {
+      vendorMap.set(v.id, v);
+      vendorMap.set(String(v.id).trim().toLowerCase(), v);
+      if (v.company_code) vendorMap.set(String(v.company_code).trim().toLowerCase(), v);
+      if (v.id_code) vendorMap.set(String(v.id_code).trim().toLowerCase(), v);
+    }
+  });
 
   let filtered = all.map(c => {
     const isDone = typeof c.is_completed === 'boolean' ? c.is_completed : (c.task_status === 'completed' || c.task_status === 'done');
+    const cleanVId = c.vendor_id ? String(c.vendor_id).trim().toLowerCase() : '';
+    const vObj = c.vendor_id ? (vendorMap.get(c.vendor_id) || vendorMap.get(cleanVId)) : null;
+    const resolvedVendorName = (vObj?.trade_name || vObj?.company_name) || c.vendor_name || '';
+
     return {
       ...c,
+      vendor_name: resolvedVendorName,
+      vendor: vObj || null,
       is_completed: isDone,
       task_status: isDone ? 'completed' : 'pending',
       responsible_user_id: c.responsible_user_id || c.user_id,
@@ -223,10 +284,19 @@ export async function getCommunications(limit = 100): Promise<Communication[]> {
         .order('date_time', { ascending: false })
         .limit(limit);
       if (!error && data) {
+        const vendorIds = (data as any[]).map(item => item.vendor_id).filter(Boolean);
+        const vendorMap = await resolveVendorsMap(vendorIds);
+
         return (data as any[]).map(c => {
           const isDone = typeof c.is_completed === 'boolean' ? c.is_completed : (c.task_status === 'completed' || c.task_status === 'done');
+          const cleanVId = c.vendor_id ? String(c.vendor_id).trim().toLowerCase() : '';
+          const v = c.vendor_id ? (vendorMap.get(c.vendor_id) || vendorMap.get(cleanVId)) : null;
+          const resolvedVendorName = (v?.trade_name || v?.company_name) || c.vendor_name || '';
+
           return {
             ...c,
+            vendor_name: resolvedVendorName,
+            vendor: v || null,
             is_completed: isDone,
             task_status: isDone ? 'completed' : 'pending',
             responsible_user_id: c.responsible_user_id || c.user_id,
@@ -238,13 +308,30 @@ export async function getCommunications(limit = 100): Promise<Communication[]> {
       console.warn('Supabase getCommunications failed', e);
     }
   }
+  const localVendors = getLocal<any[]>(KEY_VENDORS, []);
+  const vendorMap = new Map<string, any>();
+  localVendors.forEach(v => {
+    if (v && v.id) {
+      vendorMap.set(v.id, v);
+      vendorMap.set(String(v.id).trim().toLowerCase(), v);
+      if (v.company_code) vendorMap.set(String(v.company_code).trim().toLowerCase(), v);
+      if (v.id_code) vendorMap.set(String(v.id_code).trim().toLowerCase(), v);
+    }
+  });
+
   return getLocal<Communication[]>(KEY_COMMUNICATIONS, [])
     .filter(item => !item.is_deleted)
     .slice(0, limit)
     .map(c => {
       const isDone = typeof c.is_completed === 'boolean' ? c.is_completed : (c.task_status === 'completed' || c.task_status === 'done');
+      const cleanVId = c.vendor_id ? String(c.vendor_id).trim().toLowerCase() : '';
+      const v = c.vendor_id ? (vendorMap.get(c.vendor_id) || vendorMap.get(cleanVId)) : null;
+      const resolvedVendorName = (v?.trade_name || v?.company_name) || c.vendor_name || '';
+
       return {
         ...c,
+        vendor_name: resolvedVendorName,
+        vendor: v || null,
         is_completed: isDone,
         task_status: isDone ? 'completed' : 'pending',
         responsible_user_id: c.responsible_user_id || c.user_id,
@@ -262,9 +349,23 @@ export async function saveCommunication(comm: Communication, loggerName: string,
     ? comm.is_completed 
     : (comm.task_status === 'completed' || comm.task_status === 'done');
 
+  let resolvedVendorName = comm.vendor_name || '';
+  let resolvedVendor = (comm as any).vendor || null;
+  if (comm.vendor_id && !resolvedVendorName) {
+    const localVendors = getLocal<any[]>(KEY_VENDORS, []);
+    const cleanVId = String(comm.vendor_id).trim().toLowerCase();
+    const foundV = localVendors.find(v => v.id === comm.vendor_id || (v.id && String(v.id).trim().toLowerCase() === cleanVId));
+    if (foundV) {
+      resolvedVendorName = foundV.trade_name || foundV.company_name || '';
+      resolvedVendor = foundV;
+    }
+  }
+
   const finalComm: Communication = {
     ...comm,
     id: isNew ? generateUuid() : comm.id,
+    vendor_name: resolvedVendorName,
+    vendor: resolvedVendor,
     responsible_user_id: respUserId,
     user_id: respUserId,
     is_completed: isCompleted,
