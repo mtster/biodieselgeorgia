@@ -40,7 +40,6 @@ export default function SupplierCommentsSidePanel({
       {comments.length === 0 ? (
         <div className="text-center py-10 px-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/60 text-xs text-gray-400 space-y-1.5">
           <p className="font-semibold text-gray-600">{t("No comments attached to this supplier")}</p>
-          <p className="text-[11px] text-gray-400">{t("This supplier does not have any saved notes yet.")}</p>
         </div>
       ) : (
         <div className="space-y-3 max-h-[600px] overflow-y-auto overflow-x-hidden pr-1">
