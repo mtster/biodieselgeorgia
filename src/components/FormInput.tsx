@@ -41,7 +41,7 @@ export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(func
             ? 'border-red-500 bg-red-50/10 focus:border-red-500 focus:ring-red-500 text-red-900'
             : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900'
         } ${className}`}
-        {...props}
+        {...(props.type === 'date' ? { lang: 'en-GB', ...props } : props)}
         value={finalValue}
       />
       {children}

@@ -209,7 +209,7 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,  -- Operator
     comments JSONB DEFAULT '[]'::JSONB,     -- Comments History
     working_hours TEXT,                     -- Working Hours
-    is_active BOOLEAN DEFAULT TRUE,        -- Active status
+    status TEXT DEFAULT 'Active',           -- Vendor Status ('Active', 'Under Negotiation', 'Seasonal', 'Closed', 'Unclear')
     is_deleted BOOLEAN DEFAULT FALSE,
     is_planned BOOLEAN DEFAULT FALSE,
     planned_weekday TEXT DEFAULT NULL,
@@ -228,7 +228,8 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS warehouse_id TEXT REFERENCES
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors DROP COLUMN IF EXISTS barrels_amount CASCADE;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+ALTER TABLE public.vendors DROP COLUMN IF EXISTS is_active CASCADE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS overdue_threshold_days INT DEFAULT NULL;
@@ -292,6 +293,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     fact_tank_dropoff INT DEFAULT 0,       -- Fact Tank Dropoff
     fact_tank_pickup INT DEFAULT 0,        -- Fact Tank Pickup
     status TEXT NOT NULL DEFAULT 'registered',
+    completed_at TIMESTAMPTZ DEFAULT NULL,
     sms_sent BOOLEAN DEFAULT FALSE,
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -312,6 +314,8 @@ ALTER TABLE public.orders ALTER COLUMN qty_requested DROP NOT NULL;
 ALTER TABLE public.orders DROP COLUMN IF EXISTS truck_plate CASCADE;
 ALTER TABLE public.orders DROP COLUMN IF EXISTS note CASCADE;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS route_rank TEXT DEFAULT NULL;
+ALTER TABLE public.orders DROP COLUMN IF EXISTS completion_time CASCADE;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ DEFAULT NULL;
 
 -- Performance Indexes for Driver Logistics & Orders Portal & Global Search
 CREATE INDEX IF NOT EXISTS idx_orders_vehicle_id ON public.orders(vehicle_id);
@@ -335,7 +339,7 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_driver_id ON public.vehicles(driver_id);
 
 -- Safe update of the status CHECK constraint if it exists
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;
-ALTER TABLE public.orders ADD CONSTRAINT orders_status_check CHECK (status IN ('registered', 'driver_assigned', 'picked_up', 'completed', 'cancelled'));
+ALTER TABLE public.orders ADD CONSTRAINT orders_status_check CHECK (status IN ('registered', 'driver_assigned', 'picked_up', 'completed', 'cancelled', 'uncompleted'));
 
 -- 8. Communications
 CREATE TABLE IF NOT EXISTS public.communications (
@@ -346,7 +350,7 @@ CREATE TABLE IF NOT EXISTS public.communications (
     has_time BOOLEAN DEFAULT FALSE,           -- Whether time was specifically chosen or date-only
     vendor_id TEXT REFERENCES public.vendors(id) ON DELETE CASCADE,  -- Connected Vendor
     vendor_contact_id TEXT,                   -- Specific contact person
-    comment TEXT NOT NULL,                     -- Notes/Log details
+    comment TEXT DEFAULT '',                  -- Notes/Log details (optional for reminders)
     responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, -- Responsible User (პასუხისმგებელი პირი)
     is_completed BOOLEAN DEFAULT FALSE,        -- Task Status (დავალების სტატუსი: FALSE = აქტიური, TRUE = შესრულებული)
     is_deleted BOOLEAN DEFAULT FALSE,
@@ -364,6 +368,8 @@ ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS has_time BOOLEAN DEFA
 ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS responsible_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS is_completed BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.communications ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
+ALTER TABLE public.communications ALTER COLUMN comment DROP NOT NULL;
+ALTER TABLE public.communications ALTER COLUMN comment SET DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_communications_vendor_id ON public.communications(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_communications_reminder_time ON public.communications(reminder_time);
@@ -773,8 +779,10 @@ WHERE is_deleted = false AND status = 'completed';
 
 -- Filtered partial index for active vendors: excludes inactive and deleted suppliers
 CREATE INDEX IF NOT EXISTS idx_vendors_overdue_lookup 
-ON public.vendors (is_deleted, is_active, created_at DESC) 
-WHERE is_deleted = false AND is_active = true;
+ON public.vendors (is_deleted, status, created_at DESC) 
+WHERE is_deleted = false AND status = 'Active';
+
+CREATE INDEX IF NOT EXISTS idx_vendors_status ON public.vendors(status);
 
 
 

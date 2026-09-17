@@ -3,7 +3,7 @@ import { Order, Vendor, User, Warehouse, Direction, Truck } from '../../types';
 import { Edit2, Trash2, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
-import { t, formatDate, formatDateTime } from '../../utils/lang';
+import { t, formatDate, formatDateTime, formatPhone } from '../../utils/lang';
 
 interface Props {
   currentEmployee: User;
@@ -117,10 +117,21 @@ export default function OrdersList({
       header: t('Contact'),
       key: 'contacts',
       render: (ord) => {
-        const vendor = findSupplier(ord.vendor_id);
-        if (!vendor || !vendor.contacts || vendor.contacts.length === 0) return '-';
-        const mainContact = vendor.contacts.find(c => c.is_default) || vendor.contacts[0];
-        const val = `${mainContact.name} (${mainContact.phone})`;
+        let contact: any = (ord as any).contact || null;
+        if (!contact) {
+          const vendor = findSupplier(ord.vendor_id, ord);
+          if (vendor?.contacts && vendor.contacts.length > 0) {
+            const assignedContact = ord.contact_id 
+              ? vendor.contacts.find((c: any) => c.id === ord.contact_id) 
+              : null;
+            contact = assignedContact || vendor.contacts.find((c: any) => c.is_default) || vendor.contacts[0];
+          }
+        }
+        const name = contact?.name || (ord as any).contact_name || '';
+        const phone = contact?.phone || (ord as any).contact_phone || '';
+        if (!name && !phone) return '-';
+        const phoneFormatted = phone ? formatPhone(phone) : '';
+        const val = phoneFormatted ? `${name}(${phoneFormatted})` : (name || '-');
         return <div className="max-w-[200px] truncate" title={val}>{val}</div>;
       }
     },

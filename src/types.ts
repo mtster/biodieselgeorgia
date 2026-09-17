@@ -69,8 +69,7 @@ export interface Vendor {
   contacts: VendorContact[];  // კონტაქტები
   comments: VendorComment[];  // კომენტარები
   working_hours: string;      // სამუშაო საათები
-  status?: 'Active' | 'Under Negotiation' | 'Cancelled';
-  is_active?: boolean;
+  status?: 'Active' | 'Under Negotiation' | 'Seasonal' | 'Closed' | 'Unclear' | string;
   barrels_amount?: number;    // Barrels amount
   is_deleted?: boolean;
   created_at: string;
@@ -113,6 +112,7 @@ export interface Order {
   vehicle_id?: string;        // Assigned vehicle ID
   direction_id?: string;      // მიმართულება
   status: OrderStatus;        // სტატუსი
+  completed_at?: string | null;    // დასრულების დრო (სისტემური)
   fact_qty?: number;          // ფაქტიური რაოდენობა
   fact_tank_dropoff?: number; // ფაქტიური ავზების დატოვება
   fact_tank_pickup?: number;  // ფაქტიური ავზების წამოღება
@@ -124,6 +124,9 @@ export interface Order {
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
   is_deleted?: boolean;
   contact_id?: string;
+  contact?: VendorContact | null;
+  contact_name?: string;
+  contact_phone?: string;
   address?: string;
   city?: string;
   district?: string;
@@ -148,6 +151,7 @@ export interface Communication {
   is_completed?: boolean;     // დავალების სტატუსი (false: აქტიური, true: შესრულებული)
   task_status?: string;       // Legacy string representation
   created_by?: string;
+  created_at?: string;
   is_deleted?: boolean;
 }
 

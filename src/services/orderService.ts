@@ -52,12 +52,12 @@ export async function getOrdersPaginated(
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // If filtering by location / direction / manager (properties on vendors table)
+      // If filtering by location / direction (properties on vendors table)
       const targetCity = filters?.city;
       const targetDistrict = filters?.district;
       const targetDirection = filters?.direction || filters?.directionId;
       const targetManager = filters?.managerId || filters?.salesManagerId;
-      const hasVendorFilter = Boolean(targetCity || targetDistrict || targetDirection || targetManager);
+      const hasVendorFilter = Boolean(targetCity || targetDistrict || targetDirection);
 
       const countConfig = cachedCount !== null ? {} : { count: 'exact' as const };
       const selectQuery = hasVendorFilter 
@@ -116,8 +116,9 @@ export async function getOrdersPaginated(
         query = query.eq('vendors.direction_id', targetDirection);
       }
       if (targetManager) {
-        if (isValidUuid(targetManager)) {
-          query = query.eq('vendors.manager_id', targetManager);
+        const cleanedMgr = cleanUserUuid(targetManager) || targetManager;
+        if (isValidUuid(cleanedMgr)) {
+          query = query.or(`created_by.eq.${cleanedMgr},and(created_by.is.null,operator_id.eq.${cleanedMgr})`);
         }
       }
 
@@ -220,11 +221,69 @@ export async function getOrdersPaginated(
           }
         }
 
+        // Prefetch contact info for all orders on this page
+        const contactIds = Array.from(new Set((data as any[]).map(item => item.contact_id).filter(Boolean)));
+        const contactMap = new Map<string, any>();
+        if (contactIds.length > 0) {
+          try {
+            const { data: contactsData } = await supabase
+              .from('vendor_contacts')
+              .select('id, vendor_id, name, phone, is_default, position')
+              .in('id', contactIds);
+            if (contactsData) {
+              contactsData.forEach(c => {
+                contactMap.set(c.id, c);
+              });
+            }
+          } catch (cErr) {
+            console.warn('Failed to prefetch contacts by id for orders page:', cErr);
+          }
+        }
+
+        // Also prefetch default contacts for vendors of orders that don't have a contact_id or if contact wasn't found
+        const unresolvedVendorIds = Array.from(new Set(
+          (data as any[])
+            .filter(item => !item.contact_id || !contactMap.has(item.contact_id))
+            .map(item => item.vendor_id)
+            .filter(Boolean)
+        ));
+        const vendorContactsMap = new Map<string, any[]>();
+        if (unresolvedVendorIds.length > 0) {
+          try {
+            const { data: vContactsData } = await supabase
+              .from('vendor_contacts')
+              .select('id, vendor_id, name, phone, is_default, position')
+              .in('vendor_id', unresolvedVendorIds)
+              .eq('is_deleted', false);
+            if (vContactsData) {
+              vContactsData.forEach(c => {
+                if (!vendorContactsMap.has(c.vendor_id)) {
+                  vendorContactsMap.set(c.vendor_id, []);
+                }
+                vendorContactsMap.get(c.vendor_id)!.push(c);
+              });
+            }
+          } catch (vcErr) {
+            console.warn('Failed to prefetch contacts by vendor_id for orders page:', vcErr);
+          }
+        }
+
         const mapped = data.map((o: any) => {
           const v = o.vendor_id ? (vendorMap.get(o.vendor_id) || vendorMap.get(o.vendor_id?.toLowerCase?.().trim())) : null;
           const plate = o.truck_plate || (o.vehicle_id ? vehicleMap.get(o.vehicle_id) : '') || '';
+          
+          let c = o.contact_id ? contactMap.get(o.contact_id) : null;
+          if (!c && o.vendor_id) {
+            const vContacts = vendorContactsMap.get(o.vendor_id) || [];
+            c = vContacts.find(item => item.is_default) || vContacts[0] || null;
+          }
+
           return {
             ...o,
+            contact: c || null,
+            contact_name: c?.name || '',
+            contact_phone: c?.phone || '',
+            completed_at: o.completed_at || null,
             truck_plate: plate,
             vendor_name: o.vendor_name || o.vendors?.trade_name || o.vendors?.company_name || v?.trade_name || v?.company_name || '',
             address: o.address || v?.address || '',
@@ -282,9 +341,10 @@ export async function getOrdersPaginated(
   }
   const targetMgr = filters?.managerId || filters?.salesManagerId;
   if (targetMgr) {
+    const cleanedMgr = cleanUserUuid(targetMgr) || targetMgr;
     filtered = filtered.filter(o => {
-      const v = vendorMap.get(o.vendor_id);
-      return v?.manager_id === targetMgr;
+      const creator = o.created_by || o.operator_id;
+      return creator === cleanedMgr || creator === targetMgr;
     });
   }
 
@@ -392,14 +452,67 @@ export async function getOrders(limit = 1000): Promise<Order[]> {
           }
         }
 
+        // Prefetch contacts for getOrders
+        const contactIds = Array.from(new Set(data.map((o: any) => o.contact_id).filter(Boolean)));
+        const contactMap = new Map<string, any>();
+        if (contactIds.length > 0) {
+          try {
+            const { data: cData } = await supabase
+              .from('vendor_contacts')
+              .select('id, vendor_id, name, phone, is_default, position')
+              .in('id', contactIds);
+            if (cData) {
+              cData.forEach(c => contactMap.set(c.id, c));
+            }
+          } catch (ce) {
+            console.warn('getOrders contact lookup error:', ce);
+          }
+        }
+
+        const missingContactVendorIds = Array.from(new Set(
+          data
+            .filter((o: any) => !o.contact_id || !contactMap.has(o.contact_id))
+            .map((o: any) => o.vendor_id)
+            .filter(Boolean)
+        ));
+        const vendorContactsMap = new Map<string, any[]>();
+        if (missingContactVendorIds.length > 0) {
+          try {
+            const { data: vcData } = await supabase
+              .from('vendor_contacts')
+              .select('id, vendor_id, name, phone, is_default, position')
+              .in('vendor_id', missingContactVendorIds)
+              .eq('is_deleted', false);
+            if (vcData) {
+              vcData.forEach(c => {
+                if (!vendorContactsMap.has(c.vendor_id)) {
+                  vendorContactsMap.set(c.vendor_id, []);
+                }
+                vendorContactsMap.get(c.vendor_id)!.push(c);
+              });
+            }
+          } catch (vce) {
+            console.warn('getOrders vendor contact lookup error:', vce);
+          }
+        }
+
         return data.map((o: any) => {
           const v = o.vendor_id ? vendorMap.get(o.vendor_id) : null;
           const targetWhId = o.warehouse_id || v?.warehouse_id;
           const wName = targetWhId ? warehouseMap.get(targetWhId) : null;
           const plate = o.truck_plate || (o.vehicle_id ? vehicleMap.get(o.vehicle_id) : '') || '';
 
+          let c = o.contact_id ? contactMap.get(o.contact_id) : null;
+          if (!c && o.vendor_id) {
+            const vContacts = vendorContactsMap.get(o.vendor_id) || [];
+            c = vContacts.find(item => item.is_default) || vContacts[0] || null;
+          }
+
           return {
             ...o,
+            contact: c || null,
+            contact_name: c?.name || '',
+            contact_phone: c?.phone || '',
             truck_plate: plate,
             vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
             warehouse_name: o.warehouse_name || wName || '',
@@ -459,6 +572,11 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
       const normalizedOrderDate = normalizeOrderDate(finalOrder.order_date);
       finalOrder.order_date = normalizedOrderDate;
 
+      const completionTimestamp = finalOrder.status === 'completed'
+        ? (finalOrder.completed_at ? normalizeOrderDate(finalOrder.completed_at) : new Date().toISOString())
+        : null;
+      finalOrder.completed_at = completionTimestamp;
+
       // Whitelist only columns that exist in the Supabase `orders` table schema
       const dbOrder: Record<string, any> = {
         id: finalOrder.id,
@@ -470,6 +588,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         tanks_to_leave: Number(finalOrder.tanks_to_leave) || 0,
         tanks_to_bring: Number(finalOrder.tanks_to_bring) || 0,
         pickup_date_time: finalOrder.pickup_date_time ? normalizeOrderDate(finalOrder.pickup_date_time) : null,
+        completed_at: completionTimestamp,
         operator_id: isValidUuid(finalOrder.operator_id) ? finalOrder.operator_id : null,
         created_by: isValidUuid(finalOrder.created_by) ? finalOrder.created_by : null,
         driver_id: isValidUuid(finalOrder.driver_id) ? finalOrder.driver_id : null,

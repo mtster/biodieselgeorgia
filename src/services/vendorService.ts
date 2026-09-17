@@ -30,13 +30,16 @@ export const cleanUserUuid = (val: string | null | undefined): string | null => 
   return val;
 };
 
-export function decodeVendorCustomFields(vendor: Vendor): Vendor {
+export function decodeVendorCustomFields(vendor: any): Vendor {
   const contacts = vendor.contacts || [];
-  const customContact = contacts.find(c => c.name === "__DYNAMIC_CUSTOM_FIELDS__");
-  const cleanContacts = contacts.filter(c => c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
+  const customContact = contacts.find((c: any) => c.name === "__DYNAMIC_CUSTOM_FIELDS__");
+  const cleanContacts = contacts.filter((c: any) => c.name !== "__DYNAMIC_CUSTOM_FIELDS__");
   
-  const decoded = {
+  const statusVal = vendor.status || 'Active';
+
+  const decoded: Vendor = {
     ...vendor,
+    status: statusVal,
     contacts: cleanContacts
   };
 
@@ -607,8 +610,6 @@ export function cleanVendorDbPayload(vendor: any): any {
   const createdByRaw = vendor.created_by;
   const createdBy = createdByRaw === 'import' ? 'import' : (isValidUuid(cleanUserUuid(createdByRaw)) ? cleanUserUuid(createdByRaw) : (createdByRaw || null));
 
-  const isActiveBool = vendor.is_active !== undefined ? !!vendor.is_active : (vendor.status !== 'Closed' && vendor.status !== 'Cancelled');
-
   const vId = vendor.id || generateUuid();
   const rawCompCode = (vendor.company_code || '').toString().trim();
   const rawIdCode = (vendor.id_code || '').toString().trim();
@@ -632,8 +633,7 @@ export function cleanVendorDbPayload(vendor: any): any {
     direction_id: vendor.direction_id || null,
     working_hours: vendor.working_hours || '',
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
-    is_active: isActiveBool,
-    status: vendor.status || (isActiveBool ? 'Active' : 'Closed'),
+    status: vendor.status || 'Active',
     is_deleted: !!vendor.is_deleted,
     created_at: vendor.created_at || new Date().toISOString(),
     created_by: isValidUuid(createdBy) ? createdBy : null,
@@ -652,9 +652,9 @@ export function cleanVendorDbPayload(vendor: any): any {
 
   // Explicitly strip redundant and moved columns from payload
   delete payload.contacts;
+  delete payload.is_active;
   delete payload.last_pickup_date;
   delete payload.average_interval_days;
-  delete payload.status;
 
   // Preserve any custom column fields on the actual DB payload!
   Object.keys(vendor).forEach(key => {

@@ -327,26 +327,46 @@ export default function OrderFormFields({
             />
           </div>
 
-          {/* Status Selector */}
-          <FormSelect
-            label={`${t("Fulfillment Status")} *`}
-            value={editingOrder.status || 'registered'}
-            className="bg-emerald-50 text-emerald-800 font-bold"
-            onChange={(e) => {
-              const statusVal = e.target.value as OrderStatus;
-              setEditingOrder(prev => prev ? {
-                ...prev,
-                status: statusVal,
-                pickup_date_time: statusVal === 'completed' ? new Date().toISOString() : undefined
-              } : null);
-            }}
-          >
-            <option value="registered">{t("Registered")}</option>
-            <option value="driver_assigned">{t("Driver Assigned")}</option>
-            <option value="completed">{t("Completed")}</option>
-            <option value="uncompleted">{t("uncompleted")}</option>
-            <option value="cancelled">{t("cancelled")}</option>
-          </FormSelect>
+          {/* Status Selector and Auto Completion Time */}
+          <div className={`grid ${editingOrder.status === 'completed' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-4`}>
+            <FormSelect
+              label={`${t("Fulfillment Status")} *`}
+              value={editingOrder.status || 'registered'}
+              className="bg-emerald-50 text-emerald-800 font-bold"
+              onChange={(e) => {
+                const statusVal = e.target.value as OrderStatus;
+                setEditingOrder(prev => {
+                  if (!prev) return null;
+                  const isCompletedNow = statusVal === 'completed';
+                  const nowIso = new Date().toISOString();
+                  return {
+                    ...prev,
+                    status: statusVal,
+                    pickup_date_time: isCompletedNow ? (prev.pickup_date_time || nowIso) : undefined,
+                    completed_at: isCompletedNow ? (prev.completed_at || nowIso) : null
+                  };
+                });
+              }}
+            >
+              <option value="registered">{t("Registered")}</option>
+              <option value="driver_assigned">{t("Driver Assigned")}</option>
+              <option value="completed">{t("Completed")}</option>
+              <option value="uncompleted">{t("uncompleted")}</option>
+              <option value="cancelled">{t("cancelled")}</option>
+            </FormSelect>
+
+            {editingOrder.status === 'completed' && (
+              <FormInput
+                label="დასრულების დრო"
+                type="text"
+                readOnly
+                disabled
+                fontClass="font-mono"
+                value={formatDateTime(editingOrder.completed_at || new Date().toISOString())}
+                className="bg-gray-50 text-gray-700 cursor-not-allowed select-none"
+              />
+            )}
+          </div>
         </div>
 
         {/* Dynamic Custom Fields from Columns Manager */}

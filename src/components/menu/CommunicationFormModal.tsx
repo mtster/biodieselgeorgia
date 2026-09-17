@@ -285,6 +285,11 @@ export default function CommunicationFormModal({
       errors.responsible_user_id = t("Responsible user is required");
     }
 
+    // Validate comment: required for non-reminder types (action, task), optional for reminder
+    if (localComm.type !== 'reminder' && !localComm.comment?.trim()) {
+      errors.comment = t("Please enter a comment");
+    }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return null;
@@ -595,16 +600,28 @@ export default function CommunicationFormModal({
         </FormSelect>
 
         <div className="relative">
-          <span className="absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left text-gray-400">
-            {t("Comment")}
+          <span className={`absolute -top-1.5 left-3 px-1 text-[10px] font-bold bg-white select-none z-10 text-left ${fieldErrors.comment ? 'text-red-500' : 'text-gray-400'}`}>
+            {t("Comment")} {localComm.type !== 'reminder' && '*'}
           </span>
           <textarea 
             rows={4}
             placeholder=""
             value={localComm.comment}
-            onChange={(e) => setLocalComm({...localComm, comment: e.target.value})}
-            className="block w-full px-3.5 py-4 md:py-3 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:border-emerald-600 focus:ring-emerald-600 bg-white text-gray-900 font-sans transition-all"
+            onChange={(e) => {
+              setLocalComm({...localComm, comment: e.target.value});
+              if (fieldErrors.comment) {
+                setFieldErrors(prev => ({ ...prev, comment: '' }));
+              }
+            }}
+            className={`block w-full px-3.5 py-4 md:py-3 text-xs border rounded-xl focus:outline-none focus:ring-1 font-sans transition-all bg-white text-gray-900 ${
+              fieldErrors.comment 
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                : 'border-gray-200 focus:border-emerald-600 focus:ring-emerald-600'
+            }`}
           />
+          {fieldErrors.comment && (
+            <p className="text-[10px] text-red-600 mt-1">{fieldErrors.comment}</p>
+          )}
         </div>
       </div>
     </FormModal>

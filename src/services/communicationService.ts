@@ -119,7 +119,7 @@ export async function getCommunicationsPaginated(
       }
       if (filters?.userId) {
         const cleanedId = cleanUserUuid(filters.userId) || filters.userId;
-        query = query.or(`responsible_user_id.eq.${cleanedId},created_by.eq.${cleanedId}`);
+        query = query.or(`responsible_user_id.eq.${cleanedId},and(responsible_user_id.is.null,created_by.eq.${cleanedId})`);
       }
       if (filters?.taskResponsible) {
         const cleanedRespId = cleanUserUuid(filters.taskResponsible) || filters.taskResponsible;
@@ -132,16 +132,19 @@ export async function getCommunicationsPaginated(
           query = query.eq('is_completed', false);
         }
       }
+      const isReminder = filters?.type === 'reminder';
+      const dateColumn = isReminder ? 'reminder_time' : 'created_at';
+
       if (filters?.startDate) {
         const cleanStart = filters.startDate.split('T')[0];
-        query = query.gte('date_time', `${cleanStart}T00:00:00`);
+        query = query.gte(dateColumn, `${cleanStart}T00:00:00`);
       }
       if (filters?.endDate) {
         const cleanEnd = filters.endDate.split('T')[0];
-        query = query.lte('date_time', `${cleanEnd}T23:59:59.999Z`);
+        query = query.lte(dateColumn, `${cleanEnd}T23:59:59.999Z`);
       }
 
-      query = query.order('date_time', { ascending: false }).range(offset, offset + limit - 1);
+      query = query.order(dateColumn, { ascending: false, nullsFirst: false }).range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
 
@@ -239,7 +242,10 @@ export async function getCommunicationsPaginated(
     filtered = filtered.filter(c => c.vendor_id === filters.vendorId);
   }
   if (filters?.userId) {
-    filtered = filtered.filter(c => c.user_id === filters.userId || c.responsible_user_id === filters.userId || c.created_by === filters.userId);
+    filtered = filtered.filter(c => {
+      const resp = c.responsible_user_id || c.user_id || c.created_by;
+      return resp === filters.userId;
+    });
   }
   if (filters?.taskResponsible) {
     filtered = filtered.filter(c => c.responsible_user_id === filters.taskResponsible || c.user_id === filters.taskResponsible);
@@ -251,19 +257,22 @@ export async function getCommunicationsPaginated(
       filtered = filtered.filter(c => !c.is_completed && c.task_status !== 'completed');
     }
   }
+  const isReminder = filters?.type === 'reminder';
   if (filters?.startDate) {
     const sDate = filters.startDate.split('T')[0];
     filtered = filtered.filter(c => {
-      if (!c.date_time) return false;
-      const d = c.date_time.split('T')[0].split(' ')[0];
+      const dateVal = isReminder ? c.reminder_time : (c.created_at || c.date_time);
+      if (!dateVal) return false;
+      const d = dateVal.split('T')[0].split(' ')[0];
       return d >= sDate;
     });
   }
   if (filters?.endDate) {
     const eDate = filters.endDate.split('T')[0];
     filtered = filtered.filter(c => {
-      if (!c.date_time) return false;
-      const d = c.date_time.split('T')[0].split(' ')[0];
+      const dateVal = isReminder ? c.reminder_time : (c.created_at || c.date_time);
+      if (!dateVal) return false;
+      const d = dateVal.split('T')[0].split(' ')[0];
       return d <= eDate;
     });
   }

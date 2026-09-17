@@ -822,7 +822,6 @@ export default function VendorImportModal({
             working_hours: '10:00 - 19:00',
             status: 'Active',
             barrels_amount: 0,
-            is_active: true,
             is_deleted: false,
             created_by: 'import',
             email: row.email || '',

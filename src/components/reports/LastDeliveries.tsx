@@ -106,8 +106,8 @@ export default function LastDeliveries({
 
         if (isCancelled) return;
 
-        // 3. Strictly active suppliers only (is_active !== false and not deleted)
-        const activeSuppliers = (suppliers || []).filter(s => s && !s.is_deleted && s.is_active !== false);
+        // 3. Strictly active suppliers only (not closed/cancelled and not deleted)
+        const activeSuppliers = (suppliers || []).filter(s => s && !s.is_deleted && s.status !== 'Closed' && s.status !== 'Cancelled');
         const calculated: OverdueVendorRow[] = [];
 
         for (const s of activeSuppliers) {

@@ -306,11 +306,6 @@ export default function CommunicationsView({
   };
 
   const handleSaveAll = (payload: Communication) => {
-    if (!payload.comment.trim()) {
-      alert(t('Please enter a comment'));
-      return;
-    }
-
     const cleanVId = payload.vendor_id ? String(payload.vendor_id).trim().toLowerCase() : '';
     const cleanUId = payload.user_id ? String(payload.user_id).trim().toLowerCase() : '';
     const cleanRId = payload.responsible_user_id ? String(payload.responsible_user_id).trim().toLowerCase() : '';
@@ -336,6 +331,15 @@ export default function CommunicationsView({
     onSave(final);
     setEditingComm(null);
   };
+
+  const managerOptions = useMemo(() => {
+    const allowedRoles = ['admin', 'super_admin', 'purchasing_head', 'purchasing_manager', 'operator'];
+    return employees.filter(e => {
+      if (e.is_deleted) return false;
+      const role = (e.role || '').toLowerCase().trim();
+      return allowedRoles.includes(role);
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ka'));
+  }, [employees]);
 
   const uniqueUsers = Array.from(
     new Map(
@@ -367,10 +371,8 @@ export default function CommunicationsView({
     }
 
     if (userFilter) {
-      const matchDb = comm.user_id === userFilter;
-      const empObj = employees.find(e => e.id === comm.user_id);
-      const matchResolved = empObj && empObj.id === userFilter;
-      if (!matchDb && !matchResolved) return false;
+      const resp = comm.responsible_user_id || comm.user_id || comm.created_by;
+      if (resp !== userFilter) return false;
     }
 
     if (startDate) {
@@ -539,10 +541,10 @@ export default function CommunicationsView({
           </>
         )}
 
-        {/* User Filter */}
+        {/* Manager Filter */}
         <div className="relative w-full md:w-auto min-w-[140px]">
           <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-            {t("User")}
+            {t("Manager") || "მენეჯერი"}
           </span>
           <select
             value={userFilter}
@@ -552,8 +554,8 @@ export default function CommunicationsView({
             }}
             className="block w-full py-2 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans h-[38px]"
           >
-            <option value="">{t("All Users")}</option>
-            {uniqueUsers.map((u) => (
+            <option value="">{t("All Managers") || "ყველა მენეჯერი"}</option>
+            {managerOptions.map((u) => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
           </select>

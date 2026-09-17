@@ -124,13 +124,13 @@ export default function OrdersView({
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
 
   const salesManagers = useMemo(() => {
+    const allowedRoles = ['admin', 'super_admin', 'purchasing_head', 'purchasing_manager', 'operator'];
     return employees.filter(e => {
-      const role = (e.role || '').toLowerCase();
-      const isCandidate = role.includes('manager') || role.includes('sales') || role.includes('შესყიდვ') || role.includes('ადმინ') || role === 'admin' || role === 'super_admin';
-      const isAssigned = suppliers.some(s => s.manager_id === e.id);
-      return isCandidate || isAssigned;
-    }).sort((a, b) => a.name.localeCompare(b.name, 'ka'));
-  }, [employees, suppliers]);
+      if (e.is_deleted) return false;
+      const role = (e.role || '').toLowerCase().trim();
+      return allowedRoles.includes(role);
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ka'));
+  }, [employees]);
 
   // Bulk-delete selection states
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -644,10 +644,10 @@ export default function OrdersView({
                 </div>
               </div>
 
-              {/* Sales Manager Filter */}
+              {/* Manager Filter */}
               <div className="relative w-full md:w-auto min-w-[150px]">
                 <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                  გაყიდვების მენეჯერი
+                  {t("Manager") || "მენეჯერი"}
                 </span>
                 <select
                   value={selectedManager}

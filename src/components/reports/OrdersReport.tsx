@@ -4,7 +4,7 @@ import { Vendor, Order, User, City, District, Warehouse, Truck, VendorContact } 
 import PageHeader from '../PageHeader';
 import CentralSearchBar, { SearchSuggestionItem } from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
-import { t, formatDate } from '../../utils/lang';
+import { t, formatDate, formatPhone } from '../../utils/lang';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getVendorsPaginated, getVendorContacts } from '../../services/vendorService';
 
@@ -785,7 +785,7 @@ export default function OrdersReport({
                       {contact ? (
                         <div>
                           {contact.name && <div className="font-semibold text-gray-900 text-xs truncate" title={contact.name}>{contact.name}</div>}
-                          {contact.phone && <div className="text-[11px] text-gray-500 font-mono mt-0.5 truncate">{contact.phone}</div>}
+                          {contact.phone && <div className="text-[11px] text-gray-500 font-mono mt-0.5 truncate">{formatPhone(contact.phone)}</div>}
                         </div>
                       ) : (
                         <span className="text-gray-300 font-mono text-xs">-</span>
