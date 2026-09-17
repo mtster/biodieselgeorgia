@@ -908,3 +908,31 @@ export function formatDateTime(dateString: string | Date | undefined | null): st
   const minutes = String(d.getMinutes()).padStart(2, '0');
   return `${day}/${month}/${year} - ${hours}:${minutes}`;
 }
+
+export function formatOrderCompletionTime(dateString: string | Date | undefined | null): string {
+  if (!dateString) return '-';
+
+  if (typeof dateString === 'string') {
+    const trimmed = dateString.trim();
+    if (!trimmed) return '-';
+
+    // If string has date only, or time component is all zeros (e.g. 2026-09-17 00:00:00+00, 2026-09-17T00:00:00.000Z, 2026-09-17)
+    const dateOnlyMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]00:00(?:[:.]00(?:[.]\d+)?)?(?:\+00(?::00)?|Z|[+-]\d{2}(?::\d{2})?)?)?$/);
+    if (dateOnlyMatch) {
+      const year = dateOnlyMatch[1];
+      const month = dateOnlyMatch[2].padStart(2, '0');
+      const day = dateOnlyMatch[3].padStart(2, '0');
+      return `${day}/${month}/${year}`;
+    }
+
+    const ddMmMatch = trimmed.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (ddMmMatch) {
+      const day = ddMmMatch[1].padStart(2, '0');
+      const month = ddMmMatch[2].padStart(2, '0');
+      const year = ddMmMatch[3];
+      return `${day}/${month}/${year}`;
+    }
+  }
+
+  return formatDateTime(dateString);
+}

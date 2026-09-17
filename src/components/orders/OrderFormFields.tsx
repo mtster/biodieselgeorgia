@@ -7,7 +7,7 @@ import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
 import DynamicCustomFields from '../DynamicCustomFields';
 import OrderCommentsSection from './OrderCommentsSection';
 import OrderCommentModal from './OrderCommentModal';
-import { t, formatDateTime, formatPhone } from '../../utils/lang';
+import { t, formatDateTime, formatPhone, formatOrderCompletionTime } from '../../utils/lang';
 import { getVendorContacts } from '../../services/vendorService';
 
 interface OrderFormFieldsProps {
@@ -362,7 +362,7 @@ export default function OrderFormFields({
                 readOnly
                 disabled
                 fontClass="font-mono"
-                value={formatDateTime(editingOrder.completed_at || new Date().toISOString())}
+                value={formatOrderCompletionTime(editingOrder.completed_at || new Date().toISOString())}
                 className="bg-gray-50 text-gray-700 cursor-not-allowed select-none"
               />
             )}
