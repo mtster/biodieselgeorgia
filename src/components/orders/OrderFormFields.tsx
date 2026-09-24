@@ -138,7 +138,9 @@ export default function OrderFormFields({
   return (
     <div className="space-y-6 text-left">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">{t("Core Transaction Details")}</span>
+        <div className="border-b border-gray-100 pb-2 flex items-center justify-between">
+          <span className="text-xs font-black uppercase text-gray-400 tracking-wider block font-sans">{t("Core Transaction Details")}</span>
+        </div>
         
         {/* Supplier Autocomplete Input - Notch styling */}
         <SupplierAutocomplete 

@@ -66,7 +66,10 @@ export async function getVendorContacts(vendorId?: string): Promise<VendorContac
           .from('vendor_contacts')
           .select('*')
           .eq('is_deleted', false)
-          .eq('vendor_id', vendorId);
+          .eq('vendor_id', vendorId)
+          .order('is_default', { ascending: false })
+          .order('sort_order', { ascending: false })
+          .order('id', { ascending: false });
         if (!error && data) {
           return (data as any[]).sort((a, b) => {
             if (a.is_default && !b.is_default) return -1;
@@ -126,9 +129,95 @@ export async function getVendorContacts(vendorId?: string): Promise<VendorContac
   });
 }
 
+export interface PaginatedVendorContactsResult {
+  contacts: VendorContact[];
+  totalCount: number;
+}
+
+// Fetch paginated contacts for a specific vendor from vendor_contacts table
+export async function getVendorContactsPaginated(
+  vendorId: string,
+  limit: number = 4,
+  offset: number = 0
+): Promise<PaginatedVendorContactsResult> {
+  if (!vendorId) {
+    return { contacts: [], totalCount: 0 };
+  }
+
+  const countCacheKey = `count_vendor_contacts_${vendorId}`;
+  const pageCacheKey = `vendor_contacts_${vendorId}_limit_${limit}_offset_${offset}`;
+
+  const cachedPage = appCache.get<PaginatedVendorContactsResult>(pageCacheKey);
+  if (cachedPage) {
+    return cachedPage;
+  }
+
+  const cachedCount = appCache.get<number>(countCacheKey);
+  if (cachedCount !== null && offset >= cachedCount && cachedCount > 0) {
+    return { contacts: [], totalCount: cachedCount };
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let query = supabase
+        .from('vendor_contacts')
+        .select('*', cachedCount !== null ? {} : { count: 'exact' })
+        .eq('is_deleted', false)
+        .eq('vendor_id', vendorId)
+        .order('is_default', { ascending: false })
+        .order('sort_order', { ascending: false })
+        .order('id', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      const { data, count, error } = await query;
+
+      if (!error && data) {
+        const finalCount = cachedCount !== null ? cachedCount : (count || 0);
+        if (cachedCount === null && count !== null) {
+          appCache.set(countCacheKey, count);
+        }
+
+        const sorted = (data as any[]).sort((a, b) => {
+          if (a.is_default && !b.is_default) return -1;
+          if (!a.is_default && b.is_default) return 1;
+          return (b.sort_order || 0) - (a.sort_order || 0);
+        });
+
+        const result: PaginatedVendorContactsResult = {
+          contacts: sorted,
+          totalCount: finalCount
+        };
+
+        appCache.set(pageCacheKey, result);
+        return result;
+      }
+    } catch (e) {
+      console.warn('Supabase getVendorContactsPaginated failed', e);
+    }
+  }
+
+  // Local fallback
+  const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
+  const filtered = allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted);
+  const sorted = filtered.sort((a, b) => {
+    if (a.is_default && !b.is_default) return -1;
+    if (!a.is_default && b.is_default) return 1;
+    return (b.sort_order || 0) - (a.sort_order || 0);
+  });
+
+  const sliced = sorted.slice(offset, offset + limit);
+  const result: PaginatedVendorContactsResult = {
+    contacts: sliced,
+    totalCount: sorted.length
+  };
+  return result;
+}
+
 // Save/update all contacts for a specific vendor
 export async function saveVendorContacts(vendorId: string, contacts: VendorContact[], currentUserId?: string): Promise<void> {
   appCache.clear('contacts_');
+  appCache.clear('vendor_contacts_');
+  appCache.clear('count_vendor_contacts_');
   if (isSupabaseConfigured && supabase) {
     try {
       // Find contacts currently in DB to detect which ones were deleted

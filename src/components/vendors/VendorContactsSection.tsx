@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { t, formatContactPhone } from '../../utils/lang';
 import { VendorContact } from '../../types';
 import AddButton from '../AddButton';
-import { Plus, Phone, Star, Pencil, GripVertical } from 'lucide-react';
+import { Plus, Phone, Star, Pencil, GripVertical, Loader2 } from 'lucide-react';
 
 interface VendorContactsSectionProps {
   contacts: VendorContact[];
@@ -11,6 +11,10 @@ interface VendorContactsSectionProps {
   onTogglePrimaryContact: (id: string) => void;
   onReorderContacts: (startIndex: number, endIndex: number) => void;
   error?: string;
+  totalCount?: number;
+  isLoading?: boolean;
+  isLoadingMore?: boolean;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 export default function VendorContactsSection({
@@ -19,7 +23,11 @@ export default function VendorContactsSection({
   onModifyContact,
   onTogglePrimaryContact,
   onReorderContacts,
-  error
+  error,
+  totalCount,
+  isLoading = false,
+  isLoadingMore = false,
+  onScroll
 }: VendorContactsSectionProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -55,9 +63,16 @@ export default function VendorContactsSection({
     <div className={`bg-white p-5 border ${error ? 'border-red-500' : 'border-gray-100'} rounded-2xl flex flex-col justify-between`} id="vendor-extra-contacts">
       <div>
         <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-4">
-          <span className="text-xs font-bold uppercase text-gray-500 tracking-wider font-sans">
-            {t("Contacts")}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase text-gray-500 tracking-wider font-sans">
+              {t("Contacts")}
+            </span>
+            {totalCount !== undefined && totalCount > 0 && (
+              <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                {totalCount}
+              </span>
+            )}
+          </div>
           <AddButton
             label="Add Contact"
             onClick={onAddContact}
@@ -68,8 +83,19 @@ export default function VendorContactsSection({
           <p className="text-[10px] text-red-600 font-bold mb-3 px-1">{error}</p>
         )}
 
-        <div className="space-y-2 max-h-[224px] overflow-y-auto pr-1">
-          {contacts.map((c, index) => {
+        <div 
+          className="space-y-2 max-h-[224px] overflow-y-auto pr-1"
+          onScroll={onScroll}
+        >
+          {isLoading && contacts.length === 0 ? (
+            <div className="py-8 text-center text-xs text-gray-500 font-sans font-semibold">
+              <div className="flex items-center justify-center gap-2 text-emerald-800">
+                <Loader2 className="animate-spin text-emerald-700" size={14} />
+                <span>{t("Loading data...")}</span>
+              </div>
+            </div>
+          ) : (
+            contacts.map((c, index) => {
             const isDraggable = !c.is_default;
             const isInactive = c.is_active === false;
             return (
@@ -134,9 +160,19 @@ export default function VendorContactsSection({
                 </div>
               </div>
             );
-          })}
+          })
+          )}
 
-          {contacts.length === 0 && !error && (
+          {isLoadingMore && (
+            <div className="py-2 text-center">
+              <div className="inline-flex items-center justify-center gap-1.5 text-[11px] text-emerald-800 font-semibold font-sans">
+                <Loader2 className="animate-spin text-emerald-700" size={13} />
+                <span>{t("Loading more...")}</span>
+              </div>
+            </div>
+          )}
+
+          {contacts.length === 0 && !isLoading && !error && (
             <div className="text-center py-10 text-gray-400 text-xs italic font-sans">
               {t("No contacts recorded.")}
             </div>

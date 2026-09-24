@@ -277,7 +277,7 @@ export default function OrderForm({
     <div className="animate-in fade-in duration-200 flex flex-col xl:flex-row items-start gap-6 text-left w-full" id="orders-form-panel">
       {/* Primary Form Container */}
       <div className="w-full max-w-2xl flex-shrink-0">
-        <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
+        <fieldset disabled={isReadOnly} className="border-0 p-0 m-0 min-w-0 w-full block disabled:opacity-95">
           <OrderFormFields
             editingOrder={editingOrder}
             setEditingOrder={setEditingOrder}
@@ -298,7 +298,7 @@ export default function OrderForm({
 
       {/* Supplier Comments & Communications Side Wrapper - appears when supplier is selected */}
       {selectedSupplier && (
-        <div className="w-full min-w-0 max-w-2xl xl:max-w-none xl:flex-1 xl:min-w-[300px] 2xl:max-w-xl xl:sticky xl:top-6 space-y-4">
+        <div className="w-full min-w-0 max-w-2xl xl:max-w-none xl:flex-1 xl:min-w-[300px] 2xl:max-w-xl xl:sticky xl:top-24 self-start space-y-4 max-h-[calc(100vh-7rem)] overflow-y-auto pr-0.5 pt-0 mt-0">
           <SupplierCommentsSidePanel
             supplier={selectedSupplier}
             orderNotes={editingOrder.notes || []}

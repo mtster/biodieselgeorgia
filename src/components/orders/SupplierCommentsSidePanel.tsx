@@ -21,12 +21,12 @@ export default function SupplierCommentsSidePanel({
 
   return (
     <div 
-      className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4 shadow-xs w-full max-w-full overflow-hidden animate-in fade-in slide-in-from-right-3 duration-200"
+      className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4 shadow-xs w-full max-w-full overflow-hidden animate-in fade-in duration-150"
       id="order-supplier-comments-panel"
     >
       {/* Header matching Core Transaction Details style and size exactly */}
       <div className="border-b border-gray-100 pb-2 flex items-center justify-between">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block">
+        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block font-sans">
           {t("Supplier Comments")}
         </span>
         {comments.length > 0 && (

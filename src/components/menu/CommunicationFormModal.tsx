@@ -4,7 +4,7 @@ import FormModal from '../FormModal';
 import { FormInput, FormSelect } from '../FormInput';
 import { t } from '../../utils/lang';
 import { useDebounce } from '../../hooks/useDebounce';
-import { getVendorsPaginated, getVendorById, getVendorContacts, saveVendorContacts, generateUuid } from '../../services/vendorService';
+import { getVendorsPaginated, getVendorById, getVendorContacts, getVendorContactsPaginated, saveVendorContacts, generateUuid } from '../../services/vendorService';
 import { saveCommunication, deleteCommunication } from '../../services/communicationService';
 import VendorContactsSection from '../vendors/VendorContactsSection';
 import VendorContactModal from '../vendors/VendorContactModal';
@@ -91,38 +91,89 @@ export default function CommunicationFormModal({
   const selectedAddress = matchedVendor?.address || '';
   const currentVendorId = localComm?.vendor_id || matchedVendor?.id || '';
 
-  // Contacts state & modal
+  // Contacts pagination state & modal
+  const INITIAL_CONTACTS_SIZE = 4;
+  const SCROLL_CONTACTS_SIZE = 3;
+
   const [contacts, setContacts] = useState<VendorContact[]>([]);
+  const [contactsOffset, setContactsOffset] = useState(0);
+  const [hasMoreContacts, setHasMoreContacts] = useState(false);
+  const [totalContactsCount, setTotalContactsCount] = useState(0);
+  const [isContactsLoading, setIsContactsLoading] = useState(false);
+  const [isContactsLoadingMore, setIsContactsLoadingMore] = useState(false);
+
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [activeContact, setActiveContact] = useState<VendorContact | null>(null);
   const [isDeleteContactOpen, setIsDeleteContactOpen] = useState(false);
   const [contactToDeleteId, setContactToDeleteId] = useState<string | null>(null);
 
+  // Initial fetch of top 4 contacts according to indexing strategy
   useEffect(() => {
     let isMounted = true;
     if (!currentVendorId) {
       setContacts([]);
+      setContactsOffset(0);
+      setHasMoreContacts(false);
+      setTotalContactsCount(0);
+      setIsContactsLoading(false);
       return;
     }
 
-    if (matchedVendor?.contacts && matchedVendor.contacts.length > 0) {
-      setContacts(matchedVendor.contacts);
-    }
-
-    getVendorContacts(currentVendorId)
+    setIsContactsLoading(true);
+    getVendorContactsPaginated(currentVendorId, INITIAL_CONTACTS_SIZE, 0)
       .then(res => {
-        if (isMounted && res) {
-          setContacts(res);
-        }
+        if (!isMounted) return;
+        const fetched = res.contacts || [];
+        setContacts(fetched);
+        setContactsOffset(fetched.length);
+        const total = res.totalCount || 0;
+        setTotalContactsCount(total);
+        setHasMoreContacts(fetched.length < total);
       })
       .catch(err => {
         console.warn('Failed to load contacts for communication modal:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsContactsLoading(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [currentVendorId, matchedVendor?.contacts]);
+  }, [currentVendorId]);
+
+  // Load next batch of 3 contacts on scrolldown
+  const handleLoadMoreContacts = async () => {
+    if (isContactsLoadingMore || !hasMoreContacts || !currentVendorId) return;
+    setIsContactsLoadingMore(true);
+    try {
+      const res = await getVendorContactsPaginated(currentVendorId, SCROLL_CONTACTS_SIZE, contactsOffset);
+      const newItems = res.contacts || [];
+      setContacts(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const toAdd = newItems.filter(c => !existingIds.has(c.id));
+        return [...prev, ...toAdd];
+      });
+      const newOffset = contactsOffset + newItems.length;
+      setContactsOffset(newOffset);
+      const total = res.totalCount || totalContactsCount;
+      setTotalContactsCount(total);
+      setHasMoreContacts(newOffset < total && newItems.length > 0);
+    } catch (err) {
+      console.warn('Failed to load more contacts on scroll:', err);
+    } finally {
+      setIsContactsLoadingMore(false);
+    }
+  };
+
+  const handleContactsScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
+      if (hasMoreContacts && !isContactsLoadingMore && !isContactsLoading) {
+        handleLoadMoreContacts();
+      }
+    }
+  };
 
   const handleAddContact = () => {
     if (!currentVendorId) {
@@ -180,6 +231,7 @@ export default function CommunicationFormModal({
         sort_order: contacts.length + 1
       };
       updatedList = [...contacts, newContact];
+      setTotalContactsCount(prev => prev + 1);
     }
     setContacts(updatedList);
     try {
@@ -201,6 +253,7 @@ export default function CommunicationFormModal({
     if (!contactToDeleteId || !currentVendorId) return;
     const updatedList = contacts.filter(c => c.id !== contactToDeleteId);
     setContacts(updatedList);
+    setTotalContactsCount(prev => Math.max(0, prev - 1));
     try {
       await saveVendorContacts(currentVendorId, updatedList, currentUser?.id || employees[0]?.id);
     } catch (err) {
@@ -782,6 +835,10 @@ export default function CommunicationFormModal({
           {/* Contacts Section - exact same as in suppliers form */}
           <VendorContactsSection
             contacts={contacts}
+            totalCount={totalContactsCount}
+            isLoading={isContactsLoading}
+            isLoadingMore={isContactsLoadingMore}
+            onScroll={handleContactsScroll}
             onAddContact={handleAddContact}
             onModifyContact={handleModifyContact}
             onTogglePrimaryContact={handleTogglePrimaryContact}
