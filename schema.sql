@@ -158,11 +158,11 @@ ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
 -- Standardize and map legacy roles to clean, standard roles
 UPDATE public.profiles SET role = 'purchasing_head' WHERE role = 'manager';
-UPDATE public.profiles SET role = 'operator' WHERE role NOT IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver');
+UPDATE public.profiles SET role = 'operator' WHERE role NOT IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver', 'driver_assistant');
 
 -- Enforce check constraint to only allow standardized role names
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS check_valid_role;
-ALTER TABLE public.profiles ADD CONSTRAINT check_valid_role CHECK (role IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver'));
+ALTER TABLE public.profiles ADD CONSTRAINT check_valid_role CHECK (role IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver', 'driver_assistant'));
 
 -- 5. Vehicles
 CREATE TABLE IF NOT EXISTS public.vehicles (

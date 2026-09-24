@@ -327,6 +327,7 @@ export default function LookupsView({
                       e.role === 'logistics_manager' ? t('Logistics Manager') :
                       e.role === 'purchasing_manager' ? t('Purchasing Manager') :
                       e.role === 'driver' ? t('Logistics/Driver') :
+                      e.role === 'driver_assistant' ? t('Driver Assistant') :
                       e.role === 'operator' ? t('Operator') : e.role;
                     return (
                       <option key={e.id} value={e.id}>{e.name} ({translatedRole})</option>

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type UserRole = 'admin' | 'manager' | 'driver' | 'operator' | 'logistics_manager' | 'purchasing_manager' | 'purchasing_head' | 'vendor';
+export type UserRole = 'admin' | 'manager' | 'driver' | 'operator' | 'logistics_manager' | 'purchasing_manager' | 'purchasing_head' | 'vendor' | 'driver_assistant';
 
 export interface PermissionsConfig {
   [page: string]: string[];
@@ -170,6 +170,7 @@ export interface Truck {
   direction_id?: string;      // მიმართულება
   auth_user_id?: string;      // Vehicle Auth User ID
   password?: string;          // Password for vehicle account
+  original_plate_number?: string; // Original plate when editing
 }
 
 export type Vehicle = Truck;

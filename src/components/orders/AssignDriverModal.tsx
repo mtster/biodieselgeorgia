@@ -159,6 +159,7 @@ export default function AssignDriverModal({
               c.role === 'logistics_manager' ? t('Logistics Manager') :
               c.role === 'purchasing_manager' ? t('Purchasing Manager') :
               c.role === 'driver' ? t('Logistics/Driver') :
+              c.role === 'driver_assistant' ? t('Driver Assistant') :
               c.role === 'operator' ? t('Operator') : c.role;
             return (
               <option key={c.id} value={c.id}>

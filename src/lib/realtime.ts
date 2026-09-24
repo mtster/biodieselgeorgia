@@ -126,7 +126,7 @@ export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DEL
 export function hasModuleViewPermission(currentUser: User | null, moduleName: string): boolean {
   if (!currentUser) return false;
   if (currentUser.role === 'admin') return true;
-  if (currentUser.role === 'driver') {
+  if (currentUser.role === 'driver' || currentUser.role === 'driver_assistant') {
     return moduleName === 'orders' || moduleName === 'logistics' || moduleName === 'directions';
   }
   if (currentUser.role === 'vendor') {

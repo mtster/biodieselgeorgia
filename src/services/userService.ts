@@ -120,8 +120,16 @@ export function decodeProfile(p: any): User {
     perms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
   }
 
+  let email = p.email || '';
+  if (email.includes('@internal.driver') || email.includes('@internal.app')) {
+    email = '';
+  } else if ((role === 'driver' || role === 'driver_assistant') && p.personal_id && email.startsWith(p.personal_id) && (email.endsWith('@company.ge') || email.endsWith('@biodiesel.ge'))) {
+    email = '';
+  }
+
   return {
     ...p,
+    email,
     role,
     permissions: perms || {},
     warehouse_id: p.warehouse_id || undefined,
@@ -156,7 +164,12 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
         let createdOnExpress = false;
 
         const cleanPersonalId = (user.personal_id && user.personal_id.trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
-        const cleanEmail = (user.email && user.email.trim()) || `${cleanPersonalId}@company.ge`;
+        const hasEmail = Boolean(user.email && user.email.trim());
+        let cleanEmail = hasEmail ? user.email.trim() : '';
+        if (cleanEmail && !cleanEmail.includes('@')) {
+          cleanEmail = `${cleanEmail}@biodiesel.ge`;
+        }
+        const authFallbackEmail = cleanEmail || `${cleanPersonalId}@internal.driver`;
         const cleanPassword = (user.password && user.password.trim()) || 'Georgia2026!';
         const cleanPhone = (user.phone && user.phone.trim()) || '+995 599 00 00 00';
         const cleanName = (user.name && user.name.trim()) || 'New User';
@@ -165,6 +178,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           ...user,
           name: cleanName,
           email: cleanEmail,
+          auth_email: authFallbackEmail,
           password: cleanPassword,
           personal_id: cleanPersonalId,
           phone: cleanPhone,
@@ -220,7 +234,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             },
             body: JSON.stringify({
               action: 'create',
-              email: userToCreate.email,
+              email: userToCreate.email || userToCreate.auth_email,
               password: userToCreate.password,
               name: userToCreate.name,
               personal_id: userToCreate.personal_id,

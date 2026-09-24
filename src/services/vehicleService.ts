@@ -47,9 +47,18 @@ export async function getVehicles(): Promise<Vehicle[]> {
   return getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
 }
 
-export async function saveVehicle(vehicle: Vehicle & { password?: string }, loggerName: string, currentUserId?: string): Promise<Vehicle> {
+export async function saveVehicle(vehicle: Vehicle & { password?: string; original_plate_number?: string }, loggerName: string, currentUserId?: string): Promise<Vehicle> {
   const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
-  const exists = list.some(t => t.plate_number === vehicle.plate_number);
+  const isValidUuid = (val: string | null | undefined): boolean => {
+    if (!val) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+  };
+
+  const existsIndex = list.findIndex(t => 
+    (isValidUuid(vehicle.id) && t.id === vehicle.id) ||
+    (vehicle.original_plate_number && t.plate_number === vehicle.original_plate_number) ||
+    t.plate_number === vehicle.plate_number
+  );
 
   let authUserId = vehicle.auth_user_id;
 
@@ -83,11 +92,6 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
     }
 
     try {
-      const isValidUuid = (val: string | null | undefined): boolean => {
-        if (!val) return false;
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-      };
-
       const cleanUserUuid = (val: string | null | undefined): string | null => {
         if (!val) return null;
         if (val === 'user-admin') return '00000000-0000-4000-a000-000000000000';
@@ -116,36 +120,54 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
       };
 
       let success = false;
-      // 1. Try full payload
-      const { error } = await supabase.from('vehicles').upsert([dbPayload], { onConflict: isValidUuid(dbPayload.id) ? 'id' : 'plate_number' });
-      if (!error) {
-        success = true;
-      } else {
-        // 2. If schema cache misses optional columns (created_by, warehouse_id, direction_id), strip created_by & fallback warehouse_id into city
-        const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
-        const fallbackPayload: any = {
-          plate_number: vehicle.plate_number,
-          model: vehicle.model,
-          driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
-          companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
-          city: fallbackCity,
-          direction_id: vehicle.direction_id || null
-        };
 
-        const { error: fbErr } = await supabase.from('vehicles').upsert([fallbackPayload], { onConflict: 'plate_number' });
-        if (!fbErr) {
+      // 1. If we have an existing record ID, perform an UPDATE by ID
+      if (isValidUuid(vehicle.id)) {
+        const { error: updateErr } = await supabase.from('vehicles').update(dbPayload).eq('id', vehicle.id);
+        if (!updateErr) {
+          success = true;
+        }
+      }
+
+      // 2. If ID update was not possible but we have original_plate_number, update by original plate
+      if (!success && vehicle.original_plate_number) {
+        const { error: plateUpdateErr } = await supabase.from('vehicles').update(dbPayload).eq('plate_number', vehicle.original_plate_number);
+        if (!plateUpdateErr) {
+          success = true;
+        }
+      }
+
+      // 3. Fallback upsert / insert
+      if (!success) {
+        const { error } = await supabase.from('vehicles').upsert([dbPayload], { onConflict: isValidUuid(dbPayload.id) ? 'id' : 'plate_number' });
+        if (!error) {
           success = true;
         } else {
-          // 3. Minimal payload on vehicles
-          const minPayload = {
+          // Schema fallback if optional columns missing
+          const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
+          const fallbackPayload: any = {
             plate_number: vehicle.plate_number,
             model: vehicle.model,
             driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
             companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
-            city: vehicle.city || null
+            city: fallbackCity,
+            direction_id: vehicle.direction_id || null
           };
-          const { error: minErr } = await supabase.from('vehicles').upsert([minPayload], { onConflict: 'plate_number' });
-          if (!minErr) success = true;
+
+          const { error: fbErr } = await supabase.from('vehicles').upsert([fallbackPayload], { onConflict: 'plate_number' });
+          if (!fbErr) {
+            success = true;
+          } else {
+            const minPayload = {
+              plate_number: vehicle.plate_number,
+              model: vehicle.model,
+              driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
+              companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
+              city: vehicle.city || null
+            };
+            const { error: minErr } = await supabase.from('vehicles').upsert([minPayload], { onConflict: 'plate_number' });
+            if (!minErr) success = true;
+          }
         }
       }
 
@@ -171,14 +193,17 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string }, logg
     }
   }
 
-  if (!exists) {
+  if (existsIndex >= 0) {
+    const updatedList = [...list];
+    const prev = updatedList[existsIndex];
+    updatedList[existsIndex] = { ...prev, ...vehicle, id: prev.id || vehicle.id };
+    setLocal(KEY_VEHICLES, updatedList);
+    await trackChange(loggerName, 'Vehicle updated', 'Model', prev.model || '', vehicle.model);
+    notifyDbChange('vehicles', 'UPDATE', vehicle.plate_number);
+  } else {
     setLocal(KEY_VEHICLES, [...list, vehicle]);
     await trackChange(loggerName, 'Vehicle added', 'Plate Number', '', vehicle.plate_number);
     notifyDbChange('vehicles', 'CREATE', vehicle.plate_number);
-  } else {
-    setLocal(KEY_VEHICLES, list.map(item => item.plate_number === vehicle.plate_number ? vehicle : item));
-    await trackChange(loggerName, 'Vehicle updated', 'Model', '', vehicle.model);
-    notifyDbChange('vehicles', 'UPDATE', vehicle.plate_number);
   }
   return decodeVehicle(vehicle);
 }

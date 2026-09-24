@@ -300,6 +300,8 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Purchasing Manager": "შესყიდვების მენეჯერი",
   "Logistics Manager": "ლოჯისტიკის მენეჯერი",
   "Logistics/Driver": "ლოჯისტი/მძღოლი",
+  "Driver Assistant": "მძღოლის დამხმარე",
+  "driver_assistant": "მძღოლის დამხმარე",
   "Email Address *": "ელ.ფოსტა *",
   "Short Note (e.g. call instructions)": "მოკლე ჩანაწერი (მაგ: ზარის ინსტრუქცია)",
   "Please fill in contact name and phone number": "გთხოვთ შეავსოთ საკონტაქტო პირის სახელი და ტელეფონის ნომერი",

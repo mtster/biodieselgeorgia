@@ -22,7 +22,7 @@ export function usePaginatedHistory(
   },
   currentUser: User | null
 ) {
-  const isAllowed = hasModuleViewPermission(currentUser, 'history') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
+  const isAllowed = hasModuleViewPermission(currentUser, 'history') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
   const filterKey = JSON.stringify(filters);
 
   const query = useQuery({
@@ -55,7 +55,7 @@ export function usePaginatedVendors(
   filters: any,
   currentUser: User | null
 ) {
-  const isAllowed = hasModuleViewPermission(currentUser, 'suppliers') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
+  const isAllowed = hasModuleViewPermission(currentUser, 'suppliers') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
   const filterKey = JSON.stringify(filters);
 
   const query = useQuery({
@@ -79,7 +79,7 @@ export function usePaginatedOrders(
   filters: any,
   currentUser: User | null
 ) {
-  const isAllowed = hasModuleViewPermission(currentUser, 'orders') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
+  const isAllowed = hasModuleViewPermission(currentUser, 'orders') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
   const filterKey = JSON.stringify(filters);
 
   const query = useQuery({
@@ -103,7 +103,7 @@ export function usePaginatedCommunications(
   filters: any,
   currentUser: User | null
 ) {
-  const isAllowed = hasModuleViewPermission(currentUser, 'communications') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
+  const isAllowed = hasModuleViewPermission(currentUser, 'communications') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
   const filterKey = JSON.stringify(filters);
 
   const query = useQuery({
@@ -127,7 +127,7 @@ export function usePaginatedContacts(
   searchTerm: string,
   currentUser: User | null
 ) {
-  const isAllowed = hasModuleViewPermission(currentUser, 'contacts') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
+  const isAllowed = hasModuleViewPermission(currentUser, 'contacts') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
 
   const query = useQuery({
     queryKey: ['contacts', page, searchTerm],
@@ -150,7 +150,7 @@ export function usePaginatedUsers(
   searchTerm: string,
   currentUser: User | null
 ) {
-  const isAllowed = hasModuleViewPermission(currentUser, 'users') && currentUser?.role !== 'driver' && currentUser?.role !== 'vendor';
+  const isAllowed = hasModuleViewPermission(currentUser, 'users') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
 
   const query = useQuery({
     queryKey: ['users', page, searchTerm],

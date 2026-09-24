@@ -127,8 +127,8 @@ export default function App() {
     );
   }
 
-  // If role is 'driver', route them to the mobile logistics interface
-  if (currentUser.role === 'driver') {
+  // If role is 'driver' or 'driver_assistant', route them to the mobile logistics interface
+  if (currentUser.role === 'driver' || currentUser.role === 'driver_assistant') {
     return (
       <MobileLogisticsView 
         currentUser={currentUser}

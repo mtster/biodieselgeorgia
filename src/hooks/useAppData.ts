@@ -83,7 +83,7 @@ export function useAppData() {
     isRefreshingRef.current = true;
     try {
       // 1. Specialized lightweight loader for Drivers / Mobile Logistics
-      if (currentUser?.role === 'driver') {
+      if (currentUser?.role === 'driver' || currentUser?.role === 'driver_assistant') {
         const driverData = await getDriverLogisticsData(currentUser);
         setTrucks(driverData.trucks);
         setUsers(driverData.employees);
@@ -174,7 +174,7 @@ export function useAppData() {
       }
 
       // Role-specific targeted refreshes
-      if (currentUser?.role === 'driver') {
+      if (currentUser?.role === 'driver' || currentUser?.role === 'driver_assistant') {
         const t = table.toLowerCase();
         if (t === 'orders' || t === 'vendors' || t === 'vendor_contacts') {
           const { orders: dOrders, suppliers: dSuppliers } = await getDriverOrdersAndVendors(

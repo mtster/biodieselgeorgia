@@ -217,7 +217,7 @@ export default function UserForm({
       errs.personal_id = t('Personal ID must be exactly 11 digits.');
     }
 
-    const isDriverOrLogist = ['driver', 'logistics_manager'].includes(editingUser.role);
+    const isDriverOrLogist = ['driver', 'driver_assistant', 'logistics_manager'].includes(editingUser.role);
 
     if (!isDriverOrLogist) {
       if (!editingUser.email.trim()) {
@@ -248,7 +248,7 @@ export default function UserForm({
     }
 
     const finalUser = { ...editingUser };
-    let finalEmail = finalUser.email.trim();
+    let finalEmail = finalUser.email ? finalUser.email.trim() : '';
     if (finalEmail && !finalEmail.includes('@')) {
       finalEmail = `${finalEmail}@biodiesel.ge`;
     }
@@ -256,7 +256,7 @@ export default function UserForm({
 
     if (finalUser.role === 'admin') {
       finalUser.permissions = undefined; 
-    } else if (finalUser.role === 'logistics_manager' || finalUser.role === 'driver') {
+    } else if (finalUser.role === 'logistics_manager' || finalUser.role === 'driver' || finalUser.role === 'driver_assistant') {
       finalUser.permissions = undefined;
     } else {
       const cleanPerms: Record<string, string[]> = {};
@@ -326,7 +326,7 @@ export default function UserForm({
   if (!editingUser) return null;
 
   const isAdmin = editingUser.role === 'admin';
-  const isDriverOrLogist = ['driver', 'logistics_manager'].includes(editingUser.role);
+  const isDriverOrLogist = ['driver', 'driver_assistant', 'logistics_manager'].includes(editingUser.role);
   const showPermissions = !isDriverOrLogist;
 
   return (
@@ -430,6 +430,7 @@ export default function UserForm({
             <option value="operator">{t("Operator")}</option>
             <option value="logistics_manager">{t("Logistics Manager")}</option>
             <option value="driver">{t("Logistics/Driver")}</option>
+            <option value="driver_assistant">{t("Driver Assistant")}</option>
           </FormSelect>
 
           <FormSelect

@@ -91,7 +91,8 @@ async function startServer() {
 
       // If action is update or an ID is present, perform update
       if (action === "update" || (id && action !== "create")) {
-        const cleanEmail = email ? formatAuthEmail(email) : undefined;
+        const hasEmail = Boolean(email && String(email).trim());
+        const cleanEmail = hasEmail ? formatAuthEmail(email) : '';
         const updatePayload: any = {
           user_metadata: {
             name: (name && String(name).trim()) || "",
@@ -134,11 +135,9 @@ async function startServer() {
           role: assignedRole,
           permissions: perms,
           vendor_id: vendor_id || null,
-          is_blocked: is_blocked ?? false
+          is_blocked: is_blocked ?? false,
+          email: cleanEmail ? cleanEmail : null
         };
-        if (cleanEmail) {
-          profilePayload.email = cleanEmail;
-        }
 
         const { data: updatedProfile, error: profileErr } = await supabaseAdmin
           .from("profiles")
@@ -153,9 +152,12 @@ async function startServer() {
 
         return res.json({
           success: true,
-          user: updatedProfile || {
+          user: updatedProfile ? {
+            ...updatedProfile,
+            email: updatedProfile.email || ''
+          } : {
             id,
-            email: cleanEmail || email,
+            email: cleanEmail || '',
             name,
             personal_id,
             phone,
@@ -169,14 +171,16 @@ async function startServer() {
 
       // Action is CREATE
       const cleanPersonalId = (personal_id && String(personal_id).trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
-      const cleanEmail = formatAuthEmail(email, cleanPersonalId);
+      const hasEmail = Boolean(email && String(email).trim());
+      const cleanEmail = hasEmail ? formatAuthEmail(email) : '';
+      const authEmail = cleanEmail || `${cleanPersonalId}@internal.driver`;
       const cleanPassword = (password && String(password).trim()) || "Georgia2026!";
       const cleanName = (name && String(name).trim()) || "New User";
       const cleanPhone = (phone && String(phone).trim()) || "+995 599 00 00 00";
 
       // Create user administratively in auth.users
       const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.createUser({
-        email: cleanEmail,
+        email: authEmail,
         password: cleanPassword,
         email_confirm: true,
         phone_confirm: true,
@@ -198,11 +202,11 @@ async function startServer() {
 
       let profile = null;
       if (assignedRole !== "vendor") {
-        const profilePayload = {
+        const profilePayload: any = {
           id: adminData.user.id,
           name: cleanName,
           personal_id: cleanPersonalId,
-          email: cleanEmail,
+          email: cleanEmail ? cleanEmail : null,
           phone: cleanPhone,
           role: assignedRole,
           permissions: perms,
@@ -226,11 +230,14 @@ async function startServer() {
 
       res.json({
         success: true,
-        user: profile || {
+        user: profile ? {
+          ...profile,
+          email: profile.email || ''
+        } : {
           id: adminData.user.id,
           name: cleanName,
           personal_id: cleanPersonalId,
-          email: cleanEmail,
+          email: cleanEmail || '',
           phone: cleanPhone,
           role: assignedRole,
           permissions: perms,
@@ -305,7 +312,8 @@ async function startServer() {
       }
 
       const perms = permissions || privileges || (assignedRole === "admin" ? { all: ["view", "add", "modify", "delete"] } : {});
-      const cleanEmail = email ? formatAuthEmail(email) : undefined;
+      const hasEmail = Boolean(email && String(email).trim());
+      const cleanEmail = hasEmail ? formatAuthEmail(email) : '';
 
       const updatePayload: any = {
         user_metadata: {
@@ -350,11 +358,9 @@ async function startServer() {
         role: assignedRole,
         permissions: perms,
         vendor_id: vendor_id || null,
-        is_blocked: is_blocked ?? false
+        is_blocked: is_blocked ?? false,
+        email: cleanEmail ? cleanEmail : null
       };
-      if (cleanEmail) {
-        profilePayload.email = cleanEmail;
-      }
 
       const { data: updatedProfile, error: profileErr } = await supabaseAdmin
         .from("profiles")

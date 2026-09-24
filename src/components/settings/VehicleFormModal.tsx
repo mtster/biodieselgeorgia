@@ -97,6 +97,7 @@ export default function VehicleFormModal({
     const companionObj = employees.find(e => e.id === tCompanion);
 
     onSaveTruck({
+      id: selectedTruck?.id,
       plate_number: tPlate.trim(),
       model: tModel.trim(),
       driver_id: tDriver,
@@ -106,9 +107,11 @@ export default function VehicleFormModal({
       city: tCity,
       warehouse_id: tWarehouseId,
       direction_id: tDirectionId,
+      created_by: selectedTruck?.created_by,
       auth_user_id: selectedTruck?.auth_user_id,
       password: tPassword.trim() || undefined,
-      is_deleted: false
+      is_deleted: false,
+      original_plate_number: selectedTruck?.plate_number
     });
 
     onClose();
@@ -122,7 +125,7 @@ export default function VehicleFormModal({
       maxWidthClass="max-w-md"
       onDelete={selectedTruck ? onDeleteTruck : undefined}
       deleteLabel={t("Delete")}
-      onCancel={onClose}
+      hideCancel={true}
       onSave={handleSave}
       saveLabel={t("Save Changes")}
     >

@@ -196,7 +196,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
         <span className={`text-[10px] font-bold tracking-wide uppercase font-sans px-2.5 py-1 inline-block rounded ${
           usr.role === 'admin' ? 'bg-red-50 text-red-700' :
           (usr.role === 'manager' || usr.role === 'purchasing_head') ? 'bg-indigo-50 text-indigo-700' :
-          usr.role === 'driver' ? 'bg-emerald-50 text-emerald-700' :
+          (usr.role === 'driver' || usr.role === 'driver_assistant') ? 'bg-emerald-50 text-emerald-700' :
           'bg-amber-50 text-amber-700'
         }`} title={usr.role}>
           {usr.role === 'admin' ? t('Admin') :
@@ -204,6 +204,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
            usr.role === 'logistics_manager' ? t('Logistics Manager') :
            usr.role === 'purchasing_manager' ? t('Purchasing Manager') :
            usr.role === 'driver' ? t('Logistics/Driver') :
+           usr.role === 'driver_assistant' ? t('Driver Assistant') :
            usr.role === 'operator' ? t('Operator') : t('Unknown')}
         </span>
       )
@@ -218,7 +219,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
       header: t("Email"),
       key: 'email',
       className: 'max-w-[200px] truncate',
-      render: (u) => <span className="font-mono text-gray-500 text-xs truncate block" title={u.email}>{u.email}</span>
+      render: (u) => <span className="font-mono text-gray-500 text-xs truncate block" title={u.email}>{u.email || '-'}</span>
     },
     {
       header: t("Phone"),
