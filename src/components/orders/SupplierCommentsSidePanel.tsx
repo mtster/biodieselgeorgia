@@ -42,7 +42,7 @@ export default function SupplierCommentsSidePanel({
           <p className="font-semibold text-gray-600">{t("No comments attached to this supplier")}</p>
         </div>
       ) : (
-        <div className="space-y-3 max-h-[600px] overflow-y-auto overflow-x-hidden pr-1">
+        <div className="space-y-3 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
           {comments.map((c) => {
             const authorName = (users && c.user_id ? users.find(u => u.id === c.user_id)?.name : null) || c.user_name || t('System');
             const isImportant = Boolean(c.before_leaving_base);

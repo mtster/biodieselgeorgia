@@ -287,7 +287,7 @@ export default function VendorCommunicationModal({
       onClose={onClose}
       title={activeComm ? t("Edit Communication") : t("New Communication")}
       maxWidthClass="max-w-md"
-      onCancel={onClose}
+      hideCancel={true}
       onDelete={activeComm && onDeleteCommunication ? () => {
           onDeleteCommunication(activeComm.id);
           onClose();

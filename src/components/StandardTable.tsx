@@ -184,7 +184,7 @@ export function StandardTable<T>({
             
             <div className="flex items-center gap-1 px-3">
               <span className="text-xs font-bold font-sans text-gray-500">
-                Page <span className="text-gray-900 font-black">{activePage}</span> of <span className="text-gray-900 font-black">{totalPages}</span>
+                გვერდი <span className="text-gray-900 font-black">{activePage}</span> / <span className="text-gray-900 font-black">{totalPages}</span>
               </span>
             </div>
 

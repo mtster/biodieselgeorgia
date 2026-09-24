@@ -1,4 +1,5 @@
 import React, { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import DeleteButton from './DeleteButton';
 import { t } from '../utils/lang';
@@ -46,8 +47,8 @@ export default function FormModal({
 }: FormModalProps) {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+  const modalNode = (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100] animate-in fade-in duration-150">
       <div className={`bg-white rounded-2xl w-full ${maxWidthClass} shadow-xl border border-slate-200 overflow-hidden p-6 relative flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150`}>
         {/* Modal Header without border-b */}
         <div className="flex items-center justify-between pb-3 mb-4 shrink-0">
@@ -101,15 +102,6 @@ export default function FormModal({
                 {t(cancelLabel)}
               </button>
             )}
-            {secondaryAction && (
-              <button
-                type="button"
-                onClick={secondaryAction.onClick}
-                className={secondaryAction.className || "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none"}
-              >
-                {t(secondaryAction.label)}
-              </button>
-            )}
             {onSave && (
               <button
                 type="button"
@@ -119,9 +111,20 @@ export default function FormModal({
                 {t(saveLabel)}
               </button>
             )}
+            {secondaryAction && (
+              <button
+                type="button"
+                onClick={secondaryAction.onClick}
+                className={secondaryAction.className || "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none"}
+              >
+                {t(secondaryAction.label)}
+              </button>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : modalNode;
 }

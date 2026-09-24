@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 import { t } from '../utils/lang';
 
@@ -21,8 +22,8 @@ export default function ConfirmDeleteModal({
 }: ConfirmDeleteModalProps) {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+  const modalNode = (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-[110] animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-xl border border-gray-100 animate-in zoom-in-95 duration-150">
         <div className="mx-auto w-12 h-12 bg-red-50 text-red-655 rounded-full flex items-center justify-center">
           <Trash2 size={24} />
@@ -62,4 +63,6 @@ export default function ConfirmDeleteModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : modalNode;
 }

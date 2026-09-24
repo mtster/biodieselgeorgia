@@ -412,6 +412,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "records": "ჩანაწერიდან",
   "No records found.": "ჩანაწერები ვერ მოიძებნა.",
   "Previous": "წინა",
+  "Previous Communications": "წინა კომუნიკაციები",
   "Next": "შემდეგი",
   "Today": "დღეს",
   "Yesterday": "გუშინ",

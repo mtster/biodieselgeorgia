@@ -96,7 +96,7 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
       maxWidthClass="max-w-sm"
       onDelete={activeContact ? () => onDelete(activeContact.id) : undefined}
       deleteLabel={t("Delete")}
-      onCancel={onClose}
+      hideCancel={true}
       onSave={handleSave}
       saveLabel={t("Confirm")}
     >

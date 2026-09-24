@@ -596,6 +596,7 @@ export default function CommunicationsView({
         isNew={isNew}
         employees={employees}
         suppliers={allSuppliers}
+        currentUser={currentEmployee}
         canAddOrder={currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add')}
         onSave={handleSaveAll}
         onSaveAndOrder={(payload, vendorId, isUnchanged) => {

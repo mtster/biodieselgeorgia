@@ -309,6 +309,8 @@ export default function App() {
                 currentEmployee={currentUser}
                 onSave={handleOrderSave}
                 onDelete={handleOrderDelete}
+                onSaveCommunication={handleCommunicationSave}
+                onDeleteCommunication={handleCommunicationDelete}
                 initialVendorId={selectedOrderVendorId}
                 onClearInitialVendorId={() => setSelectedOrderVendorId(undefined)}
                 onNavigateToCommunicationsWithVendor={(vendorId) => {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Order, Vendor, Warehouse, User, Truck, VendorComment } from '../../types';
+import { Order, Vendor, Warehouse, User, Truck, VendorComment, Communication } from '../../types';
 import OrderFormFields from './OrderFormFields';
 import SupplierCommentsSidePanel from './SupplierCommentsSidePanel';
+import OrderCommunicationsSection from './OrderCommunicationsSection';
 import { t } from '../../utils/lang';
 import { getVendorById } from '../../lib/db';
 
@@ -22,6 +23,8 @@ interface Props {
   }>;
   isReadOnly?: boolean;
   onSavingStateChange?: (isSaving: boolean) => void;
+  onSaveCommunication?: (comm: Communication) => Promise<void> | void;
+  onDeleteCommunication?: (id: string) => Promise<void> | void;
 }
 
 export default function OrderForm({
@@ -36,7 +39,9 @@ export default function OrderForm({
   onCancel,
   formRef,
   isReadOnly = false,
-  onSavingStateChange
+  onSavingStateChange,
+  onSaveCommunication,
+  onDeleteCommunication
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -291,15 +296,23 @@ export default function OrderForm({
         </fieldset>
       </div>
 
-      {/* Supplier Comments Side Wrapper - appears when supplier is selected */}
+      {/* Supplier Comments & Communications Side Wrapper - appears when supplier is selected */}
       {selectedSupplier && (
-        <div className="w-full min-w-0 max-w-2xl xl:max-w-none xl:flex-1 xl:min-w-[300px] 2xl:max-w-xl xl:sticky xl:top-6 overflow-hidden">
+        <div className="w-full min-w-0 max-w-2xl xl:max-w-none xl:flex-1 xl:min-w-[300px] 2xl:max-w-xl xl:sticky xl:top-6 space-y-4">
           <SupplierCommentsSidePanel
             supplier={selectedSupplier}
             orderNotes={editingOrder.notes || []}
             onAddCommentToOrder={handleAddCommentToOrder}
             onRemoveCommentFromOrder={handleRemoveCommentFromOrder}
             users={employees}
+          />
+          <OrderCommunicationsSection
+            vendorId={selectedSupplier.id}
+            vendor={selectedSupplier}
+            currentUser={currentEmployee}
+            users={employees}
+            onSaveCommunication={onSaveCommunication}
+            onDeleteCommunication={onDeleteCommunication}
           />
         </div>
       )}

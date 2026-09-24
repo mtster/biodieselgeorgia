@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Order, Vendor, Warehouse, User, Truck, Direction } from '../../types';
+import { Order, Vendor, Warehouse, User, Truck, Direction, Communication } from '../../types';
 import { getSMSLogs } from '../../lib/db';
 import { Plus, Trash2 } from 'lucide-react';
 import { t } from '../../utils/lang';
@@ -56,12 +56,16 @@ interface Props {
   initialVendorId?: string;
   onClearInitialVendorId?: () => void;
   onNavigateToCommunicationsWithVendor?: (vendorId: string) => void;
+  onSaveCommunication?: (comm: Communication) => Promise<void> | void;
+  onDeleteCommunication?: (id: string) => Promise<void> | void;
 }
 
 export default function OrdersView({ 
   orders, suppliers, warehouses, employees, trucks, directions,
   currentEmployee, onSave, onDelete, initialVendorId, onClearInitialVendorId,
-  onNavigateToCommunicationsWithVendor
+  onNavigateToCommunicationsWithVendor,
+  onSaveCommunication,
+  onDeleteCommunication
 }: Props) {
   
   const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add');
@@ -491,6 +495,8 @@ export default function OrdersView({
           onCancel={() => setEditingOrder(null)}
           formRef={formRef}
           onSavingStateChange={setIsFormSaving}
+          onSaveCommunication={onSaveCommunication}
+          onDeleteCommunication={onDeleteCommunication}
         />
       ) : (
         <div className="space-y-6 text-left">
