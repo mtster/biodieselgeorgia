@@ -87,6 +87,20 @@ export const defaultPermissions: Record<string, Record<string, string[]>> = {
     vehicles: ['view'],
     warehouses: ['view'],
     history: ['view']
+  },
+  logistics_manager: {
+    dashboard: ['view'],
+    suppliers: ['view'],
+    contacts: ['view'],
+    communications: ['view'],
+    orders: ['view', 'modify'],
+    reports: [],
+    users: ['view'],
+    cities: ['view'],
+    directions: ['view'],
+    vehicles: ['view'],
+    warehouses: ['view'],
+    history: ['view']
   }
 };
 
@@ -251,9 +265,9 @@ export default function UserForm({
       errs.personal_id = t('Personal ID must be exactly 11 digits.');
     }
 
-    const isDriverOrLogist = ['driver', 'driver_assistant', 'logistics_manager'].includes(editingUser.role);
+    const isDriverOrAssistant = ['driver', 'driver_assistant'].includes(editingUser.role);
 
-    if (!isDriverOrLogist) {
+    if (!isDriverOrAssistant) {
       if (!editingUser.email.trim()) {
         errs.email = t('Email is required.');
       }
@@ -290,7 +304,7 @@ export default function UserForm({
 
     if (finalUser.role === 'admin') {
       finalUser.permissions = undefined; 
-    } else if (finalUser.role === 'logistics_manager' || finalUser.role === 'driver' || finalUser.role === 'driver_assistant') {
+    } else if (finalUser.role === 'driver' || finalUser.role === 'driver_assistant') {
       finalUser.permissions = undefined;
     } else {
       const cleanPerms: Record<string, string[]> = {};
@@ -362,8 +376,8 @@ export default function UserForm({
   if (!editingUser) return null;
 
   const isAdmin = editingUser.role === 'admin';
-  const isDriverOrLogist = ['driver', 'driver_assistant', 'logistics_manager'].includes(editingUser.role);
-  const showPermissions = !isDriverOrLogist;
+  const isDriverOrAssistant = ['driver', 'driver_assistant'].includes(editingUser.role);
+  const showPermissions = !isDriverOrAssistant;
 
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl space-y-6 text-left" id="users-form-panel">
@@ -405,7 +419,7 @@ export default function UserForm({
           />
 
           <FormInput
-            label={isDriverOrLogist ? t("Email Address") : t("Email Address") + " *"}
+            label={isDriverOrAssistant ? t("Email Address") : t("Email Address") + " *"}
             type="email"
             id="user-email-address"
             name="new_user_login_email_no_autofill"
@@ -421,7 +435,7 @@ export default function UserForm({
             error={fieldErrors.email}
           />
 
-          {!isDriverOrLogist && (
+          {!isDriverOrAssistant && (
             <FormInput
               label={isNew ? t("Password (min. 6 symbols)") + " *" : t("Change Password (Optional)")}
               type={showPassword ? "text" : "password"}
