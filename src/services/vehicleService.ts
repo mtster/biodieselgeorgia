@@ -47,6 +47,38 @@ export async function getVehicles(): Promise<Vehicle[]> {
   return getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
 }
 
+export async function findDeletedVehicle(plate: string): Promise<Vehicle | null> {
+  const cleanPlate = (plate || '').trim().toUpperCase();
+  if (!cleanPlate) return null;
+
+  // 1. Fast check in local cache (0ms)
+  const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
+  const localFound = list.find(t => (t.plate_number || '').trim().toUpperCase() === cleanPlate && t.is_deleted);
+  if (localFound) {
+    return decodeVehicle(localFound);
+  }
+
+  // 2. High-performance exact match query on vehicles table
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('plate_number', cleanPlate)
+        .eq('is_deleted', true)
+        .maybeSingle();
+
+      if (!error && data) {
+        return decodeVehicle(data);
+      }
+    } catch (e) {
+      console.warn('Supabase findDeletedVehicle query:', e);
+    }
+  }
+
+  return null;
+}
+
 export async function saveVehicle(vehicle: Vehicle & { password?: string; original_plate_number?: string }, loggerName: string, currentUserId?: string): Promise<Vehicle> {
   const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
   const isValidUuid = (val: string | null | undefined): boolean => {
@@ -62,32 +94,108 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
 
   let authUserId = vehicle.auth_user_id;
 
+  const cleanCurrentPlate = (vehicle.plate_number || '').trim().toUpperCase();
+  const cleanOriginalPlate = (vehicle.original_plate_number || '').trim().toUpperCase();
+  const plateChanged = Boolean(cleanOriginalPlate && cleanOriginalPlate !== cleanCurrentPlate);
+  const hasPassword = Boolean(vehicle.password && vehicle.password.trim());
+
+  // Require explicit password input by user when creating a new vehicle (NO default fallback)
+  const isNewVehicle = !isValidUuid(vehicle.id) && !cleanOriginalPlate && existsIndex < 0;
+  if (isNewVehicle && (!hasPassword || vehicle.password!.trim().length < 6)) {
+    throw new Error('პაროლის შეყვანა (მინ. 6 სიმბოლო) სავალდებულოა ახალი ავტომობილის შესაქმნელად.');
+  }
+
   if (isSupabaseConfigured && supabase) {
-    if (vehicle.password) {
+    // If authUserId not present, check database vehicles table
+    if (!isValidUuid(authUserId)) {
+      try {
+        const queryPlates = [cleanCurrentPlate];
+        if (cleanOriginalPlate) queryPlates.push(cleanOriginalPlate);
+        const { data: vRows } = await supabase.from('vehicles').select('auth_user_id').in('plate_number', queryPlates);
+        const found = vRows?.find(r => r.auth_user_id && isValidUuid(r.auth_user_id))?.auth_user_id;
+        if (found) {
+          authUserId = found;
+          vehicle.auth_user_id = found;
+        }
+      } catch (_) {}
+    }
+
+    const needsAuthSync = hasPassword || plateChanged || !authUserId;
+
+    if (needsAuthSync) {
       try {
         const sessionRes = await supabase.auth.getSession();
         const token = sessionRes.data.session?.access_token;
-        const res = await fetch('/api/create-vehicle-account', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            plate_number: vehicle.plate_number,
-            password: vehicle.password
-          })
-        });
-        if (res.ok) {
-          const resData = await res.json();
-          if (resData.auth_user_id) {
-            authUserId = resData.auth_user_id;
+        const payload = {
+          plate_number: cleanCurrentPlate,
+          password: vehicle.password?.trim() || undefined,
+          auth_user_id: isValidUuid(authUserId) ? authUserId : undefined,
+          original_plate_number: cleanOriginalPlate || undefined,
+          vehicle_id: isValidUuid(vehicle.id) ? vehicle.id : undefined,
+          action: 'vehicle_create_or_update'
+        };
+
+        const tryEndpoints = [
+          '/api/create-vehicle-account',
+          '/create-vehicle-account',
+          '/api/create-user'
+        ];
+
+        let synced = false;
+        for (const ep of tryEndpoints) {
+          try {
+            const res = await fetch(ep, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+              },
+              body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+              const resData = await res.json();
+              if (resData.auth_user_id) {
+                authUserId = resData.auth_user_id;
+                vehicle.auth_user_id = resData.auth_user_id;
+                synced = true;
+                break;
+              }
+            } else if (res.status !== 404) {
+              const errData = await res.json().catch(() => ({}));
+              console.warn(`Vehicle auth endpoint ${ep} warning:`, res.status, errData);
+              break;
+            }
+          } catch (_) {}
+        }
+
+        // If not synced via Express proxy endpoints, try Supabase Edge Function fallback
+        if (!synced && token) {
+          try {
+            const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
+            const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+            const edgeRes = await fetch(functionUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseAnonKey,
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(payload)
+            });
+            if (edgeRes.ok) {
+              const resData = await edgeRes.json();
+              if (resData.auth_user_id) {
+                authUserId = resData.auth_user_id;
+                vehicle.auth_user_id = resData.auth_user_id;
+              }
+            }
+          } catch (edgeErr) {
+            console.warn('Edge function vehicle sync error:', edgeErr);
           }
-        } else {
-          console.warn('Vehicle auth creation warning:', await res.json().catch(() => ({})));
         }
       } catch (err) {
-        console.error('Failed to create vehicle auth account:', err);
+        console.error('Failed to create/update vehicle auth account:', err);
       }
     }
 
@@ -108,7 +216,7 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
 
       const dbPayload: any = {
         ...(isValidUuid(vehicle.id) ? { id: vehicle.id } : {}),
-        plate_number: vehicle.plate_number,
+        plate_number: cleanCurrentPlate,
         model: vehicle.model,
         driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
         companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
@@ -116,62 +224,71 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
         direction_id: vehicle.direction_id || null,
         warehouse_id: vehicle.warehouse_id || null,
         created_by: createdBy,
-        auth_user_id: isValidUuid(authUserId) ? authUserId : null
+        auth_user_id: isValidUuid(authUserId) ? authUserId : null,
+        is_deleted: vehicle.is_deleted ?? false
       };
 
+      const { id: _ignoreId, ...updateFields } = dbPayload;
+      updateFields.is_deleted = vehicle.is_deleted ?? false;
       let success = false;
 
-      // 1. If we have an existing record ID, perform an UPDATE by ID
+      // 1. If we have an existing record ID, perform an UPDATE by ID (checking if row was actually updated)
       if (isValidUuid(vehicle.id)) {
-        const { error: updateErr } = await supabase.from('vehicles').update(dbPayload).eq('id', vehicle.id);
-        if (!updateErr) {
+        const { data: upRows, error: updateErr } = await supabase
+          .from('vehicles')
+          .update(updateFields)
+          .eq('id', vehicle.id)
+          .select('id');
+
+        if (!updateErr && upRows && upRows.length > 0) {
+          success = true;
+        } else if (updateErr) {
+          console.warn('Update vehicle by ID failed, trying fallback:', updateErr);
+        }
+      }
+
+      // 2. If ID update was not applicable or 0 rows updated, try by original plate
+      if (!success && cleanOriginalPlate) {
+        const { data: upRows, error: plateUpdateErr } = await supabase
+          .from('vehicles')
+          .update(updateFields)
+          .eq('plate_number', cleanOriginalPlate)
+          .select('id');
+
+        if (!plateUpdateErr && upRows && upRows.length > 0) {
           success = true;
         }
       }
 
-      // 2. If ID update was not possible but we have original_plate_number, update by original plate
-      if (!success && vehicle.original_plate_number) {
-        const { error: plateUpdateErr } = await supabase.from('vehicles').update(dbPayload).eq('plate_number', vehicle.original_plate_number);
-        if (!plateUpdateErr) {
-          success = true;
-        }
-      }
-
-      // 3. Fallback upsert / insert
+      // 3. Fallback / New vehicle -> UPSERT into database
       if (!success) {
-        const { error } = await supabase.from('vehicles').upsert([dbPayload], { onConflict: isValidUuid(dbPayload.id) ? 'id' : 'plate_number' });
-        if (!error) {
+        const { error: upsertErr } = await supabase
+          .from('vehicles')
+          .upsert([dbPayload], { onConflict: 'plate_number' });
+
+        if (!upsertErr) {
           success = true;
         } else {
-          // Schema fallback if optional columns missing
+          console.warn('Vehicle upsert failed, attempting schema fallback:', upsertErr);
           const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
           const fallbackPayload: any = {
-            plate_number: vehicle.plate_number,
+            plate_number: cleanCurrentPlate,
             model: vehicle.model,
             driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
             companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
             city: fallbackCity,
-            direction_id: vehicle.direction_id || null
+            direction_id: vehicle.direction_id || null,
+            is_deleted: vehicle.is_deleted ?? false,
+            created_by: createdBy,
+            auth_user_id: isValidUuid(authUserId) ? authUserId : null
           };
 
           const { error: fbErr } = await supabase.from('vehicles').upsert([fallbackPayload], { onConflict: 'plate_number' });
-          if (!fbErr) {
-            success = true;
-          } else {
-            const minPayload = {
-              plate_number: vehicle.plate_number,
-              model: vehicle.model,
-              driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
-              companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
-              city: vehicle.city || null
-            };
-            const { error: minErr } = await supabase.from('vehicles').upsert([minPayload], { onConflict: 'plate_number' });
-            if (!minErr) success = true;
-          }
+          if (!fbErr) success = true;
         }
       }
 
-      // 4. Legacy trucks fallback only if trucks table actually exists
+      // 6. Legacy trucks fallback only if trucks table actually exists
       if (!success) {
         try {
           const fallbackCity = vehicle.city ? `${vehicle.city}::wh_${vehicle.warehouse_id || ''}` : `::wh_${vehicle.warehouse_id || ''}`;
@@ -180,7 +297,8 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
             model: vehicle.model,
             driver_id: isValidUuid(vehicle.driver_id) ? vehicle.driver_id : null,
             companion_id: isValidUuid(vehicle.companion_id) ? vehicle.companion_id : null,
-            city: fallbackCity
+            city: fallbackCity,
+            is_deleted: vehicle.is_deleted ?? false
           };
           const { error: trErr } = await supabase.from('trucks').upsert([trucksPayload], { onConflict: 'plate_number' });
           if (trErr && trErr.code !== 'PGRST205' && trErr.code !== '42P01') {
@@ -196,28 +314,81 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
   if (existsIndex >= 0) {
     const updatedList = [...list];
     const prev = updatedList[existsIndex];
-    updatedList[existsIndex] = { ...prev, ...vehicle, id: prev.id || vehicle.id };
+    const isRecovering = prev.is_deleted && !(vehicle.is_deleted ?? false);
+    updatedList[existsIndex] = { ...prev, ...vehicle, is_deleted: vehicle.is_deleted ?? false, plate_number: cleanCurrentPlate, id: prev.id || vehicle.id };
     setLocal(KEY_VEHICLES, updatedList);
-    await trackChange(loggerName, 'Vehicle updated', 'Model', prev.model || '', vehicle.model);
-    notifyDbChange('vehicles', 'UPDATE', vehicle.plate_number);
+    if (isRecovering) {
+      await trackChange(loggerName, 'Vehicle recovered', 'Plate Number', '', cleanCurrentPlate);
+    } else {
+      if (plateChanged) {
+        await trackChange(loggerName, 'Vehicle updated', 'Plate Number', cleanOriginalPlate, cleanCurrentPlate);
+      }
+      if (prev.model !== vehicle.model) {
+        await trackChange(loggerName, 'Vehicle updated', 'Model', prev.model || '', vehicle.model);
+      }
+    }
+    notifyDbChange('vehicles', 'UPDATE', cleanCurrentPlate);
   } else {
-    setLocal(KEY_VEHICLES, [...list, vehicle]);
-    await trackChange(loggerName, 'Vehicle added', 'Plate Number', '', vehicle.plate_number);
-    notifyDbChange('vehicles', 'CREATE', vehicle.plate_number);
+    setLocal(KEY_VEHICLES, [...list, { ...vehicle, is_deleted: vehicle.is_deleted ?? false, plate_number: cleanCurrentPlate }]);
+    await trackChange(loggerName, 'Vehicle added', 'Plate Number', '', cleanCurrentPlate);
+    notifyDbChange('vehicles', 'CREATE', cleanCurrentPlate);
   }
-  return decodeVehicle(vehicle);
+  return decodeVehicle({ ...vehicle, is_deleted: vehicle.is_deleted ?? false, plate_number: cleanCurrentPlate });
 }
 
 export async function deleteVehicle(plate: string, loggerName: string): Promise<boolean> {
+  const cleanPlate = (plate || '').trim().toUpperCase();
+
   if (isSupabaseConfigured && supabase) {
     try {
-      const { error } = await supabase.from('vehicles').update({ is_deleted: true }).eq('plate_number', plate);
+      // Find auth_user_id before marking deleted
+      let authUserIdToDelete: string | null = null;
+      try {
+        const { data: vData } = await supabase.from('vehicles').select('auth_user_id').eq('plate_number', cleanPlate).maybeSingle();
+        if (vData?.auth_user_id) {
+          authUserIdToDelete = vData.auth_user_id;
+        }
+      } catch (_) {}
+
+      const { error } = await supabase.from('vehicles').update({ is_deleted: true }).eq('plate_number', cleanPlate);
       if (error) {
-        await supabase.from('trucks').update({ is_deleted: true }).eq('plate_number', plate);
+        await supabase.from('trucks').update({ is_deleted: true }).eq('plate_number', cleanPlate);
+      }
+
+      // Delete vehicle auth account so it doesn't leave orphaned redundant accounts
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        const token = sessionRes.data.session?.access_token;
+        if (token) {
+          const deletePayload = JSON.stringify({
+            plate_number: cleanPlate,
+            auth_user_id: authUserIdToDelete
+          });
+          const delRes = await fetch('/api/delete-vehicle-account', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: deletePayload
+          });
+          if (delRes.status === 404) {
+            await fetch('/delete-vehicle-account', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: deletePayload
+            });
+          }
+        }
+      } catch (authErr) {
+        console.warn('Failed to delete vehicle auth user:', authErr);
       }
     } catch (e) {
       try {
-        await supabase.from('trucks').update({ is_deleted: true }).eq('plate_number', plate);
+        await supabase.from('trucks').update({ is_deleted: true }).eq('plate_number', cleanPlate);
       } catch (err) {
         console.error('Supabase deleteVehicle fallback failed', err);
       }
@@ -225,8 +396,8 @@ export async function deleteVehicle(plate: string, loggerName: string): Promise<
   }
 
   const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
-  setLocal(KEY_VEHICLES, list.map(item => item.plate_number === plate ? { ...item, is_deleted: true } : item));
-  await trackChange(loggerName, 'Vehicle deleted', 'Plate Number', plate, '');
-  notifyDbChange('vehicles', 'DELETE', plate);
+  setLocal(KEY_VEHICLES, list.map(item => item.plate_number === cleanPlate ? { ...item, is_deleted: true } : item));
+  await trackChange(loggerName, 'Vehicle deleted', 'Plate Number', cleanPlate, '');
+  notifyDbChange('vehicles', 'DELETE', cleanPlate);
   return true;
 }

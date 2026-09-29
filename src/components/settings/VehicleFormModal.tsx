@@ -3,11 +3,14 @@ import { Vehicle, User, City, Warehouse, Direction } from '../../types';
 import { FormInput, FormSelect } from '../FormInput';
 import FormModal from '../FormModal';
 import { t } from '../../utils/lang';
+import { findDeletedVehicle } from '../../services/vehicleService';
+import VehicleRecoverModal from './VehicleRecoverModal';
 
 interface VehicleFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedTruck: Vehicle | null;
+  trucks?: Vehicle[];
   employees: User[];
   cities: City[];
   warehouses: Warehouse[];
@@ -20,6 +23,7 @@ export default function VehicleFormModal({
   isOpen,
   onClose,
   selectedTruck,
+  trucks = [],
   employees,
   cities,
   warehouses,
@@ -31,6 +35,7 @@ export default function VehicleFormModal({
   const [tPlate, setTPlate] = useState('');
   const [tPassword, setTPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [plateError, setPlateError] = useState('');
   const [tModel, setTModel] = useState('');
   const [tDriver, setTDriver] = useState('');
   const [tCompanion, setTCompanion] = useState('');
@@ -38,17 +43,26 @@ export default function VehicleFormModal({
   const [tWarehouseId, setTWarehouseId] = useState('');
   const [tDirectionId, setTDirectionId] = useState('');
 
+  // Recovery modal state
+  const [deletedVehicleFound, setDeletedVehicleFound] = useState<Vehicle | null>(null);
+  const [isRecoverModalOpen, setIsRecoverModalOpen] = useState(false);
+  const [isCheckingDeleted, setIsCheckingDeleted] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       setTPlate(selectedTruck ? selectedTruck.plate_number : '');
       setTPassword('');
       setPasswordError('');
+      setPlateError('');
       setTModel(selectedTruck ? selectedTruck.model : '');
       setTDriver(selectedTruck ? selectedTruck.driver_id || '' : '');
       setTCompanion(selectedTruck ? selectedTruck.companion_id || '' : '');
       setTCity(selectedTruck ? selectedTruck.city || '' : '');
       setTWarehouseId(selectedTruck ? selectedTruck.warehouse_id || '' : '');
       setTDirectionId(selectedTruck ? selectedTruck.direction_id || '' : '');
+      setDeletedVehicleFound(null);
+      setIsRecoverModalOpen(false);
+      setIsCheckingDeleted(false);
     }
   }, [isOpen, selectedTruck]);
 
@@ -77,8 +91,9 @@ export default function VehicleFormModal({
     return res;
   };
 
-  const handleSave = () => {
-    if (!tPlate.trim() || !tModel.trim()) {
+  const handleSave = async () => {
+    const cleanPlate = tPlate.trim().toUpperCase();
+    if (!cleanPlate || !tModel.trim()) {
       alert(t('Please enter license plate and model name.'));
       return;
     }
@@ -93,12 +108,43 @@ export default function VehicleFormModal({
       return;
     }
 
+    // 1. Check if plate is already in use by an active vehicle
+    const activeDuplicate = trucks.find(
+      tr => tr.plate_number.toUpperCase() === cleanPlate &&
+            (!selectedTruck || tr.id !== selectedTruck.id) &&
+            !tr.is_deleted
+    );
+    if (activeDuplicate) {
+      setPlateError(t('Vehicle with this license plate already exists') || 'ავტომობილი ამ სახელმწიფო ნომრით უკვე არსებობს.');
+      return;
+    }
+
+    // 2. Check if this plate belongs to a previously soft-deleted vehicle
+    const isNewOrDifferentPlate = !selectedTruck || selectedTruck.plate_number.toUpperCase() !== cleanPlate;
+    if (isNewOrDifferentPlate) {
+      try {
+        setIsCheckingDeleted(true);
+        const deletedVehicle = await findDeletedVehicle(cleanPlate);
+        setIsCheckingDeleted(false);
+
+        if (deletedVehicle) {
+          setDeletedVehicleFound(deletedVehicle);
+          setIsRecoverModalOpen(true);
+          return;
+        }
+      } catch (err) {
+        setIsCheckingDeleted(false);
+        console.warn('Error checking deleted vehicle:', err);
+      }
+    }
+
+    // 3. Normal save
     const driverObj = employees.find(e => e.id === tDriver);
     const companionObj = employees.find(e => e.id === tCompanion);
 
     onSaveTruck({
       id: selectedTruck?.id,
-      plate_number: tPlate.trim(),
+      plate_number: cleanPlate,
       model: tModel.trim(),
       driver_id: tDriver,
       driver_name: driverObj?.name || '',
@@ -117,106 +163,155 @@ export default function VehicleFormModal({
     onClose();
   };
 
+  const handleConfirmRecover = () => {
+    if (!deletedVehicleFound) return;
+    const cleanPlate = (tPlate || deletedVehicleFound.plate_number).trim().toUpperCase();
+    const driverObj = employees.find(e => e.id === (tDriver || deletedVehicleFound.driver_id));
+    const companionObj = employees.find(e => e.id === (tCompanion || deletedVehicleFound.companion_id));
+
+    onSaveTruck({
+      ...deletedVehicleFound,
+      id: deletedVehicleFound.id,
+      plate_number: cleanPlate,
+      model: tModel.trim() || deletedVehicleFound.model,
+      driver_id: tDriver || deletedVehicleFound.driver_id || '',
+      driver_name: driverObj?.name || deletedVehicleFound.driver_name || '',
+      companion_id: tCompanion || deletedVehicleFound.companion_id || '',
+      companion_name: companionObj?.name || deletedVehicleFound.companion_name || '',
+      city: tCity || deletedVehicleFound.city || '',
+      warehouse_id: tWarehouseId || deletedVehicleFound.warehouse_id || '',
+      direction_id: tDirectionId || deletedVehicleFound.direction_id || '',
+      created_by: deletedVehicleFound.created_by,
+      auth_user_id: deletedVehicleFound.auth_user_id,
+      password: tPassword.trim() || undefined,
+      is_deleted: false,
+      original_plate_number: deletedVehicleFound.plate_number
+    });
+
+    setIsRecoverModalOpen(false);
+    setDeletedVehicleFound(null);
+    onClose();
+  };
+
+  const handleCancelRecover = () => {
+    setIsRecoverModalOpen(false);
+    setDeletedVehicleFound(null);
+  };
+
   return (
-    <FormModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={selectedTruck ? t('Vehicle Specifications') : t('Add Vehicle to Fleet')}
-      maxWidthClass="max-w-md"
-      onDelete={selectedTruck ? onDeleteTruck : undefined}
-      deleteLabel={t("Delete")}
-      hideCancel={true}
-      onSave={handleSave}
-      saveLabel={t("Save Changes")}
-    >
-      <div className="space-y-4">
-        <FormInput
-          label={`${t("License Plate Number")} *`}
-          type="text"
-          fontClass="font-mono"
-          value={tPlate}
-          onChange={(e) => setTPlate(formatLicensePlate(e.target.value))}
-          disabled={false}
-          placeholder={t("e.g. AA-123-BB")}
-          className="disabled:bg-slate-50 disabled:text-gray-500"
-        />
+    <>
+      <FormModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={selectedTruck ? t('Vehicle Specifications') : t('Add Vehicle to Fleet')}
+        maxWidthClass="max-w-md"
+        onDelete={selectedTruck ? onDeleteTruck : undefined}
+        deleteLabel={t("Delete")}
+        hideCancel={true}
+        onSave={handleSave}
+        saveLabel={t("Save Changes")}
+      >
+        <div className="space-y-4">
+          <FormInput
+            label={`${t("License Plate Number")} *`}
+            type="text"
+            fontClass="font-mono"
+            value={tPlate}
+            onChange={(e) => {
+              setTPlate(formatLicensePlate(e.target.value));
+              if (plateError) setPlateError('');
+            }}
+            disabled={isCheckingDeleted}
+            placeholder={t("e.g. AA-123-BB")}
+            error={plateError}
+            className="disabled:bg-slate-50 disabled:text-gray-500"
+          />
 
-        <FormInput
-          label={selectedTruck ? "პაროლი(მინ. 6 სიმბოლო) (არასავალდებულო)" : "პაროლი(მინ. 6 სიმბოლო) *"}
-          type="password"
-          fontClass="font-mono"
-          value={tPassword}
-          onChange={(e) => {
-            setTPassword(e.target.value);
-            if (passwordError) setPasswordError('');
-          }}
-          placeholder=""
-          error={passwordError}
-        />
+          <FormInput
+            label={selectedTruck ? "პაროლი(მინ. 6 სიმბოლო) (არასავალდებულო)" : "პაროლი(მინ. 6 სიმბოლო) *"}
+            type="password"
+            fontClass="font-mono"
+            value={tPassword}
+            autoComplete="new-password"
+            onChange={(e) => {
+              setTPassword(e.target.value);
+              if (passwordError) setPasswordError('');
+            }}
+            placeholder=""
+            error={passwordError}
+          />
 
-        <FormInput
-          label={`${t("Vehicle Brand / Model")} *`}
-          type="text"
-          value={tModel}
-          onChange={(e) => setTModel(e.target.value)}
-          placeholder={t("e.g. Mercedes Sprinter")}
-        />
+          <FormInput
+            label={`${t("Vehicle Brand / Model")} *`}
+            type="text"
+            value={tModel}
+            onChange={(e) => setTModel(e.target.value)}
+            placeholder={t("e.g. Mercedes Sprinter")}
+          />
 
-        <FormSelect
-          label={t("City / Region")}
-          value={tCity}
-          onChange={(e) => setTCity(e.target.value)}
-        >
-          <option value="">{t("Select a City")}</option>
-          {cities.map(city => (
-            <option key={city.id} value={city.name}>{city.name}</option>
-          ))}
-        </FormSelect>
+          <FormSelect
+            label={t("City / Region")}
+            value={tCity}
+            onChange={(e) => setTCity(e.target.value)}
+          >
+            <option value="">{t("Select a City")}</option>
+            {cities.map(city => (
+              <option key={city.id} value={city.name}>{city.name}</option>
+            ))}
+          </FormSelect>
 
-        <FormSelect
-          label={t("Assigned Warehouse")}
-          value={tWarehouseId}
-          onChange={(e) => setTWarehouseId(e.target.value)}
-        >
-          <option value="">{t("Select a Warehouse")}</option>
-          {warehouses.map(wh => (
-            <option key={wh.id} value={wh.id}>{wh.name}</option>
-          ))}
-        </FormSelect>
+          <FormSelect
+            label={t("Assigned Warehouse")}
+            value={tWarehouseId}
+            onChange={(e) => setTWarehouseId(e.target.value)}
+          >
+            <option value="">{t("Select a Warehouse")}</option>
+            {warehouses.map(wh => (
+              <option key={wh.id} value={wh.id}>{wh.name}</option>
+            ))}
+          </FormSelect>
 
-        <FormSelect
-          label={t("mimartuleba")}
-          value={tDirectionId}
-          onChange={(e) => setTDirectionId(e.target.value)}
-        >
-          <option value="">{t("Select a Direction")}</option>
-          {directions.map(dir => (
-            <option key={dir.id} value={dir.id}>{dir.name}</option>
-          ))}
-        </FormSelect>
+          <FormSelect
+            label={t("mimartuleba")}
+            value={tDirectionId}
+            onChange={(e) => setTDirectionId(e.target.value)}
+          >
+            <option value="">{t("Select a Direction")}</option>
+            {directions.map(dir => (
+              <option key={dir.id} value={dir.id}>{dir.name}</option>
+            ))}
+          </FormSelect>
 
-        <FormSelect
-          label={`${t("Assigned Default Driver")} *`}
-          value={tDriver}
-          onChange={(e) => setTDriver(e.target.value)}
-        >
-          <option value="" hidden></option>
-          {employees.filter(e => e.role === 'driver').map(e => (
-            <option key={e.id} value={e.id}>{e.name}</option>
-          ))}
-        </FormSelect>
+          <FormSelect
+            label={`${t("Assigned Default Driver")} *`}
+            value={tDriver}
+            onChange={(e) => setTDriver(e.target.value)}
+          >
+            <option value="" hidden></option>
+            {employees.filter(e => e.role === 'driver').map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </FormSelect>
 
-        <FormSelect
-          label={t("Assigned Co-Driver / Companion")}
-          value={tCompanion}
-          onChange={(e) => setTCompanion(e.target.value)}
-        >
-          <option value="" hidden></option>
-          {employees.filter(e => e.role !== 'driver').map(e => (
-            <option key={e.id} value={e.id}>{e.name} ({t(e.role)})</option>
-          ))}
-        </FormSelect>
-      </div>
-    </FormModal>
+          <FormSelect
+            label={t("Assigned Co-Driver / Companion")}
+            value={tCompanion}
+            onChange={(e) => setTCompanion(e.target.value)}
+          >
+            <option value="" hidden></option>
+            {employees.filter(e => e.role !== 'driver').map(e => (
+              <option key={e.id} value={e.id}>{e.name} ({t(e.role)})</option>
+            ))}
+          </FormSelect>
+        </div>
+      </FormModal>
+
+      <VehicleRecoverModal
+        isOpen={isRecoverModalOpen}
+        onClose={handleCancelRecover}
+        onConfirm={handleConfirmRecover}
+        plateNumber={tPlate.trim().toUpperCase()}
+      />
+    </>
   );
 }

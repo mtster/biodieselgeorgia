@@ -34,6 +34,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only handle GET requests and skip API / auth requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api') || url.pathname.includes('vehicle-account') || url.hostname.includes('supabase')) {
+    return;
+  }
+
   // Let network requests fallback to cache if offline
   event.respondWith(
     fetch(event.request).catch(() => {

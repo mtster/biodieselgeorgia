@@ -777,6 +777,8 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Change Password (min. 6 symbols)": "პაროლის შეცვლა (მინ. 6 სიმბოლო)",
   "Change Password (Optional)": "პაროლის შეცვლა (არასავალდებულო)",
   "Change Password": "პაროლის შეცვლა",
+  "Show Password": "პაროლის ჩვენება",
+  "Hide Password": "პაროლის დამალვა",
   "Username": "მომხმარებლის სახელი",
   "Username / Email": "მომხმარებლის სახელი / ელ.ფოსტა",
   "Supplier Login Account": "მომწოდებლის ანგარიში",
@@ -831,6 +833,11 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Cannot delete user with admin role": "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.",
   "Admin user cannot be deleted": "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.",
   "Only admins can delete admin users": "ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.",
+  "Restore Deleted Vehicle": "წაშლილი ავტომობილის აღდგენა",
+  "Recover Deleted Vehicle": "წაშლილი ავტომობილის აღდგენა",
+  "Vehicle with this license plate was deleted in the past. Do you want to recover it?": "ავტომობილი ამ სახელმწიფო ნომრით წარსულში წაშლილი იყო. გსურთ მისი აღდგენა?",
+  "Yes, Recover": "დიახ, აღდგენა",
+  "Recover": "აღდგენა"
 };
 
 export function t(key: string): string {

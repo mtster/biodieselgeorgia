@@ -2,7 +2,7 @@ import React, { useState, useEffect, useImperativeHandle } from 'react';
 import { User, UserRole, Warehouse } from '../../types';
 import { formatPhone, t } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
-import { Check } from 'lucide-react';
+import { Check, Eye, EyeOff } from 'lucide-react';
 
 interface Props {
   editingUser: User;
@@ -102,6 +102,40 @@ export default function UserForm({
   formRef
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isEmailReadOnly, setIsEmailReadOnly] = useState(true);
+  const [isPasswordReadOnly, setIsPasswordReadOnly] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    setIsEmailReadOnly(true);
+    setIsPasswordReadOnly(true);
+    setShowPassword(false);
+  }, [editingUser?.id, isNew]);
+
+  useEffect(() => {
+    if (isNew) {
+      const timer = setTimeout(() => {
+        setEditingUser(prev => {
+          if (!prev || !isNew) return prev;
+          const loggedInEmail = (currentUser?.email || '').trim().toLowerCase();
+          const currentEmail = (prev.email || '').trim().toLowerCase();
+          const isAutofilledEmail = loggedInEmail && (
+            currentEmail === loggedInEmail || 
+            currentEmail.replace('@biodiesel.ge', '') === loggedInEmail.replace('@biodiesel.ge', '')
+          );
+          if (isAutofilledEmail || (isPasswordReadOnly && prev.password)) {
+            return {
+              ...prev,
+              email: isAutofilledEmail ? '' : prev.email,
+              password: isPasswordReadOnly ? '' : prev.password
+            };
+          }
+          return prev;
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isNew, editingUser?.id, currentUser?.email, isPasswordReadOnly, setEditingUser]);
 
   useEffect(() => {
     if (editingUser && !editingUser.permissions) {
@@ -270,6 +304,8 @@ export default function UserForm({
   };
 
   const fillDummyUser = () => {
+    setIsEmailReadOnly(false);
+    setIsPasswordReadOnly(false);
     setEditingUser({
       id: '',
       name: 'Test Manager',
@@ -335,7 +371,13 @@ export default function UserForm({
         <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">
           {t("User Account Details")}
         </span>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
+          {/* Hidden decoy fields to absorb browser autofill heuristics */}
+          <div style={{ position: 'absolute', opacity: 0, height: 0, width: 0, overflow: 'hidden', zIndex: -1 }} aria-hidden="true">
+            <input type="text" name="fake_username_autofill_prevent" tabIndex={-1} autoComplete="username" />
+            <input type="password" name="fake_password_autofill_prevent" tabIndex={-1} autoComplete="current-password" />
+          </div>
+
           <FormInput
             label={t("Full Name") + " *"}
             type="text"
@@ -366,6 +408,11 @@ export default function UserForm({
             label={isDriverOrLogist ? t("Email Address") : t("Email Address") + " *"}
             type="email"
             id="user-email-address"
+            name="new_user_login_email_no_autofill"
+            autoComplete="new-password"
+            readOnly={isEmailReadOnly}
+            onFocus={() => setIsEmailReadOnly(false)}
+            onMouseDown={() => setIsEmailReadOnly(false)}
             value={editingUser.email}
             onChange={(e) => {
               setEditingUser({...editingUser, email: e.target.value});
@@ -377,15 +424,30 @@ export default function UserForm({
           {!isDriverOrLogist && (
             <FormInput
               label={isNew ? t("Password (min. 6 symbols)") + " *" : t("Change Password (Optional)")}
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="user-password"
+              name="new_user_secret_code_no_autofill"
+              autoComplete="new-password"
+              readOnly={isPasswordReadOnly}
+              onFocus={() => setIsPasswordReadOnly(false)}
+              onMouseDown={() => setIsPasswordReadOnly(false)}
               value={editingUser.password || ''}
               onChange={(e) => {
                 setEditingUser({...editingUser, password: e.target.value});
                 if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
               }}
               error={fieldErrors.password}
-            />
+            >
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer transition-colors z-10"
+                tabIndex={-1}
+                title={showPassword ? t("Hide Password") : t("Show Password")}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </FormInput>
           )}
 
           <FormInput

@@ -91,8 +91,9 @@ serve(async (req) => {
       return clean;
     };
 
-    // Parse payload fields
-    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id, is_blocked } = await req.json()
+    // Parse payload fields once
+    const body = await req.json().catch(() => ({}));
+    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id, is_blocked } = body;
     const perms = permissions || privileges || {};
     
     // Standardize legacy role names to match database constraint
@@ -110,6 +111,53 @@ serve(async (req) => {
       }
 
       const cleanPersonalId = (personal_id && String(personal_id).trim()) || `12${Math.floor(100000000 + Math.random() * 900000000)}`;
+      const cleanName = (name && String(name).trim()) || 'New User';
+      const cleanPhone = (phone && String(phone).trim()) || '+995 599 00 00 00';
+
+      // Drivers and Driver Assistants DO NOT need auth users created (they don't log in anywhere)
+      // They are purely informational rows inserted directly into the profiles table
+      if (assignedRole === 'driver' || assignedRole === 'driver_assistant') {
+        const profileId = (id && /^[0-9a-f-]{36}$/i.test(id)) ? id : crypto.randomUUID();
+        const hasEmail = Boolean(email && String(email).trim());
+        const cleanEmail = hasEmail ? formatAuthEmail(email) : null;
+
+        const profilePayload: any = {
+          id: profileId,
+          name: cleanName,
+          personal_id: cleanPersonalId,
+          phone: cleanPhone,
+          role: assignedRole,
+          permissions: {},
+          privileges: [],
+          vendor_id: null,
+          is_blocked: is_blocked ?? false,
+          is_deleted: false,
+          email: cleanEmail
+        };
+
+        const { data: createdProfile, error: profileErr } = await supabaseAdmin
+          .from('profiles')
+          .insert([profilePayload])
+          .select('*')
+          .single();
+
+        if (profileErr) {
+          return new Response(JSON.stringify({ error: profileErr.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          user: createdProfile,
+          profile: createdProfile
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       const cleanEmail = formatAuthEmail(email, cleanPersonalId);
       const cleanPassword = (password && String(password).trim()) || 'Georgia2026!';
       const cleanName = (name && String(name).trim()) || 'New User';

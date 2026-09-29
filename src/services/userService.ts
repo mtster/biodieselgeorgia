@@ -1,18 +1,14 @@
-import { User, UserRole, PermissionsConfig } from '../types';
-import { getLocal, setLocal, KEY_USERS } from './localStorage';
+import { User } from '../types';
+import { getLocal, setLocal } from './localStorage';
 import { trackChange } from './historyService';
 import { isSupabaseConfigured, supabase } from '../lib/db';
-import { defaultPermissions } from '../components/users/UserForm';
 import { notifyDbChange } from '../lib/realtime';
 import { appCache } from '../utils/cache';
 import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
+import { KEY_USERS, DEFAULT_USERS, PaginatedUsersResult, decodeProfile } from './userDecoder';
 
-export { KEY_USERS };
-
-export interface PaginatedUsersResult {
-  users: User[];
-  totalCount: number;
-}
+export { KEY_USERS, DEFAULT_USERS, decodeProfile };
+export type { PaginatedUsersResult };
 
 export async function getUsersPaginated(
   limit: number = 12,
@@ -87,56 +83,6 @@ export async function getUsersPaginated(
   };
 }
 
-export const DEFAULT_USERS: User[] = [
-  {
-    id: '00000000-0000-4000-a000-000000000000',
-    name: 'Administrator',
-    personal_id: '12345678901',
-    email: 'admin@biodiesel.ge',
-    password: 'admin123',
-    phone: '599112233',
-    role: 'admin',
-    permissions: {},
-    is_deleted: false,
-    is_blocked: false,
-    created_at: new Date().toISOString()
-  }
-];
-
-export function decodeProfile(p: any): User {
-  if (!p) return p;
-  const role = p.role || 'operator';
-  let perms = p.permissions;
-  if (typeof perms === 'string') {
-    try {
-      perms = JSON.parse(perms);
-    } catch (e) {
-      perms = null;
-    }
-  }
-
-  // If perms is null/undefined, initialize with defaultPermissions for role
-  if (perms === null || perms === undefined) {
-    perms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
-  }
-
-  let email = p.email || '';
-  if (email.includes('@internal.driver') || email.includes('@internal.app')) {
-    email = '';
-  } else if ((role === 'driver' || role === 'driver_assistant') && p.personal_id && email.startsWith(p.personal_id) && (email.endsWith('@company.ge') || email.endsWith('@biodiesel.ge'))) {
-    email = '';
-  }
-
-  return {
-    ...p,
-    email,
-    role,
-    permissions: perms || {},
-    warehouse_id: p.warehouse_id || undefined,
-    vendor_id: p.vendor_id || undefined
-  };
-}
-
 export async function getUsers(): Promise<User[]> {
   if (isSupabaseConfigured && supabase) {
     try {
@@ -153,13 +99,72 @@ export async function getUsers(): Promise<User[]> {
 
 export async function saveUser(user: User, loggerName: string): Promise<User> {
   let finalUser = { ...user };
-  const isNew = !user.id || user.id.length < 10;
+  const isValidUuid = (val?: string | null): boolean => Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+  const isNew = !user.id || user.id.length < 10 || !isValidUuid(user.id);
+  const isDriverOrAssistant = user.role === 'driver' || user.role === 'driver_assistant';
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
-      
-      if (isNew) {
+      if (isDriverOrAssistant) {
+        // Drivers and Driver Assistants do not need auth accounts (they do not log into any portal)
+        // They are informational records added directly to the profiles table for historical operations tracking
+        const cleanPersonalId = (user.personal_id && user.personal_id.trim()) || '';
+        const cleanEmail = (user.email && user.email.trim()) ? user.email.trim() : null;
+        const cleanPhone = (user.phone && user.phone.trim()) || '';
+        const cleanName = (user.name && user.name.trim()) || (user.role === 'driver' ? 'მძღოლი' : 'დამხმარე');
+
+        if (isNew) {
+          const profileId = (isValidUuid(user.id) ? user.id : crypto.randomUUID());
+          const newProfile = {
+            id: profileId,
+            name: cleanName,
+            personal_id: cleanPersonalId,
+            phone: cleanPhone,
+            email: cleanEmail,
+            role: user.role,
+            permissions: {},
+            privileges: [],
+            is_deleted: false,
+            is_blocked: false,
+            vendor_id: null
+          };
+
+          const { data: inserted, error: insErr } = await supabase
+            .from('profiles')
+            .insert([newProfile])
+            .select()
+            .maybeSingle();
+
+          if (insErr) {
+            console.error('Failed to create driver profile in database:', insErr);
+            throw new Error(insErr.message || 'Failed to save driver profile');
+          }
+          finalUser = inserted || newProfile;
+        } else {
+          const updatePayload: any = {
+            name: cleanName,
+            personal_id: cleanPersonalId,
+            phone: cleanPhone,
+            email: cleanEmail,
+            role: user.role,
+            is_blocked: user.is_blocked || false
+          };
+
+          const { data: updated, error: upErr } = await supabase
+            .from('profiles')
+            .update(updatePayload)
+            .eq('id', user.id)
+            .select()
+            .maybeSingle();
+
+          if (upErr) {
+            console.error('Failed to update driver profile in database:', upErr);
+            throw new Error(upErr.message || 'Failed to update driver profile');
+          }
+          finalUser = updated || { ...user, ...updatePayload };
+        }
+      } else if (isNew) {
+        const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
         let resData: any = null;
         let createdOnExpress = false;
 
@@ -212,7 +217,6 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             }
           } catch (err: any) {
             console.error('Express /api/create-user failed:', err);
-            // If the server responded with an explicit validation/auth error, propagate it directly
             if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
               throw err;
             }
@@ -259,7 +263,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
         }
 
       } else {
-        // UPDATE Existing
+        // UPDATE Existing Non-Driver User
         let updatedOnEdge = false;
         let cleanEmail = user.email ? user.email.trim() : '';
         if (cleanEmail && !cleanEmail.includes('@')) {
@@ -271,7 +275,6 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           const token = sessionRes.data.session?.access_token;
           
           if (token) {
-            // First try internal server API endpoint for auth updates
             const serverRes = await fetch('/api/update-user', {
               method: 'POST',
               headers: {
@@ -298,7 +301,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               }
               updatedOnEdge = true;
             } else {
-              // Edge function fallback
+              const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
               const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
               const edgeRes = await fetch(functionUrl, {
                 method: 'POST',
@@ -389,7 +392,6 @@ export async function deleteUser(id: string, name: string, loggerName: string, c
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // First check if profile is admin in DB and whether current user is non-admin
       const { data: dbProfile } = await supabase
         .from('profiles')
         .select('role')
@@ -400,52 +402,41 @@ export async function deleteUser(id: string, name: string, loggerName: string, c
         throw new Error('ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.');
       }
 
-      // Mark both is_deleted: true AND is_blocked: true
-      const { error: updateError } = await supabase
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
+      if (token) {
+        try {
+          const res = await fetch('/api/delete-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id })
+          });
+          if (res.ok) {
+            console.log('User deleted via /api/delete-user API');
+          }
+        } catch (delErr) {
+          console.warn('API delete-user call failed:', delErr);
+        }
+      }
+
+      await supabase
         .from('profiles')
         .update({ is_deleted: true, is_blocked: true })
         .eq('id', id);
 
-      if (updateError) {
-        throw updateError;
-      }
-      
-      const sessionRes = await supabase.auth.getSession();
-      const token = sessionRes.data.session?.access_token;
-      
-      // Try edge function
-      if (token) {
-        const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
-        const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-        await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ action: 'delete', id })
-        }).catch(() => {});
-      }
-
-      // Also call backend express endpoint if available
-      await fetch('/api/delete-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ id })
-      }).catch(() => {});
-
-    } catch (e: any) {
+    } catch (e) {
       console.error('Supabase deleteUser failed', e);
       throw e;
     }
   }
-  
-  setLocal(KEY_USERS, list.map(item => item.id === id ? { ...item, is_deleted: true, is_blocked: true } : item));
-  
+
+  appCache.clear('users_');
+  appCache.clear('count_users_');
+
+  setLocal(KEY_USERS, list.filter(item => item.id !== id));
   await trackChange(loggerName, 'User deleted', 'Name', name, '');
   notifyDbChange('profiles', 'DELETE', id);
   return true;

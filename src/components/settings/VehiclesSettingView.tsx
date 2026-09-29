@@ -114,6 +114,7 @@ export default function VehiclesSettingView({
           setSelectedTruck(null);
         }}
         selectedTruck={selectedTruck}
+        trucks={trucks}
         employees={employees}
         cities={cities}
         warehouses={warehouses}
