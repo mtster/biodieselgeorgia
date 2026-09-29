@@ -22,8 +22,7 @@ router.all("/api/cron/scheduled-orders", async (req, res) => {
       isAuthorized = true;
     } else if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.split(" ")[1];
-      const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
-      const { data: { user }, error: authErr } = await tempClient.auth.getUser(token);
+      const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
       if (!authErr && user) {
         const { data: profile } = await supabaseAdmin
           .from("profiles")

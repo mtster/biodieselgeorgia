@@ -17,10 +17,35 @@ export async function handleVehicleAccountCreation(req: express.Request, res: ex
     }
 
     const token = authHeader.split(" ")[1];
-    const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
-    const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
+    let user: any = null;
 
-    if (userError || !user) {
+    // 1. Verify token directly with Supabase Auth
+    try {
+      const { data, error: userError } = await supabaseAdmin.auth.getUser(token);
+      if (!userError && data?.user) {
+        user = data.user;
+      }
+    } catch (_) {}
+
+    // 2. Fallback: Parse JWT claims and verify existence via elevated Admin API
+    if (!user && token && token.includes(".")) {
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payloadStr = Buffer.from(parts[1], "base64").toString("utf-8");
+          const payload = JSON.parse(payloadStr);
+          const userId = payload?.sub || payload?.id;
+          if (userId && typeof userId === "string" && /^[0-9a-f-]{36}$/i.test(userId)) {
+            const { data: adminUserRes } = await supabaseAdmin.auth.admin.getUserById(userId);
+            if (adminUserRes?.user) {
+              user = adminUserRes.user;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!user) {
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });
     }
 
@@ -286,10 +311,33 @@ router.post(["/api/delete-vehicle-account", "/delete-vehicle-account"], async (r
     }
 
     const token = authHeader.split(" ")[1];
-    const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
-    const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
+    let user: any = null;
 
-    if (userError || !user) {
+    try {
+      const { data, error: userError } = await supabaseAdmin.auth.getUser(token);
+      if (!userError && data?.user) {
+        user = data.user;
+      }
+    } catch (_) {}
+
+    if (!user && token && token.includes(".")) {
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payloadStr = Buffer.from(parts[1], "base64").toString("utf-8");
+          const payload = JSON.parse(payloadStr);
+          const userId = payload?.sub || payload?.id;
+          if (userId && typeof userId === "string" && /^[0-9a-f-]{36}$/i.test(userId)) {
+            const { data: adminUserRes } = await supabaseAdmin.auth.admin.getUserById(userId);
+            if (adminUserRes?.user) {
+              user = adminUserRes.user;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!user) {
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });
     }
 

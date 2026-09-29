@@ -21,8 +21,7 @@ router.post("/api/create-user", async (req, res) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
-    const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });
@@ -274,8 +273,7 @@ router.post("/api/update-user", async (req, res) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
-    const { data: { user: requestingUser }, error: userError } = await tempClient.auth.getUser(token);
+    const { data: { user: requestingUser }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !requestingUser) {
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });
@@ -415,8 +413,7 @@ const handleDeleteUser = async (req: express.Request, res: express.Response) => 
     }
 
     const token = authHeader.split(" ")[1];
-    const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
-    const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });
@@ -496,8 +493,7 @@ router.get("/api/profiles", async (req, res) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const tempClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || "");
-    const { data: { user }, error: userError } = await tempClient.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });

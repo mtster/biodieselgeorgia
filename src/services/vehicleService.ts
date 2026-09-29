@@ -125,7 +125,14 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
     if (needsAuthSync) {
       try {
         const sessionRes = await supabase.auth.getSession();
-        const token = sessionRes.data.session?.access_token;
+        let token = sessionRes.data.session?.access_token;
+        if (!token || (sessionRes.data.session?.expires_at && sessionRes.data.session.expires_at * 1000 < Date.now() + 60000)) {
+          const { data: refData } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+          if (refData.session?.access_token) {
+            token = refData.session.access_token;
+          }
+        }
+
         const payload = {
           plate_number: cleanCurrentPlate,
           password: vehicle.password?.trim() || undefined,
@@ -169,11 +176,13 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
           } catch (_) {}
         }
 
-        // If not synced via Express proxy endpoints, try Supabase Edge Function fallback
+        // If not synced via Express proxy endpoints, try Supabase Edge Function fallback strictly pointing to vehicle-user
         if (!synced && token) {
           try {
-            const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
+            const baseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
             const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+            const functionUrl = `${baseUrl}/functions/v1/vehicle-user`;
+            
             const edgeRes = await fetch(functionUrl, {
               method: 'POST',
               headers: {
@@ -188,7 +197,11 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
               if (resData.auth_user_id) {
                 authUserId = resData.auth_user_id;
                 vehicle.auth_user_id = resData.auth_user_id;
+                synced = true;
               }
+            } else {
+              const errBody = await edgeRes.json().catch(() => ({}));
+              console.warn('Vehicle Edge function response:', edgeRes.status, errBody);
             }
           } catch (edgeErr) {
             console.warn('Edge function vehicle sync error:', edgeErr);
