@@ -169,6 +169,11 @@ serve(async (req) => {
         password: cleanPassword,
         email_confirm: true,
         phone_confirm: true,
+        app_metadata: {
+          role: assignedRole,
+          permissions: perms,
+          privileges: perms
+        },
         user_metadata: {
           name: cleanName,
           personal_id: cleanPersonalId,
@@ -237,6 +242,11 @@ serve(async (req) => {
 
       // Prepare updates in Auth table
       const authUpdates: any = {
+        app_metadata: {
+          role: assignedRole,
+          permissions: perms,
+          privileges: perms
+        },
         user_metadata: {
           name: (name && String(name).trim()) || "",
           personal_id: (personal_id && String(personal_id).trim()) || "",

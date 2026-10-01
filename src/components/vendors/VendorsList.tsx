@@ -5,6 +5,7 @@ import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
 import VendorsTooltip from './VendorsTooltip';
+import { SelectAllHeaderCheckbox } from '../common/SelectAllHeaderCheckbox';
 
 interface Props {
   filteredVendors: Vendor[];
@@ -253,9 +254,29 @@ export default function VendorsList({
 
   const columns: ColumnConfig<Vendor>[] = [];
 
+  const visibleIds = filteredVendors.map(v => v.id);
+  const isAllVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedVendors.includes(id));
+  const isSomeVisibleSelected = visibleIds.some(id => selectedVendors.includes(id));
+
+  const handleToggleAll = () => {
+    if (!setSelectedVendors) return;
+    if (isAllVisibleSelected) {
+      setSelectedVendors(selectedVendors.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedVendors(Array.from(new Set([...selectedVendors, ...visibleIds])));
+    }
+  };
+
   // Prepend multi-select checkbox column
   columns.push({
-    header: '',
+    header: (
+      <SelectAllHeaderCheckbox
+        allSelected={isAllVisibleSelected}
+        someSelected={isSomeVisibleSelected}
+        onToggle={handleToggleAll}
+        disabled={filteredVendors.length === 0}
+      />
+    ),
     key: 'select',
     className: 'w-12 text-center',
     render: (vendor) => {
@@ -265,13 +286,15 @@ export default function VendorsList({
           <button
             type="button"
             onClick={() => toggleSelect(vendor.id)}
-            className={`w-4 h-4 rounded border flex items-center justify-center p-0 shrink-0 mx-auto cursor-pointer ${
+            className={`w-4 h-4 rounded-[4px] border flex items-center justify-center p-0 shrink-0 mx-auto cursor-pointer transition-colors ${
               isChecked
                 ? 'border-emerald-600 bg-emerald-600 text-white'
                 : 'border-gray-300 bg-white hover:border-gray-400'
             }`}
           >
-            {isChecked && <Check size={11} strokeWidth={3.5} className="shrink-0 leading-none" />}
+            {isChecked && (
+              <Check size={12} strokeWidth={3.5} className="block shrink-0 translate-y-[0.5px]" />
+            )}
           </button>
         </div>
       );

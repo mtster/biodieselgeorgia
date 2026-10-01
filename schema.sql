@@ -511,6 +511,24 @@ ALTER TABLE public.change_history ENABLE ROW LEVEL SECURITY;
 -- To prevent infinite loops, NEVER do SELECT on profiles from a policy check.
 -- Instead, check user identity via auth.uid() or verify attributes in the auth.jwt().
 
+-- Helper function to securely determine user role from verified app_metadata or profiles table
+CREATE OR REPLACE FUNCTION public.get_current_user_role()
+RETURNS TEXT SECURITY DEFINER AS $$
+DECLARE
+  v_role TEXT;
+BEGIN
+  -- 1. Check verified app_metadata in JWT (tamper-proof, set exclusively by server/admin)
+  v_role := auth.jwt() -> 'app_metadata' ->> 'role';
+  IF v_role IS NOT NULL AND v_role != '' THEN
+    RETURN v_role;
+  END IF;
+
+  -- 2. Fallback to authoritative database profiles table
+  SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+  RETURN COALESCE(v_role, '');
+END;
+$$ LANGUAGE plpgsql STABLE;
+
 -- Helper function to check granular JSONB permissions
 CREATE OR REPLACE FUNCTION public.has_permission(module TEXT, perm TEXT)
 RETURNS BOOLEAN SECURITY DEFINER AS $$
@@ -523,8 +541,8 @@ BEGIN
     RETURN true;
   END IF;
 
-  -- Admin in JWT token metadata always has all permissions
-  IF COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' THEN
+  -- Admin in JWT token app_metadata always has all permissions
+  IF COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin' THEN
     RETURN true;
   END IF;
 
@@ -686,7 +704,14 @@ CREATE POLICY "Communications delete" ON public.communications FOR DELETE TO aut
 
 -- ORDERS
 CREATE POLICY "Orders view access" ON public.orders FOR SELECT TO authenticated USING (
-  public.has_permission('orders', 'view') 
+  (
+    public.has_permission('orders', 'view')
+    AND (
+      public.get_current_user_role() != 'logistics_manager'
+      OR (order_date AT TIME ZONE 'Asia/Tbilisi')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tbilisi')::date
+      OR order_date::date = CURRENT_DATE
+    )
+  )
   OR vehicle_id IN (SELECT id FROM public.vehicles WHERE auth_user_id = auth.uid() OR id = auth.uid()) 
   OR driver_id = auth.uid() 
   OR companion_id = auth.uid()
@@ -718,8 +743,8 @@ BEGIN
     RETURN true;
   END IF;
 
-  -- Admin role explicitly asserted in verified JWT claims
-  IF COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' THEN
+  -- Admin role explicitly asserted in verified JWT app_metadata claims
+  IF COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin' THEN
     RETURN true;
   END IF;
 

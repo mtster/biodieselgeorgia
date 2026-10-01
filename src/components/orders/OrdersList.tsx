@@ -3,7 +3,8 @@ import { Order, Vendor, User, Warehouse, Direction, Truck } from '../../types';
 import { Edit2, Trash2, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
-import { t, formatDate, formatDateTime, formatPhone } from '../../utils/lang';
+import { t, formatDate, formatDateTime, formatPhone, formatOrderCompletionTime } from '../../utils/lang';
+import { SelectAllHeaderCheckbox } from '../common/SelectAllHeaderCheckbox';
 
 interface Props {
   currentEmployee: User;
@@ -74,12 +75,39 @@ export default function OrdersList({
     status: {
       header: t('Status'),
       key: 'status',
+      className: 'whitespace-nowrap',
       render: (ord) => {
         const s = ord.status;
-        if (s === 'driver_assigned') return t('Driver Assigned');
-        if (s === 'picked_up') return t('Picked Up');
-        return t(s);
+        let label = t(s);
+        if (s === 'driver_assigned') label = t('Driver Assigned');
+        else if (s === 'picked_up') label = t('Picked Up');
+        else if (s === 'completed') label = t('Completed');
+        else if (s === 'cancelled') label = t('cancelled');
+        else if (s === 'uncompleted') label = t('uncompleted');
+        else if (s === 'registered') label = t('registered');
+
+        const statusStyles: Record<string, string> = {
+          completed: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          driver_assigned: 'bg-blue-50 text-blue-800 border-blue-200',
+          picked_up: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+          registered: 'bg-slate-100 text-slate-700 border-slate-200',
+          cancelled: 'bg-rose-50 text-rose-800 border-rose-200',
+          uncompleted: 'bg-amber-50 text-amber-800 border-amber-200',
+        };
+
+        const badgeClass = statusStyles[s] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-[10px] font-bold tracking-wide whitespace-nowrap ${badgeClass}`}>
+            {label}
+          </span>
+        );
       }
+    },
+    completed_at: {
+      header: t('Completion Time'),
+      key: 'completed_at',
+      render: (ord) => ord.completed_at ? formatOrderCompletionTime(ord.completed_at) : '-'
     },
     vendor_id: {
       header: t('Supplier'),
@@ -294,9 +322,29 @@ export default function OrdersList({
 
   const columns: ColumnConfig<Order>[] = [];
 
+  const visibleIds = filteredOrders.map(o => o.id);
+  const isAllVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedOrders.includes(id));
+  const isSomeVisibleSelected = visibleIds.some(id => selectedOrders.includes(id));
+
+  const handleToggleAll = () => {
+    if (!setSelectedOrders) return;
+    if (isAllVisibleSelected) {
+      setSelectedOrders(selectedOrders.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedOrders(Array.from(new Set([...selectedOrders, ...visibleIds])));
+    }
+  };
+
   // Prepend select checkbox column
   columns.push({
-    header: '',
+    header: (
+      <SelectAllHeaderCheckbox
+        allSelected={isAllVisibleSelected}
+        someSelected={isSomeVisibleSelected}
+        onToggle={handleToggleAll}
+        disabled={filteredOrders.length === 0}
+      />
+    ),
     key: 'select',
     className: 'w-12 text-center',
     render: (ord) => {
@@ -306,13 +354,15 @@ export default function OrdersList({
           <button
             type="button"
             onClick={() => toggleSelect(ord.id)}
-            className={`w-4 h-4 rounded border flex items-center justify-center p-0 shrink-0 mx-auto cursor-pointer ${
+            className={`w-4 h-4 rounded-[4px] border flex items-center justify-center p-0 shrink-0 mx-auto cursor-pointer transition-colors ${
               isChecked
                 ? 'border-emerald-600 bg-emerald-600 text-white'
                 : 'border-gray-300 bg-white hover:border-gray-400'
             }`}
           >
-            {isChecked && <Check size={11} strokeWidth={3.5} className="shrink-0 leading-none" />}
+            {isChecked && (
+              <Check size={12} strokeWidth={3.5} className="block shrink-0 translate-y-[0.5px]" />
+            )}
           </button>
         </div>
       );

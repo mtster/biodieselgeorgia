@@ -188,6 +188,11 @@ router.post("/api/create-user", async (req, res) => {
       password: cleanPassword,
       email_confirm: true,
       phone_confirm: true,
+      app_metadata: {
+        role: assignedRole,
+        permissions: perms,
+        privileges: perms
+      },
       user_metadata: {
         name: cleanName,
         personal_id: cleanPersonalId,
@@ -319,6 +324,11 @@ router.post("/api/update-user", async (req, res) => {
     const cleanEmail = hasEmail ? formatAuthEmail(email) : '';
 
     const updatePayload: any = {
+      app_metadata: {
+        role: assignedRole,
+        permissions: perms,
+        privileges: perms
+      },
       user_metadata: {
         name: (name && String(name).trim()) || "",
         personal_id: (personal_id && String(personal_id).trim()) || "",

@@ -9,6 +9,7 @@ import excelRoutes from "./server/routes/excel";
 import cronRoutes from "./server/routes/cron";
 import reportRoutes from "./server/routes/reports";
 import logisticsRoutes from "./server/routes/logistics";
+import { startPlannedOrdersScheduler } from "./server/services/plannedOrdersService";
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ async function startServer() {
 
   app.listen(port, "0.0.0.0", () => {
     console.log(`Server is running at http://localhost:${port}`);
+    startPlannedOrdersScheduler();
   });
 }
 

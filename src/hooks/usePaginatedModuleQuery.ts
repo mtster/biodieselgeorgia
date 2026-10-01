@@ -80,11 +80,19 @@ export function usePaginatedOrders(
   currentUser: User | null
 ) {
   const isAllowed = hasModuleViewPermission(currentUser, 'orders') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
-  const filterKey = JSON.stringify(filters);
+  
+  const effectiveFilters = { ...filters };
+  if (currentUser?.role === 'logistics_manager') {
+    const todayTbilisi = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
+    effectiveFilters.startDate = todayTbilisi;
+    effectiveFilters.endDate = todayTbilisi;
+  }
+
+  const filterKey = JSON.stringify(effectiveFilters);
 
   const query = useQuery({
-    queryKey: ['orders', page, filterKey],
-    queryFn: () => getOrdersPaginated(12, (page - 1) * 12, filters),
+    queryKey: ['orders', page, filterKey, currentUser?.role],
+    queryFn: () => getOrdersPaginated(12, (page - 1) * 12, effectiveFilters, currentUser),
     enabled: isAllowed && !!currentUser,
     placeholderData: (previousData, previousQuery) => {
       if (previousQuery && previousQuery.queryKey[2] === filterKey) {

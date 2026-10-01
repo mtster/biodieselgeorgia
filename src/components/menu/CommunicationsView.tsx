@@ -396,7 +396,8 @@ export default function CommunicationsView({
     employees,
     currentEmployee,
     selectedComms,
-    setSelectedComms
+    setSelectedComms,
+    visibleComms: displayComms
   }, managedCols);
 
   const headerActions = (

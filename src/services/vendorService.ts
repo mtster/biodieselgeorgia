@@ -846,6 +846,26 @@ export async function saveVendor(vendor: Vendor, loggerName: string, currentUser
   }
 
   notifyDbChange('vendors', isNew ? 'CREATE' : 'UPDATE', finalVendor.id);
+
+  // If vendor is configured as planned (გეგმიური), trigger automated order check immediately
+  if (finalVendor.is_planned && finalVendor.planned_weekday) {
+    try {
+      fetch(`/api/orders/generate-planned?vendor_id=${encodeURIComponent(finalVendor.id)}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.createdCount > 0) {
+            console.log(`[Planned Orders] Created ${data.createdCount} order(s) for supplier:`, finalVendor.trade_name || finalVendor.company_name);
+            notifyDbChange('orders', 'CREATE', data.orders?.[0]?.id || '');
+          }
+        })
+        .catch(err => {
+          console.warn('Could not trigger planned order check:', err);
+        });
+    } catch (e) {
+      console.warn('Error initiating planned order check:', e);
+    }
+  }
+
   return decodeVendorCustomFields(finalVendor);
 }
 

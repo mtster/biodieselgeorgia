@@ -22,6 +22,7 @@ import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
 const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'order_date', label: 'Order Date', visible: true },
   { id: 'status', label: 'Status', visible: true },
+  { id: 'completed_at', label: 'Completion Time', visible: true },
   { id: 'vendor_id', label: 'Supplier', visible: true },
   { id: 'city', label: 'City', visible: true },
   { id: 'address', label: 'Address', visible: true },
@@ -104,6 +105,27 @@ export default function OrdersView({
     setPage(1);
   }, [debouncedSearchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, selectedManager, startDate, endDate]);
 
+  // Ensure scheduled planned orders for today/tomorrow are synced
+  useEffect(() => {
+    fetch('/api/orders/generate-planned', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data?.createdCount > 0) {
+          console.log(`[Planned Orders Sync] Generated ${data.createdCount} order(s).`);
+          import('../../lib/realtime').then(rt => {
+            rt.notifyDbChange('orders', 'CREATE', data.orders?.[0]?.id || '');
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const isLogisticsManager = currentEmployee?.role === 'logistics_manager';
+  const todayTbilisi = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
+
+  const effectiveStartDate = isLogisticsManager ? todayTbilisi : startDate;
+  const effectiveEndDate = isLogisticsManager ? todayTbilisi : endDate;
+
   const filters = {
     searchTerm: debouncedSearchTerm,
     status: selectedStatus,
@@ -112,8 +134,8 @@ export default function OrdersView({
     directionId: selectedDirection,
     vehicleId: selectedVehicle,
     managerId: selectedManager,
-    startDate,
-    endDate
+    startDate: effectiveStartDate,
+    endDate: effectiveEndDate
   };
 
   const { data: paginatedData, isLoading: isOrdersLoading } = usePaginatedOrders(page, filters, currentEmployee);
@@ -144,7 +166,7 @@ export default function OrdersView({
   // Columns Manager State
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
-    const CURRENT_VERSION = 'v5_canonical_reorder';
+    const CURRENT_VERSION = 'v6_canonical_completed_at';
     const versionKey = 'orders_columns_version';
     const loadedVersion = localStorage.getItem(versionKey);
     const loaded = localStorage.getItem('orders_columns_managed');
@@ -516,14 +538,16 @@ export default function OrdersView({
             {/* Filter Row */}
             <div className="flex flex-wrap items-center gap-4 w-full select-none font-sans">
               {/* Period Filter */}
-              <div className="shrink-0">
-                <PeriodFilter 
-                  startDate={startDate} 
-                  setStartDate={setStartDate} 
-                  endDate={endDate} 
-                  setEndDate={setEndDate} 
-                />
-              </div>
+              {!isLogisticsManager && (
+                <div className="shrink-0">
+                  <PeriodFilter 
+                    startDate={startDate} 
+                    setStartDate={setStartDate} 
+                    endDate={endDate} 
+                    setEndDate={setEndDate} 
+                  />
+                </div>
+              )}
 
               {/* Status Filter */}
               <div className="relative w-full md:w-auto min-w-[140px]">

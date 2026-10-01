@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Order, Vendor } from '../types';
+import { Order, Vendor, User } from '../types';
 import { trackChange } from './historyService';
 import { KEY_ORDERS, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
@@ -8,6 +8,32 @@ import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
 import { generateUuid, cleanUserUuid } from './vendorService';
 
 export { KEY_ORDERS };
+
+export function isDateTodayTbilisi(dateVal?: string | Date | null): boolean {
+  if (!dateVal) return false;
+  try {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
+    const dStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date(dateVal));
+    return dStr === today;
+  } catch {
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
+    return String(dateVal).slice(0, 10) === today;
+  }
+}
+
+export function checkIsLogisticsManager(user?: User | null): boolean {
+  if (user?.role === 'logistics_manager') return true;
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('currentUser') || localStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.role === 'logistics_manager') return true;
+      }
+    } catch {}
+  }
+  return false;
+}
 
 const isValidUuid = (val: any): boolean => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
@@ -34,9 +60,19 @@ export async function getOrdersPaginated(
     vendorId?: string;
     managerId?: string;
     salesManagerId?: string;
-  }
+  },
+  currentUser?: User | null
 ): Promise<PaginatedOrdersResult> {
-  const filterKey = JSON.stringify(filters || {});
+  const isLogisticsManager = checkIsLogisticsManager(currentUser);
+  const todayTbilisi = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
+
+  const effectiveFilters = { ...(filters || {}) };
+  if (isLogisticsManager) {
+    effectiveFilters.startDate = todayTbilisi;
+    effectiveFilters.endDate = todayTbilisi;
+  }
+
+  const filterKey = JSON.stringify({ ...effectiveFilters, isLogisticsManager });
   const countCacheKey = `count_orders_${filterKey}`;
   const pageCacheKey = `orders_limit_${limit}_offset_${offset}_${filterKey}`;
 
@@ -53,10 +89,10 @@ export async function getOrdersPaginated(
   if (isSupabaseConfigured && supabase) {
     try {
       // If filtering by location / direction (properties on vendors table)
-      const targetCity = filters?.city;
-      const targetDistrict = filters?.district;
-      const targetDirection = filters?.direction || filters?.directionId;
-      const targetManager = filters?.managerId || filters?.salesManagerId;
+      const targetCity = effectiveFilters?.city;
+      const targetDistrict = effectiveFilters?.district;
+      const targetDirection = effectiveFilters?.direction || effectiveFilters?.directionId;
+      const targetManager = effectiveFilters?.managerId || effectiveFilters?.salesManagerId;
       const hasVendorFilter = Boolean(targetCity || targetDistrict || targetDirection);
 
       const countConfig = cachedCount !== null ? {} : { count: 'exact' as const };
@@ -69,7 +105,7 @@ export async function getOrdersPaginated(
         .select(selectQuery, countConfig)
         .eq('is_deleted', false);
 
-      const safeTerm = sanitizePostgrestSearchTerm(filters?.searchTerm);
+      const safeTerm = sanitizePostgrestSearchTerm(effectiveFilters?.searchTerm);
       if (safeTerm) {
         const term = `%${safeTerm}%`;
         
@@ -96,14 +132,20 @@ export async function getOrdersPaginated(
         }
       }
 
-      if (filters?.status) {
-        query = query.eq('status', filters.status);
+      if (effectiveFilters?.status) {
+        query = query.eq('status', effectiveFilters.status);
       }
-      if (filters?.startDate) {
-        query = query.gte('order_date', filters.startDate);
-      }
-      if (filters?.endDate) {
-        query = query.lte('order_date', filters.endDate + 'T23:59:59');
+
+      // Restrict query: if logistics_manager, strictly enforce current date
+      if (isLogisticsManager) {
+        query = query.gte('order_date', todayTbilisi).lte('order_date', todayTbilisi + 'T23:59:59.999Z');
+      } else {
+        if (effectiveFilters?.startDate) {
+          query = query.gte('order_date', effectiveFilters.startDate);
+        }
+        if (effectiveFilters?.endDate) {
+          query = query.lte('order_date', effectiveFilters.endDate + 'T23:59:59');
+        }
       }
 
       if (targetCity) {
@@ -294,9 +336,14 @@ export async function getOrdersPaginated(
             notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
           };
         });
+
+        const finalOrders = isLogisticsManager 
+          ? mapped.filter(o => isDateTodayTbilisi(o.order_date)) 
+          : mapped;
+
         const result = {
-          orders: mapped,
-          totalCount: finalCount
+          orders: finalOrders,
+          totalCount: isLogisticsManager ? finalOrders.length : finalCount
         };
         appCache.set(pageCacheKey, result);
         return result;
@@ -316,8 +363,19 @@ export async function getOrdersPaginated(
   const vendorMap = new Map(localVendors.map(v => [v.id, v]));
 
   let filtered = all;
-  if (filters?.searchTerm?.trim()) {
-    const term = filters.searchTerm.trim().toLowerCase();
+  if (isLogisticsManager) {
+    filtered = filtered.filter(item => isDateTodayTbilisi(item.order_date));
+  } else {
+    if (effectiveFilters?.startDate) {
+      filtered = filtered.filter(item => !item.order_date || item.order_date >= effectiveFilters.startDate!);
+    }
+    if (effectiveFilters?.endDate) {
+      filtered = filtered.filter(item => !item.order_date || item.order_date <= effectiveFilters.endDate! + 'T23:59:59');
+    }
+  }
+
+  if (effectiveFilters?.searchTerm?.trim()) {
+    const term = effectiveFilters.searchTerm.trim().toLowerCase();
     filtered = filtered.filter(o => {
       const docMatch = (o.doc_number || '').toLowerCase().includes(term);
       const vObj = vendorMap.get(o.vendor_id);
@@ -326,20 +384,20 @@ export async function getOrdersPaginated(
       return docMatch || tradeMatch || companyMatch;
     });
   }
-  if (filters?.status) {
-    filtered = filtered.filter(o => o.status === filters.status);
+  if (effectiveFilters?.status) {
+    filtered = filtered.filter(o => o.status === effectiveFilters.status);
   }
-  if (filters?.driverId) {
-    filtered = filtered.filter(o => o.driver_id === filters.driverId);
+  if (effectiveFilters?.driverId) {
+    filtered = filtered.filter(o => o.driver_id === effectiveFilters.driverId);
   }
-  if (filters?.vendorId) {
-    filtered = filtered.filter(o => o.vendor_id === filters.vendorId);
+  if (effectiveFilters?.vendorId) {
+    filtered = filtered.filter(o => o.vendor_id === effectiveFilters.vendorId);
   }
-  const vehicleVal = filters?.vehicle || filters?.vehicleId;
+  const vehicleVal = effectiveFilters?.vehicle || effectiveFilters?.vehicleId;
   if (vehicleVal) {
     filtered = filtered.filter(o => o.vehicle_id === vehicleVal || o.truck_plate === vehicleVal);
   }
-  const targetMgr = filters?.managerId || filters?.salesManagerId;
+  const targetMgr = effectiveFilters?.managerId || effectiveFilters?.salesManagerId;
   if (targetMgr) {
     const cleanedMgr = cleanUserUuid(targetMgr) || targetMgr;
     filtered = filtered.filter(o => {
@@ -358,14 +416,23 @@ export async function getOrdersPaginated(
  * Ultra-efficient indexed query to count non-deleted orders with status = 'registered'.
  * Uses PostgREST HEAD count request to return only the integer amount with zero row transfer.
  */
-export async function getActiveOrdersCount(): Promise<number> {
+export async function getActiveOrdersCount(currentUser?: User | null): Promise<number> {
+  const isLogisticsManager = checkIsLogisticsManager(currentUser);
+  const todayTbilisi = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
+
   if (isSupabaseConfigured && supabase) {
     try {
-      const { count, error } = await supabase
+      let q = supabase
         .from('orders')
         .select('*', { count: 'exact', head: true })
         .eq('is_deleted', false)
         .eq('status', 'registered');
+
+      if (isLogisticsManager) {
+        q = q.gte('order_date', todayTbilisi).lte('order_date', todayTbilisi + 'T23:59:59.999Z');
+      }
+
+      const { count, error } = await q;
 
       if (!error && typeof count === 'number') {
         return count;
@@ -375,16 +442,29 @@ export async function getActiveOrdersCount(): Promise<number> {
     }
   }
 
-  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted && item.status === 'registered').length;
+  let localList = getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted && item.status === 'registered');
+  if (isLogisticsManager) {
+    localList = localList.filter(item => isDateTodayTbilisi(item.order_date));
+  }
+  return localList.length;
 }
 
-export async function getOrders(limit = 1000): Promise<Order[]> {
+export async function getOrders(limit = 1000, currentUser?: User | null): Promise<Order[]> {
+  const isLogisticsManager = checkIsLogisticsManager(currentUser);
+  const todayTbilisi = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
+
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('orders')
         .select('*')
-        .eq('is_deleted', false)
+        .eq('is_deleted', false);
+
+      if (isLogisticsManager) {
+        q = q.gte('order_date', todayTbilisi).lte('order_date', todayTbilisi + 'T23:59:59.999Z');
+      }
+
+      const { data, error } = await q
         .order('order_date', { ascending: false })
         .limit(limit);
 
@@ -496,7 +576,7 @@ export async function getOrders(limit = 1000): Promise<Order[]> {
           }
         }
 
-        return data.map((o: any) => {
+        const mapped = data.map((o: any) => {
           const v = o.vendor_id ? vendorMap.get(o.vendor_id) : null;
           const targetWhId = o.warehouse_id || v?.warehouse_id;
           const wName = targetWhId ? warehouseMap.get(targetWhId) : null;
@@ -513,6 +593,7 @@ export async function getOrders(limit = 1000): Promise<Order[]> {
             contact: c || null,
             contact_name: c?.name || '',
             contact_phone: c?.phone || '',
+            completed_at: o.completed_at || null,
             truck_plate: plate,
             vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
             warehouse_name: o.warehouse_name || wName || '',
@@ -520,12 +601,22 @@ export async function getOrders(limit = 1000): Promise<Order[]> {
             notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
           };
         });
+
+        if (isLogisticsManager) {
+          return mapped.filter(o => isDateTodayTbilisi(o.order_date));
+        }
+        return mapped;
       }
     } catch (e) {
       console.warn('Supabase getOrders failed', e);
     }
   }
-  return getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted).slice(0, limit).map((o: any) => ({
+
+  let localOrders = getLocal<Order[]>(KEY_ORDERS, []).filter(item => !item.is_deleted);
+  if (isLogisticsManager) {
+    localOrders = localOrders.filter(item => isDateTodayTbilisi(item.order_date));
+  }
+  return localOrders.slice(0, limit).map((o: any) => ({
     ...o,
     notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
   }));
