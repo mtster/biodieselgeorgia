@@ -127,7 +127,8 @@ export async function generatePlannedOrders(options?: {
         continue;
       }
 
-      const dayStartIso = `${dateStr}T00:00:00+04:00`;
+      const startUtc = new Date(`${dateStr}T00:00:00+04:00`).toISOString();
+      const endUtc = new Date(`${dateStr}T23:59:59.999+04:00`).toISOString();
 
       for (const vendor of matchingVendors) {
         // Frequency check if frequency_weeks > 1
@@ -138,22 +139,46 @@ export async function generatePlannedOrders(options?: {
             .select('order_date')
             .eq('vendor_id', vendor.id)
             .eq('is_deleted', false)
-            .lt('order_date', dayStartIso)
+            .lt('order_date', startUtc)
             .order('order_date', { ascending: false })
-            .limit(1);
+            .limit(5);
 
-          if (priorOrders && priorOrders.length > 0 && priorOrders[0].order_date) {
-            const priorDate = new Date(priorOrders[0].order_date);
-            const diffDays = Math.floor((targetDate.getTime() - priorDate.getTime()) / (1000 * 60 * 60 * 24));
-            const minDaysRequired = (freqWeeks * 7) - 3;
-            if (diffDays < minDaysRequired) {
-              executionDetails.push(`Vendor ${vendor.trade_name || vendor.company_name} is scheduled every ${freqWeeks} weeks; last order was ${diffDays} days ago (< ${minDaysRequired} days). Skipped.`);
-              continue;
+          if (priorOrders && priorOrders.length > 0) {
+            const validPriors = priorOrders.filter(p => p.order_date);
+            if (validPriors.length > 0) {
+              const priorDate = new Date(validPriors[0].order_date);
+              const diffDays = Math.floor((targetDate.getTime() - priorDate.getTime()) / (1000 * 60 * 60 * 24));
+              const minDaysRequired = (freqWeeks * 7) - 3;
+              if (diffDays < minDaysRequired) {
+                executionDetails.push(`Vendor ${vendor.trade_name || vendor.company_name} is scheduled every ${freqWeeks} weeks; last order was ${diffDays} days ago (< ${minDaysRequired} days). Skipped.`);
+                continue;
+              }
             }
           }
         }
 
-        // Create scheduled order (no duplicate check required as requested)
+        // Prevent duplicate orders for the same vendor on the same calendar day in Tbilisi
+        const { data: existingOrders } = await supabaseAdmin
+          .from('orders')
+          .select('id, doc_number, order_date')
+          .eq('vendor_id', vendor.id)
+          .eq('is_deleted', false)
+          .gte('order_date', startUtc)
+          .lte('order_date', endUtc);
+
+        const existingForDay = (existingOrders || []).filter(o => {
+          if (!o.order_date) return false;
+          const od = new Date(o.order_date);
+          const tbilisiDateStr = od.toLocaleDateString('en-CA', { timeZone: 'Asia/Tbilisi' });
+          return tbilisiDateStr === dateStr;
+        });
+
+        if (existingForDay && existingForDay.length > 0) {
+          executionDetails.push(`Vendor ${vendor.trade_name || vendor.company_name} already has an order on ${dateStr} (${existingForDay[0].doc_number}). Skipped duplicate generation.`);
+          continue;
+        }
+
+        // Create scheduled order
         const randomSuffix = Math.floor(100000 + Math.random() * 900000);
         const docNumber = `DOC-${randomSuffix}`;
         const orderId = 'ord_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36);
@@ -165,8 +190,8 @@ export async function generatePlannedOrders(options?: {
           vendor_id: vendor.id,
           warehouse_id: vendor.warehouse_id || null,
           contact_id: primaryContactMap[vendor.id] || null,
-          operator_id: vendor.operator_id || null,
-          created_by: vendor.operator_id || vendor.manager_id || null,
+          operator_id: null,
+          created_by: null,
           qty_requested: null,
           tanks_to_leave: Number(vendor.tanks_to_leave) || 0,
           tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
@@ -199,7 +224,7 @@ export async function generatePlannedOrders(options?: {
             await supabaseAdmin.from('change_history').insert({
               id: 'hist_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now().toString(36),
               date_time: new Date().toISOString(),
-              employee_name: 'სისტემა (გეგმიური)',
+              employee_name: 'გეგმიური',
               operation: 'ავტომატური შეკვეთა',
               field_name: 'დოკუმენტის #',
               old_value: '',

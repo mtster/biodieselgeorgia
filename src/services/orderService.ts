@@ -203,7 +203,10 @@ export async function getOrdersPaginated(
         query = query.eq('vendor_id', filters.vendorId);
       }
 
-      query = query.order('order_date', { ascending: false }).range(offset, offset + limit - 1);
+      query = query
+        .order('created_at', { ascending: false })
+        .order('order_date', { ascending: false })
+        .range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
 
@@ -406,6 +409,15 @@ export async function getOrdersPaginated(
     });
   }
 
+  filtered.sort((a, b) => {
+    const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    if (createdB !== createdA) return createdB - createdA;
+    const orderA = a.order_date ? new Date(a.order_date).getTime() : 0;
+    const orderB = b.order_date ? new Date(b.order_date).getTime() : 0;
+    return orderB - orderA;
+  });
+
   return {
     orders: filtered.slice(offset, offset + limit),
     totalCount: filtered.length
@@ -465,6 +477,7 @@ export async function getOrders(limit = 1000, currentUser?: User | null): Promis
       }
 
       const { data, error } = await q
+        .order('created_at', { ascending: false })
         .order('order_date', { ascending: false })
         .limit(limit);
 

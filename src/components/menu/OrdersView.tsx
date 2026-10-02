@@ -41,7 +41,8 @@ const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'companion_id', label: 'Assistant', visible: true },
   { id: 'doc_number', label: 'Doc Num', visible: true },
   { id: 'warehouse_id', label: 'Warehouse', visible: true },
-  { id: 'operator_id', label: 'Operations Manager', visible: true }
+  { id: 'operator_id', label: 'Created By', visible: true },
+  { id: 'created_at', label: 'Created At', visible: true }
 ];
 
 interface Props {
@@ -105,21 +106,6 @@ export default function OrdersView({
     setPage(1);
   }, [debouncedSearchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, selectedManager, startDate, endDate]);
 
-  // Ensure scheduled planned orders for today/tomorrow are synced
-  useEffect(() => {
-    fetch('/api/orders/generate-planned', { method: 'POST' })
-      .then(res => res.json())
-      .then(data => {
-        if (data?.createdCount > 0) {
-          console.log(`[Planned Orders Sync] Generated ${data.createdCount} order(s).`);
-          import('../../lib/realtime').then(rt => {
-            rt.notifyDbChange('orders', 'CREATE', data.orders?.[0]?.id || '');
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const isLogisticsManager = currentEmployee?.role === 'logistics_manager';
   const todayTbilisi = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
 
@@ -166,7 +152,7 @@ export default function OrdersView({
   // Columns Manager State
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
-    const CURRENT_VERSION = 'v6_canonical_completed_at';
+    const CURRENT_VERSION = 'v9_sheqmna_sheikmna_col';
     const versionKey = 'orders_columns_version';
     const loadedVersion = localStorage.getItem(versionKey);
     const loaded = localStorage.getItem('orders_columns_managed');

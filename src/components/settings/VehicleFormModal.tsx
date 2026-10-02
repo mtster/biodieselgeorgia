@@ -150,13 +150,13 @@ export default function VehicleFormModal({
         id: selectedTruck?.id,
         plate_number: cleanPlate,
         model: tModel.trim(),
-        driver_id: tDriver,
+        driver_id: tDriver ? tDriver : null,
         driver_name: driverObj?.name || '',
-        companion_id: tCompanion,
+        companion_id: tCompanion ? tCompanion : null,
         companion_name: companionObj?.name || '',
-        city: tCity,
-        warehouse_id: tWarehouseId,
-        direction_id: tDirectionId,
+        city: tCity || null,
+        warehouse_id: tWarehouseId || null,
+        direction_id: tDirectionId || null,
         created_by: selectedTruck?.created_by,
         auth_user_id: selectedTruck?.auth_user_id,
         password: tPassword.trim() || undefined,
@@ -302,11 +302,11 @@ export default function VehicleFormModal({
           </FormSelect>
 
           <FormSelect
-            label={`${t("Assigned Default Driver")} *`}
+            label={t("Assigned Default Driver")}
             value={tDriver}
             onChange={(e) => setTDriver(e.target.value)}
           >
-            <option value="" hidden></option>
+            <option value="">{t("Select Driver")}</option>
             {employees.filter(e => e.role === 'driver').map(e => (
               <option key={e.id} value={e.id}>{e.name}</option>
             ))}
@@ -317,7 +317,7 @@ export default function VehicleFormModal({
             value={tCompanion}
             onChange={(e) => setTCompanion(e.target.value)}
           >
-            <option value="" hidden></option>
+            <option value="">{t("Select Companion")}</option>
             {employees.filter(e => e.role !== 'driver').map(e => (
               <option key={e.id} value={e.id}>{e.name} ({t(e.role)})</option>
             ))}

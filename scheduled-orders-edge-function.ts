@@ -225,11 +225,19 @@ serve(async (req) => {
           vendor_id: vendor.id,
           warehouse_id: vendor.warehouse_id || null,
           contact_id: mainContactMap[vendor.id] || null,
-          qty_requested: 0,
+          operator_id: null,
+          created_by: null,
+          qty_requested: null,
           tanks_to_leave: Number(vendor.tanks_to_leave) || 0,
           tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
           status: 'registered',
-          note: `Automated scheduled order for ${vendor.trade_name || vendor.company_name}`
+          notes: [
+            {
+              id: 'n_' + crypto.randomUUID().replace(/-/g, '').substring(0, 8),
+              comment: `გეგმიური შეკვეთა (${targetWeekday})`,
+              created_at: new Date().toISOString()
+            }
+          ]
         }
       })
 

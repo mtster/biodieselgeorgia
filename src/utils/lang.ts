@@ -355,6 +355,10 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Completed": "დასრულებული",
   "Created": "შეიქმნა",
   "Created At": "შეიქმნა",
+  "Created By": "შექმნა",
+  "შექმნა": "შექმნა",
+  "Scheduled": "გეგმიური",
+  "გეგმიური": "გეგმიური",
   "შეიქმნა": "შეიქმნა",
   "ავზების წამოღება": "ავზების წამოღება",
   "ავზების დატოვება": "ავზების დატოვება",
@@ -516,7 +520,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Order Pickup": "შეკვ. გამოტანა",
   "Fact Tank Pickup": "ფაქტ. გამოტანა",
   "Fact Pickup": "ფაქტ. გამოტანა",
-  "Operations Manager": "ოპერაციების მენეჯერი",
+  "Operations Manager": "შექმნა",
   "Sel": "მონ",
 
   // Orders Form Fields captions & validation errors

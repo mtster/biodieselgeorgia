@@ -84,6 +84,16 @@ BEGIN
       END IF;
     END IF;
 
+    -- Prevent duplicate order for this vendor on target date
+    IF EXISTS (
+      SELECT 1 FROM public.orders
+      WHERE vendor_id = v_vendor.id
+        AND is_deleted = FALSE
+        AND (order_date AT TIME ZONE 'Asia/Tbilisi')::date = p_target_date
+    ) THEN
+      CONTINUE;
+    END IF;
+
     -- Retrieve primary vendor contact
     SELECT id INTO v_contact_id
     FROM public.vendor_contacts
@@ -95,7 +105,7 @@ BEGIN
     v_new_doc := 'DOC-' || (FLOOR(100000 + random() * 900000)::INT)::TEXT;
     v_new_order_id := 'ord_' || SUBSTR(MD5(random()::TEXT), 1, 10) || '_' || EXTRACT(EPOCH FROM NOW())::BIGINT::TEXT;
 
-    -- Insert scheduled order
+    -- Insert scheduled order (with created_by = NULL and operator_id = NULL)
     INSERT INTO public.orders (
       id,
       order_date,
@@ -118,8 +128,8 @@ BEGIN
       v_vendor.id,
       v_vendor.warehouse_id,
       v_contact_id,
-      v_vendor.operator_id,
-      COALESCE(v_vendor.operator_id, v_vendor.manager_id),
+      NULL,
+      NULL,
       NULL,
       COALESCE(v_vendor.tanks_to_leave, 0),
       COALESCE(v_vendor.tanks_to_bring, 0),

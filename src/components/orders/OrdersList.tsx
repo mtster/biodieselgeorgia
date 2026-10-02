@@ -1,6 +1,6 @@
 import React from 'react';
 import { Order, Vendor, User, Warehouse, Direction, Truck } from '../../types';
-import { Edit2, Trash2, Check } from 'lucide-react';
+import { Edit2, Trash2, Check, CalendarClock } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
 import { t, formatDate, formatDateTime, formatPhone, formatOrderCompletionTime } from '../../utils/lang';
@@ -70,7 +70,7 @@ export default function OrdersList({
     order_date: {
       header: t('Order Date'),
       key: 'order_date',
-      render: (ord) => formatDateTime(ord.order_date)
+      render: (ord) => formatDate(ord.order_date)
     },
     status: {
       header: t('Status'),
@@ -207,25 +207,25 @@ export default function OrdersList({
       header: t('Order Qty (L)'),
       key: 'planned',
       className: 'bg-amber-50/60 font-semibold text-gray-950',
-      render: (ord) => `${ord.qty_requested} L`
+      render: (ord) => ord.qty_requested != null ? `${ord.qty_requested} ლ` : '-'
     },
     tanks_to_bring: {
       header: t('Order Pickup'),
       key: 'tanks_to_bring',
       className: 'bg-amber-50/60 font-semibold text-gray-950',
-      render: (ord) => `${ord.tanks_to_bring}`
+      render: (ord) => ord.tanks_to_bring != null ? `${ord.tanks_to_bring}` : '-'
     },
     tanks_to_leave: {
       header: t('Order Dropoff'),
       key: 'tanks_to_leave',
       className: 'bg-amber-50/60 font-semibold text-gray-950',
-      render: (ord) => `${ord.tanks_to_leave}`
+      render: (ord) => ord.tanks_to_leave != null ? `${ord.tanks_to_leave}` : '-'
     },
     fact_qty: {
       header: t('Fact Qty (L)'),
       key: 'fact_qty',
       className: 'bg-amber-50/60 font-semibold text-gray-950',
-      render: (ord) => ord.fact_qty === undefined || ord.fact_qty === null ? '-' : ord.fact_qty
+      render: (ord) => ord.fact_qty != null ? `${ord.fact_qty} ლ` : '-'
     },
     fact_tank_pickup: {
       header: t('Fact Pickup'),
@@ -309,14 +309,28 @@ export default function OrdersList({
       }
     },
     operator_id: {
-      header: t('Operations Manager'),
+      header: t('Created By') || 'შექმნა',
       key: 'operator_id',
       render: (ord) => {
+        const isPlanned = (!ord.operator_id && !ord.created_by) || (Array.isArray(ord.notes) && ord.notes.some(n => n?.comment?.includes('გეგმიური') || n?.comment?.toLowerCase().includes('automated scheduled')));
+        if (isPlanned) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/70 shadow-2xs tracking-wide select-none" title="ავტომატური გეგმიური შეკვეთა">
+              <CalendarClock size={12} className="text-emerald-600 shrink-0" />
+              <span>გეგმიური</span>
+            </span>
+          );
+        }
         const creatorId = ord.operator_id || ord.created_by;
-        if (!creatorId) return ord.operator_name || '-';
+        if (!creatorId) return <span className="text-gray-400 text-xs">-</span>;
         const emp = employees.find(e => e.id === creatorId);
-        return emp ? emp.name : (ord.operator_name || '-');
+        return <span className="text-gray-800 text-xs font-normal">{emp ? emp.name : (ord.operator_name || '-')}</span>;
       }
+    },
+    created_at: {
+      header: t('Created At') || 'შეიქმნა',
+      key: 'created_at',
+      render: (ord) => ord.created_at ? formatDateTime(ord.created_at) : '-'
     }
   };
 
