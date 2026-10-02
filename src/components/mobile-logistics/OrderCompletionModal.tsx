@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Order, Vendor, User } from '../../types';
 import { FormInput } from '../FormInput';
-import { ArrowLeft, CheckCircle2, AlertCircle, Check } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Check } from 'lucide-react';
+import { SlideToConfirm } from '../common/SlideToConfirm';
 
 interface Props {
   selectedOrder: Order;
@@ -20,15 +21,10 @@ export function OrderCompletionModal({
   onClose,
   onSaveOrder,
 }: Props) {
-  const [qtyActual, setQtyActual] = useState<string>(
-    selectedOrder.qty_requested ? selectedOrder.qty_requested.toString() : ''
-  );
-  const [tanksBringActual, setTanksBringActual] = useState<string>(
-    selectedOrder.tanks_to_bring !== undefined ? selectedOrder.tanks_to_bring.toString() : '0'
-  );
-  const [tanksLeftActual, setTanksLeftActual] = useState<string>(
-    selectedOrder.tanks_to_leave !== undefined ? selectedOrder.tanks_to_leave.toString() : '0'
-  );
+  // Input fields start empty so user inputs them themselves
+  const [qtyActual, setQtyActual] = useState<string>('');
+  const [tanksBringActual, setTanksBringActual] = useState<string>('');
+  const [tanksLeftActual, setTanksLeftActual] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<'completed' | 'uncompleted'>('completed');
   const [formError, setFormError] = useState<string>('');
@@ -38,13 +34,14 @@ export function OrderCompletionModal({
     const left = parseInt(tanksLeftActual, 10);
     const brought = parseInt(tanksBringActual, 10);
 
-    if (isNaN(liters) || liters <= 0) {
-      setFormError('გთხოვთ შეიყვანოთ ფაქტობრივი ლიტრების სწორი რაოდენობა');
-      return;
+    // Allow 0 for actual quantity, but must be entered (not empty) and >= 0
+    if (qtyActual.trim() === '' || isNaN(liters) || liters < 0) {
+      setFormError('გთხოვთ შეიყვანოთ ფაქტობრივი ლიტრების სწორი რაოდენობა (0 ან მეტი)');
+      return false;
     }
-    if (isNaN(left) || left < 0 || isNaN(brought) || brought < 0) {
-      setFormError('ტანკების რაოდენობა უნდა იყოს მთელი დადებითი რიცხვი');
-      return;
+    if (tanksLeftActual.trim() === '' || isNaN(left) || left < 0 || tanksBringActual.trim() === '' || isNaN(brought) || brought < 0) {
+      setFormError('ავზების რაოდენობა უნდა იყოს მთელი რიცხვი (0 ან მეტი)');
+      return false;
     }
 
     const existingNotes = Array.isArray(selectedOrder.notes) ? selectedOrder.notes : [];
@@ -75,6 +72,7 @@ export function OrderCompletionModal({
 
     onSaveOrder(updatedOrder);
     onClose();
+    return true;
   };
 
   const supplierName = supplier?.trade_name || selectedOrder.vendor_name || 'მიმწოდებელი';
@@ -205,15 +203,13 @@ export function OrderCompletionModal({
           </div>
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="button"
-          onClick={handleComplete}
-          className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer border-none"
-        >
-          <CheckCircle2 size={16} />
-          მონაცემების შენახვა და გაგზავნა
-        </button>
+        {/* Tap and slide confirmation slider */}
+        <div className="pt-2">
+          <SlideToConfirm
+            text="დადასტურება"
+            onConfirm={handleComplete}
+          />
+        </div>
       </div>
     </div>
   );

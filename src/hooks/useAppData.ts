@@ -68,12 +68,16 @@ export function useAppData() {
   const lastLoadedUserIdRef = useRef<string | null>(null);
   const trucksRef = useRef<Truck[]>([]);
   const usersRef = useRef<User[]>([]);
+  const vendorsRef = useRef<Vendor[]>([]);
   useEffect(() => {
     trucksRef.current = trucks;
   }, [trucks]);
   useEffect(() => {
     usersRef.current = users;
   }, [users]);
+  useEffect(() => {
+    vendorsRef.current = vendors;
+  }, [vendors]);
 
   // Sync data function
   const refreshAllData = async () => {
@@ -180,10 +184,13 @@ export function useAppData() {
           const { orders: dOrders, suppliers: dSuppliers } = await getDriverOrdersAndVendors(
             currentUser,
             trucksRef.current.length > 0 ? trucksRef.current : await getTrucks(),
-            usersRef.current.length > 0 ? usersRef.current : await getUsers()
+            usersRef.current.length > 0 ? usersRef.current : await getUsers(),
+            vendorsRef.current
           );
           setOrders(dOrders);
-          setVendors(dSuppliers);
+          if (dSuppliers.length > 0) {
+            setVendors(dSuppliers);
+          }
         } else if (t === 'vehicles' || t === 'trucks') {
           const trks = await getTrucks();
           setTrucks(trks);

@@ -50,7 +50,8 @@ export function findUserAssignedTruck(currentUser: User, trucks: Truck[]): Truck
 export async function getDriverOrdersAndVendors(
   currentUser: User,
   trucks: Truck[],
-  employees: User[] = []
+  employees: User[] = [],
+  cachedVendors: Vendor[] = []
 ): Promise<{ orders: Order[]; suppliers: Vendor[] }> {
   const myTruck = findUserAssignedTruck(currentUser, trucks);
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
@@ -103,13 +104,12 @@ export async function getDriverOrdersAndVendors(
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // Query recent orders ordered by order_date desc (valid indexed column)
       const { data: rawOrders, error } = await supabase
         .from('orders')
         .select('*')
         .eq('is_deleted', false)
         .order('order_date', { ascending: false })
-        .limit(300);
+        .limit(100);
 
       if (!error && rawOrders) {
         driverOrders = (rawOrders as any[])
@@ -178,11 +178,23 @@ export async function getDriverOrdersAndVendors(
   const vendorIds = Array.from(new Set(driverOrders.map(o => o.vendor_id).filter(Boolean)));
   let assignedVendors: Vendor[] = [];
 
-  if (vendorIds.length > 0 && isSupabaseConfigured && supabase) {
+  // Use cached vendors if they already include all needed vendor IDs
+  const missingVendorIds = vendorIds.filter(id => !cachedVendors.some(v => v.id === id));
+  if (missingVendorIds.length === 0 && cachedVendors.length > 0 && vendorIds.length > 0) {
+    assignedVendors = cachedVendors.filter(v => vendorIds.includes(v.id));
+  } else if (vendorIds.length > 0 && isSupabaseConfigured && supabase) {
     try {
       const [vRes, cRes] = await Promise.all([
-        supabase.from('vendors').select('*').in('id', vendorIds).eq('is_deleted', false),
-        supabase.from('vendor_contacts').select('*').in('vendor_id', vendorIds).eq('is_deleted', false)
+        supabase
+          .from('vendors')
+          .select('*')
+          .in('id', vendorIds)
+          .eq('is_deleted', false),
+        supabase
+          .from('vendor_contacts')
+          .select('*')
+          .in('vendor_id', vendorIds)
+          .eq('is_deleted', false)
       ]);
 
       if (vRes.data) {
