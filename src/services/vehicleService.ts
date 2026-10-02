@@ -149,6 +149,8 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
         ];
 
         let synced = false;
+        let syncErrorDetail = '';
+
         for (const ep of tryEndpoints) {
           try {
             const res = await fetch(ep, {
@@ -160,7 +162,8 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
               body: JSON.stringify(payload)
             });
 
-            if (res.ok) {
+            const contentType = res.headers.get('content-type') || '';
+            if (res.ok && contentType.includes('application/json')) {
               const resData = await res.json();
               if (resData.auth_user_id) {
                 authUserId = resData.auth_user_id;
@@ -170,10 +173,13 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
               }
             } else if (res.status !== 404) {
               const errData = await res.json().catch(() => ({}));
+              syncErrorDetail = errData?.error || `HTTP ${res.status}`;
               console.warn(`Vehicle auth endpoint ${ep} warning:`, res.status, errData);
               break;
             }
-          } catch (_) {}
+          } catch (netErr: any) {
+            console.warn(`Endpoint ${ep} request error:`, netErr);
+          }
         }
 
         // If not synced via Express proxy endpoints, try Supabase Edge Function fallback strictly pointing to vehicle-user
@@ -192,23 +198,32 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
               },
               body: JSON.stringify(payload)
             });
-            if (edgeRes.ok) {
+            const edgeContentType = edgeRes.headers.get('content-type') || '';
+            if (edgeRes.ok && edgeContentType.includes('application/json')) {
               const resData = await edgeRes.json();
               if (resData.auth_user_id) {
                 authUserId = resData.auth_user_id;
                 vehicle.auth_user_id = resData.auth_user_id;
                 synced = true;
               }
-            } else {
+            } else if (edgeRes.status !== 404) {
               const errBody = await edgeRes.json().catch(() => ({}));
+              syncErrorDetail = errBody?.error || `Edge HTTP ${edgeRes.status}`;
               console.warn('Vehicle Edge function response:', edgeRes.status, errBody);
             }
           } catch (edgeErr) {
             console.warn('Edge function vehicle sync error:', edgeErr);
           }
         }
-      } catch (err) {
+
+        if (hasPassword && !synced) {
+          throw new Error(syncErrorDetail || 'ავტომობილის პაროლის განახლება ვერ მოხერხდა: სერვერთან კავშირი შეფერხდა.');
+        }
+      } catch (err: any) {
         console.error('Failed to create/update vehicle auth account:', err);
+        if (hasPassword) {
+          throw err;
+        }
       }
     }
 

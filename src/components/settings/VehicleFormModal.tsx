@@ -15,7 +15,7 @@ interface VehicleFormModalProps {
   cities: City[];
   warehouses: Warehouse[];
   directions: Direction[];
-  onSaveTruck: (t: Vehicle) => void;
+  onSaveTruck: (t: Vehicle) => Promise<void> | void;
   onDeleteTruck: () => void;
 }
 
@@ -42,6 +42,7 @@ export default function VehicleFormModal({
   const [tCity, setTCity] = useState('');
   const [tWarehouseId, setTWarehouseId] = useState('');
   const [tDirectionId, setTDirectionId] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Recovery modal state
   const [deletedVehicleFound, setDeletedVehicleFound] = useState<Vehicle | null>(null);
@@ -142,55 +143,71 @@ export default function VehicleFormModal({
     const driverObj = employees.find(e => e.id === tDriver);
     const companionObj = employees.find(e => e.id === tCompanion);
 
-    onSaveTruck({
-      id: selectedTruck?.id,
-      plate_number: cleanPlate,
-      model: tModel.trim(),
-      driver_id: tDriver,
-      driver_name: driverObj?.name || '',
-      companion_id: tCompanion,
-      companion_name: companionObj?.name || '',
-      city: tCity,
-      warehouse_id: tWarehouseId,
-      direction_id: tDirectionId,
-      created_by: selectedTruck?.created_by,
-      auth_user_id: selectedTruck?.auth_user_id,
-      password: tPassword.trim() || undefined,
-      is_deleted: false,
-      original_plate_number: selectedTruck?.plate_number
-    });
-
-    onClose();
+    setIsSaving(true);
+    setPasswordError('');
+    try {
+      await onSaveTruck({
+        id: selectedTruck?.id,
+        plate_number: cleanPlate,
+        model: tModel.trim(),
+        driver_id: tDriver,
+        driver_name: driverObj?.name || '',
+        companion_id: tCompanion,
+        companion_name: companionObj?.name || '',
+        city: tCity,
+        warehouse_id: tWarehouseId,
+        direction_id: tDirectionId,
+        created_by: selectedTruck?.created_by,
+        auth_user_id: selectedTruck?.auth_user_id,
+        password: tPassword.trim() || undefined,
+        is_deleted: false,
+        original_plate_number: selectedTruck?.plate_number
+      });
+      onClose();
+    } catch (err: any) {
+      console.error('Error saving vehicle:', err);
+      setPasswordError(err?.message || 'ავტომობილის ან პაროლის შენახვა ვერ მოხერხდა.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleConfirmRecover = () => {
+  const handleConfirmRecover = async () => {
     if (!deletedVehicleFound) return;
     const cleanPlate = (tPlate || deletedVehicleFound.plate_number).trim().toUpperCase();
     const driverObj = employees.find(e => e.id === (tDriver || deletedVehicleFound.driver_id));
     const companionObj = employees.find(e => e.id === (tCompanion || deletedVehicleFound.companion_id));
 
-    onSaveTruck({
-      ...deletedVehicleFound,
-      id: deletedVehicleFound.id,
-      plate_number: cleanPlate,
-      model: tModel.trim() || deletedVehicleFound.model,
-      driver_id: tDriver || deletedVehicleFound.driver_id || '',
-      driver_name: driverObj?.name || deletedVehicleFound.driver_name || '',
-      companion_id: tCompanion || deletedVehicleFound.companion_id || '',
-      companion_name: companionObj?.name || deletedVehicleFound.companion_name || '',
-      city: tCity || deletedVehicleFound.city || '',
-      warehouse_id: tWarehouseId || deletedVehicleFound.warehouse_id || '',
-      direction_id: tDirectionId || deletedVehicleFound.direction_id || '',
-      created_by: deletedVehicleFound.created_by,
-      auth_user_id: deletedVehicleFound.auth_user_id,
-      password: tPassword.trim() || undefined,
-      is_deleted: false,
-      original_plate_number: deletedVehicleFound.plate_number
-    });
-
-    setIsRecoverModalOpen(false);
-    setDeletedVehicleFound(null);
-    onClose();
+    setIsSaving(true);
+    setPasswordError('');
+    try {
+      await onSaveTruck({
+        ...deletedVehicleFound,
+        id: deletedVehicleFound.id,
+        plate_number: cleanPlate,
+        model: tModel.trim() || deletedVehicleFound.model,
+        driver_id: tDriver || deletedVehicleFound.driver_id || '',
+        driver_name: driverObj?.name || deletedVehicleFound.driver_name || '',
+        companion_id: tCompanion || deletedVehicleFound.companion_id || '',
+        companion_name: companionObj?.name || deletedVehicleFound.companion_name || '',
+        city: tCity || deletedVehicleFound.city || '',
+        warehouse_id: tWarehouseId || deletedVehicleFound.warehouse_id || '',
+        direction_id: tDirectionId || deletedVehicleFound.direction_id || '',
+        created_by: deletedVehicleFound.created_by,
+        auth_user_id: deletedVehicleFound.auth_user_id,
+        password: tPassword.trim() || undefined,
+        is_deleted: false,
+        original_plate_number: deletedVehicleFound.plate_number
+      });
+      setIsRecoverModalOpen(false);
+      setDeletedVehicleFound(null);
+      onClose();
+    } catch (err: any) {
+      console.error('Error recovering vehicle:', err);
+      setPasswordError(err?.message || 'ავტომობილის აღდგენა ვერ მოხერხდა.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelRecover = () => {
@@ -210,6 +227,8 @@ export default function VehicleFormModal({
         hideCancel={true}
         onSave={handleSave}
         saveLabel={t("Save Changes")}
+        isSaving={isSaving}
+        saveDisabled={isSaving}
       >
         <div className="space-y-4">
           <FormInput

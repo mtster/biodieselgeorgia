@@ -430,9 +430,19 @@ export function useAppData() {
     await refreshTable('directions');
   };
 
-  const handleSaveTruck = async (t: Truck) => {
-    await saveTruck(t, currentUser?.name || 'System', currentUser?.id);
-    await refreshTable('vehicles');
+  const handleSaveTruck = async (truck: Truck) => {
+    try {
+      await saveTruck(truck, currentUser?.name || 'System', currentUser?.id);
+      await refreshTable('vehicles');
+    } catch (err: any) {
+      console.error('handleSaveTruck error:', err);
+      setErrorModal({
+        isOpen: true,
+        title: t('Vehicle Specifications') || 'ავტომობილი',
+        errorMsg: err?.message || 'ავტომობილის შენახვა ვერ მოხერხდა'
+      });
+      throw err;
+    }
   };
   const handleDeleteTruck = async (plate: string) => {
     await deleteTruck(plate, currentUser?.name || 'System');

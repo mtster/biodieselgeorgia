@@ -49,14 +49,20 @@ export async function handleVehicleAccountCreation(req: express.Request, res: ex
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });
     }
 
-    let isRequesterAuthorized = user.user_metadata?.role === "admin" ||
-      user.user_metadata?.role === "purchasing_head" ||
-      user.user_metadata?.permissions?.vehicles?.includes("add") ||
-      user.user_metadata?.permissions?.vehicles?.includes("modify") ||
-      user.user_metadata?.privileges?.vehicles?.includes("add") ||
-      user.user_metadata?.privileges?.vehicles?.includes("modify") ||
-      user.user_metadata?.permissions?.users?.includes("add") ||
-      user.user_metadata?.permissions?.users?.includes("modify");
+    const userRole = user.app_metadata?.role || user.user_metadata?.role;
+    const userPerms = user.app_metadata?.permissions || user.user_metadata?.permissions || {};
+    const userPrivs = user.app_metadata?.privileges || user.user_metadata?.privileges || {};
+
+    const authorizedRoles = ["admin", "purchasing_head", "purchasing_manager", "logistics_manager", "manager", "operator"];
+    let isRequesterAuthorized = authorizedRoles.includes(userRole) ||
+      userPerms.vehicles?.includes("add") ||
+      userPerms.vehicles?.includes("modify") ||
+      userPerms.vehicles?.includes("view") ||
+      userPrivs.vehicles?.includes("add") ||
+      userPrivs.vehicles?.includes("modify") ||
+      userPrivs.vehicles?.includes("view") ||
+      userPerms.users?.includes("add") ||
+      userPerms.users?.includes("modify");
 
     if (!isRequesterAuthorized) {
       const { data: requesterProfile } = await supabaseAdmin
@@ -66,12 +72,9 @@ export async function handleVehicleAccountCreation(req: express.Request, res: ex
         .maybeSingle();
       if (
         requesterProfile &&
-        (requesterProfile.role === "admin" ||
-         requesterProfile.role === "purchasing_head" ||
-         requesterProfile.permissions?.vehicles?.includes("add") ||
-         requesterProfile.permissions?.vehicles?.includes("modify") ||
-         requesterProfile.privileges?.vehicles?.includes("add") ||
-         requesterProfile.privileges?.vehicles?.includes("modify") ||
+        (authorizedRoles.includes(requesterProfile.role) ||
+         (Array.isArray(requesterProfile.permissions?.vehicles) && requesterProfile.permissions.vehicles.length > 0) ||
+         (Array.isArray(requesterProfile.privileges?.vehicles) && requesterProfile.privileges.vehicles.length > 0) ||
          requesterProfile.permissions?.users?.includes("add") ||
          requesterProfile.permissions?.users?.includes("modify"))
       ) {
@@ -130,21 +133,27 @@ export async function handleVehicleAccountCreation(req: express.Request, res: ex
     if (!existingUser && original_plate_number && String(original_plate_number).trim()) {
       const oldClean = String(original_plate_number).trim().replace(/-/g, "").toLowerCase();
       const oldEmail = `${oldClean}@biodiesel.ge`;
+      const oldPlateFormatted = String(original_plate_number).trim().toUpperCase();
       try {
         const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
         existingUser = listData?.users?.find((u) => 
           u.email?.toLowerCase() === oldEmail.toLowerCase() ||
-          u.user_metadata?.plate_number === original_plate_number
+          u.email?.replace(/-/g, "").toLowerCase() === oldEmail.toLowerCase() ||
+          u.user_metadata?.plate_number?.replace(/-/g, "").toUpperCase() === oldClean.toUpperCase() ||
+          u.user_metadata?.plate_number === oldPlateFormatted
         ) || null;
       } catch (_) {}
     }
 
-    // 4. Check if a user with newEmail already exists
+    // 4. Check if a user with newEmail or cleanPlate exists
     if (!existingUser) {
       try {
         const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
         existingUser = listData?.users?.find((u) => 
           u.email?.toLowerCase() === newEmail.toLowerCase() ||
+          u.email?.replace(/-/g, "").toLowerCase() === newEmail.toLowerCase() ||
+          u.email?.toLowerCase() === `${cleanPlate.toLowerCase()}@biodiesel.ge` ||
+          u.user_metadata?.plate_number?.replace(/-/g, "").toUpperCase() === sanitizedPlate.toUpperCase() ||
           u.user_metadata?.plate_number === cleanPlate
         ) || null;
       } catch (_) {}
@@ -171,6 +180,11 @@ export async function handleVehicleAccountCreation(req: express.Request, res: ex
       const updatePayload: any = {
         email: newEmail,
         email_confirm: true,
+        app_metadata: {
+          ...existingUser.app_metadata,
+          role: "driver",
+          vehicle_role: "vehicle"
+        },
         user_metadata: {
           ...existingUser.user_metadata,
           role: "driver",
@@ -250,6 +264,10 @@ export async function handleVehicleAccountCreation(req: express.Request, res: ex
       password: effectivePassword,
       email_confirm: true,
       phone_confirm: true,
+      app_metadata: {
+        role: "driver",
+        vehicle_role: "vehicle"
+      },
       user_metadata: {
         role: "driver",
         vehicle_role: "vehicle",
@@ -339,6 +357,33 @@ router.post(["/api/delete-vehicle-account", "/delete-vehicle-account"], async (r
 
     if (!user) {
       return res.status(401).json({ error: "Unauthorized: Invalid session token" });
+    }
+
+    const delUserRole = user.app_metadata?.role || user.user_metadata?.role;
+    const delUserPerms = user.app_metadata?.permissions || user.user_metadata?.permissions || {};
+    const delAuthorizedRoles = ["admin", "purchasing_head", "purchasing_manager", "logistics_manager", "manager"];
+    let isDelAuthorized = delAuthorizedRoles.includes(delUserRole) ||
+      delUserPerms.vehicles?.includes("delete") ||
+      delUserPerms.vehicles?.includes("modify");
+
+    if (!isDelAuthorized) {
+      const { data: requesterProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("role, permissions")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (
+        requesterProfile &&
+        (delAuthorizedRoles.includes(requesterProfile.role) ||
+         requesterProfile.permissions?.vehicles?.includes("delete") ||
+         requesterProfile.permissions?.vehicles?.includes("modify"))
+      ) {
+        isDelAuthorized = true;
+      }
+    }
+
+    if (!isDelAuthorized) {
+      return res.status(403).json({ error: "Access denied: Only Administrators or authorized managers can delete vehicle accounts." });
     }
 
     const { auth_user_id, plate_number } = req.body;

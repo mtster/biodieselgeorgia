@@ -35,25 +35,50 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
     const rawInput = email.trim();
     const candidates: string[] = [];
 
-    if (!rawInput.includes('@')) {
-      const sanitized = rawInput.replace(/-/g, '').toLowerCase();
-      candidates.push(`${sanitized}@biodiesel.ge`);
-      if (`${rawInput.toLowerCase()}@biodiesel.ge` !== `${sanitized}@biodiesel.ge`) {
-        candidates.push(`${rawInput.toLowerCase()}@biodiesel.ge`);
-      }
-    } else {
-      const parts = rawInput.split('@');
-      const userPart = parts[0];
-      const domainPart = parts[1] ? parts[1].toLowerCase() : '';
-      if (domainPart === 'biodiesel.ge') {
-        const sanitized = userPart.replace(/-/g, '').toLowerCase();
-        candidates.push(`${sanitized}@biodiesel.ge`);
-        if (rawInput.toLowerCase() !== `${sanitized}@biodiesel.ge`) {
-          candidates.push(rawInput.toLowerCase());
+    const geoToEng: Record<string, string> = {
+      'ა': 'a', 'ბ': 'b', 'გ': 'g', 'დ': 'd', 'ე': 'e', 'ვ': 'v', 'ზ': 'z', 'თ': 't',
+      'ი': 'i', 'კ': 'k', 'ლ': 'l', 'მ': 'm', 'ნ': 'n', 'ო': 'o', 'პ': 'p', 'ჟ': 'j',
+      'რ': 'r', 'ს': 's', 'ტ': 't', 'უ': 'u', 'ფ': 'f', 'ქ': 'k', 'ღ': 'r', 'ყ': 'q',
+      'შ': 's', 'ჩ': 'c', 'ც': 'c', 'ძ': 'z', 'წ': 'w', 'ჭ': 'c', 'ხ': 'x', 'ჯ': 'j', 'ჰ': 'h'
+    };
+    const transliterateGeo = (str: string) => {
+      return str.split('').map(ch => geoToEng[ch] || ch).join('');
+    };
+
+    const addCandidatesForInput = (inp: string) => {
+      if (!inp.includes('@')) {
+        const sanitized = inp.replace(/[-\s]/g, '').toLowerCase();
+        if (sanitized && !candidates.includes(`${sanitized}@biodiesel.ge`)) {
+          candidates.push(`${sanitized}@biodiesel.ge`);
+        }
+        const lowerWithDash = `${inp.replace(/\s+/g, '').toLowerCase()}@biodiesel.ge`;
+        if (!candidates.includes(lowerWithDash)) {
+          candidates.push(lowerWithDash);
         }
       } else {
-        candidates.push(rawInput.toLowerCase());
+        const parts = inp.split('@');
+        const userPart = parts[0];
+        const domainPart = parts[1] ? parts[1].toLowerCase() : '';
+        if (domainPart === 'biodiesel.ge') {
+          const sanitized = userPart.replace(/[-\s]/g, '').toLowerCase();
+          if (sanitized && !candidates.includes(`${sanitized}@biodiesel.ge`)) {
+            candidates.push(`${sanitized}@biodiesel.ge`);
+          }
+          if (!candidates.includes(inp.toLowerCase())) {
+            candidates.push(inp.toLowerCase());
+          }
+        } else {
+          if (!candidates.includes(inp.toLowerCase())) {
+            candidates.push(inp.toLowerCase());
+          }
+        }
       }
+    };
+
+    addCandidatesForInput(rawInput);
+    const transliterated = transliterateGeo(rawInput);
+    if (transliterated !== rawInput) {
+      addCandidatesForInput(transliterated);
     }
 
     setLoading(true);
@@ -61,19 +86,23 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
 
     try {
       if (isSupabaseConfigured && supabase) {
-        let authRes = await supabase.auth.signInWithPassword({
-          email: candidates[0],
-          password: password,
-        });
-
-        if (authRes.error && candidates.length > 1) {
+        let authRes: any = null;
+        for (const candidateEmail of candidates) {
           authRes = await supabase.auth.signInWithPassword({
-            email: candidates[1],
+            email: candidateEmail,
             password: password,
           });
+          if (!authRes.error) break;
+          if (password.trim() !== password) {
+            authRes = await supabase.auth.signInWithPassword({
+              email: candidateEmail,
+              password: password.trim(),
+            });
+            if (!authRes.error) break;
+          }
         }
 
-        const { data, error } = authRes;
+        const { data, error } = authRes || {};
 
         if (error) {
           setErrorMsg(t('Authorization failed: ') + (error.message === 'Invalid login credentials' ? t('Incorrect email or password') : error.message));

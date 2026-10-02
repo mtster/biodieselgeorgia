@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import DeleteButton from './DeleteButton';
 import { t } from '../utils/lang';
 
@@ -26,6 +26,8 @@ interface FormModalProps {
   };
   onSave?: () => void;
   saveLabel?: string;
+  isSaving?: boolean;
+  saveDisabled?: boolean;
   maxWidthClass?: string; // e.g. "max-w-md", "max-w-sm", etc.
 }
 
@@ -43,6 +45,8 @@ export default function FormModal({
   secondaryAction,
   onSave,
   saveLabel = 'Save Changes',
+  isSaving = false,
+  saveDisabled = false,
   maxWidthClass = 'max-w-md',
 }: FormModalProps) {
   if (!isOpen) return null;
@@ -106,9 +110,11 @@ export default function FormModal({
               <button
                 type="button"
                 onClick={onSave}
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-black rounded-lg text-xs transition cursor-pointer select-none"
+                disabled={isSaving || saveDisabled}
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-lg text-xs transition cursor-pointer select-none flex items-center gap-1.5"
               >
-                {t(saveLabel)}
+                {isSaving && <Loader2 size={13} className="animate-spin shrink-0" />}
+                <span>{t(saveLabel)}</span>
               </button>
             )}
             {secondaryAction && (

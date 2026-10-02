@@ -17,7 +17,7 @@ interface Props {
   warehouses: Warehouse[];
   directions: Direction[];
   orders?: any[];
-  onSaveTruck: (t: Vehicle) => void;
+  onSaveTruck: (t: Vehicle) => Promise<void> | void;
   onDeleteTruck: (plate: string) => void;
   setDeleteAlertMessage?: (msg: string | null) => void;
   onBack: () => void;
