@@ -144,80 +144,107 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
 
         const tryEndpoints = [
           '/api/create-vehicle-account',
-          '/create-vehicle-account',
-          '/api/create-user'
+          '/create-vehicle-account'
         ];
 
         let synced = false;
         let syncErrorDetail = '';
 
-        for (const ep of tryEndpoints) {
-          try {
-            const res = await fetch(ep, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify(payload)
-            });
+        // 1. Primary: Official Supabase Edge Function 'vehicle-user' via Supabase SDK
+        try {
+          const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('vehicle-user', {
+            body: payload,
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
 
-            const contentType = res.headers.get('content-type') || '';
-            if (res.ok && contentType.includes('application/json')) {
-              const resData = await res.json();
-              if (resData.auth_user_id) {
-                authUserId = resData.auth_user_id;
-                vehicle.auth_user_id = resData.auth_user_id;
-                synced = true;
-                break;
-              }
-            } else if (res.status !== 404) {
-              const errData = await res.json().catch(() => ({}));
-              syncErrorDetail = errData?.error || `HTTP ${res.status}`;
-              console.warn(`Vehicle auth endpoint ${ep} warning:`, res.status, errData);
-              break;
+          if (!edgeErr && edgeData?.auth_user_id) {
+            authUserId = edgeData.auth_user_id;
+            vehicle.auth_user_id = edgeData.auth_user_id;
+            synced = true;
+          } else if (edgeErr) {
+            console.warn('supabase.functions.invoke("vehicle-user") warning:', edgeErr);
+            const msg = edgeErr.message || '';
+            if (edgeErr.context?.status && edgeErr.context.status !== 404) {
+              syncErrorDetail = msg || `Edge HTTP ${edgeErr.context.status}`;
             }
-          } catch (netErr: any) {
-            console.warn(`Endpoint ${ep} request error:`, netErr);
           }
+        } catch (edgeCallErr: any) {
+          console.warn('Edge function invoke error:', edgeCallErr);
         }
 
-        // If not synced via Express proxy endpoints, try Supabase Edge Function fallback strictly pointing to vehicle-user
+        // 2. Direct fallback to Supabase Edge Function URL
         if (!synced && token) {
           try {
             const baseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
             const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
-            const functionUrl = `${baseUrl}/functions/v1/vehicle-user`;
-            
-            const edgeRes = await fetch(functionUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseAnonKey,
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify(payload)
-            });
-            const edgeContentType = edgeRes.headers.get('content-type') || '';
-            if (edgeRes.ok && edgeContentType.includes('application/json')) {
-              const resData = await edgeRes.json();
-              if (resData.auth_user_id) {
-                authUserId = resData.auth_user_id;
-                vehicle.auth_user_id = resData.auth_user_id;
-                synced = true;
+            if (baseUrl) {
+              const functionUrl = `${baseUrl}/functions/v1/vehicle-user`;
+              const edgeRes = await fetch(functionUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+              });
+              const edgeContentType = edgeRes.headers.get('content-type') || '';
+              if (edgeRes.ok && edgeContentType.includes('application/json')) {
+                const resData = await edgeRes.json();
+                if (resData.auth_user_id) {
+                  authUserId = resData.auth_user_id;
+                  vehicle.auth_user_id = resData.auth_user_id;
+                  synced = true;
+                }
+              } else if (edgeRes.status !== 404) {
+                const errBody = await edgeRes.json().catch(() => ({}));
+                syncErrorDetail = errBody?.error || `Edge HTTP ${edgeRes.status}`;
               }
-            } else if (edgeRes.status !== 404) {
-              const errBody = await edgeRes.json().catch(() => ({}));
-              syncErrorDetail = errBody?.error || `Edge HTTP ${edgeRes.status}`;
-              console.warn('Vehicle Edge function response:', edgeRes.status, errBody);
             }
           } catch (edgeErr) {
-            console.warn('Edge function vehicle sync error:', edgeErr);
+            console.warn('Direct edge fetch warning:', edgeErr);
+          }
+        }
+
+        // 3. Fallback to Express backend routes (in AI Studio preview / local Node server)
+        if (!synced) {
+          for (const ep of tryEndpoints) {
+            try {
+              const res = await fetch(ep, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify(payload)
+              });
+
+              const contentType = res.headers.get('content-type') || '';
+              if (res.ok && contentType.includes('application/json')) {
+                const resData = await res.json();
+                if (resData.auth_user_id) {
+                  authUserId = resData.auth_user_id;
+                  vehicle.auth_user_id = resData.auth_user_id;
+                  synced = true;
+                  break;
+                }
+              } else if (res.status !== 404) {
+                const errData = await res.json().catch(() => ({}));
+                syncErrorDetail = errData?.error || `HTTP ${res.status}`;
+                console.warn(`Vehicle auth endpoint ${ep} warning:`, res.status, errData);
+                break;
+              }
+            } catch (netErr: any) {
+              console.warn(`Endpoint ${ep} request error:`, netErr);
+            }
           }
         }
 
         if (hasPassword && !synced) {
-          throw new Error(syncErrorDetail || 'ავტომობილის პაროლის განახლება ვერ მოხერხდა: სერვერთან კავშირი შეფერხდა.');
+          throw new Error(
+            syncErrorDetail ||
+            'ავტომობილის პაროლის განახლება ვერ მოხერხდა: Supabase Edge Function (vehicle-user) ან სერვერის API მიუწვდომელია. გთხოვთ შეამოწმოთ ფუნქციის განთავსება Supabase Dashboard-ში.'
+          );
         }
       } catch (err: any) {
         console.error('Failed to create/update vehicle auth account:', err);
@@ -388,27 +415,40 @@ export async function deleteVehicle(plate: string, loggerName: string): Promise<
         const sessionRes = await supabase.auth.getSession();
         const token = sessionRes.data.session?.access_token;
         if (token) {
-          const deletePayload = JSON.stringify({
+          const deletePayload = {
+            action: 'delete',
             plate_number: cleanPlate,
             auth_user_id: authUserIdToDelete
-          });
-          const delRes = await fetch('/api/delete-vehicle-account', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: deletePayload
-          });
-          if (delRes.status === 404) {
-            await fetch('/delete-vehicle-account', {
+          };
+
+          let delDone = false;
+          try {
+            const { error: fErr } = await supabase.functions.invoke('vehicle-user', {
+              body: deletePayload,
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!fErr) delDone = true;
+          } catch (_) {}
+
+          if (!delDone) {
+            const delRes = await fetch('/api/delete-vehicle-account', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
-              body: deletePayload
+              body: JSON.stringify(deletePayload)
             });
+            if (delRes.status === 404) {
+              await fetch('/delete-vehicle-account', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(deletePayload)
+              });
+            }
           }
         }
       } catch (authErr) {

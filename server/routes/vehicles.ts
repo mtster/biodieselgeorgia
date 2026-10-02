@@ -53,37 +53,45 @@ export async function handleVehicleAccountCreation(req: express.Request, res: ex
     const userPerms = user.app_metadata?.permissions || user.user_metadata?.permissions || {};
     const userPrivs = user.app_metadata?.privileges || user.user_metadata?.privileges || {};
 
-    const authorizedRoles = ["admin", "purchasing_head", "purchasing_manager", "logistics_manager", "manager", "operator"];
-    let isRequesterAuthorized = authorizedRoles.includes(userRole) ||
-      userPerms.vehicles?.includes("add") ||
-      userPerms.vehicles?.includes("modify") ||
-      userPerms.vehicles?.includes("view") ||
-      userPrivs.vehicles?.includes("add") ||
-      userPrivs.vehicles?.includes("modify") ||
-      userPrivs.vehicles?.includes("view") ||
-      userPerms.users?.includes("add") ||
-      userPerms.users?.includes("modify");
+    // 1. Admin role has ultimate permissions unconditionally
+    let isRequesterAuthorized = userRole === "admin";
 
-    if (!isRequesterAuthorized) {
-      const { data: requesterProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("role, permissions, privileges")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (
-        requesterProfile &&
-        (authorizedRoles.includes(requesterProfile.role) ||
-         (Array.isArray(requesterProfile.permissions?.vehicles) && requesterProfile.permissions.vehicles.length > 0) ||
-         (Array.isArray(requesterProfile.privileges?.vehicles) && requesterProfile.privileges.vehicles.length > 0) ||
-         requesterProfile.permissions?.users?.includes("add") ||
-         requesterProfile.permissions?.users?.includes("modify"))
-      ) {
+    // 2. Check detailed permissions asserted in verified JWT claims / token metadata
+    const hasJwtVehiclePerm =
+      (Array.isArray(userPerms.vehicles) && (userPerms.vehicles.includes("modify") || userPerms.vehicles.includes("add"))) ||
+      (Array.isArray(userPrivs.vehicles) && (userPrivs.vehicles.includes("modify") || userPrivs.vehicles.includes("add")));
+
+    if (hasJwtVehiclePerm) {
+      isRequesterAuthorized = true;
+    }
+
+    // 3. Database profiles table is the authoritative source of truth for customized/assigned permissions
+    const { data: requesterProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("role, permissions, privileges, is_blocked, is_deleted")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (requesterProfile) {
+      if (requesterProfile.is_blocked || requesterProfile.is_deleted) {
+        return res.status(403).json({ error: "Access denied: Your account is blocked or deactivated." });
+      }
+      if (requesterProfile.role === "admin") {
         isRequesterAuthorized = true;
+      } else {
+        const profPerms = requesterProfile.permissions || {};
+        const profPrivs = requesterProfile.privileges || {};
+        const hasDbVehiclePerm =
+          (Array.isArray(profPerms.vehicles) && (profPerms.vehicles.includes("modify") || profPerms.vehicles.includes("add"))) ||
+          (Array.isArray(profPrivs.vehicles) && (profPrivs.vehicles.includes("modify") || profPrivs.vehicles.includes("add")));
+        if (hasDbVehiclePerm) {
+          isRequesterAuthorized = true;
+        }
       }
     }
 
     if (!isRequesterAuthorized) {
-      return res.status(403).json({ error: "Access denied: Only Administrators or authorized managers can manage vehicle accounts." });
+      return res.status(403).json({ error: "Access denied: Detailed permissions do not grant vehicle management rights." });
     }
 
     const { plate_number, password, auth_user_id, original_plate_number, vehicle_id } = req.body;
@@ -361,29 +369,44 @@ router.post(["/api/delete-vehicle-account", "/delete-vehicle-account"], async (r
 
     const delUserRole = user.app_metadata?.role || user.user_metadata?.role;
     const delUserPerms = user.app_metadata?.permissions || user.user_metadata?.permissions || {};
-    const delAuthorizedRoles = ["admin", "purchasing_head", "purchasing_manager", "logistics_manager", "manager"];
-    let isDelAuthorized = delAuthorizedRoles.includes(delUserRole) ||
-      delUserPerms.vehicles?.includes("delete") ||
-      delUserPerms.vehicles?.includes("modify");
+    const delUserPrivs = user.app_metadata?.privileges || user.user_metadata?.privileges || {};
 
-    if (!isDelAuthorized) {
-      const { data: requesterProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("role, permissions")
-        .eq("id", user.id)
-        .maybeSingle();
-      if (
-        requesterProfile &&
-        (delAuthorizedRoles.includes(requesterProfile.role) ||
-         requesterProfile.permissions?.vehicles?.includes("delete") ||
-         requesterProfile.permissions?.vehicles?.includes("modify"))
-      ) {
+    let isDelAuthorized = delUserRole === "admin";
+
+    const hasJwtDelPerm =
+      (Array.isArray(delUserPerms.vehicles) && (delUserPerms.vehicles.includes("delete") || delUserPerms.vehicles.includes("modify"))) ||
+      (Array.isArray(delUserPrivs.vehicles) && (delUserPrivs.vehicles.includes("delete") || delUserPrivs.vehicles.includes("modify")));
+
+    if (hasJwtDelPerm) {
+      isDelAuthorized = true;
+    }
+
+    const { data: requesterProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("role, permissions, privileges, is_blocked, is_deleted")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (requesterProfile) {
+      if (requesterProfile.is_blocked || requesterProfile.is_deleted) {
+        return res.status(403).json({ error: "Access denied: Your account is blocked or deactivated." });
+      }
+      if (requesterProfile.role === "admin") {
         isDelAuthorized = true;
+      } else {
+        const profPerms = requesterProfile.permissions || {};
+        const profPrivs = requesterProfile.privileges || {};
+        const hasDbDelPerm =
+          (Array.isArray(profPerms.vehicles) && (profPerms.vehicles.includes("delete") || profPerms.vehicles.includes("modify"))) ||
+          (Array.isArray(profPrivs.vehicles) && (profPrivs.vehicles.includes("delete") || profPrivs.vehicles.includes("modify")));
+        if (hasDbDelPerm) {
+          isDelAuthorized = true;
+        }
       }
     }
 
     if (!isDelAuthorized) {
-      return res.status(403).json({ error: "Access denied: Only Administrators or authorized managers can delete vehicle accounts." });
+      return res.status(403).json({ error: "Access denied: Detailed permissions do not grant vehicle deletion rights." });
     }
 
     const { auth_user_id, plate_number } = req.body;

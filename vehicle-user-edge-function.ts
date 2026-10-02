@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 
 const corsHeaders = {
@@ -8,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight inspection standard hook
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders })
@@ -32,7 +31,7 @@ serve(async (req) => {
       }
     })
 
-    const authHeader = req.headers.get('Authorization')
+    const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: "Authorization session token is missing" }), {
         status: 401,
@@ -71,26 +70,42 @@ serve(async (req) => {
       })
     }
 
-    let isAuthorized = requester.user_metadata?.role === 'admin' ||
-      requester.user_metadata?.role === 'purchasing_head' ||
-      requester.user_metadata?.permissions?.vehicles?.includes('add') ||
-      requester.user_metadata?.permissions?.vehicles?.includes('modify');
+    // 1. Admin role has ultimate permissions unconditionally
+    const requesterRole = requester.app_metadata?.role || requester.user_metadata?.role;
+    let isAuthorized = requesterRole === 'admin';
 
-    if (!isAuthorized) {
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('role, permissions, privileges')
-        .eq('id', requester.id)
-        .maybeSingle()
+    // 2. Check detailed permissions asserted in verified JWT claims / token metadata
+    const reqPerms = requester.app_metadata?.permissions || requester.user_metadata?.permissions || {};
+    const reqPrivs = requester.app_metadata?.privileges || requester.user_metadata?.privileges || {};
+    if (
+      (Array.isArray(reqPerms.vehicles) && (reqPerms.vehicles.includes('modify') || reqPerms.vehicles.includes('add'))) ||
+      (Array.isArray(reqPrivs.vehicles) && (reqPrivs.vehicles.includes('modify') || reqPrivs.vehicles.includes('add')))
+    ) {
+      isAuthorized = true;
+    }
 
-      if (profile) {
+    // 3. Database profiles table is the authoritative source of truth for customized/assigned permissions
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role, permissions, privileges, is_blocked, is_deleted')
+      .eq('id', requester.id)
+      .maybeSingle();
+
+    if (profile) {
+      if (profile.is_blocked || profile.is_deleted) {
+        return new Response(JSON.stringify({ error: "Access denied: Account is blocked or deleted." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      if (profile.role === 'admin') {
+        isAuthorized = true;
+      } else {
+        const pPerms = profile.permissions || {};
+        const pPrivs = profile.privileges || {};
         if (
-          profile.role === 'admin' || 
-          profile.role === 'purchasing_head' || 
-          profile.permissions?.vehicles?.includes('add') || 
-          profile.permissions?.vehicles?.includes('modify') ||
-          profile.privileges?.vehicles?.includes('add') || 
-          profile.privileges?.vehicles?.includes('modify')
+          (Array.isArray(pPerms.vehicles) && (pPerms.vehicles.includes('modify') || pPerms.vehicles.includes('add'))) ||
+          (Array.isArray(pPrivs.vehicles) && (pPrivs.vehicles.includes('modify') || pPrivs.vehicles.includes('add')))
         ) {
           isAuthorized = true;
         }
@@ -98,14 +113,14 @@ serve(async (req) => {
     }
 
     if (!isAuthorized) {
-      return new Response(JSON.stringify({ error: "Access denied. Only authorized administrators or managers can manage vehicle accounts." }), {
+      return new Response(JSON.stringify({ error: "Access denied: Detailed permissions do not grant vehicle management rights." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       })
     }
 
     const body = await req.json().catch(() => ({}));
-    const { plate_number, password, auth_user_id, id, original_plate_number, vehicle_id } = body;
+    const { plate_number, password, auth_user_id, id, original_plate_number, vehicle_id, action } = body;
 
     const effectivePlate = (plate_number || body?.plate_number || '').trim().toUpperCase();
     if (!effectivePlate) {
@@ -118,6 +133,29 @@ serve(async (req) => {
     const cleanPlate = effectivePlate;
     const sanitizedPlate = cleanPlate.replace(/-/g, "").toLowerCase();
     const newEmail = `${sanitizedPlate}@biodiesel.ge`;
+
+    // Handle vehicle deletion action
+    if (action === 'delete') {
+      let targetDelId = auth_user_id || id;
+      if (!targetDelId) {
+        try {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          const existing = listData?.users?.find((u: any) =>
+            u.email?.toLowerCase() === newEmail.toLowerCase() ||
+            u.user_metadata?.plate_number === cleanPlate
+          );
+          if (existing) targetDelId = existing.id;
+        } catch (_) {}
+      }
+      if (targetDelId) {
+        await supabaseAdmin.auth.admin.deleteUser(targetDelId).catch(() => {});
+      }
+      await supabaseAdmin.from("vehicles").update({ is_deleted: true }).eq("plate_number", cleanPlate).catch(() => {});
+      return new Response(JSON.stringify({ success: true, action: "deleted" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
 
     let existingUser: any = null;
 

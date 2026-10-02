@@ -35,16 +35,6 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
     const rawInput = email.trim();
     const candidates: string[] = [];
 
-    const geoToEng: Record<string, string> = {
-      'ა': 'a', 'ბ': 'b', 'გ': 'g', 'დ': 'd', 'ე': 'e', 'ვ': 'v', 'ზ': 'z', 'თ': 't',
-      'ი': 'i', 'კ': 'k', 'ლ': 'l', 'მ': 'm', 'ნ': 'n', 'ო': 'o', 'პ': 'p', 'ჟ': 'j',
-      'რ': 'r', 'ს': 's', 'ტ': 't', 'უ': 'u', 'ფ': 'f', 'ქ': 'k', 'ღ': 'r', 'ყ': 'q',
-      'შ': 's', 'ჩ': 'c', 'ც': 'c', 'ძ': 'z', 'წ': 'w', 'ჭ': 'c', 'ხ': 'x', 'ჯ': 'j', 'ჰ': 'h'
-    };
-    const transliterateGeo = (str: string) => {
-      return str.split('').map(ch => geoToEng[ch] || ch).join('');
-    };
-
     const addCandidatesForInput = (inp: string) => {
       if (!inp.includes('@')) {
         const sanitized = inp.replace(/[-\s]/g, '').toLowerCase();
@@ -76,10 +66,6 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
     };
 
     addCandidatesForInput(rawInput);
-    const transliterated = transliterateGeo(rawInput);
-    if (transliterated !== rawInput) {
-      addCandidatesForInput(transliterated);
-    }
 
     setLoading(true);
     setErrorMsg('');
