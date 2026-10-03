@@ -50,12 +50,13 @@ export default function VendorContactsSection({
 
   const formatPosition = (pos?: string) => {
     if (!pos) return '';
-    if (pos === 'other' || pos === 'Other' || pos === 'Other Position') return t('Other Position');
-    if (pos === 'director') return t('Director/Owner');
-    if (pos === 'manager') return t('Manager');
-    if (pos === 'object_number') return t('Object Number');
-    if (pos === 'accountant') return t('Accountant');
-    if (pos === 'cook') return t('Cook');
+    const clean = pos.trim().toLowerCase();
+    if (clean === 'other' || clean === 'other position' || clean === 'სხვა თანამდებობა' || clean === 'სხვა') return 'სხვა';
+    if (clean === 'director' || clean === 'director/owner' || clean === 'დირექტორი / მფლობელი' || clean === 'დირექტორი/მფლობელი' || clean === 'დირექტორი') return 'დირექტორი';
+    if (clean === 'manager' || clean === 'მენეჯერი') return t('Manager');
+    if (clean === 'object_number' || clean === 'ობიექტის ნომერი') return t('Object Number');
+    if (clean === 'accountant' || clean === 'ბუღალტერი') return t('Accountant');
+    if (clean === 'cook' || clean === 'მზარეული') return t('Cook');
     return t(pos) || pos;
   };
 
@@ -121,7 +122,7 @@ export default function VendorContactsSection({
                     <span className="font-extrabold text-gray-800 truncate flex-1 min-w-0">
                       {c.name}
                     </span>
-                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold truncate shrink min-w-[5ch]" title={formatPosition(c.position)}>
+                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold whitespace-nowrap shrink-0" title={formatPosition(c.position)}>
                       {formatPosition(c.position)}
                     </span>
                     {isInactive && (

@@ -179,12 +179,12 @@ export default function ContactsView({
       className: 'text-gray-700 max-w-[140px] truncate',
       render: (row) => {
         const positions: Record<string, string> = {
-          director: t('Director/Owner'),
+          director: t('Director'),
           manager: t('Manager'),
           object_number: t('Object Number'),
           accountant: t('Accountant'),
           cook: t('Cook'),
-          other: t('Other Position')
+          other: t('Other')
         };
         return <span className="text-gray-700 font-medium truncate">{positions[row.position] || t('Other Position')}</span>;
       }

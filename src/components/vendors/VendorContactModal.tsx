@@ -126,12 +126,12 @@ export default function VendorContactModal({ isOpen, onClose, activeContact, onS
           value={contactPos}
           onChange={(e) => setContactPos(e.target.value as any)}
         >
-          <option value="director">{t("Director/Owner")}</option>
+          <option value="director">{t("Director")}</option>
           <option value="manager">{t("Manager")}</option>
           <option value="object_number">{t("Object Number")}</option>
           <option value="accountant">{t("Accountant")}</option>
           <option value="cook">{t("Cook")}</option>
-          <option value="other">{t("Other Position")}</option>
+          <option value="other">{t("Other")}</option>
         </FormSelect>
         <FormSelect
           label="სტატუსი"

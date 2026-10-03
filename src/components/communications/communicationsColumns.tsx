@@ -82,6 +82,20 @@ export function getCommunicationsColumns({
         );
       }
     },
+    address: {
+      header: t('Address'),
+      key: 'address',
+      className: 'max-w-[200px] truncate',
+      render: (comm) => {
+        const suppObj = findSupplier(comm.vendor_id, comm);
+        const addr = suppObj?.address || (comm as any).address || '-';
+        return (
+          <div className="max-w-[200px] truncate" title={addr !== '-' ? addr : ''}>
+            {addr}
+          </div>
+        );
+      }
+    },
     company_name: {
       header: t('Company Name'),
       key: 'company_name',

@@ -18,6 +18,7 @@ const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'reminder_time', label: 'Reminder Time', visible: true },
   { id: 'type', label: 'Type', visible: true },
   { id: 'vendor_name', label: 'Supplier', visible: true },
+  { id: 'address', label: 'Address', visible: true },
   { id: 'company_name', label: 'Company Name', visible: true },
   { id: 'id_code', label: 'Identification Code', visible: true },
   { id: 'user_name', label: 'Operator / User', visible: true },
@@ -260,6 +261,29 @@ export default function CommunicationsView({
           }
         }
         parsed = parsed.map(c => c.id === 'date_time' ? { ...c, label: 'Created' } : c);
+        // Ensure address column exists and is positioned between vendor_name and company_name
+        if (!parsed.some(c => c.id === 'address')) {
+          const vnIndex = parsed.findIndex(c => c.id === 'vendor_name');
+          const addressCol: ManagedColumn = { id: 'address', label: 'Address', visible: true };
+          if (vnIndex !== -1) {
+            parsed.splice(vnIndex + 1, 0, addressCol);
+          } else {
+            const cnIndex = parsed.findIndex(c => c.id === 'company_name');
+            if (cnIndex !== -1) {
+              parsed.splice(cnIndex, 0, addressCol);
+            } else {
+              parsed.push(addressCol);
+            }
+          }
+        } else {
+          const addrIndex = parsed.findIndex(c => c.id === 'address');
+          const vnIndex = parsed.findIndex(c => c.id === 'vendor_name');
+          if (addrIndex !== -1 && vnIndex !== -1 && addrIndex !== vnIndex + 1) {
+            const [addrCol] = parsed.splice(addrIndex, 1);
+            const newVnIndex = parsed.findIndex(c => c.id === 'vendor_name');
+            parsed.splice(newVnIndex + 1, 0, addrCol);
+          }
+        }
         localStorage.setItem('communications_columns_managed', JSON.stringify(parsed));
         return parsed;
       }
