@@ -239,7 +239,7 @@ export default function SupplierView({
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans flex flex-col">
       {/* 1. SINGLE PAGE HEADER (No sidebar) */}
-      <header className="bg-white border-b border-slate-200 h-16 shrink-0 px-6 flex items-center justify-between sticky top-0 z-50 select-none">
+      <header className="bg-white border-b border-slate-200 min-h-16 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] pb-3 shrink-0 px-6 flex items-center justify-between sticky top-0 z-50 select-none">
         <div className="flex items-center gap-3">
           <h1 className="text-base font-black tracking-tight text-emerald-800 uppercase font-sans">
             ბიოდიზელი ჯორჯია
@@ -278,7 +278,7 @@ export default function SupplierView({
       </header>
 
       {/* 2. BODY CONTAINER */}
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 overflow-y-auto p-6 md:p-8 pb-[calc(3rem+env(safe-area-inset-bottom,0px))]">
         <div className="max-w-6xl mx-auto space-y-6">
           
           {editingOrder ? (

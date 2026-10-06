@@ -164,7 +164,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 bg-radial-gradient" id="login-view-panel">
+    <div className="min-h-screen min-h-[100dvh] flex items-center justify-center p-4 pt-[calc(1.5rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] bg-gray-50 bg-radial-gradient" id="login-view-panel">
       
       <div className="bg-white rounded-3xl max-w-md w-full p-8 border border-gray-100 shadow-xl space-y-6 relative overflow-hidden">
         

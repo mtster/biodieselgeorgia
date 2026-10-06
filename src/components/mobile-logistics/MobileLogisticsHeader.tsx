@@ -18,7 +18,7 @@ export function MobileLogisticsHeader({
   onLogOut,
 }: Props) {
   return (
-    <header className="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white px-5 py-4 shadow-xl sticky top-0 z-30 border-b border-emerald-800/40 backdrop-blur-md">
+    <header className="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white px-5 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-4 shadow-xl sticky top-0 z-30 border-b border-emerald-800/40 backdrop-blur-md">
       <div className="max-w-md mx-auto w-full space-y-3.5">
         {/* Top Brand Bar */}
         <div className="flex items-center justify-between">

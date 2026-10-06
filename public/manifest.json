@@ -1,22 +1,36 @@
 {
+  "id": "/",
   "short_name": "BiodieselGA",
   "name": "Biodiesel Georgia - ბიოდიზელი ჯორჯია",
   "description": "ბიოდიზელი ჯორჯიას ლოგისტიკისა და მართვის სისტემა",
   "icons": [
     {
-      "src": "https://img.icons8.com/deco/192/000000/leaf.png",
+      "src": "/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://img.icons8.com/deco/512/000000/leaf.png",
+      "src": "/icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",
+  "scope": "/",
   "background_color": "#f8fafc",
   "theme_color": "#15803d",
   "display": "standalone",

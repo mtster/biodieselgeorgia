@@ -3,18 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-const CACHE_NAME = 'biodiesel-v1';
+const CACHE_NAME = 'biodiesel-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Use catch for individual asset so missing files don't fail SW installation
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map((asset) => cache.add(asset).catch(() => null))
+      );
     }).then(() => self.skipWaiting())
   );
 });

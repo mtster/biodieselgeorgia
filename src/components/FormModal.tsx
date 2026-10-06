@@ -52,8 +52,8 @@ export default function FormModal({
   if (!isOpen) return null;
 
   const modalNode = (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[100] animate-in fade-in duration-150">
-      <div className={`bg-white rounded-2xl w-full ${maxWidthClass} shadow-xl border border-slate-200 overflow-hidden p-6 relative flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150`}>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-[calc(1rem+env(safe-area-inset-bottom,0px))] z-[100] animate-in fade-in duration-150">
+      <div className={`bg-white rounded-2xl w-full ${maxWidthClass} shadow-xl border border-slate-200 overflow-hidden p-6 relative flex flex-col max-h-[calc(92dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] animate-in zoom-in-95 duration-150`}>
         {/* Modal Header without border-b */}
         <div className="flex items-center justify-between pb-3 mb-4 shrink-0">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">

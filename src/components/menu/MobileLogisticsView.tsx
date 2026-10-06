@@ -216,7 +216,7 @@ export default function MobileLogisticsView({
       />
 
       {/* Primary list space */}
-      <main className="flex-1 p-4 max-w-md mx-auto w-full space-y-4">
+      <main className="flex-1 p-4 max-w-md mx-auto w-full space-y-4 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]">
         {/* Toggle active / completed and sequence order button */}
         <div className="flex items-center gap-2">
           <button

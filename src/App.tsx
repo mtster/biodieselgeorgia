@@ -171,10 +171,10 @@ export default function App() {
       </div>
 
       {/* Main Viewport Panel */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden">
         
         {/* Mobile Navbar Top */}
-        <header className="md:hidden bg-white border-b border-gray-100 flex items-center justify-between p-4 flex-shrink-0 shadow-xs relative z-40">
+        <header className="md:hidden bg-white border-b border-gray-100 flex items-center justify-between px-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-3.5 flex-shrink-0 shadow-xs relative z-40">
           <div className="flex items-center gap-2">
             <div className="bg-emerald-800 text-white p-1 rounded-lg">
               <Leaf size={16} />
@@ -191,7 +191,7 @@ export default function App() {
         </header>
 
         {/* Content viewport */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto px-4 md:px-6 pb-16 pt-0 md:pt-0">
+        <main ref={mainRef} className="flex-1 overflow-y-auto px-4 md:px-6 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] pt-0 md:pt-0">
           <div className="w-full">
             {activeTab === 'dashboard' && (
               <DashboardView 

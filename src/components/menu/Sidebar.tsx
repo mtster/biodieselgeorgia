@@ -7,6 +7,7 @@ import {
 import { User } from '../../types';
 import { t } from '../../utils/lang';
 import { hasModuleViewPermission } from '../../lib/realtime';
+import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface SidebarProps {
   currentUser: User;
@@ -70,7 +71,7 @@ export default function Sidebar({
     }`}>
       
       {/* Sidebar Header Brand */}
-      <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+      <div className="p-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="bg-emerald-800 p-1.5 rounded-lg text-white">
             <Leaf size={18} />
@@ -163,7 +164,8 @@ export default function Sidebar({
       </div>
 
       {/* Profile and signout */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/20 select-none">
+      <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800 bg-slate-950/20 select-none">
+        <PWAInstallButton className="w-full mb-3 justify-center" />
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-xs text-slate-200 uppercase">
             {currentUser.name.slice(0, 2)}
