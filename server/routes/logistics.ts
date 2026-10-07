@@ -508,4 +508,32 @@ router.post("/api/optimize-route", async (req, res) => {
   }
 });
 
+// Update orders route_rank with admin credentials (bypasses RLS)
+router.post("/api/update-route-ranks", async (req, res) => {
+  try {
+    const { updates } = req.body;
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ error: "No updates provided" });
+    }
+
+    if (!isSupabaseConfigured || !supabaseAdmin) {
+      return res.status(500).json({ error: "Supabase admin not configured" });
+    }
+
+    await Promise.all(
+      updates.map((u: { id: string; route_rank: string }) =>
+        supabaseAdmin
+          .from("orders")
+          .update({ route_rank: u.route_rank })
+          .eq("id", u.id)
+      )
+    );
+
+    return res.json({ success: true, count: updates.length });
+  } catch (err: any) {
+    console.error("Error updating route ranks:", err);
+    return res.status(500).json({ error: err.message || "Failed to update route ranks" });
+  }
+});
+
 export default router;

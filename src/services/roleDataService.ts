@@ -4,6 +4,7 @@ import { getVehicles } from './vehicleService';
 import { getUsers } from './userService';
 import { getWarehouses } from './lookupService';
 import { decodeVendorCustomFields } from './vendorService';
+import { sortOrdersByRouteRank } from '../utils/lexorank';
 
 // Helper to sanitize strings for plate and driver matching
 const cleanStr = (str?: string) => (str ? str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '');
@@ -217,7 +218,7 @@ export async function getDriverOrdersAndVendors(
   }
 
   return {
-    orders: driverOrders,
+    orders: sortOrdersByRouteRank(driverOrders),
     suppliers: assignedVendors
   };
 }

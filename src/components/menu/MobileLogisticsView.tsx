@@ -315,7 +315,10 @@ export default function MobileLogisticsView({
             dateStr={todayStr}
             onOrdersReordered={(reorderedItems) => {
               const reorderedMap = new Map(reorderedItems.map(i => [i.id, i]));
-              setLocalOrders(prev => prev.map(o => reorderedMap.get(o.id) || o));
+              setLocalOrders(prev => {
+                const rest = prev.filter(o => !reorderedMap.has(o.id));
+                return [...reorderedItems, ...rest];
+              });
             }}
           />
         )}

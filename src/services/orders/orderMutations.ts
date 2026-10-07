@@ -187,8 +187,22 @@ export async function updateOrdersRouteRanks(updates: { id: string; route_rank: 
   setLocal(KEY_ORDERS, updatedList);
   appCache.clear();
 
-  // 2. Persist to Supabase in parallel
-  if (isSupabaseConfigured && supabase) {
+  // 2. Persist to database via server API (bypasses RLS) or direct Supabase fallback
+  let persisted = false;
+  try {
+    const res = await fetch('/api/update-route-ranks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates })
+    });
+    if (res.ok) {
+      persisted = true;
+    }
+  } catch (err) {
+    console.warn('Server /api/update-route-ranks failed, falling back to direct Supabase:', err);
+  }
+
+  if (!persisted && isSupabaseConfigured && supabase) {
     try {
       await Promise.all(
         updates.map(u =>
@@ -199,7 +213,9 @@ export async function updateOrdersRouteRanks(updates: { id: string; route_rank: 
         )
       );
     } catch (e) {
-      console.warn('Supabase updateOrdersRouteRanks error:', e);
+      console.warn('Supabase direct updateOrdersRouteRanks error:', e);
     }
   }
+
+  notifyDbChange('orders', 'UPDATE');
 }

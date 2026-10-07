@@ -24,6 +24,19 @@ interface OrderSequenceModalProps {
   onOrdersReordered: (newOrders: Order[]) => void;
 }
 
+const DropIndicatorLine: React.FC<{ active: boolean }> = ({ active }) => {
+  if (!active) return null;
+  return (
+    <div className="py-1 -my-1 relative flex items-center justify-center z-20 pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95">
+      <div className="w-full flex items-center px-1">
+        <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 shadow-sm shadow-emerald-400/50 flex-shrink-0 ring-2 ring-emerald-200" />
+        <div className="h-[3px] flex-1 bg-emerald-600 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+        <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 shadow-sm shadow-emerald-400/50 flex-shrink-0 ring-2 ring-emerald-200" />
+      </div>
+    </div>
+  );
+};
+
 export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   isOpen,
   onClose,
@@ -43,9 +56,8 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
 
   // Drag-and-drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [touchActiveIndex, setTouchActiveIndex] = useState<number | null>(null);
-  const [touchTargetIndex, setTouchTargetIndex] = useState<number | null>(null);
+  const [insertionIndex, setInsertionIndex] = useState<number | null>(null);
   const [floatingDrag, setFloatingDrag] = useState<{
     index: number;
     tradeName: string;
@@ -59,7 +71,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   } | null>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const touchActiveIdxRef = useRef<number | null>(null);
-  const touchTargetIdxRef = useRef<number | null>(null);
+  const insertionIdxRef = useRef<number | null>(null);
   const pointerIdRef = useRef<number | null>(null);
   const capturedElRef = useRef<HTMLElement | null>(null);
 
@@ -81,9 +93,17 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
       const activeList = orders.filter(o => !o.is_deleted);
       let sorted = sortOrdersByRouteRank(activeList);
       
-      // If none of the orders have route_rank yet, initialize initial ranks
-      if (sorted.length > 0 && sorted.every(o => !o.route_rank)) {
-        sorted = rebalanceRanks(sorted);
+      // Ensure every order has a clean, reliable sequential route_rank
+      const needsInit = sorted.some(o => !o.route_rank || !o.route_rank.startsWith('r_'));
+      if (needsInit) {
+        sorted = sorted.map((o, idx) => ({
+          ...o,
+          route_rank: `r_${String(idx + 1).padStart(4, '0')}`
+        }));
+        // Persist initial sequential ranks to DB and parent so ordering is immediately fixed
+        const updates = sorted.map(o => ({ id: o.id, route_rank: o.route_rank! }));
+        updateOrdersRouteRanks(updates).catch(console.error);
+        onOrdersReordered(sorted);
       }
 
       setItems(sorted);
@@ -91,6 +111,8 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
       setIsOptimizing(false);
       setIsOptimized(false);
       setIsSaving(false);
+      setInsertionIndex(null);
+      insertionIdxRef.current = null;
     } else if (!isOpen) {
       wasOpenRef.current = false;
     }
@@ -122,37 +144,63 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   };
 
   /**
-   * Reorder items array and calculate new Lexorank
+   * Reorder items array by placing item into target insertion gap,
+   * then assigning fresh, strictly monotonic ranks to every order.
+   * Instantly synchronizes with parent view and persists to database.
    */
-  const handleMove = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= items.length) return;
+  const handleMove = (fromIndex: number, targetInsertionIndex: number) => {
+    if (fromIndex < 0 || fromIndex >= items.length) return;
+    if (targetInsertionIndex < 0 || targetInsertionIndex > items.length) return;
+
+    // Dropping in place next to self requires no change
+    if (targetInsertionIndex === fromIndex || targetInsertionIndex === fromIndex + 1) {
+      return;
+    }
 
     const updated = [...items];
     const [movedItem] = updated.splice(fromIndex, 1);
-    updated.splice(toIndex, 0, movedItem);
+    const destinationIndex = targetInsertionIndex > fromIndex ? targetInsertionIndex - 1 : targetInsertionIndex;
+    updated.splice(destinationIndex, 0, movedItem);
 
-    // Compute new Lexorank for moved item
-    const prevRank = toIndex > 0 ? updated[toIndex - 1].route_rank : null;
-    const nextRank = toIndex < updated.length - 1 ? updated[toIndex + 1].route_rank : null;
-    const newRank = getRankBetween(prevRank, nextRank);
+    // Assign fresh, strictly monotonic ranks to all orders in the route
+    const rankedOrders = updated.map((item, idx) => ({
+      ...item,
+      route_rank: `r_${String(idx + 1).padStart(4, '0')}`
+    }));
 
-    updated[toIndex] = {
-      ...updated[toIndex],
-      route_rank: newRank
-    };
-
-    // Redundancy and safe upper-limit check
-    // If ranks grow too long (>= 16 chars) due to frequent drag-and-drops in the same spot,
-    // rebalance ranks back to clean base strings preserving current sequence
-    let finalItems = updated;
-    if (shouldRebalance(updated.map(i => i.route_rank))) {
-      finalItems = rebalanceRanks(updated);
-    }
-
-    setItems(finalItems);
+    setItems(rankedOrders);
     setIsDirty(true);
-    // User manual rearrangement re-enables the auto-optimization button
     setIsOptimized(false);
+    onOrdersReordered(rankedOrders);
+
+    // Immediate background persistence to database
+    const updates = rankedOrders.map(o => ({ id: o.id, route_rank: o.route_rank! }));
+    updateOrdersRouteRanks(updates).catch(console.error);
+  };
+
+  /**
+   * Quick swap helper for up/down arrow buttons
+   */
+  const handleSwap = (fromIndex: number, toIndex: number) => {
+    if (fromIndex < 0 || fromIndex >= items.length) return;
+    if (toIndex < 0 || toIndex >= items.length) return;
+
+    const updated = [...items];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+
+    const rankedOrders = updated.map((item, idx) => ({
+      ...item,
+      route_rank: `r_${String(idx + 1).padStart(4, '0')}`
+    }));
+
+    setItems(rankedOrders);
+    setIsDirty(true);
+    setIsOptimized(false);
+    onOrdersReordered(rankedOrders);
+
+    const updates = rankedOrders.map(o => ({ id: o.id, route_rank: o.route_rank! }));
+    updateOrdersRouteRanks(updates).catch(console.error);
   };
 
   /**
@@ -259,16 +307,19 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
         // Append any remaining items
         itemMap.forEach(item => reordered.push(item));
 
-        // Assign fresh initial Lexoranks to the optimal route
-        const freshRanks = generateInitialRanks(reordered.length);
+        // Assign fresh sequential route ranks to the optimal route
         const rankedOrders = reordered.map((o, idx) => ({
           ...o,
-          route_rank: freshRanks[idx]
+          route_rank: `r_${String(idx + 1).padStart(4, '0')}`
         }));
 
         setItems(rankedOrders);
         setIsDirty(true);
         setIsOptimized(true);
+        onOrdersReordered(rankedOrders);
+
+        const updates = rankedOrders.map(o => ({ id: o.id, route_rank: o.route_rank! }));
+        updateOrdersRouteRanks(updates).catch(console.error);
       }
     } catch (err) {
       console.error('Auto optimize error:', err);
@@ -285,13 +336,19 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     if (isDirty) {
       setIsSaving(true);
       try {
-        // 1. Instantly update parent component state so driver sees new order without reload
-        onOrdersReordered(items);
+        // Ensure every item has an explicit, sequential route rank
+        const finalRanked = items.map((o, idx) => ({
+          ...o,
+          route_rank: o.route_rank || `r_${String(idx + 1).padStart(4, '0')}`
+        }));
 
-        // 2. Persist Lexoranks to database in background
-        const updates = items.map(o => ({
+        // 1. Instantly update parent component state so driver sees new order without reload
+        onOrdersReordered(finalRanked);
+
+        // 2. Persist ranks to database in background
+        const updates = finalRanked.map(o => ({
           id: o.id,
-          route_rank: o.route_rank || ''
+          route_rank: o.route_rank
         }));
         await updateOrdersRouteRanks(updates);
       } catch (err) {
@@ -306,58 +363,22 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     }
   };
 
-  // HTML5 Drag Handlers (Desktop Mouse)
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (touchActiveIdxRef.current !== null) {
-      e.preventDefault();
-      return;
-    }
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    if (draggedIndex !== null && draggedIndex !== dropIndex) {
-      handleMove(draggedIndex, dropIndex);
-    }
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
-
-  // Helper to geometrically determine target index from clientY
-  const getIndexFromClientY = (clientY: number): number | null => {
-    if (!listContainerRef.current) return null;
+  // Helper to geometrically determine target insertion gap from clientY
+  const getInsertionIndexFromClientY = (clientY: number): number => {
+    if (!listContainerRef.current) return 0;
     const rowElements = Array.from(
       listContainerRef.current.querySelectorAll<HTMLElement>('[data-order-index]')
     );
-    if (rowElements.length === 0) return null;
+    if (rowElements.length === 0) return 0;
 
     for (let i = 0; i < rowElements.length; i++) {
       const rect = rowElements[i].getBoundingClientRect();
       const midY = rect.top + rect.height / 2;
       if (clientY < midY) {
-        return i;
-      }
-      if (i === rowElements.length - 1) {
-        return i;
+        return i; // Insert before row i
       }
     }
-    return rowElements.length - 1;
+    return rowElements.length; // Insert after the last row
   };
 
   // Auto-scroll helper when dragging near top/bottom of scroll container
@@ -372,6 +393,45 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
       const delta = Math.max(4, Math.min(18, (clientY - (containerRect.bottom - threshold)) / 2));
       listContainerRef.current.scrollTop += delta;
     }
+  };
+
+  // HTML5 Drag Handlers (Desktop Mouse)
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (touchActiveIdxRef.current !== null) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const insIdx = getInsertionIndexFromClientY(e.clientY);
+    if (insIdx !== insertionIdxRef.current) {
+      insertionIdxRef.current = insIdx;
+      setInsertionIndex(insIdx);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const fromIdx = draggedIndex;
+    const toInsIdx = insertionIdxRef.current;
+    if (fromIdx !== null && toInsIdx !== null) {
+      handleMove(fromIdx, toInsIdx);
+    }
+    setDraggedIndex(null);
+    setInsertionIndex(null);
+    insertionIdxRef.current = null;
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setInsertionIndex(null);
+    insertionIdxRef.current = null;
   };
 
   // Pointer Drag Handlers (Standard across all modern mobile browsers & touch devices)
@@ -394,9 +454,9 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     pointerIdRef.current = e.pointerId;
     capturedElRef.current = targetEl;
     touchActiveIdxRef.current = idx;
-    touchTargetIdxRef.current = idx;
+    insertionIdxRef.current = idx;
     setTouchActiveIndex(idx);
-    setTouchTargetIndex(idx);
+    setInsertionIndex(idx);
 
     setFloatingDrag({
       index: idx,
@@ -425,10 +485,10 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     // Update floating drag position so it follows the user's finger in real time
     setFloatingDrag(prev => prev ? { ...prev, currentY: e.clientY } : null);
 
-    const targetIdx = getIndexFromClientY(e.clientY);
-    if (targetIdx !== null && targetIdx !== touchTargetIdxRef.current && targetIdx >= 0 && targetIdx < items.length) {
-      touchTargetIdxRef.current = targetIdx;
-      setTouchTargetIndex(targetIdx);
+    const insIdx = getInsertionIndexFromClientY(e.clientY);
+    if (insIdx !== insertionIdxRef.current) {
+      insertionIdxRef.current = insIdx;
+      setInsertionIndex(insIdx);
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try { navigator.vibrate?.(12); } catch {}
       }
@@ -441,7 +501,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     e.stopPropagation();
 
     const fromIdx = touchActiveIdxRef.current;
-    const toIdx = touchTargetIdxRef.current;
+    const toInsIdx = insertionIdxRef.current;
 
     if (capturedElRef.current && pointerIdRef.current !== null) {
       try {
@@ -452,13 +512,13 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     pointerIdRef.current = null;
     capturedElRef.current = null;
     touchActiveIdxRef.current = null;
-    touchTargetIdxRef.current = null;
+    insertionIdxRef.current = null;
     setTouchActiveIndex(null);
-    setTouchTargetIndex(null);
+    setInsertionIndex(null);
     setFloatingDrag(null);
 
-    if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
-      handleMove(fromIdx, toIdx);
+    if (fromIdx !== null && toInsIdx !== null) {
+      handleMove(fromIdx, toInsIdx);
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try { navigator.vibrate?.(35); } catch {}
       }
@@ -474,9 +534,9 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     pointerIdRef.current = null;
     capturedElRef.current = null;
     touchActiveIdxRef.current = null;
-    touchTargetIdxRef.current = null;
+    insertionIdxRef.current = null;
     setTouchActiveIndex(null);
-    setTouchTargetIndex(null);
+    setInsertionIndex(null);
     setFloatingDrag(null);
   };
 
@@ -494,9 +554,9 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     const info = getVendorInfo(order);
 
     touchActiveIdxRef.current = idx;
-    touchTargetIdxRef.current = idx;
+    insertionIdxRef.current = idx;
     setTouchActiveIndex(idx);
-    setTouchTargetIndex(idx);
+    setInsertionIndex(idx);
 
     setFloatingDrag({
       index: idx,
@@ -523,10 +583,10 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     handleAutoScroll(touch.clientY);
     setFloatingDrag(prev => prev ? { ...prev, currentY: touch.clientY } : null);
 
-    const targetIdx = getIndexFromClientY(touch.clientY);
-    if (targetIdx !== null && targetIdx !== touchTargetIdxRef.current && targetIdx >= 0 && targetIdx < items.length) {
-      touchTargetIdxRef.current = targetIdx;
-      setTouchTargetIndex(targetIdx);
+    const insIdx = getInsertionIndexFromClientY(touch.clientY);
+    if (insIdx !== insertionIdxRef.current) {
+      insertionIdxRef.current = insIdx;
+      setInsertionIndex(insIdx);
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try { navigator.vibrate?.(12); } catch {}
       }
@@ -535,16 +595,16 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
 
   const handleTouchEnd = () => {
     const fromIdx = touchActiveIdxRef.current;
-    const toIdx = touchTargetIdxRef.current;
+    const toInsIdx = insertionIdxRef.current;
 
     touchActiveIdxRef.current = null;
-    touchTargetIdxRef.current = null;
+    insertionIdxRef.current = null;
     setTouchActiveIndex(null);
-    setTouchTargetIndex(null);
+    setInsertionIndex(null);
     setFloatingDrag(null);
 
-    if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
-      handleMove(fromIdx, toIdx);
+    if (fromIdx !== null && toInsIdx !== null) {
+      handleMove(fromIdx, toInsIdx);
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try { navigator.vibrate?.(35); } catch {}
       }
@@ -553,9 +613,9 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
 
   const handleTouchCancel = () => {
     touchActiveIdxRef.current = null;
-    touchTargetIdxRef.current = null;
+    insertionIdxRef.current = null;
     setTouchActiveIndex(null);
-    setTouchTargetIndex(null);
+    setInsertionIndex(null);
     setFloatingDrag(null);
   };
 
@@ -648,115 +708,121 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
             დღევანდელი დღისთვის ამ მანქანაზე აქტიური შეკვეთები არ მოიძებნა.
           </div>
         ) : (
-          items.map((order, idx) => {
-            const info = getVendorInfo(order);
-            const isDragging = draggedIndex === idx;
-            const isDragOver = dragOverIndex === idx;
-            const isTouchActive = touchActiveIndex === idx;
-            const isTouchTarget = touchTargetIndex === idx && touchActiveIndex !== idx;
+          (() => {
+            const activeDragIdx = touchActiveIndex !== null ? touchActiveIndex : draggedIndex;
 
             return (
-              <div
-                key={order.id}
-                data-order-index={idx}
-                draggable={touchActiveIndex === null}
-                onDragStart={(e) => handleDragStart(e, idx)}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDrop={(e) => handleDrop(e, idx)}
-                onDragEnd={handleDragEnd}
-                className={`bg-white rounded-2xl border transition-all duration-150 p-3 flex items-center justify-between gap-3 shadow-xs select-none ${
-                  isDragging || isTouchActive 
-                    ? 'opacity-30 border-dashed border-2 border-emerald-500 bg-emerald-50/40 scale-[0.99]' 
-                    : 'border-gray-200/90'
-                } ${isDragOver || isTouchTarget ? 'border-emerald-600 bg-emerald-100/70 ring-2 ring-emerald-400/50 shadow-md' : 'hover:border-slate-300'}`}
-              >
-                {/* Left: Sequence Number & Info */}
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 border transition-colors ${
-                    isTouchActive 
-                      ? 'bg-slate-200 text-slate-500 border-slate-300' 
-                      : isTouchTarget 
-                        ? 'bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-300' 
-                        : 'bg-slate-100 text-slate-700 border-slate-200/60'
-                  }`}>
-                    {isTouchTarget && touchActiveIndex !== null ? (touchActiveIndex < idx ? idx + 1 : idx + 1) : idx + 1}
-                  </div>
+              <>
+                {/* Top insertion line indicator (gap 0, before first order) */}
+                <DropIndicatorLine active={activeDragIdx !== null && insertionIndex === 0} />
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-800 text-xs truncate">
-                        {info.tradeName}
-                      </span>
-                      {isTouchActive && (
-                        <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded font-extrabold flex-shrink-0">
-                          არჩეულია
-                        </span>
-                      )}
-                      {isTouchTarget && (
-                        <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-extrabold flex-shrink-0 animate-pulse">
-                          ჩასმის ადგილი
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                      <MapPin size={11} className="text-slate-400 flex-shrink-0" />
-                      <span className="truncate">{info.address}</span>
-                    </div>
-                  </div>
-                </div>
+                {items.map((order, idx) => {
+                  const info = getVendorInfo(order);
+                  const isDragging = draggedIndex === idx;
+                  const isTouchActive = touchActiveIndex === idx;
 
-                {/* Right: Quick Move Buttons & Drag Grip */}
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {/* Subtle step buttons for touch ease */}
-                  <div className="flex flex-col gap-0.5 mr-1">
-                    <button
-                      type="button"
-                      disabled={idx === 0}
-                      onClick={() => handleMove(idx, idx - 1)}
-                      className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
-                        idx === 0 ? 'opacity-20 cursor-not-allowed' : ''
-                      }`}
-                      title="ზემოთ აწევა"
-                    >
-                      <ChevronUp size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={idx === items.length - 1}
-                      onClick={() => handleMove(idx, idx + 1)}
-                      className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
-                        idx === items.length - 1 ? 'opacity-20 cursor-not-allowed' : ''
-                      }`}
-                      title="ქვემოთ ჩამოწევა"
-                    >
-                      <ChevronDown size={14} />
-                    </button>
-                  </div>
+                  return (
+                    <React.Fragment key={order.id}>
+                      <div
+                        data-order-index={idx}
+                        draggable={touchActiveIndex === null}
+                        onDragStart={(e) => handleDragStart(e, idx)}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        onDragEnd={handleDragEnd}
+                        className={`bg-white rounded-2xl border transition-all duration-150 p-3 flex items-center justify-between gap-3 shadow-xs select-none ${
+                          isDragging || isTouchActive 
+                            ? 'opacity-35 border-dashed border-2 border-slate-300 bg-slate-50/70 scale-[0.98]' 
+                            : 'border-gray-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        {/* Left: Sequence Number & Info */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 border transition-colors ${
+                            isTouchActive || isDragging
+                              ? 'bg-slate-200 text-slate-500 border-slate-300' 
+                              : 'bg-slate-100 text-slate-700 border-slate-200/60'
+                          }`}>
+                            {idx + 1}
+                          </div>
 
-                  {/* Drag Grip Handle - Supports both Mouse & Touch drag on 6-dot icon */}
-                  <div 
-                    className={`p-2.5 rounded-xl transition cursor-grab active:cursor-grabbing flex items-center justify-center touch-none select-none ${
-                      isTouchActive 
-                        ? 'bg-slate-200 text-slate-500' 
-                        : 'text-slate-400 hover:text-slate-700 active:text-emerald-700 hover:bg-slate-100 active:bg-emerald-50'
-                    }`}
-                    style={{ touchAction: 'none' }}
-                    title="გადაადგილება"
-                    onPointerDown={(e) => handleGripPointerDown(e, idx)}
-                    onPointerMove={handleGripPointerMove}
-                    onPointerUp={handleGripPointerUp}
-                    onPointerCancel={handleGripPointerCancel}
-                    onTouchStart={(e) => handleTouchStart(e, idx)}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                    onTouchCancel={handleTouchCancel}
-                  >
-                    <GripVertical size={20} className="stroke-[2.4]" />
-                  </div>
-                </div>
-              </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800 text-xs truncate">
+                                {info.tradeName}
+                              </span>
+                              {(isTouchActive || isDragging) && (
+                                <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded font-extrabold flex-shrink-0">
+                                  არჩეულია
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                              <MapPin size={11} className="text-slate-400 flex-shrink-0" />
+                              <span className="truncate">{info.address}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Quick Move Buttons & Drag Grip */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {/* Subtle step buttons for touch ease */}
+                          <div className="flex flex-col gap-0.5 mr-1">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleSwap(idx, idx - 1)}
+                              className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
+                                idx === 0 ? 'opacity-20 cursor-not-allowed' : ''
+                              }`}
+                              title="ზემოთ აწევა"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === items.length - 1}
+                              onClick={() => handleSwap(idx, idx + 1)}
+                              className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
+                                idx === items.length - 1 ? 'opacity-20 cursor-not-allowed' : ''
+                              }`}
+                              title="ქვემოთ ჩამოწევა"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
+
+                          {/* Drag Grip Handle - Supports both Mouse & Touch drag on 6-dot icon */}
+                          <div 
+                            className={`p-2.5 rounded-xl transition cursor-grab active:cursor-grabbing flex items-center justify-center touch-none select-none ${
+                              isTouchActive 
+                                ? 'bg-emerald-100 text-emerald-800' 
+                                : 'text-slate-400 hover:text-slate-700 active:text-emerald-700 hover:bg-slate-100 active:bg-emerald-50'
+                            }`}
+                            style={{ touchAction: 'none' }}
+                            title="გადაადგილება"
+                            onPointerDown={(e) => handleGripPointerDown(e, idx)}
+                            onPointerMove={handleGripPointerMove}
+                            onPointerUp={handleGripPointerUp}
+                            onPointerCancel={handleGripPointerCancel}
+                            onTouchStart={(e) => handleTouchStart(e, idx)}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                            onTouchCancel={handleTouchCancel}
+                          >
+                            <GripVertical size={20} className="stroke-[2.4]" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Insertion line indicator below this order (gap idx + 1) */}
+                      <DropIndicatorLine active={activeDragIdx !== null && insertionIndex === idx + 1} />
+                    </React.Fragment>
+                  );
+                })}
+              </>
             );
-          })
+          })()
         )}
       </div>
 
