@@ -46,6 +46,17 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [touchActiveIndex, setTouchActiveIndex] = useState<number | null>(null);
   const [touchTargetIndex, setTouchTargetIndex] = useState<number | null>(null);
+  const [floatingDrag, setFloatingDrag] = useState<{
+    index: number;
+    tradeName: string;
+    address: string;
+    width: number;
+    height: number;
+    left: number;
+    top: number;
+    grabOffsetY: number;
+    currentY: number;
+  } | null>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const touchActiveIdxRef = useRef<number | null>(null);
   const touchTargetIdxRef = useRef<number | null>(null);
@@ -374,12 +385,30 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
       targetEl.setPointerCapture(e.pointerId);
     } catch {}
 
+    const rowEl = (targetEl.closest('[data-order-index]') as HTMLElement) || targetEl;
+    const rect = rowEl.getBoundingClientRect();
+    const grabOffsetY = e.clientY - rect.top;
+    const order = items[idx];
+    const info = getVendorInfo(order);
+
     pointerIdRef.current = e.pointerId;
     capturedElRef.current = targetEl;
     touchActiveIdxRef.current = idx;
     touchTargetIdxRef.current = idx;
     setTouchActiveIndex(idx);
     setTouchTargetIndex(idx);
+
+    setFloatingDrag({
+      index: idx,
+      tradeName: info.tradeName,
+      address: info.address,
+      width: rect.width,
+      height: rect.height,
+      left: rect.left,
+      top: rect.top,
+      grabOffsetY: grabOffsetY > 0 && grabOffsetY < rect.height ? grabOffsetY : rect.height / 2,
+      currentY: e.clientY
+    });
 
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try { navigator.vibrate?.(25); } catch {}
@@ -392,6 +421,9 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     e.stopPropagation();
 
     handleAutoScroll(e.clientY);
+
+    // Update floating drag position so it follows the user's finger in real time
+    setFloatingDrag(prev => prev ? { ...prev, currentY: e.clientY } : null);
 
     const targetIdx = getIndexFromClientY(e.clientY);
     if (targetIdx !== null && targetIdx !== touchTargetIdxRef.current && targetIdx >= 0 && targetIdx < items.length) {
@@ -423,6 +455,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     touchTargetIdxRef.current = null;
     setTouchActiveIndex(null);
     setTouchTargetIndex(null);
+    setFloatingDrag(null);
 
     if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
       handleMove(fromIdx, toIdx);
@@ -444,15 +477,39 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     touchTargetIdxRef.current = null;
     setTouchActiveIndex(null);
     setTouchTargetIndex(null);
+    setFloatingDrag(null);
   };
 
   // Mobile Touch Fallbacks (for legacy environments without pointer capture)
   const handleTouchStart = (e: React.TouchEvent, idx: number) => {
     e.stopPropagation();
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    const targetEl = e.currentTarget as HTMLElement;
+    const rowEl = (targetEl.closest('[data-order-index]') as HTMLElement) || targetEl;
+    const rect = rowEl.getBoundingClientRect();
+    const grabOffsetY = touch.clientY - rect.top;
+    const order = items[idx];
+    const info = getVendorInfo(order);
+
     touchActiveIdxRef.current = idx;
     touchTargetIdxRef.current = idx;
     setTouchActiveIndex(idx);
     setTouchTargetIndex(idx);
+
+    setFloatingDrag({
+      index: idx,
+      tradeName: info.tradeName,
+      address: info.address,
+      width: rect.width,
+      height: rect.height,
+      left: rect.left,
+      top: rect.top,
+      grabOffsetY: grabOffsetY > 0 && grabOffsetY < rect.height ? grabOffsetY : rect.height / 2,
+      currentY: touch.clientY
+    });
+
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try { navigator.vibrate?.(25); } catch {}
     }
@@ -464,6 +521,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     if (!touch) return;
 
     handleAutoScroll(touch.clientY);
+    setFloatingDrag(prev => prev ? { ...prev, currentY: touch.clientY } : null);
 
     const targetIdx = getIndexFromClientY(touch.clientY);
     if (targetIdx !== null && targetIdx !== touchTargetIdxRef.current && targetIdx >= 0 && targetIdx < items.length) {
@@ -483,6 +541,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     touchTargetIdxRef.current = null;
     setTouchActiveIndex(null);
     setTouchTargetIndex(null);
+    setFloatingDrag(null);
 
     if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
       handleMove(fromIdx, toIdx);
@@ -497,6 +556,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     touchTargetIdxRef.current = null;
     setTouchActiveIndex(null);
     setTouchTargetIndex(null);
+    setFloatingDrag(null);
   };
 
   return (
@@ -606,17 +666,17 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
                 onDragEnd={handleDragEnd}
                 className={`bg-white rounded-2xl border transition-all duration-150 p-3 flex items-center justify-between gap-3 shadow-xs select-none ${
                   isDragging || isTouchActive 
-                    ? 'opacity-90 ring-2 ring-emerald-500 bg-emerald-50/90 shadow-xl scale-[1.02] z-30 relative' 
+                    ? 'opacity-30 border-dashed border-2 border-emerald-500 bg-emerald-50/40 scale-[0.99]' 
                     : 'border-gray-200/90'
-                } ${isDragOver || isTouchTarget ? 'border-emerald-600 bg-emerald-100/60 ring-2 ring-emerald-400/50' : 'hover:border-slate-300'}`}
+                } ${isDragOver || isTouchTarget ? 'border-emerald-600 bg-emerald-100/70 ring-2 ring-emerald-400/50 shadow-md' : 'hover:border-slate-300'}`}
               >
                 {/* Left: Sequence Number & Info */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 border transition-colors ${
                     isTouchActive 
-                      ? 'bg-emerald-700 text-white border-emerald-800 ring-2 ring-emerald-300' 
+                      ? 'bg-slate-200 text-slate-500 border-slate-300' 
                       : isTouchTarget 
-                        ? 'bg-emerald-600 text-white border-emerald-700' 
+                        ? 'bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-300' 
                         : 'bg-slate-100 text-slate-700 border-slate-200/60'
                   }`}>
                     {isTouchTarget && touchActiveIndex !== null ? (touchActiveIndex < idx ? idx + 1 : idx + 1) : idx + 1}
@@ -628,13 +688,13 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
                         {info.tradeName}
                       </span>
                       {isTouchActive && (
-                        <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-extrabold flex-shrink-0 animate-pulse">
+                        <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded font-extrabold flex-shrink-0">
                           არჩეულია
                         </span>
                       )}
                       {isTouchTarget && (
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.2 rounded font-extrabold flex-shrink-0">
-                          ახალი ადგილი
+                        <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-extrabold flex-shrink-0 animate-pulse">
+                          ჩასმის ადგილი
                         </span>
                       )}
                     </div>
@@ -677,7 +737,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
                   <div 
                     className={`p-2.5 rounded-xl transition cursor-grab active:cursor-grabbing flex items-center justify-center touch-none select-none ${
                       isTouchActive 
-                        ? 'bg-emerald-700 text-white ring-4 ring-emerald-300 scale-110 shadow-lg' 
+                        ? 'bg-slate-200 text-slate-500' 
                         : 'text-slate-400 hover:text-slate-700 active:text-emerald-700 hover:bg-slate-100 active:bg-emerald-50'
                     }`}
                     style={{ touchAction: 'none' }}
@@ -699,6 +759,52 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
           })
         )}
       </div>
+
+      {/* Floating Drag Cue - Follows the user's finger in real-time on mobile */}
+      {floatingDrag && (
+        <div
+          className="fixed pointer-events-none z-50 transition-none select-none"
+          style={{
+            left: `${floatingDrag.left}px`,
+            top: `${floatingDrag.currentY - floatingDrag.grabOffsetY}px`,
+            width: `${floatingDrag.width}px`,
+            height: `${floatingDrag.height}px`,
+            transform: 'scale(1.03) rotate(-1deg)',
+            filter: 'drop-shadow(0 20px 25px rgba(0, 0, 0, 0.22)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.12))'
+          }}
+        >
+          <div className="w-full h-full bg-white rounded-2xl border-2 border-emerald-600 ring-4 ring-emerald-400/40 p-3 flex items-center justify-between gap-3 shadow-2xl">
+            {/* Left: Sequence Number & Info */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 bg-emerald-700 text-white border border-emerald-800 shadow-sm">
+                {floatingDrag.index + 1}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-slate-800 text-xs truncate">
+                    {floatingDrag.tradeName}
+                  </span>
+                  <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-extrabold flex-shrink-0 animate-pulse">
+                    გადაადგილება...
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                  <MapPin size={11} className="text-slate-400 flex-shrink-0" />
+                  <span className="truncate">{floatingDrag.address}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Grip Handle in active dragging state */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="p-2.5 rounded-xl bg-emerald-700 text-white ring-4 ring-emerald-300 shadow-md flex items-center justify-center">
+                <GripVertical size={20} className="stroke-[2.4]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

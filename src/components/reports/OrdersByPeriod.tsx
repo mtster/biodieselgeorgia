@@ -207,21 +207,25 @@ export default function OrdersByPeriod({
           if (cleanMid !== cleanSelected) return false;
         }
 
-        // 4. Search Bar filter: matches company name or delivered liters
+        // 4. Search Bar filter: separate purely numeric from words/letters search
         if (debouncedSearchTerm.trim()) {
-          const term = debouncedSearchTerm.trim().toLowerCase();
-          const tradeMatch = tradeName.toLowerCase().includes(term);
-          const compMatch = compName.toLowerCase().includes(term);
-          const addrMatch = address.toLowerCase().includes(term);
+          const rawTerm = debouncedSearchTerm.trim();
+          const isPureNumber = /^\d+(\.\d+)?$/.test(rawTerm);
 
-          // Numeric liters search (e.g. user enters "20" or "20 ლ")
-          const factQty = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : (o.qty_requested ?? 0);
-          const qtyStr = String(factQty);
-          const numTerm = term.replace(/[^0-9.]/g, '');
-          const qtyMatch = qtyStr.includes(term) || (numTerm.length > 0 && qtyStr === numTerm) || (numTerm.length > 0 && qtyStr.includes(numTerm));
-
-          if (!tradeMatch && !compMatch && !addrMatch && !qtyMatch) {
-            return false;
+          if (isPureNumber) {
+            // Numeric input: query ONLY by შემოტანილი რაოდენობა with EXACT number match
+            const searchNum = Number(rawTerm);
+            const factQty = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : Number(o.qty_requested ?? 0);
+            if (isNaN(factQty) || factQty !== searchNum) {
+              return false;
+            }
+          } else {
+            // Words or mixed (letters + numbers): query ONLY by trade_name
+            const lowerTerm = rawTerm.toLowerCase();
+            const tradeMatch = tradeName.toLowerCase().includes(lowerTerm);
+            if (!tradeMatch) {
+              return false;
+            }
           }
         }
 
@@ -258,31 +262,6 @@ export default function OrdersByPeriod({
           endDate={endDate}
           setEndDate={setEndDate}
         />
-
-        {/* Search Bar: filter by company name or delivered liters */}
-        <div className="relative flex-1 min-w-[220px]">
-          <div className="flex items-center w-full px-3 py-2 bg-slate-100/70 hover:bg-slate-100 border border-gray-200 focus-within:bg-white rounded-xl focus-within:ring-1 focus-within:ring-emerald-500 focus-within:border-emerald-500 transition-all">
-            <Search size={15} className="text-gray-400 shrink-0 mr-2 pointer-events-none" />
-            <input
-              id="reports-period-search-input"
-              type="text"
-              placeholder="ძიება კომპანიით ან რაოდენობით (ლ)..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent border-none outline-none focus:outline-none p-0 text-xs text-gray-900 font-sans"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer shrink-0"
-                title={t("Clear")}
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* City Filter */}
         <div className="relative min-w-[140px]">
@@ -321,6 +300,31 @@ export default function OrdersByPeriod({
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
             ▼
+          </div>
+        </div>
+
+        {/* Search Bar placed to the RIGHT of dropdown filters */}
+        <div className="relative flex-1 min-w-[220px]">
+          <div className="flex items-center w-full px-3 py-2 bg-slate-100/70 hover:bg-slate-100 border border-gray-200 focus-within:bg-white rounded-xl focus-within:ring-1 focus-within:ring-emerald-500 focus-within:border-emerald-500 transition-all">
+            <Search size={15} className="text-gray-400 shrink-0 mr-2 pointer-events-none" />
+            <input
+              id="reports-period-search-input"
+              type="text"
+              placeholder="ძიება კომპანიით და რაოდენობით"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent border-none outline-none focus:outline-none p-0 text-xs text-gray-900 font-sans"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer shrink-0"
+                title={t("Clear")}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
