@@ -44,8 +44,13 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   // Drag-and-drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-  const touchDraggedIdx = useRef<number | null>(null);
+  const [touchActiveIndex, setTouchActiveIndex] = useState<number | null>(null);
+  const [touchTargetIndex, setTouchTargetIndex] = useState<number | null>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const touchActiveIdxRef = useRef<number | null>(null);
+  const touchTargetIdxRef = useRef<number | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const capturedElRef = useRef<HTMLElement | null>(null);
 
   // Map vendors by id for fast coordinate & trade_name lookups
   const supplierMap = useRef<Map<string, Vendor>>(new Map());
@@ -290,11 +295,14 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     }
   };
 
-  // HTML5 Drag Handlers
+  // HTML5 Drag Handlers (Desktop Mouse)
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (touchActiveIdxRef.current !== null) {
+      e.preventDefault();
+      return;
+    }
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
-    // Transparent or native ghost
     e.dataTransfer.setData('text/plain', index.toString());
   };
 
@@ -318,6 +326,177 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   const handleDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
+  };
+
+  // Helper to geometrically determine target index from clientY
+  const getIndexFromClientY = (clientY: number): number | null => {
+    if (!listContainerRef.current) return null;
+    const rowElements = Array.from(
+      listContainerRef.current.querySelectorAll<HTMLElement>('[data-order-index]')
+    );
+    if (rowElements.length === 0) return null;
+
+    for (let i = 0; i < rowElements.length; i++) {
+      const rect = rowElements[i].getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (clientY < midY) {
+        return i;
+      }
+      if (i === rowElements.length - 1) {
+        return i;
+      }
+    }
+    return rowElements.length - 1;
+  };
+
+  // Auto-scroll helper when dragging near top/bottom of scroll container
+  const handleAutoScroll = (clientY: number) => {
+    if (!listContainerRef.current) return;
+    const containerRect = listContainerRef.current.getBoundingClientRect();
+    const threshold = 60;
+    if (clientY < containerRect.top + threshold) {
+      const delta = Math.max(4, Math.min(18, (containerRect.top + threshold - clientY) / 2));
+      listContainerRef.current.scrollTop -= delta;
+    } else if (clientY > containerRect.bottom - threshold) {
+      const delta = Math.max(4, Math.min(18, (clientY - (containerRect.bottom - threshold)) / 2));
+      listContainerRef.current.scrollTop += delta;
+    }
+  };
+
+  // Pointer Drag Handlers (Standard across all modern mobile browsers & touch devices)
+  const handleGripPointerDown = (e: React.PointerEvent, idx: number) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const targetEl = e.currentTarget as HTMLElement;
+    try {
+      targetEl.setPointerCapture(e.pointerId);
+    } catch {}
+
+    pointerIdRef.current = e.pointerId;
+    capturedElRef.current = targetEl;
+    touchActiveIdxRef.current = idx;
+    touchTargetIdxRef.current = idx;
+    setTouchActiveIndex(idx);
+    setTouchTargetIndex(idx);
+
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate?.(25); } catch {}
+    }
+  };
+
+  const handleGripPointerMove = (e: React.PointerEvent) => {
+    if (touchActiveIdxRef.current === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    handleAutoScroll(e.clientY);
+
+    const targetIdx = getIndexFromClientY(e.clientY);
+    if (targetIdx !== null && targetIdx !== touchTargetIdxRef.current && targetIdx >= 0 && targetIdx < items.length) {
+      touchTargetIdxRef.current = targetIdx;
+      setTouchTargetIndex(targetIdx);
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate?.(12); } catch {}
+      }
+    }
+  };
+
+  const handleGripPointerUp = (e: React.PointerEvent) => {
+    if (touchActiveIdxRef.current === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const fromIdx = touchActiveIdxRef.current;
+    const toIdx = touchTargetIdxRef.current;
+
+    if (capturedElRef.current && pointerIdRef.current !== null) {
+      try {
+        capturedElRef.current.releasePointerCapture(pointerIdRef.current);
+      } catch {}
+    }
+
+    pointerIdRef.current = null;
+    capturedElRef.current = null;
+    touchActiveIdxRef.current = null;
+    touchTargetIdxRef.current = null;
+    setTouchActiveIndex(null);
+    setTouchTargetIndex(null);
+
+    if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
+      handleMove(fromIdx, toIdx);
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate?.(35); } catch {}
+      }
+    }
+  };
+
+  const handleGripPointerCancel = () => {
+    if (capturedElRef.current && pointerIdRef.current !== null) {
+      try {
+        capturedElRef.current.releasePointerCapture(pointerIdRef.current);
+      } catch {}
+    }
+    pointerIdRef.current = null;
+    capturedElRef.current = null;
+    touchActiveIdxRef.current = null;
+    touchTargetIdxRef.current = null;
+    setTouchActiveIndex(null);
+    setTouchTargetIndex(null);
+  };
+
+  // Mobile Touch Fallbacks (for legacy environments without pointer capture)
+  const handleTouchStart = (e: React.TouchEvent, idx: number) => {
+    e.stopPropagation();
+    touchActiveIdxRef.current = idx;
+    touchTargetIdxRef.current = idx;
+    setTouchActiveIndex(idx);
+    setTouchTargetIndex(idx);
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate?.(25); } catch {}
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchActiveIdxRef.current === null) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    handleAutoScroll(touch.clientY);
+
+    const targetIdx = getIndexFromClientY(touch.clientY);
+    if (targetIdx !== null && targetIdx !== touchTargetIdxRef.current && targetIdx >= 0 && targetIdx < items.length) {
+      touchTargetIdxRef.current = targetIdx;
+      setTouchTargetIndex(targetIdx);
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate?.(12); } catch {}
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const fromIdx = touchActiveIdxRef.current;
+    const toIdx = touchTargetIdxRef.current;
+
+    touchActiveIdxRef.current = null;
+    touchTargetIdxRef.current = null;
+    setTouchActiveIndex(null);
+    setTouchTargetIndex(null);
+
+    if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
+      handleMove(fromIdx, toIdx);
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate?.(35); } catch {}
+      }
+    }
+  };
+
+  const handleTouchCancel = () => {
+    touchActiveIdxRef.current = null;
+    touchTargetIdxRef.current = null;
+    setTouchActiveIndex(null);
+    setTouchTargetIndex(null);
   };
 
   return (
@@ -400,7 +579,10 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
       </div>
 
       {/* Reorderable List Body */}
-      <div className="flex-1 overflow-y-auto p-4 max-w-md mx-auto w-full space-y-2.5">
+      <div 
+        ref={listContainerRef}
+        className="flex-1 overflow-y-auto p-4 max-w-md mx-auto w-full space-y-2.5"
+      >
         {items.length === 0 ? (
           <div className="p-8 text-center bg-white rounded-2xl border border-gray-200 text-slate-500 text-xs font-medium mt-4">
             დღევანდელი დღისთვის ამ მანქანაზე აქტიური შეკვეთები არ მოიძებნა.
@@ -410,28 +592,51 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
             const info = getVendorInfo(order);
             const isDragging = draggedIndex === idx;
             const isDragOver = dragOverIndex === idx;
+            const isTouchActive = touchActiveIndex === idx;
+            const isTouchTarget = touchTargetIndex === idx && touchActiveIndex !== idx;
 
             return (
               <div
                 key={order.id}
-                draggable
+                data-order-index={idx}
+                draggable={touchActiveIndex === null}
                 onDragStart={(e) => handleDragStart(e, idx)}
                 onDragOver={(e) => handleDragOver(e, idx)}
                 onDrop={(e) => handleDrop(e, idx)}
                 onDragEnd={handleDragEnd}
                 className={`bg-white rounded-2xl border transition-all duration-150 p-3 flex items-center justify-between gap-3 shadow-xs select-none ${
-                  isDragging ? 'opacity-40 border-dashed border-emerald-400 scale-[0.98]' : 'border-gray-200/90'
-                } ${isDragOver ? 'border-emerald-600 bg-emerald-50/40 ring-2 ring-emerald-400/30' : 'hover:border-slate-300'}`}
+                  isDragging || isTouchActive 
+                    ? 'opacity-90 ring-2 ring-emerald-500 bg-emerald-50/90 shadow-xl scale-[1.02] z-30 relative' 
+                    : 'border-gray-200/90'
+                } ${isDragOver || isTouchTarget ? 'border-emerald-600 bg-emerald-100/60 ring-2 ring-emerald-400/50' : 'hover:border-slate-300'}`}
               >
                 {/* Left: Sequence Number & Info */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-7 h-7 rounded-xl bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center flex-shrink-0 border border-slate-200/60">
-                    {idx + 1}
+                  <div className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center flex-shrink-0 border transition-colors ${
+                    isTouchActive 
+                      ? 'bg-emerald-700 text-white border-emerald-800 ring-2 ring-emerald-300' 
+                      : isTouchTarget 
+                        ? 'bg-emerald-600 text-white border-emerald-700' 
+                        : 'bg-slate-100 text-slate-700 border-slate-200/60'
+                  }`}>
+                    {isTouchTarget && touchActiveIndex !== null ? (touchActiveIndex < idx ? idx + 1 : idx + 1) : idx + 1}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="font-bold text-slate-800 text-xs truncate">
-                      {info.tradeName}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-800 text-xs truncate">
+                        {info.tradeName}
+                      </span>
+                      {isTouchActive && (
+                        <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-extrabold flex-shrink-0 animate-pulse">
+                          არჩეულია
+                        </span>
+                      )}
+                      {isTouchTarget && (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.2 rounded font-extrabold flex-shrink-0">
+                          ახალი ადგილი
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
                       <MapPin size={11} className="text-slate-400 flex-shrink-0" />
@@ -468,12 +673,25 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
                     </button>
                   </div>
 
-                  {/* Drag Grip Handle */}
+                  {/* Drag Grip Handle - Supports both Mouse & Touch drag on 6-dot icon */}
                   <div 
-                    className="p-2 rounded-xl text-slate-400 hover:text-slate-700 active:text-emerald-700 hover:bg-slate-100 active:bg-emerald-50 transition cursor-grab active:cursor-grabbing flex items-center justify-center touch-none"
+                    className={`p-2.5 rounded-xl transition cursor-grab active:cursor-grabbing flex items-center justify-center touch-none select-none ${
+                      isTouchActive 
+                        ? 'bg-emerald-700 text-white ring-4 ring-emerald-300 scale-110 shadow-lg' 
+                        : 'text-slate-400 hover:text-slate-700 active:text-emerald-700 hover:bg-slate-100 active:bg-emerald-50'
+                    }`}
+                    style={{ touchAction: 'none' }}
                     title="გადაადგილება"
+                    onPointerDown={(e) => handleGripPointerDown(e, idx)}
+                    onPointerMove={handleGripPointerMove}
+                    onPointerUp={handleGripPointerUp}
+                    onPointerCancel={handleGripPointerCancel}
+                    onTouchStart={(e) => handleTouchStart(e, idx)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchCancel}
                   >
-                    <GripVertical size={19} className="stroke-[2.2]" />
+                    <GripVertical size={20} className="stroke-[2.4]" />
                   </div>
                 </div>
               </div>

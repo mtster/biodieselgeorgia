@@ -492,7 +492,7 @@ export async function getOrders(limit = 1000, currentUser?: User | null): Promis
           try {
             const { data: vData } = await supabase
               .from('vendors')
-              .select('id, trade_name, company_name, warehouse_id')
+              .select('id, trade_name, company_name, warehouse_id, city, district, address, manager_id')
               .in('id', vendorIds);
             if (vData) {
               vData.forEach(v => {
@@ -603,6 +603,11 @@ export async function getOrders(limit = 1000, currentUser?: User | null): Promis
 
           return {
             ...o,
+            vendor: v || null,
+            city: o.city || v?.city || '',
+            district: o.district || v?.district || '',
+            address: o.address || v?.address || '',
+            manager_id: o.manager_id || v?.manager_id || null,
             contact: c || null,
             contact_name: c?.name || '',
             contact_phone: c?.phone || '',
