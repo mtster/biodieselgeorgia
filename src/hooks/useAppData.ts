@@ -356,6 +356,34 @@ export function useAppData() {
         const exists = prev.some(o => o.id === saved.id);
         return exists ? prev.map(o => o.id === saved.id ? saved : o) : [saved, ...prev];
       });
+
+      // Synchronize vehicle assignment when driver and/or assistant are assigned via order
+      const targetTruck = trucks.find(t => 
+        (saved.vehicle_id && t.id === saved.vehicle_id) || 
+        (saved.truck_plate && (t.plate_number === saved.truck_plate || t.id === saved.truck_plate))
+      );
+      if (targetTruck) {
+        const newDriverId = saved.driver_id || null;
+        const newCompanionId = saved.companion_id || null;
+        if (targetTruck.driver_id !== newDriverId || targetTruck.companion_id !== newCompanionId) {
+          const dObj = users.find(u => u.id === newDriverId);
+          const cObj = users.find(u => u.id === newCompanionId);
+          const updatedTruck: Truck = {
+            ...targetTruck,
+            driver_id: newDriverId,
+            driver_name: dObj?.name || (newDriverId ? targetTruck.driver_name : ''),
+            companion_id: newCompanionId,
+            companion_name: cObj?.name || (newCompanionId ? targetTruck.companion_name : '')
+          };
+          try {
+            await saveTruck(updatedTruck, currentUser?.name || 'System', currentUser?.id);
+            setTrucks(prev => prev.map(t => (t.id === updatedTruck.id || t.plate_number === updatedTruck.plate_number) ? updatedTruck : t));
+          } catch (tErr) {
+            console.warn('Vehicle driver sync error on order save:', tErr);
+          }
+        }
+      }
+
       return saved;
     } catch (e: any) {
       console.error('Error saving order:', e);

@@ -157,6 +157,7 @@ export default function MobileLogisticsView({
 
     // 1. Match by vehicle_id
     if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;
+    if (myTruck?.plate_number && o.vehicle_id && o.vehicle_id === myTruck.plate_number) return true;
 
     // 2. Match by truck_plate (sanitized comparison)
     const oPlateClean = cleanStr(o.truck_plate);

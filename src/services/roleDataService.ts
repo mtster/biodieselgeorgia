@@ -5,6 +5,7 @@ import { getUsers } from './userService';
 import { getWarehouses } from './lookupService';
 import { decodeVendorCustomFields } from './vendorService';
 import { sortOrdersByRouteRank } from '../utils/lexorank';
+import { KEY_ORDERS, getLocal } from './localStorage';
 
 // Helper to sanitize strings for plate and driver matching
 const cleanStr = (str?: string) => (str ? str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '');
@@ -123,7 +124,6 @@ export async function getDriverOrdersAndVendors(
       }
       if (myTruck?.driver_id) orParts.push(`driver_id.eq.${myTruck.driver_id}`);
       if (myTruck?.companion_id) orParts.push(`companion_id.eq.${myTruck.companion_id}`);
-      if (myTruck?.plate_number) orParts.push(`truck_plate.ilike.%${myTruck.plate_number}%`);
 
       if (orParts.length > 0) {
         query = query.or(orParts.join(','));
@@ -192,11 +192,58 @@ export async function getDriverOrdersAndVendors(
           })
           .map(o => ({
             ...o,
+            truck_plate: o.truck_plate || (myTruck && (o.vehicle_id === myTruck.id || o.vehicle_id === myTruck.plate_number) ? myTruck.plate_number : '') || '',
+            driver_name: o.driver_name || (o.driver_id ? findEmp(o.driver_id)?.name : '') || assignedDriverName || '',
+            companion_name: o.companion_name || (o.companion_id ? findEmp(o.companion_id)?.name : '') || assignedCompanionName || '',
             notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
           }));
       }
     } catch (e) {
       console.warn('Error fetching driver-specific orders:', e);
+    }
+  }
+
+  // Fallback to local storage cache if Supabase is offline or returned 0 orders
+  if (driverOrders.length === 0) {
+    const cachedOrders = getLocal<Order[]>(KEY_ORDERS, []);
+    if (cachedOrders && cachedOrders.length > 0) {
+      driverOrders = cachedOrders
+        .filter(o => {
+          if (!o || o.is_deleted) return false;
+          const rawDate = o.order_date || o.pickup_date_time || o.created_at;
+          let matchesDate = false;
+          if (rawDate) {
+            try {
+              const d = new Date(rawDate);
+              if (!isNaN(d.getTime())) {
+                const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
+                if (dStr === todayStr) matchesDate = true;
+              } else {
+                const datePart = String(rawDate).slice(0, 10);
+                if (datePart === todayStr) matchesDate = true;
+              }
+            } catch {
+              const datePart = String(rawDate).slice(0, 10);
+              if (datePart === todayStr) matchesDate = true;
+            }
+          }
+          const isActiveOrder = o.status !== 'completed' && o.status !== 'cancelled';
+          if (!matchesDate && !isActiveOrder) return false;
+
+          if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;
+          const oPlateClean = cleanStr(o.truck_plate);
+          if (oPlateClean && myTruck?.plate_number && (cleanStr(myTruck.plate_number) === oPlateClean || cleanStr(myTruck.plate_number).includes(oPlateClean))) return true;
+          if (o.driver_id && (o.driver_id === currentUser.id || o.driver_id === myTruck?.driver_id || (driverObj?.id && o.driver_id === driverObj.id))) return true;
+          if (o.companion_id && (o.companion_id === currentUser.id || o.companion_id === myTruck?.companion_id || (companionObj?.id && o.companion_id === companionObj.id))) return true;
+          if (o.driver_name && assignedDriverName && cleanStr(o.driver_name) === cleanStr(assignedDriverName)) return true;
+          return false;
+        })
+        .map(o => ({
+          ...o,
+          truck_plate: o.truck_plate || (myTruck && (o.vehicle_id === myTruck.id || o.vehicle_id === myTruck.plate_number) ? myTruck.plate_number : '') || '',
+          driver_name: o.driver_name || (o.driver_id ? findEmp(o.driver_id)?.name : '') || assignedDriverName || '',
+          companion_name: o.companion_name || (o.companion_id ? findEmp(o.companion_id)?.name : '') || assignedCompanionName || ''
+        }));
     }
   }
 

@@ -360,7 +360,13 @@ export default function OrdersView({
     if (selectedDirection && (!supplierObj || supplierObj.direction_id !== selectedDirection)) return false;
 
     // Vehicle/Truck Filter
-    if (selectedVehicle && ord.truck_plate !== selectedVehicle) return false;
+    if (selectedVehicle) {
+      const matchVehicle = ord.vehicle_id === selectedVehicle || 
+                           ord.truck_plate === selectedVehicle ||
+                           trucks.some(t => (t.id === selectedVehicle || t.plate_number === selectedVehicle) && 
+                                            (t.id === ord.vehicle_id || t.plate_number === ord.truck_plate));
+      if (!matchVehicle) return false;
+    }
 
     // Period Filter
     if (startDate) {

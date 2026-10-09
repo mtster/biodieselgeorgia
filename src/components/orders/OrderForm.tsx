@@ -203,9 +203,15 @@ export default function OrderForm({
       const operatorObj = employees.find(e => e.id === finalOrder.operator_id);
       const driverObj = employees.find(e => e.id === finalOrder.driver_id);
       const companionObj = employees.find(e => e.id === finalOrder.companion_id);
+      const truckObj = trucks.find(t => 
+        (finalOrder.vehicle_id && t.id === finalOrder.vehicle_id) || 
+        (finalOrder.truck_plate && (t.plate_number === finalOrder.truck_plate || t.id === finalOrder.truck_plate))
+      );
 
       const final: Order = {
         ...finalOrder,
+        vehicle_id: truckObj?.id || finalOrder.vehicle_id || undefined,
+        truck_plate: truckObj?.plate_number || finalOrder.truck_plate || '',
         vendor_name: (supplierObj?.trade_name || supplierObj?.company_name) || finalOrder.vendor_name || vendorSearch || '',
         warehouse_name: warehouseObj?.name || '',
         operator_name: operatorObj?.name || currentEmployee.name,

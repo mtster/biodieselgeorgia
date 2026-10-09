@@ -405,20 +405,20 @@ export default function OrderFormFields({
                 ...prev,
                 vehicle_id: truck?.id || selectedVal,
                 truck_plate: truck?.plate_number || '',
-                ...(truck ? {
-                  driver_id: truck.driver_id || prev.driver_id,
-                  companion_id: truck.companion_id || prev.companion_id
-                } : {})
+                driver_id: truck?.driver_id || '',
+                companion_id: truck?.companion_id || ''
               };
             });
             if (fieldErrors.truck_plate) setFieldErrors(prev => ({ ...prev, truck_plate: '' }));
-            if (truck && truck.driver_id) {
-              if (fieldErrors.driver_id) setFieldErrors(prev => ({ ...prev, driver_id: '' }));
+            if (fieldErrors.driver_id) {
+              if (truck?.driver_id) {
+                setFieldErrors(prev => ({ ...prev, driver_id: '' }));
+              }
             }
           }}
           error={fieldErrors.truck_plate}
         >
-          <option value="" disabled></option>
+          <option value="">{t("Select Vehicle") || "აირჩიეთ ავტომობილი"}</option>
           {trucks.map(t => (
             <option key={t.id || t.plate_number} value={t.id || t.plate_number}>{t.plate_number} ({t.model})</option>
           ))}

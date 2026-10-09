@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { Order } from '../../types';
 import { trackChange } from '../historyService';
-import { KEY_ORDERS, getLocal, setLocal } from '../localStorage';
+import { KEY_ORDERS, KEY_TRUCKS as KEY_VEHICLES, getLocal, setLocal } from '../localStorage';
 import { notifyDbChange } from '../../lib/realtime';
 import { appCache } from '../../utils/cache';
 import { generateUuid, cleanUserUuid } from '../vendorService';
@@ -86,6 +86,27 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         const { error } = await supabase.from('orders').update(dbOrder).eq('id', dbOrder.id);
         if (error) throw error;
       }
+
+      // Synchronize vehicle record in Supabase with assigned driver/assistant
+      if (finalOrder.vehicle_id || finalOrder.truck_plate) {
+        try {
+          const vDriverId = isValidUuid(finalOrder.driver_id) ? finalOrder.driver_id : null;
+          const vCompanionId = isValidUuid(finalOrder.companion_id) ? finalOrder.companion_id : null;
+          if (isValidUuid(finalOrder.vehicle_id)) {
+            await supabase.from('vehicles').update({
+              driver_id: vDriverId,
+              companion_id: vCompanionId
+            }).eq('id', finalOrder.vehicle_id);
+          } else if (finalOrder.truck_plate) {
+            await supabase.from('vehicles').update({
+              driver_id: vDriverId,
+              companion_id: vCompanionId
+            }).eq('plate_number', finalOrder.truck_plate.trim().toUpperCase());
+          }
+        } catch (vSyncErr) {
+          console.warn('Sync vehicle driver in saveOrder failed:', vSyncErr);
+        }
+      }
     } catch (e) {
       console.error('Supabase saveOrder failed', e);
       throw e;
@@ -93,6 +114,25 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
   }
 
   appCache.clear();
+
+  // Synchronize local storage vehicle cache with assigned driver/assistant
+  if (finalOrder.vehicle_id || finalOrder.truck_plate) {
+    const vList = getLocal<any[]>(KEY_VEHICLES, []);
+    const cleanPlate = (finalOrder.truck_plate || '').trim().toUpperCase();
+    const vIdx = vList.findIndex(t => 
+      (finalOrder.vehicle_id && t.id === finalOrder.vehicle_id) || 
+      (cleanPlate && (t.plate_number === cleanPlate || t.id === cleanPlate))
+    );
+    if (vIdx >= 0) {
+      vList[vIdx] = {
+        ...vList[vIdx],
+        driver_id: finalOrder.driver_id || null,
+        companion_id: finalOrder.companion_id || null
+      };
+      setLocal(KEY_VEHICLES, vList);
+      notifyDbChange('vehicles', 'UPDATE', vList[vIdx].plate_number);
+    }
+  }
 
   const list = getLocal<Order[]>(KEY_ORDERS, []);
   if (isNew) {

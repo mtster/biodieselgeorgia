@@ -69,16 +69,19 @@ export default function AssignDriverModal({
   const handleVehicleChange = (plate: string) => {
     setSelectedTruckPlate(plate);
     setErrorMessage('');
-    if (!plate) return;
+    if (!plate) {
+      setSelectedDriverId('');
+      setSelectedCompanionId('');
+      return;
+    }
 
     const truck = trucks.find(t => t.plate_number === plate || t.id === plate);
     if (truck) {
-      if (truck.driver_id) {
-        setSelectedDriverId(truck.driver_id);
-      }
-      if (truck.companion_id) {
-        setSelectedCompanionId(truck.companion_id);
-      }
+      setSelectedDriverId(truck.driver_id || '');
+      setSelectedCompanionId(truck.companion_id || '');
+    } else {
+      setSelectedDriverId('');
+      setSelectedCompanionId('');
     }
   };
 
