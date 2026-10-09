@@ -334,6 +334,17 @@ export default function OrdersList({
     }
   };
 
+  // Aliases for backward compatibility with any custom/legacy IDs
+  columnMap['vendor_name'] = columnMap['vendor_id'];
+  columnMap['vendor_address'] = columnMap['address'];
+  columnMap['vendor_location'] = columnMap['district'];
+  columnMap['qty_requested'] = columnMap['planned'];
+  columnMap['driver_name'] = columnMap['driver_id'];
+  columnMap['companion_name'] = columnMap['companion_id'];
+  columnMap['operator_name'] = columnMap['operator_id'];
+  columnMap['notes'] = columnMap['note'];
+  columnMap['warehouse_name'] = columnMap['warehouse_id'];
+
   const columns: ColumnConfig<Order>[] = [];
 
   const visibleIds = filteredOrders.map(o => o.id);
@@ -390,7 +401,7 @@ export default function OrdersList({
         columns.push(columnMap[col.id]);
       } else {
         columns.push({
-          header: col.label,
+          header: t(col.label),
           key: col.id,
           render: (item: any) => item[col.id] ?? '-'
         });

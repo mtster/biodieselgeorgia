@@ -1,57 +1,71 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ManagedColumn } from '../ColumnsManagerModal';
 import { createDatabaseOrderColumn } from '../../lib/db';
 
 export const defaultOrdersColumns: ManagedColumn[] = [
-  { id: 'doc_number', label: 'Document Number', visible: true },
   { id: 'order_date', label: 'Order Date', visible: true },
-  { id: 'pickup_date_time', label: 'Pickup Date Time', visible: true },
-  { id: 'vendor_name', label: 'Vendor Name', visible: true },
-  { id: 'vendor_id_code', label: 'Taxation ID', visible: true },
-  { id: 'vendor_address', label: 'Address', visible: true },
-  { id: 'vendor_location', label: 'Region / District', visible: true },
-  { id: 'warehouse_name', label: 'Warehouse Name', visible: true },
-  { id: 'qty_requested', label: 'Planned QTY (L)', visible: true },
-  { id: 'fact_qty', label: 'Fact QTY (L)', visible: true },
-  { id: 'tanks_to_leave', label: 'Tanks Dropoff', visible: true },
-  { id: 'tanks_to_bring', label: 'Tanks Pickup', visible: true },
-  { id: 'fact_tank_dropoff', label: 'Fact Tank Dropoff', visible: true },
-  { id: 'fact_tank_pickup', label: 'Fact Tank Pickup', visible: true },
-  { id: 'status', label: 'Fulfillment Status', visible: true },
-  { id: 'truck_plate', label: 'Assigned Vehicle Plate', visible: true },
-  { id: 'driver_name', label: 'Driver', visible: true },
-  { id: 'companion_name', label: 'Assistant', visible: true },
-  { id: 'operator_name', label: 'Registered By', visible: true },
-  { id: 'notes', label: 'Latest Note', visible: true }
+  { id: 'status', label: 'Status', visible: true },
+  { id: 'completed_at', label: 'Completion Time', visible: true },
+  { id: 'vendor_id', label: 'Supplier', visible: true },
+  { id: 'city', label: 'City', visible: true },
+  { id: 'address', label: 'Address', visible: true },
+  { id: 'contacts', label: 'Contact', visible: true },
+  { id: 'note', label: 'Comment', visible: true },
+  { id: 'planned', label: 'Order Qty (L)', visible: true },
+  { id: 'tanks_to_bring', label: 'Order Pickup', visible: true },
+  { id: 'tanks_to_leave', label: 'Order Dropoff', visible: true },
+  { id: 'fact_qty', label: 'Fact Qty (L)', visible: true },
+  { id: 'fact_tank_pickup', label: 'Fact Pickup', visible: true },
+  { id: 'fact_tank_dropoff', label: 'Fact Dropoff', visible: true },
+  { id: 'district', label: 'District', visible: true },
+  { id: 'direction', label: 'Direction', visible: true },
+  { id: 'truck_plate', label: 'Vehicle', visible: true },
+  { id: 'driver_id', label: 'Driver', visible: true },
+  { id: 'companion_id', label: 'Assistant', visible: true },
+  { id: 'doc_number', label: 'Doc Num', visible: true },
+  { id: 'warehouse_id', label: 'Warehouse', visible: true },
+  { id: 'operator_id', label: 'Created By', visible: true },
+  { id: 'created_at', label: 'Created At', visible: true }
 ];
 
 export function useOrderColumns() {
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
     const versionKey = 'orders_columns_version';
-    const currentVersion = '2026-09-24-v2';
+    const currentVersion = '2026-10-09-v4';
     const loaded = localStorage.getItem('orders_columns_managed');
     const storedVersion = localStorage.getItem(versionKey);
 
     if (loaded && storedVersion === currentVersion) {
       try {
         const parsed = JSON.parse(loaded) as ManagedColumn[];
-        const map = new Map<string, ManagedColumn>();
-        defaultOrdersColumns.forEach(c => map.set(c.id, { ...c }));
-        parsed.forEach(c => map.set(c.id, c));
-        return Array.from(map.values());
+        // Check if cached items have corrupted/outdated IDs
+        const hasOutdated = parsed.some(c =>
+          c.id === 'vendor_name' ||
+          c.id === 'qty_requested' ||
+          c.id === 'notes' ||
+          c.id === 'driver_name' ||
+          c.id === 'companion_name' ||
+          c.id === 'operator_name'
+        );
+        if (!hasOutdated && parsed.length > 0) {
+          const map = new Map<string, ManagedColumn>();
+          defaultOrdersColumns.forEach(c => map.set(c.id, { ...c }));
+          parsed.forEach(c => {
+            if (map.has(c.id)) {
+              map.set(c.id, { ...map.get(c.id)!, ...c });
+            } else if (c.isCustom) {
+              map.set(c.id, c);
+            }
+          });
+          return Array.from(map.values());
+        }
       } catch (e) {
         console.warn('Could not parse previous orders columns', e);
       }
     }
 
-    const finalCols = defaultOrdersColumns.map(col => {
-      if (['notes', 'vendor_id_code', 'operator_name'].includes(col.id)) {
-        return { ...col, visible: false };
-      }
-      return { ...col };
-    });
-
+    const finalCols = defaultOrdersColumns.map(col => ({ ...col }));
     localStorage.setItem('orders_columns_managed', JSON.stringify(finalCols));
     localStorage.setItem(versionKey, currentVersion);
     return finalCols;

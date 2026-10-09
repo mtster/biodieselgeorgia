@@ -219,8 +219,15 @@ export default function ColumnsManagerModal({
           })}
         </div>
 
-        {/* Footer with action buttons on right */}
-        <div className="border-t border-gray-100 pt-4 mt-4 flex items-center justify-end shrink-0">
+        {/* Footer with action buttons */}
+        <div className="border-t border-gray-100 pt-4 mt-4 flex items-center justify-between shrink-0">
+          <button
+            type="button"
+            onClick={() => setTempColumns(defaultColumns.map(c => ({ ...c })))}
+            className="px-3 py-2 text-xs font-semibold text-gray-500 hover:text-gray-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+          >
+            {t("Reset to Default")}
+          </button>
           <div className="flex items-center gap-2">
             <button
               type="button"

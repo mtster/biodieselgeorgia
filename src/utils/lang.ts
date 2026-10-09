@@ -144,6 +144,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Frequency in weeks": "სიხშირე კვირებში",
   "სიხშირე კვირებში": "სიხშირე კვირებში",
   "Save Changes": "ცვლილებების შენახვა",
+  "Reset to Default": "ნაგულისხმევის აღდგენა",
   "Cancel": "გაუქმება",
   "Delete": "წაშლა",
   "User Account Details": "მომხმარებლის ანგარიშის დეტალები",
