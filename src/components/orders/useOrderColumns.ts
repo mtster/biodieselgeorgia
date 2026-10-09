@@ -11,10 +11,10 @@ export const defaultOrdersColumns: ManagedColumn[] = [
   { id: 'address', label: 'Address', visible: true },
   { id: 'contacts', label: 'Contact', visible: true },
   { id: 'note', label: 'Comment', visible: true },
-  { id: 'planned', label: 'Order Qty (L)', visible: true },
+  { id: 'planned', label: 'Planned Qty', visible: true },
   { id: 'tanks_to_bring', label: 'Order Pickup', visible: true },
   { id: 'tanks_to_leave', label: 'Order Dropoff', visible: true },
-  { id: 'fact_qty', label: 'Fact Qty (L)', visible: true },
+  { id: 'fact_qty', label: 'Fact Qty', visible: true },
   { id: 'fact_tank_pickup', label: 'Fact Pickup', visible: true },
   { id: 'fact_tank_dropoff', label: 'Fact Dropoff', visible: true },
   { id: 'district', label: 'District', visible: true },
@@ -32,7 +32,7 @@ export function useOrderColumns() {
   const [isColModalOpen, setIsColModalOpen] = useState(false);
   const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
     const versionKey = 'orders_columns_version';
-    const currentVersion = '2026-10-09-v4';
+    const currentVersion = '2026-10-09-v7-restored';
     const loaded = localStorage.getItem('orders_columns_managed');
     const storedVersion = localStorage.getItem(versionKey);
 
@@ -53,7 +53,8 @@ export function useOrderColumns() {
           defaultOrdersColumns.forEach(c => map.set(c.id, { ...c }));
           parsed.forEach(c => {
             if (map.has(c.id)) {
-              map.set(c.id, { ...map.get(c.id)!, ...c });
+              const def = map.get(c.id)!;
+              map.set(c.id, { ...def, visible: c.visible });
             } else if (c.isCustom) {
               map.set(c.id, c);
             }

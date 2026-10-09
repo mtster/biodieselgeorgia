@@ -71,13 +71,13 @@ export default function Sidebar({
     }`}>
       
       {/* Sidebar Header Brand */}
-      <div className="p-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-emerald-800 p-1.5 rounded-lg text-white">
-            <Leaf size={18} />
+      <div className="p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] border-b border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="bg-emerald-800 p-1.5 rounded-lg text-white shrink-0">
+            <Leaf size={16} />
           </div>
-          <div>
-            <h1 className="text-base font-black tracking-tighter leading-none text-white font-sans uppercase">
+          <div className="min-w-0">
+            <h1 className="text-xs font-black tracking-tight leading-tight text-white font-sans uppercase truncate">
               {t("Biodiesel Georgia")}
             </h1>
           </div>
@@ -85,14 +85,14 @@ export default function Sidebar({
         
         <button 
           onClick={() => setMobileMenuOpen(false)}
-          className="md:hidden text-slate-400 hover:text-white cursor-pointer"
+          className="md:hidden text-slate-400 hover:text-white cursor-pointer p-1"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
       </div>
 
       {/* Links list */}
-      <div className="flex-1 py-4 overflow-y-auto px-3 space-y-1 select-none">
+      <div className="flex-1 py-3 overflow-y-auto px-2.5 space-y-1 select-none">
         {menuItems.map((item) => {
           const isActive = activeTab === item.id;
           return (
@@ -103,14 +103,14 @@ export default function Sidebar({
                 setActiveTab(item.id);
                 setMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs md:text-[13px] font-bold tracking-tight transition text-left cursor-pointer ${
                 isActive 
                   ? 'bg-emerald-800 text-white shadow-sm font-extrabold' 
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
               }`}
             >
-              {item.icon}
-              <span>{t(item.name)}</span>
+              <span className="shrink-0">{item.icon}</span>
+              <span className="truncate">{t(item.name)}</span>
             </button>
           );
         })}
@@ -121,21 +121,21 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => setSettingsOpen(!settingsOpen)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs md:text-[13px] font-bold tracking-tight transition text-left cursor-pointer ${
                 ['users', 'cities', 'directions', 'vehicles', 'warehouses', 'history'].includes(activeTab)
                   ? 'text-white font-extrabold bg-slate-800/40' 
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Settings size={18} />
-                <span>{t("Settings")}</span>
+              <div className="flex items-center gap-2.5 truncate">
+                <Settings size={18} className="shrink-0" />
+                <span className="truncate">{t("Settings")}</span>
               </div>
-              {settingsOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {settingsOpen ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
             </button>
 
             {settingsOpen && (
-              <div className="pl-4 space-y-1 mt-1 border-l border-slate-800 ml-5">
+              <div className="pl-3 space-y-0.5 mt-1 border-l border-slate-800 ml-3.5">
                 {settingsSubItems.map((subItem) => {
                   const isSubActive = activeTab === subItem.id;
                   return (
@@ -146,14 +146,14 @@ export default function Sidebar({
                         setActiveTab(subItem.id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold tracking-tight transition text-left cursor-pointer ${
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition text-left cursor-pointer ${
                         isSubActive
-                          ? 'bg-emerald-800 text-white shadow-sm font-extrabold'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                          ? 'bg-emerald-800 text-white shadow-sm font-bold'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                       }`}
                     >
-                      {subItem.icon}
-                      <span>{t(subItem.name)}</span>
+                      <span className="shrink-0">{subItem.icon}</span>
+                      <span className="truncate">{t(subItem.name)}</span>
                     </button>
                   );
                 })}
@@ -164,15 +164,15 @@ export default function Sidebar({
       </div>
 
       {/* Profile and signout */}
-      <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800 bg-slate-950/20 select-none">
-        <PWAInstallButton className="w-full mb-3 justify-center" />
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-xs text-slate-200 uppercase">
+      <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800 bg-slate-950/20 select-none">
+        <PWAInstallButton className="w-full mb-2.5 justify-center" />
+        <div className="flex items-center gap-2 mb-2.5">
+          <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-[11px] text-slate-200 uppercase shrink-0">
             {currentUser.name.slice(0, 2)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-200 truncate">{currentUser.name}</p>
-            <span className="text-xs text-emerald-400 font-mono capitalize block">
+            <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
+            <span className="text-[10px] text-emerald-400 font-mono capitalize block truncate">
               {currentUser.role === 'admin' ? t('Administrator') : t('Staff')}
             </span>
           </div>
@@ -181,7 +181,7 @@ export default function Sidebar({
         <button 
           onClick={onLogOut}
           type="button"
-          className="w-full py-2 bg-slate-800 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
+          className="w-full py-1.5 bg-slate-800 hover:bg-red-900 border border-slate-800 hover:border-red-950 hover:text-white rounded-lg text-[11px] font-bold text-slate-400 transition flex items-center justify-center gap-1 cursor-pointer"
         >
           <LogOut size={13} />
           {t("Log Out")}

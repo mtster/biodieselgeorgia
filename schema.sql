@@ -535,14 +535,15 @@ RETURNS BOOLEAN SECURITY DEFINER AS $$
 DECLARE
   u_role TEXT;
   u_permissions jsonb;
+  jwt_perms jsonb;
 BEGIN
   -- Service role and postgres superuser always have all permissions
   IF auth.role() = 'service_role' OR current_user IN ('postgres', 'supabase_admin') THEN
     RETURN true;
   END IF;
 
-  -- Admin in JWT token app_metadata always has all permissions
-  IF COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin' THEN
+  -- Admin in JWT token app_metadata or user_metadata always has all permissions
+  IF COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' THEN
     RETURN true;
   END IF;
 
@@ -562,13 +563,25 @@ BEGIN
     END IF;
   END IF;
 
+  -- Check JWT token claims for permissions (JWT permissions architecture)
+  jwt_perms := COALESCE(auth.jwt() -> 'app_metadata' -> 'permissions', auth.jwt() -> 'user_metadata' -> 'permissions');
+  IF jwt_perms IS NOT NULL AND jsonb_typeof(jwt_perms) = 'object' THEN
+    IF (jwt_perms -> module) IS NOT NULL AND (jwt_perms -> module) ? perm THEN
+      RETURN true;
+    END IF;
+  END IF;
+
   SELECT role, permissions INTO u_role, u_permissions FROM public.profiles WHERE id = auth.uid();
   IF u_role::text = 'admin' THEN
     RETURN true;
   END IF;
   
   -- Handle permissions checking using JSONB containment or extraction
-  RETURN COALESCE((u_permissions -> module) ? perm, false);
+  IF u_permissions IS NOT NULL AND jsonb_typeof(u_permissions) = 'object' THEN
+    RETURN COALESCE((u_permissions -> module) ? perm, false);
+  END IF;
+
+  RETURN false;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
@@ -687,7 +700,7 @@ CREATE POLICY "Vehicles delete" ON public.vehicles FOR DELETE TO authenticated U
 -- VENDORS
 CREATE POLICY "Vendors view" ON public.vendors FOR SELECT TO authenticated USING (public.has_permission('suppliers', 'view'));
 CREATE POLICY "Vendors add" ON public.vendors FOR INSERT TO authenticated WITH CHECK (public.has_permission('suppliers', 'add'));
-CREATE POLICY "Vendors modify" ON public.vendors FOR UPDATE TO authenticated USING (public.has_permission('suppliers', 'modify'));
+CREATE POLICY "Vendors modify" ON public.vendors FOR UPDATE TO authenticated USING (public.has_permission('suppliers', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('suppliers', 'delete')) AND public.has_permission('suppliers', 'modify'));
 CREATE POLICY "Vendors delete" ON public.vendors FOR DELETE TO authenticated USING (public.has_permission('suppliers', 'delete'));
 
 -- VENDOR CONTACTS
@@ -722,12 +735,19 @@ CREATE POLICY "Orders modify access" ON public.orders FOR UPDATE TO authenticate
   OR vehicle_id IN (SELECT id FROM public.vehicles WHERE auth_user_id = auth.uid() OR id = auth.uid()) 
   OR driver_id = auth.uid() 
   OR companion_id = auth.uid()
+)
+WITH CHECK (
+  (is_deleted = false OR public.has_permission('orders', 'delete'))
+  AND (
+    public.has_permission('orders', 'modify') 
+    OR vehicle_id IN (SELECT id FROM public.vehicles WHERE auth_user_id = auth.uid() OR id = auth.uid()) 
+    OR driver_id = auth.uid() 
+    OR companion_id = auth.uid()
+  )
 );
--- Operator logic for order deletion
 CREATE POLICY "Orders delete access" ON public.orders FOR DELETE TO authenticated 
 USING (
-  public.has_permission('orders', 'delete') 
-  OR ( (SELECT role::text FROM public.profiles WHERE id = auth.uid()) = 'operator' AND created_by = auth.uid() )
+  public.has_permission('orders', 'delete')
 );
 
 -- CHANGE HISTORY

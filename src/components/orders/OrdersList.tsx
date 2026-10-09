@@ -204,39 +204,69 @@ export default function OrdersList({
       }
     },
     planned: {
-      header: t('Order Qty (L)'),
+      header: (
+        <div className="flex flex-col items-center justify-center leading-[1.05] tracking-tight py-0 select-none">
+          <span className="text-[9px] font-bold text-amber-800">შეკვ.</span>
+          <span className="text-[9px] font-extrabold text-amber-950">რაოდენობა</span>
+        </div>
+      ),
       key: 'planned',
-      className: 'bg-amber-50/60 font-semibold text-gray-950',
+      className: 'bg-amber-50/70 font-semibold text-gray-950 px-1 text-center w-16 max-w-[72px]',
       render: (ord) => ord.qty_requested != null ? `${ord.qty_requested} ლ` : '-'
     },
     tanks_to_bring: {
-      header: t('Order Pickup'),
+      header: (
+        <div className="flex flex-col items-center justify-center leading-[1.05] tracking-tight py-0 select-none">
+          <span className="text-[9px] font-bold text-amber-800">შეკვ.</span>
+          <span className="text-[9px] font-extrabold text-amber-950">გამოტანა</span>
+        </div>
+      ),
       key: 'tanks_to_bring',
-      className: 'bg-amber-50/60 font-semibold text-gray-950',
+      className: 'bg-amber-50/70 font-semibold text-gray-950 px-1 text-center w-14 max-w-[64px]',
       render: (ord) => ord.tanks_to_bring != null ? `${ord.tanks_to_bring}` : '-'
     },
     tanks_to_leave: {
-      header: t('Order Dropoff'),
+      header: (
+        <div className="flex flex-col items-center justify-center leading-[1.05] tracking-tight py-0 select-none">
+          <span className="text-[9px] font-bold text-amber-800">შეკვ.</span>
+          <span className="text-[9px] font-extrabold text-amber-950">დატოვება</span>
+        </div>
+      ),
       key: 'tanks_to_leave',
-      className: 'bg-amber-50/60 font-semibold text-gray-950',
+      className: 'bg-amber-50/70 font-semibold text-gray-950 px-1 text-center w-14 max-w-[64px]',
       render: (ord) => ord.tanks_to_leave != null ? `${ord.tanks_to_leave}` : '-'
     },
     fact_qty: {
-      header: t('Fact Qty (L)'),
+      header: (
+        <div className="flex flex-col items-center justify-center leading-[1.05] tracking-tight py-0 select-none">
+          <span className="text-[9px] font-bold text-sky-800">ფაქტ.</span>
+          <span className="text-[9px] font-extrabold text-sky-950">რაოდენობა</span>
+        </div>
+      ),
       key: 'fact_qty',
-      className: 'bg-amber-50/60 font-semibold text-gray-950',
+      className: 'bg-sky-100/75 font-semibold text-sky-950 px-1 text-center w-16 max-w-[72px]',
       render: (ord) => ord.fact_qty != null ? `${ord.fact_qty} ლ` : '-'
     },
     fact_tank_pickup: {
-      header: t('Fact Pickup'),
+      header: (
+        <div className="flex flex-col items-center justify-center leading-[1.05] tracking-tight py-0 select-none">
+          <span className="text-[9px] font-bold text-sky-800">ფაქტ.</span>
+          <span className="text-[9px] font-extrabold text-sky-950">გამოტანა</span>
+        </div>
+      ),
       key: 'fact_tank_pickup',
-      className: 'bg-amber-50/60 font-semibold text-gray-950',
+      className: 'bg-sky-100/75 font-semibold text-sky-950 px-1 text-center w-14 max-w-[64px]',
       render: (ord) => ord.fact_tank_pickup === undefined || ord.fact_tank_pickup === null ? '-' : ord.fact_tank_pickup
     },
     fact_tank_dropoff: {
-      header: t('Fact Dropoff'),
+      header: (
+        <div className="flex flex-col items-center justify-center leading-[1.05] tracking-tight py-0 select-none">
+          <span className="text-[9px] font-bold text-sky-800">ფაქტ.</span>
+          <span className="text-[9px] font-extrabold text-sky-950">დატოვება</span>
+        </div>
+      ),
       key: 'fact_tank_dropoff',
-      className: 'bg-amber-50/60 font-semibold text-gray-950',
+      className: 'bg-sky-100/75 font-semibold text-sky-950 px-1 text-center w-14 max-w-[64px]',
       render: (ord) => ord.fact_tank_dropoff === undefined || ord.fact_tank_dropoff === null ? '-' : ord.fact_tank_dropoff
     },
     district: {

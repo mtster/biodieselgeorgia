@@ -86,17 +86,20 @@ export function StandardTable<T>({
       >
         <table className="w-full text-left border-collapse">                
           <thead className="sticky top-0 z-20">
-            <tr className="select-none">
-              {columns.map((col, idx) => (
-                <th
-                  key={col.key || idx}
-                  className={`py-3 px-4 text-[11px] text-gray-400 uppercase font-mono bg-slate-50 z-20 border-b border-gray-200 whitespace-nowrap text-left ${
-                    col.className || ''
-                  }`}
-                >
-                  {typeof col.header === 'string' ? t(col.header) : col.header}
-                </th>
-              ))}
+            <tr className="select-none h-10">
+              {columns.map((col, idx) => {
+                const hasCustomPx = col.className?.includes('px-');
+                return (
+                  <th
+                    key={col.key || idx}
+                    className={`py-1.5 ${hasCustomPx ? '' : 'px-3.5'} text-[11px] text-gray-400 uppercase font-mono bg-slate-50 z-20 border-b border-gray-200 whitespace-nowrap text-left align-middle ${
+                      col.className || ''
+                    }`}
+                  >
+                    {typeof col.header === 'string' ? t(col.header) : col.header}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -129,6 +132,7 @@ export function StandardTable<T>({
                   >
                     {columns.map((col, colIdx) => {
                       const isSelectCol = col.key === 'select';
+                      const hasCustomPx = col.className?.includes('px-');
                       return (
                         <td
                           key={col.key || colIdx}
@@ -137,7 +141,7 @@ export function StandardTable<T>({
                               e.stopPropagation();
                             }
                           }}
-                          className={`py-3.5 px-4 whitespace-nowrap text-xs font-sans text-gray-700 leading-normal ${
+                          className={`py-2.5 ${hasCustomPx ? '' : 'px-3.5'} whitespace-nowrap text-xs font-sans text-gray-700 leading-normal align-middle ${
                             isSelectCol ? 'cursor-default' : ''
                           } ${col.className || ''}`}
                         >

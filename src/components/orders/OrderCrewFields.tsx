@@ -33,7 +33,8 @@ export const OrderCrewFields: React.FC<OrderCrewFieldsProps> = ({
           vehicle_id: '',
           truck_plate: '',
           driver_id: '',
-          companion_id: ''
+          companion_id: '',
+          status: prev.status === 'driver_assigned' ? 'registered' : prev.status
         };
       });
       return;
@@ -49,7 +50,8 @@ export const OrderCrewFields: React.FC<OrderCrewFieldsProps> = ({
         // If the newly selected vehicle has driver assigned, fill it; otherwise explicitly clear it
         driver_id: (truck?.driver_id && String(truck.driver_id).trim()) || '',
         // If the newly selected vehicle has companion assigned, fill it; otherwise explicitly clear it
-        companion_id: (truck?.companion_id && String(truck.companion_id).trim()) || ''
+        companion_id: (truck?.companion_id && String(truck.companion_id).trim()) || '',
+        status: 'driver_assigned'
       };
     });
 
@@ -85,7 +87,12 @@ export const OrderCrewFields: React.FC<OrderCrewFieldsProps> = ({
         label={t("Assigned Fleet Driver")}
         value={editingOrder.driver_id || ''}
         onChange={(e) => {
-          setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null);
+          const newDriverId = e.target.value;
+          setEditingOrder(prev => prev ? { 
+            ...prev, 
+            driver_id: newDriverId,
+            status: newDriverId && (prev.status === 'registered' || !prev.status) ? 'driver_assigned' : prev.status
+          } : null);
           if (fieldErrors.driver_id) setFieldErrors(prev => ({ ...prev, driver_id: '' }));
         }}
         error={fieldErrors.driver_id}

@@ -212,9 +212,14 @@ export async function createDatabaseOrderColumn(columnName: string): Promise<voi
 export async function deleteOrder(id: string, docNum: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('orders').update({ is_deleted: true }).eq('id', id);
+      const { error } = await supabase.from('orders').update({ is_deleted: true }).eq('id', id);
+      if (error) {
+        console.error('Supabase deleteOrder error:', error);
+        throw error;
+      }
     } catch (e) {
       console.error('Supabase deleteOrder failed', e);
+      throw e;
     }
   }
 
