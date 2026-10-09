@@ -85,7 +85,157 @@ export function findUserAssignedTruck(currentUser: User, trucks: Truck[]): Truck
 }
 
 /**
- * Fetches ONLY today's orders assigned to the logged-in driver / vehicle,
+ * Verifies if an order has its pickup date (order_date or pickup_date_time) set as the current date.
+ */
+export function checkOrderPickupDateIsToday(o: Order, customTodayStr?: string): boolean {
+  if (!o || o.is_deleted) return false;
+
+  const todayTbilisi = customTodayStr || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
+  const todayLocal = new Date().toISOString().slice(0, 10);
+
+  // Candidate pickup date fields:
+  // 1. o.order_date ("შეკვეთის გატანის თარიღი" / Order pickup date)
+  // 2. o.pickup_date_time (pickup / completion timestamp)
+  const candidateDates = [o.order_date, o.pickup_date_time].filter(Boolean) as string[];
+  if (candidateDates.length === 0 && o.created_at) {
+    candidateDates.push(o.created_at);
+  }
+
+  for (const raw of candidateDates) {
+    const rawStr = String(raw).trim();
+    if (!rawStr) continue;
+
+    // Check direct date string prefix (e.g. "2026-10-09")
+    const datePart = rawStr.includes('T') ? rawStr.split('T')[0] : rawStr.slice(0, 10);
+    if (datePart === todayTbilisi || datePart === todayLocal) {
+      return true;
+    }
+
+    // Check with Asia/Tbilisi timezone conversion
+    try {
+      const d = new Date(rawStr);
+      if (!isNaN(d.getTime())) {
+        const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
+        if (dStr === todayTbilisi || dStr === todayLocal) {
+          return true;
+        }
+      }
+    } catch {}
+  }
+
+  return false;
+}
+
+/**
+ * Checks whether an order is specifically assigned to the user's vehicle (or driver).
+ * For vehicle accounts, strictly requires that the order is assigned to THIS vehicle,
+ * and does not belong to another vehicle.
+ */
+export function isOrderAssignedToVehicle(o: Order, currentUser: User, trucks: Truck[]): boolean {
+  if (!o || o.is_deleted || !currentUser) return false;
+
+  const myTruck = findUserAssignedTruck(currentUser, trucks);
+  const userTrucks = trucks.filter(t => isVehicleMatchingUser(t, currentUser));
+  if (myTruck && !userTrucks.some(ut => ut.id === myTruck.id)) {
+    userTrucks.push(myTruck);
+  }
+
+  const uEmail = currentUser.email || '';
+  const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
+  const uEmailClean = cleanStr(uEmailPart);
+  const uPlateClean = cleanStr((currentUser as any).plate_number);
+
+  // Collect all valid IDs and plates identifying THIS vehicle
+  const myVehicleIds = new Set<string>();
+  if (myTruck?.id) myVehicleIds.add(myTruck.id);
+  userTrucks.forEach(t => { if (t.id) myVehicleIds.add(t.id); });
+  if (currentUser.id) myVehicleIds.add(currentUser.id);
+
+  const myVehiclePlates = new Set<string>();
+  if (myTruck?.plate_number) myVehiclePlates.add(cleanStr(myTruck.plate_number));
+  userTrucks.forEach(t => { if (t.plate_number) myVehiclePlates.add(cleanStr(t.plate_number)); });
+  if (uPlateClean && uPlateClean.length >= 2) myVehiclePlates.add(uPlateClean);
+  if (uEmailClean && uEmailClean.length >= 3 && uEmailClean !== 'driver' && uEmailClean !== 'admin') {
+    myVehiclePlates.add(uEmailClean);
+  }
+  if (currentUser.name) {
+    const withoutPrefix = cleanStr(currentUser.name.replace(/^vehicle\s*/i, ''));
+    if (withoutPrefix && withoutPrefix.length >= 3 && !withoutPrefix.includes('administrator')) {
+      myVehiclePlates.add(withoutPrefix);
+    }
+  }
+
+  // Identify other trucks in the fleet that do NOT belong to this user
+  const otherVehicleIds = new Set<string>();
+  const otherVehiclePlates = new Set<string>();
+  trucks.forEach(t => {
+    const isMine = (t.id && myVehicleIds.has(t.id)) || (t.plate_number && myVehiclePlates.has(cleanStr(t.plate_number)));
+    if (!isMine) {
+      if (t.id) otherVehicleIds.add(t.id);
+      if (t.plate_number) otherVehiclePlates.add(cleanStr(t.plate_number));
+    }
+  });
+
+  const oVehicleId = (o.vehicle_id || '').trim();
+  const oPlateClean = cleanStr(o.truck_plate);
+
+  // If the order is explicitly assigned to a DIFFERENT vehicle, reject it immediately
+  if (oVehicleId && (otherVehicleIds.has(oVehicleId) || otherVehiclePlates.has(cleanStr(oVehicleId)))) {
+    return false;
+  }
+  if (oPlateClean && (otherVehiclePlates.has(oPlateClean) || otherVehicleIds.has(oPlateClean))) {
+    return false;
+  }
+
+  // Check if order references a known truck in `trucks`
+  if (oVehicleId || oPlateClean) {
+    const ordTruck = trucks.find(t =>
+      (oVehicleId && (t.id === oVehicleId || cleanStr(t.plate_number) === cleanStr(oVehicleId))) ||
+      (oPlateClean && (cleanStr(t.plate_number) === oPlateClean || t.id === o.truck_plate))
+    );
+    if (ordTruck) {
+      const isOurTruck = (ordTruck.id && myVehicleIds.has(ordTruck.id)) ||
+        (ordTruck.plate_number && myVehiclePlates.has(cleanStr(ordTruck.plate_number))) ||
+        isVehicleMatchingUser(ordTruck, currentUser);
+      if (!isOurTruck) {
+        return false;
+      }
+      return true;
+    }
+  }
+
+  // Check direct vehicle ID match
+  if (oVehicleId) {
+    if (myVehicleIds.has(oVehicleId)) return true;
+    if (myVehiclePlates.has(cleanStr(oVehicleId))) return true;
+  }
+
+  // Check direct truck plate match
+  if (oPlateClean) {
+    if (myVehiclePlates.has(oPlateClean)) return true;
+    if (myVehicleIds.has(o.truck_plate || '')) return true;
+  }
+
+  // For vehicle accounts (where a vehicle is associated with this account),
+  // orders MUST have this vehicle assigned specifically to them.
+  const hasVehicle = myVehicleIds.size > 0 && (myTruck || userTrucks.length > 0 || myVehiclePlates.size > 0);
+  if (hasVehicle) {
+    return false;
+  }
+
+  // Only for standalone individual drivers without an assigned vehicle:
+  if (o.driver_id && (o.driver_id === currentUser.id || (currentUser.personal_id && o.driver_id === currentUser.personal_id))) {
+    return true;
+  }
+  if (o.companion_id && (o.companion_id === currentUser.id || (currentUser.personal_id && o.companion_id === currentUser.personal_id))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Fetches ONLY today's orders assigned specifically to the logged-in driver / vehicle,
  * and ONLY the specific vendors (and their contacts) for those orders.
  */
 export async function getDriverOrdersAndVendors(
@@ -100,15 +250,16 @@ export async function getDriverOrdersAndVendors(
     userTrucks.push(myTruck);
   }
 
-  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
+  const isVehicleAccount = Boolean(
+    myTruck ||
+    userTrucks.length > 0 ||
+    (currentUser as any).plate_number ||
+    (currentUser as any).vehicle_role === 'vehicle' ||
+    (currentUser as any).user_metadata?.vehicle_role === 'vehicle' ||
+    (currentUser as any).app_metadata?.vehicle_role === 'vehicle'
+  );
 
-  const uEmail = currentUser.email || '';
-  const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
-  const uEmailClean = cleanStr(uEmailPart);
-  const uNameClean = cleanStr(currentUser.name);
-  const uNameNorm = normalizeText(currentUser.name);
-  const uPidClean = cleanStr(currentUser.personal_id);
-  const uPlateClean = cleanStr((currentUser as any).plate_number);
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
 
   // Helper to match an employee
   const findEmp = (idOrName?: string) => {
@@ -148,94 +299,11 @@ export async function getDriverOrdersAndVendors(
     assignedCompanionName = currentUser.name;
   }
 
-  // Set of plate strings that associate with this user/vehicle
-  const userPlateSet = new Set<string>();
-  if (uPlateClean) userPlateSet.add(uPlateClean);
-  if (uEmailClean) userPlateSet.add(uEmailClean);
-  if (uNameClean) userPlateSet.add(uNameClean);
-  if (uPidClean) userPlateSet.add(uPidClean);
-  userTrucks.forEach(t => {
-    if (t.plate_number) userPlateSet.add(cleanStr(t.plate_number));
-  });
-
-  // Determines if a candidate order belongs to this vehicle / driver
+  // Determines if a candidate order belongs to this vehicle / driver with pickup date set as current date
   const orderBelongsToUser = (o: Order): boolean => {
     if (!o || o.is_deleted) return false;
-
-    // Strict date verification in Tbilisi timezone (or any active assigned order)
-    const rawDate = o.order_date || o.pickup_date_time || o.created_at;
-    let matchesDate = false;
-    if (rawDate) {
-      try {
-        const d = new Date(rawDate);
-        if (!isNaN(d.getTime())) {
-          const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
-          if (dStr === todayStr) matchesDate = true;
-        } else {
-          const datePart = String(rawDate).slice(0, 10);
-          if (datePart === todayStr) matchesDate = true;
-        }
-      } catch {
-        const datePart = String(rawDate).slice(0, 10);
-        if (datePart === todayStr) matchesDate = true;
-      }
-    }
-
-    const isActiveOrder = o.status !== 'completed' && o.status !== 'cancelled';
-    if (!matchesDate && !isActiveOrder) return false;
-
-    // 1. Check vehicle linked on the order
-    const oVehicleId = o.vehicle_id;
-    const ordTruck = trucks.find(t => 
-      (oVehicleId && (t.id === oVehicleId || cleanStr(t.plate_number) === cleanStr(oVehicleId))) ||
-      (o.truck_plate && (cleanStr(t.plate_number) === cleanStr(o.truck_plate) || t.id === o.truck_plate))
-    );
-
-    if (ordTruck && userTrucks.some(ut => ut.id === ordTruck.id || cleanStr(ut.plate_number) === cleanStr(ordTruck.plate_number))) return true;
-    if (ordTruck && isVehicleMatchingUser(ordTruck, currentUser)) return true;
-
-    // 2. Match order vehicle ID directly
-    if (oVehicleId) {
-      if (myTruck?.id && oVehicleId === myTruck.id) return true;
-      if (myTruck?.plate_number && cleanStr(oVehicleId) === cleanStr(myTruck.plate_number)) return true;
-      if (userTrucks.some(ut => ut.id === oVehicleId || cleanStr(ut.plate_number) === cleanStr(oVehicleId))) return true;
-      if (userPlateSet.has(cleanStr(oVehicleId))) return true;
-      if (oVehicleId === currentUser.id) return true;
-    }
-
-    // 3. Match truck plate
-    const oPlateClean = cleanStr(o.truck_plate);
-    if (oPlateClean) {
-      if (userPlateSet.has(oPlateClean)) return true;
-      if (userTrucks.some(ut => {
-        const p = cleanStr(ut.plate_number);
-        return p && (p === oPlateClean || p.includes(oPlateClean) || oPlateClean.includes(p));
-      })) return true;
-    }
-
-    // 4. Match by driver_id or companion_id
-    if (o.driver_id) {
-      if (o.driver_id === currentUser.id || (currentUser.personal_id && o.driver_id === currentUser.personal_id)) return true;
-      if (userTrucks.some(ut => ut.driver_id && o.driver_id === ut.driver_id)) return true;
-      if (driverObj?.id && o.driver_id === driverObj.id) return true;
-    }
-    if (o.companion_id) {
-      if (o.companion_id === currentUser.id || (currentUser.personal_id && o.companion_id === currentUser.personal_id)) return true;
-      if (userTrucks.some(ut => ut.companion_id && o.companion_id === ut.companion_id)) return true;
-      if (companionObj?.id && o.companion_id === companionObj.id) return true;
-    }
-
-    // 5. Match by driver_name or companion_name
-    if (o.driver_name) {
-      const oDrvNorm = normalizeText(o.driver_name);
-      if (oDrvNorm && (oDrvNorm === uNameNorm || (assignedDriverName && oDrvNorm === normalizeText(assignedDriverName)))) return true;
-    }
-    if (o.companion_name) {
-      const oCmpNorm = normalizeText(o.companion_name);
-      if (oCmpNorm && (oCmpNorm === uNameNorm || (assignedCompanionName && oCmpNorm === normalizeText(assignedCompanionName)))) return true;
-    }
-
-    return false;
+    if (!checkOrderPickupDateIsToday(o, todayStr)) return false;
+    return isOrderAssignedToVehicle(o, currentUser, trucks);
   };
 
   let driverOrders: Order[] = [];
@@ -251,19 +319,23 @@ export async function getDriverOrdersAndVendors(
       const orParts: string[] = [];
       userTrucks.forEach(t => {
         if (isValidUuid(t.id)) orParts.push(`vehicle_id.eq.${t.id}`);
-        if (isValidUuid(t.driver_id)) orParts.push(`driver_id.eq.${t.driver_id}`);
-        if (isValidUuid(t.companion_id)) orParts.push(`companion_id.eq.${t.companion_id}`);
       });
 
       if (isValidUuid(currentUser?.id)) {
-        orParts.push(`driver_id.eq.${currentUser.id}`);
-        orParts.push(`companion_id.eq.${currentUser.id}`);
+        orParts.push(`vehicle_id.eq.${currentUser.id}`);
       }
-      if (isValidUuid(driverObj?.id)) {
-        orParts.push(`driver_id.eq.${driverObj.id}`);
-      }
-      if (isValidUuid(companionObj?.id)) {
-        orParts.push(`companion_id.eq.${companionObj.id}`);
+
+      if (!isVehicleAccount) {
+        if (isValidUuid(currentUser?.id)) {
+          orParts.push(`driver_id.eq.${currentUser.id}`);
+          orParts.push(`companion_id.eq.${currentUser.id}`);
+        }
+        if (isValidUuid(driverObj?.id)) {
+          orParts.push(`driver_id.eq.${driverObj.id}`);
+        }
+        if (isValidUuid(companionObj?.id)) {
+          orParts.push(`companion_id.eq.${companionObj.id}`);
+        }
       }
 
       if (orParts.length > 0) {

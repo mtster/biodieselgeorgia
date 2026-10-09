@@ -8,7 +8,7 @@ import { CompletedOrderCard } from '../mobile-logistics/CompletedOrderCard';
 import { OrderCompletionModal } from '../mobile-logistics/OrderCompletionModal';
 import { OrderSequenceModal } from '../logistics/OrderSequenceModal';
 import { sortOrdersByRouteRank } from '../../utils/lexorank';
-import { cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser } from '../../services/roleDataService';
+import { cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser, checkOrderPickupDateIsToday, isOrderAssignedToVehicle } from '../../services/roleDataService';
 
 interface Props {
   currentUser: User;
@@ -114,91 +114,14 @@ export default function MobileLogisticsView({
   const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
 
   const isTodayOrder = (o: Order): boolean => {
-    if (!o || o.is_deleted) return false;
-    const rawDate = o.order_date || o.pickup_date_time || o.created_at;
-    if (!rawDate) return false;
-    try {
-      const d = new Date(rawDate);
-      if (!isNaN(d.getTime())) {
-        const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
-        return dStr === todayStr;
-      }
-    } catch {}
-    const str = String(rawDate);
-    const datePart = str.includes('T') ? str.split('T')[0] : str.slice(0, 10);
-    return datePart === todayStr;
+    return checkOrderPickupDateIsToday(o, todayStr);
   };
 
-  // Set of plate strings that associate with this user/vehicle
-  const userPlateSet = new Set<string>();
-  if (uPlateClean) userPlateSet.add(uPlateClean);
-  if (uEmailClean) userPlateSet.add(uEmailClean);
-  if (uNameClean) userPlateSet.add(uNameClean);
-  if (uPidClean) userPlateSet.add(uPidClean);
-  userTrucks.forEach(t => {
-    if (t.plate_number) userPlateSet.add(cleanStr(t.plate_number));
-  });
-
-  // Filter orders assigned to this vehicle or driver or plate
+  // Filter orders assigned specifically to this vehicle (or driver) and with pickup date set as current date
   const myOrders = localOrders.filter(o => {
     if (!o || o.is_deleted) return false;
-
-    // For completed orders, strictly filter by today. For active assigned orders, show them to the driver.
-    const isActive = o.status !== 'completed' && o.status !== 'cancelled';
-    if (!isTodayOrder(o) && !isActive) return false;
-
-    // 1. Check vehicle linked on the order
-    const oVehicleId = o.vehicle_id;
-    const ordTruck = trucks.find(t => 
-      (oVehicleId && (t.id === oVehicleId || cleanStr(t.plate_number) === cleanStr(oVehicleId))) ||
-      (o.truck_plate && (cleanStr(t.plate_number) === cleanStr(o.truck_plate) || t.id === o.truck_plate))
-    );
-
-    if (ordTruck && userTrucks.some(ut => ut.id === ordTruck.id || cleanStr(ut.plate_number) === cleanStr(ordTruck.plate_number))) return true;
-    if (ordTruck && isVehicleMatchingUser(ordTruck, currentUser)) return true;
-
-    // 2. Match order vehicle ID directly
-    if (oVehicleId) {
-      if (myTruck?.id && oVehicleId === myTruck.id) return true;
-      if (myTruck?.plate_number && cleanStr(oVehicleId) === cleanStr(myTruck.plate_number)) return true;
-      if (userTrucks.some(ut => ut.id === oVehicleId || cleanStr(ut.plate_number) === cleanStr(oVehicleId))) return true;
-      if (userPlateSet.has(cleanStr(oVehicleId))) return true;
-      if (oVehicleId === currentUser.id) return true;
-    }
-
-    // 3. Match truck plate
-    const oPlateClean = cleanStr(o.truck_plate);
-    if (oPlateClean) {
-      if (userPlateSet.has(oPlateClean)) return true;
-      if (userTrucks.some(ut => {
-        const p = cleanStr(ut.plate_number);
-        return p && (p === oPlateClean || p.includes(oPlateClean) || oPlateClean.includes(p));
-      })) return true;
-    }
-
-    // 4. Match by driver_id or companion_id
-    if (o.driver_id) {
-      if (o.driver_id === currentUser.id || (currentUser.personal_id && o.driver_id === currentUser.personal_id)) return true;
-      if (userTrucks.some(ut => ut.driver_id && o.driver_id === ut.driver_id)) return true;
-      if (driverObj?.id && o.driver_id === driverObj.id) return true;
-    }
-    if (o.companion_id) {
-      if (o.companion_id === currentUser.id || (currentUser.personal_id && o.companion_id === currentUser.personal_id)) return true;
-      if (userTrucks.some(ut => ut.companion_id && o.companion_id === ut.companion_id)) return true;
-      if (companionObj?.id && o.companion_id === companionObj.id) return true;
-    }
-
-    // 5. Match by driver_name or companion_name text
-    if (o.driver_name) {
-      const oDrvNorm = normalizeText(o.driver_name);
-      if (oDrvNorm && (oDrvNorm === uNameNorm || (assignedDriverName && oDrvNorm === normalizeText(assignedDriverName)))) return true;
-    }
-    if (o.companion_name) {
-      const oCmpNorm = normalizeText(o.companion_name);
-      if (oCmpNorm && (oCmpNorm === uNameNorm || (assignedCompanionName && oCmpNorm === normalizeText(assignedCompanionName)))) return true;
-    }
-
-    return false;
+    if (!isTodayOrder(o)) return false;
+    return isOrderAssignedToVehicle(o, currentUser, trucks);
   });
 
   const activeOrders = myOrders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up' || o.status === 'uncompleted');
