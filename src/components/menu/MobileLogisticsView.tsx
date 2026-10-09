@@ -147,12 +147,13 @@ export default function MobileLogisticsView({
     return datePart === todayStr;
   };
 
-  // Filter orders assigned to this vehicle or driver or plate AND strictly for the current date
+  // Filter orders assigned to this vehicle or driver or plate
   const myOrders = localOrders.filter(o => {
     if (!o || o.is_deleted) return false;
 
-    // Must be for the current date only
-    if (!isTodayOrder(o)) return false;
+    // For completed orders, strictly filter by today. For active assigned orders, show them to the driver.
+    const isActive = o.status !== 'completed' && o.status !== 'cancelled';
+    if (!isTodayOrder(o) && !isActive) return false;
 
     // 1. Match by vehicle_id
     if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;

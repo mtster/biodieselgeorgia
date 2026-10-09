@@ -105,35 +105,60 @@ export async function getDriverOrdersAndVendors(
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data: rawOrders, error } = await supabase
+      // Build targeted query for driver/vehicle orders instead of arbitrary table limit
+      let query = supabase
         .from('orders')
         .select('*')
-        .eq('is_deleted', false)
+        .eq('is_deleted', false);
+
+      const orParts: string[] = [];
+      if (myTruck?.id) orParts.push(`vehicle_id.eq.${myTruck.id}`);
+      if (currentUser?.id) {
+        orParts.push(`driver_id.eq.${currentUser.id}`);
+        orParts.push(`companion_id.eq.${currentUser.id}`);
+      }
+      if (currentUser?.personal_id) {
+        orParts.push(`driver_id.eq.${currentUser.personal_id}`);
+        orParts.push(`companion_id.eq.${currentUser.personal_id}`);
+      }
+      if (myTruck?.driver_id) orParts.push(`driver_id.eq.${myTruck.driver_id}`);
+      if (myTruck?.companion_id) orParts.push(`companion_id.eq.${myTruck.companion_id}`);
+      if (myTruck?.plate_number) orParts.push(`truck_plate.ilike.%${myTruck.plate_number}%`);
+
+      if (orParts.length > 0) {
+        query = query.or(orParts.join(','));
+      }
+
+      const { data: rawOrders, error } = await query
         .order('order_date', { ascending: false })
-        .limit(100);
+        .limit(500);
 
       if (!error && rawOrders) {
         driverOrders = (rawOrders as any[])
           .filter(o => {
             if (!o || o.is_deleted) return false;
 
-            // Strict date verification in Tbilisi timezone
+            // Strict date verification in Tbilisi timezone (or any active assigned order)
             const rawDate = o.order_date || o.pickup_date_time || o.created_at;
+            let matchesDate = false;
             if (rawDate) {
               try {
                 const d = new Date(rawDate);
                 if (!isNaN(d.getTime())) {
                   const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
-                  if (dStr !== todayStr) return false;
+                  if (dStr === todayStr) matchesDate = true;
                 } else {
                   const datePart = String(rawDate).slice(0, 10);
-                  if (datePart !== todayStr) return false;
+                  if (datePart === todayStr) matchesDate = true;
                 }
               } catch {
                 const datePart = String(rawDate).slice(0, 10);
-                if (datePart !== todayStr) return false;
+                if (datePart === todayStr) matchesDate = true;
               }
             }
+
+            const isActiveOrder = o.status !== 'completed' && o.status !== 'cancelled';
+            if (!matchesDate && !isActiveOrder) return false;
 
             // 1. Match by vehicle id
             if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;
