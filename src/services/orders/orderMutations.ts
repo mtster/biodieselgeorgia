@@ -51,6 +51,19 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         : null;
       finalOrder.completed_at = completionTimestamp;
 
+      // Resolve vehicle_id to valid UUID if plate or non-uuid identifier is present
+      let resolvedVehicleId = isValidUuid(finalOrder.vehicle_id) ? finalOrder.vehicle_id : null;
+      if (!resolvedVehicleId && (finalOrder.truck_plate || finalOrder.vehicle_id)) {
+        const plateCandidate = (finalOrder.truck_plate || finalOrder.vehicle_id || '').trim().toUpperCase();
+        const vList = getLocal<any[]>(KEY_VEHICLES, []);
+        const matched = vList.find(v => (v.plate_number && v.plate_number.toUpperCase() === plateCandidate) || v.id === plateCandidate);
+        if (matched && isValidUuid(matched.id)) {
+          resolvedVehicleId = matched.id;
+          finalOrder.vehicle_id = matched.id;
+          if (matched.plate_number) finalOrder.truck_plate = matched.plate_number;
+        }
+      }
+
       // Whitelist only columns that exist in the Supabase `orders` table schema
       const dbOrder: Record<string, any> = {
         id: finalOrder.id,
@@ -67,7 +80,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         created_by: isValidUuid(finalOrder.created_by) ? finalOrder.created_by : null,
         driver_id: isValidUuid(finalOrder.driver_id) ? finalOrder.driver_id : null,
         companion_id: isValidUuid(finalOrder.companion_id) ? finalOrder.companion_id : null,
-        vehicle_id: isValidUuid(finalOrder.vehicle_id) ? finalOrder.vehicle_id : null,
+        vehicle_id: resolvedVehicleId,
         fact_qty: Number(finalOrder.fact_qty) || 0,
         fact_tank_dropoff: Number(finalOrder.fact_tank_dropoff) || 0,
         fact_tank_pickup: Number(finalOrder.fact_tank_pickup) || 0,
@@ -88,15 +101,15 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
       }
 
       // Synchronize vehicle record in Supabase with assigned driver/assistant
-      if (finalOrder.vehicle_id || finalOrder.truck_plate) {
+      if (resolvedVehicleId || finalOrder.truck_plate) {
         try {
           const vDriverId = isValidUuid(finalOrder.driver_id) ? finalOrder.driver_id : null;
           const vCompanionId = isValidUuid(finalOrder.companion_id) ? finalOrder.companion_id : null;
-          if (isValidUuid(finalOrder.vehicle_id)) {
+          if (resolvedVehicleId) {
             await supabase.from('vehicles').update({
               driver_id: vDriverId,
               companion_id: vCompanionId
-            }).eq('id', finalOrder.vehicle_id);
+            }).eq('id', resolvedVehicleId);
           } else if (finalOrder.truck_plate) {
             await supabase.from('vehicles').update({
               driver_id: vDriverId,

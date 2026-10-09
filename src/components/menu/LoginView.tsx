@@ -100,7 +100,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           const { data: directUser } = await supabase
             .from('profiles')
             .select('*')
-            .eq('email', data.user.email)
+            .or(`id.eq.${data.user.id},email.eq.${data.user.email}`)
             .maybeSingle();
           const dbUser = directUser;
 
@@ -114,7 +114,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
             onLoginSuccess(decodeProfile(dbUser));
           } else {
             // Setup a fallback User object for vehicle account or user without profile
-            const metadataRole = data.user.user_metadata?.role;
+            const metadataRole = data.user.app_metadata?.role || data.user.user_metadata?.role;
             const isVehicle = data.user.user_metadata?.vehicle_role === 'vehicle' || metadataRole === 'vehicle';
             const userRole = isVehicle ? 'driver' : (metadataRole || 'driver');
 
@@ -125,7 +125,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
               personal_id: data.user.user_metadata?.personal_id || '',
               phone: data.user.user_metadata?.phone || '',
               role: userRole as any,
-              permissions: data.user.user_metadata?.permissions || {},
+              permissions: data.user.app_metadata?.permissions || data.user.user_metadata?.permissions || {},
               is_blocked: false,
               created_at: data.user.created_at || new Date().toISOString(),
               warehouse_id: data.user.user_metadata?.warehouse_id || undefined,

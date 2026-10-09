@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Order, Vendor, Warehouse, User, Truck, OrderStatus, VendorComment, VendorContact } from '../../types';
-import { ShieldAlert, Phone } from 'lucide-react';
-import SupplierAutocomplete from './SupplierAutocomplete';
-import { FormInput, FormSelect } from '../FormInput';
-import FulfillmentDateTimePicker from './FulfillmentDateTimePicker';
+import React from 'react';
+import { Order, Vendor, Warehouse, User, Truck } from '../../types';
 import DynamicCustomFields from '../DynamicCustomFields';
 import OrderCommentsSection from './OrderCommentsSection';
 import OrderCommentModal from './OrderCommentModal';
-import { t, formatDateTime, formatPhone, formatOrderCompletionTime } from '../../utils/lang';
-import { getVendorContacts } from '../../services/vendorService';
+import { OrderGeneralFields } from './OrderGeneralFields';
+import { OrderFulfillmentFields } from './OrderFulfillmentFields';
+import { OrderCrewFields } from './OrderCrewFields';
+import { useOrderFormContacts } from './useOrderFormContacts';
+import { useOrderFormComments } from './useOrderFormComments';
 
 interface OrderFormFieldsProps {
   editingOrder: Order;
@@ -41,335 +40,47 @@ export default function OrderFormFields({
   setShowVendorSuggestions,
   currentEmployee
 }: OrderFormFieldsProps) {
+  const { fetchedContacts } = useOrderFormContacts(
+    editingOrder.vendor_id,
+    editingOrder.contact_id,
+    suppliers,
+    setEditingOrder
+  );
 
-  // Comment Modal state
-  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
-  const [activeComment, setActiveComment] = useState<VendorComment | null>(null);
-
-  // Dynamic contacts assigned to the selected vendor
-  const [fetchedContacts, setFetchedContacts] = useState<VendorContact[]>([]);
-
-  useEffect(() => {
-    if (!editingOrder.vendor_id) {
-      setFetchedContacts([]);
-      return;
-    }
-
-    const cleanVendorId = String(editingOrder.vendor_id).trim().toLowerCase();
-    const supplier = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
-    if (supplier && supplier.contacts && supplier.contacts.length > 0) {
-      setFetchedContacts(supplier.contacts);
-    } else {
-      getVendorContacts(editingOrder.vendor_id).then(contacts => {
-        setFetchedContacts(contacts || []);
-      });
-    }
-  }, [editingOrder.vendor_id, suppliers]);
-
-  useEffect(() => {
-    if (editingOrder.vendor_id && fetchedContacts.length > 0) {
-      const currentContactExists = fetchedContacts.some(c => c.id === editingOrder.contact_id);
-      if (!editingOrder.contact_id || !currentContactExists) {
-        const defaultContact = fetchedContacts.find(c => c.is_default) || fetchedContacts[0];
-        if (defaultContact && defaultContact.id !== editingOrder.contact_id) {
-          setEditingOrder(prev => {
-            if (!prev || prev.contact_id === defaultContact.id) return prev;
-            return {
-              ...prev,
-              contact_id: defaultContact.id
-            };
-          });
-        }
-      }
-    }
-  }, [editingOrder.vendor_id, editingOrder.contact_id, fetchedContacts]);
-
-  const comments = editingOrder.notes || [];
-
-  const handleAddComment = () => {
-    setActiveComment(null);
-    setIsCommentModalOpen(true);
-  };
-
-  const handleModifyComment = (comment: VendorComment) => {
-    setActiveComment(comment);
-    setIsCommentModalOpen(true);
-  };
-
-  const handleRemoveComment = (id: string) => {
-    setEditingOrder(prev => {
-      if (!prev) return null;
-      const updated = (prev.notes || []).filter(c => c.id !== id);
-      return { ...prev, notes: updated };
-    });
-  };
-
-  const handleSaveCommentModal = (text: string, beforeLeavingBase: boolean) => {
-    setEditingOrder(prev => {
-      if (!prev) return null;
-      const currentList = prev.notes || [];
-      let updated: VendorComment[];
-      
-      if (activeComment) {
-        updated = currentList.map(c => c.id === activeComment.id ? { 
-          ...c, 
-          comment: text,
-          before_leaving_base: beforeLeavingBase,
-          user_id: c.user_id || currentEmployee?.id,
-          user_name: c.user_name || currentEmployee?.name || 'System'
-        } : c);
-      } else {
-        const newComm: VendorComment = {
-          id: 'c-' + Math.random().toString(36).substring(2, 9),
-          comment: text,
-          date: new Date().toISOString(),
-          user_id: currentEmployee?.id,
-          user_name: currentEmployee?.name || 'System',
-          before_leaving_base: beforeLeavingBase
-        };
-        updated = [newComm, ...currentList];
-      }
-      return { ...prev, notes: updated };
-    });
-    setIsCommentModalOpen(false);
-    setActiveComment(null);
-  };
+  const {
+    comments,
+    isCommentModalOpen,
+    activeComment,
+    handleAddComment,
+    handleModifyComment,
+    handleRemoveComment,
+    handleSaveCommentModal,
+    closeCommentModal
+  } = useOrderFormComments(editingOrder, setEditingOrder, currentEmployee);
 
   return (
     <div className="space-y-6 text-left">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
-        <div className="border-b border-gray-100 pb-2 flex items-center justify-between">
-          <span className="text-xs font-black uppercase text-gray-400 tracking-wider block font-sans">{t("Core Transaction Details")}</span>
-        </div>
-        
-        {/* Supplier Autocomplete Input - Notch styling */}
-        <SupplierAutocomplete 
-          vendorSearch={vendorSearch}
-          setVendorSearch={setVendorSearch}
-          showVendorSuggestions={showVendorSuggestions}
-          setShowVendorSuggestions={setShowVendorSuggestions}
+        <OrderGeneralFields
+          editingOrder={editingOrder}
           setEditingOrder={setEditingOrder}
           fieldErrors={fieldErrors}
           setFieldErrors={setFieldErrors}
           suppliers={suppliers}
-          selectedVendorId={editingOrder.vendor_id}
+          warehouses={warehouses}
+          fetchedContacts={fetchedContacts}
+          vendorSearch={vendorSearch}
+          setVendorSearch={setVendorSearch}
+          showVendorSuggestions={showVendorSuggestions}
+          setShowVendorSuggestions={setShowVendorSuggestions}
         />
-        
-        {/* Destination storage dropdown */}
-        <FormSelect
-          label={`${t("Warehouse")} *`}
-          value={editingOrder.warehouse_id || ''}
-          onChange={(e) => {
-            setEditingOrder(prev => prev ? { ...prev, warehouse_id: e.target.value } : null);
-            if (fieldErrors.warehouse_id) setFieldErrors(prev => ({ ...prev, warehouse_id: '' }));
-          }}
-          error={fieldErrors.warehouse_id}
-        >
-          <option value="" disabled></option>
-          {warehouses.map(w => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </FormSelect>
 
-        {/* Contact Dropdown & Contact Card details */}
-        {(() => {
-          const cleanVendorId = String(editingOrder.vendor_id).trim().toLowerCase();
-          const selectedSupplier = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
-          const contactsList = (fetchedContacts && fetchedContacts.length > 0)
-            ? fetchedContacts
-            : (selectedSupplier ? (selectedSupplier.contacts || []) : []);
-
-          return (
-            <div className="space-y-3">
-              <FormSelect
-                label={`${t("Contact")} *`}
-                value={editingOrder.contact_id || ''}
-                onChange={(e) => {
-                  const cid = e.target.value;
-                  setEditingOrder(prev => prev ? { 
-                    ...prev, 
-                    contact_id: cid
-                  } : null);
-                  if (fieldErrors.contact_id) setFieldErrors(prev => ({ ...prev, contact_id: '' }));
-                }}
-                error={fieldErrors.contact_id}
-              >
-                <option value="" disabled>{t("Select contact...")}</option>
-                {contactsList.map(c => {
-                  const posStr = c.position ? ` - ${t(c.position)}` : '';
-                  const phoneStr = c.phone ? ` (${formatPhone(c.phone)})` : '';
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {c.name}{posStr}{phoneStr}
-                    </option>
-                  );
-                })}
-              </FormSelect>
-            </div>
-          );
-        })()}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Document ID */}
-          <FormInput
-            label={t("Document Dispatch ID")}
-            type="text"
-            fontClass="font-mono font-bold"
-            value={editingOrder.doc_number || ''}
-            onChange={(e) => {
-              setEditingOrder(prev => prev ? { ...prev, doc_number: e.target.value } : null);
-              if (fieldErrors.doc_number) setFieldErrors(prev => ({ ...prev, doc_number: '' }));
-            }}
-            error={fieldErrors.doc_number}
-          />
-
-          {/* Dispatch Date & Time using software native datetime picker */}
-          <FormInput
-            label={t("Order Dispatch Date")}
-            type="datetime-local"
-            fontClass="font-mono"
-            value={
-              editingOrder.order_date
-                ? (() => {
-                    const od = editingOrder.order_date;
-                    if (typeof od === 'string' && !od.includes('Z') && !od.includes('+') && !/-\d\d:\d\d$/.test(od)) {
-                      return od.includes('T') ? od.substring(0, 16) : `${od.substring(0, 10)}T00:00`;
-                    }
-                    const d = new Date(od);
-                    if (isNaN(d.getTime())) return '';
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const h = String(d.getHours()).padStart(2, '0');
-                    const min = String(d.getMinutes()).padStart(2, '0');
-                    return `${y}-${m}-${day}T${h}:${min}`;
-                  })()
-                : ''
-            }
-            onChange={(e) => {
-              const val = e.target.value; // YYYY-MM-DDTHH:mm
-              setEditingOrder(prev => prev ? { ...prev, order_date: val } : null);
-            }}
-          />
-        </div>
-
-        {/* Row 1: Planned (Gegmiuri) - wamogeba then datoveba */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Planned Volume */}
-          <FormInput
-            label={t("Planned QTY (L)")}
-            type="number"
-            fontClass="font-mono"
-            value={editingOrder.qty_requested === undefined || editingOrder.qty_requested === null ? '' : editingOrder.qty_requested}
-            onChange={(e) => {
-              const val = e.target.value;
-              setEditingOrder(prev => prev ? { ...prev, qty_requested: val === '' ? undefined as any : parseFloat(val) } : null);
-            }}
-          />
-
-          {/* Tanks Pickup */}
-          <FormInput
-            label={`${t("Tanks Pickup")} *`}
-            type="number"
-            fontClass="font-mono"
-            value={editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null ? '' : editingOrder.tanks_to_bring}
-            onChange={(e) => {
-              const val = e.target.value;
-              setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: val === '' ? undefined as any : parseInt(val, 10) } : null);
-              if (fieldErrors.tanks_to_bring) setFieldErrors(prev => ({ ...prev, tanks_to_bring: '' }));
-            }}
-            error={fieldErrors.tanks_to_bring}
-          />
-
-          {/* Tanks Dropoff */}
-          <FormInput
-            label={`${t("Tanks Dropoff")} *`}
-            type="number"
-            fontClass="font-mono"
-            value={editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null ? '' : editingOrder.tanks_to_leave}
-            onChange={(e) => {
-              const val = e.target.value;
-              setEditingOrder(prev => prev ? { ...prev, tanks_to_leave: val === '' ? undefined as any : parseInt(val, 10) } : null);
-              if (fieldErrors.tanks_to_leave) setFieldErrors(prev => ({ ...prev, tanks_to_leave: '' }));
-            }}
-            error={fieldErrors.tanks_to_leave}
-          />
-        </div>
-
-        {/* Row 2: Factual (Faqtobrivi) - non-mandatory, wamogeba then datoveba */}
-        <div className="space-y-4 animate-in slide-in-from-top-3 duration-150">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormInput
-              label={t("Fact QTY (L)")}
-              type="number"
-              step="0.01"
-              fontClass="font-mono"
-              value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
-              onChange={(e) => {
-                setEditingOrder(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null);
-                if (fieldErrors.fact_qty) setFieldErrors(prev => ({ ...prev, fact_qty: '' }));
-              }}
-              error={fieldErrors.fact_qty}
-            />
-
-            <FormInput
-              label={t("Fact Tank Pickup")}
-              type="number"
-              fontClass="font-mono"
-              value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-            />
-
-            <FormInput
-              label={t("Fact Tank Dropoff")}
-              type="number"
-              fontClass="font-mono"
-              value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
-              onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
-            />
-          </div>
-
-          {/* Status Selector and Auto Completion Time */}
-          <div className={`grid ${editingOrder.status === 'completed' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-4`}>
-            <FormSelect
-              label={`${t("Fulfillment Status")} *`}
-              value={editingOrder.status || 'registered'}
-              className="bg-emerald-50 text-emerald-800 font-bold"
-              onChange={(e) => {
-                const statusVal = e.target.value as OrderStatus;
-                setEditingOrder(prev => {
-                  if (!prev) return null;
-                  const isCompletedNow = statusVal === 'completed';
-                  const nowIso = new Date().toISOString();
-                  return {
-                    ...prev,
-                    status: statusVal,
-                    pickup_date_time: isCompletedNow ? (prev.pickup_date_time || nowIso) : undefined,
-                    completed_at: isCompletedNow ? (prev.completed_at || nowIso) : null
-                  };
-                });
-              }}
-            >
-              <option value="registered">{t("Registered")}</option>
-              <option value="driver_assigned">{t("Driver Assigned")}</option>
-              <option value="completed">{t("Completed")}</option>
-              <option value="uncompleted">{t("uncompleted")}</option>
-              <option value="cancelled">{t("cancelled")}</option>
-            </FormSelect>
-
-            {editingOrder.status === 'completed' && (
-              <FormInput
-                label="დასრულების დრო"
-                type="text"
-                readOnly
-                disabled
-                fontClass="font-mono"
-                value={formatOrderCompletionTime(editingOrder.completed_at || new Date().toISOString())}
-                className="bg-gray-50 text-gray-700 cursor-not-allowed select-none"
-              />
-            )}
-          </div>
-        </div>
+        <OrderFulfillmentFields
+          editingOrder={editingOrder}
+          setEditingOrder={setEditingOrder}
+          fieldErrors={fieldErrors}
+          setFieldErrors={setFieldErrors}
+        />
 
         {/* Dynamic Custom Fields from Columns Manager */}
         <DynamicCustomFields
@@ -388,92 +99,24 @@ export default function OrderFormFields({
         />
       </div>
 
-      {/* Crew and Fleet Dispatch Assignments - removed pb-16 */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-5">
-        <span className="text-xs font-black uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">{t("Operations Vehicle Crew")}</span>
-        
-        {/* Truck asset */}
-        <FormSelect
-          label={t("Assigned Vehicle Plate Asset")}
-          value={editingOrder.vehicle_id || trucks.find(t => t.plate_number === editingOrder.truck_plate)?.id || ''}
-          onChange={(e) => {
-            const selectedVal = e.target.value;
-            const truck = trucks.find(t => t.id === selectedVal || t.plate_number === selectedVal);
-            setEditingOrder(prev => {
-              if (!prev) return null;
-              return {
-                ...prev,
-                vehicle_id: truck?.id || selectedVal,
-                truck_plate: truck?.plate_number || '',
-                driver_id: truck?.driver_id || '',
-                companion_id: truck?.companion_id || ''
-              };
-            });
-            if (fieldErrors.truck_plate) setFieldErrors(prev => ({ ...prev, truck_plate: '' }));
-            if (fieldErrors.driver_id) {
-              if (truck?.driver_id) {
-                setFieldErrors(prev => ({ ...prev, driver_id: '' }));
-              }
-            }
-          }}
-          error={fieldErrors.truck_plate}
-        >
-          <option value="">{t("Select Vehicle") || "აირჩიეთ ავტომობილი"}</option>
-          {trucks.map(t => (
-            <option key={t.id || t.plate_number} value={t.id || t.plate_number}>{t.plate_number} ({t.model})</option>
-          ))}
-        </FormSelect>
-
-        {/* Driver select */}
-        <FormSelect
-          label={t("Assigned Fleet Driver")}
-          value={editingOrder.driver_id || ''}
-          onChange={(e) => {
-            setEditingOrder(prev => prev ? { ...prev, driver_id: e.target.value } : null);
-            if (fieldErrors.driver_id) setFieldErrors(prev => ({ ...prev, driver_id: '' }));
-          }}
-          error={fieldErrors.driver_id}
-        >
-          <option value="" disabled></option>
-          {employees.filter(e => e.role === 'driver').map(e => (
-            <option key={e.id} value={e.id}>{e.name}</option>
-          ))}
-        </FormSelect>
-
-        {/* Co-Driver helper select */}
-        <FormSelect
-          label={t("Assistant")}
-          value={editingOrder.companion_id || ''}
-          onChange={(e) => setEditingOrder(prev => prev ? { ...prev, companion_id: e.target.value } : null)}
-        >
-          <option value=""></option>
-          {employees.map(e => {
-            const translatedRole = e.role === 'admin' ? t('Admin') :
-              (e.role === 'manager' || e.role === 'purchasing_head') ? t('Purchasing Group Leader') :
-              e.role === 'logistics_manager' ? t('Logistics Manager') :
-              e.role === 'purchasing_manager' ? t('Purchasing Manager') :
-              e.role === 'driver' ? t('Logistics/Driver') :
-              e.role === 'driver_assistant' ? t('Driver Assistant') :
-              e.role === 'operator' ? t('Operator') : e.role;
-            return (
-              <option key={e.id} value={e.id}>{e.name} ({translatedRole})</option>
-            );
-          })}
-        </FormSelect>
-      </div>
+      {/* Crew and Fleet Dispatch Assignments */}
+      <OrderCrewFields
+        editingOrder={editingOrder}
+        setEditingOrder={setEditingOrder}
+        trucks={trucks}
+        employees={employees}
+        fieldErrors={fieldErrors}
+        setFieldErrors={setFieldErrors}
+      />
 
       <OrderCommentModal
         isOpen={isCommentModalOpen}
-        onClose={() => {
-          setIsCommentModalOpen(false);
-          setActiveComment(null);
-        }}
+        onClose={closeCommentModal}
         activeComment={activeComment}
         onSave={handleSaveCommentModal}
         onDelete={(id) => {
           handleRemoveComment(id);
-          setIsCommentModalOpen(false);
-          setActiveComment(null);
+          closeCommentModal();
         }}
       />
     </div>

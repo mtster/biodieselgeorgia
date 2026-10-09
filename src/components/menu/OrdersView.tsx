@@ -1,49 +1,21 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Order, Vendor, Warehouse, User, Truck, Direction, Communication } from '../../types';
-import { getSMSLogs } from '../../lib/db';
-import { Plus, Trash2 } from 'lucide-react';
+import React from 'react';
 import { t } from '../../utils/lang';
+import { 
+  Order, Vendor, Warehouse, User, Truck, Direction, Communication 
+} from '../../types';
 
-import PeriodFilter from '../PeriodFilter';
+// Modular child components
 import OrderForm from '../orders/OrderForm';
 import SMSLogsModal from '../orders/SMSLogsModal';
 import AssignDriverModal from '../orders/AssignDriverModal';
 import OrdersList from '../orders/OrdersList';
 import PageHeader from '../PageHeader';
-import CentralSearchBar from '../CentralSearchBar';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
-import ColumnsManagerModal, { ManagedColumn } from '../ColumnsManagerModal';
-import DeleteButton from '../DeleteButton';
-import { createDatabaseOrderColumn } from '../../services/orderService';
-import { FormSelect } from '../FormInput';
-import { usePaginatedOrders } from '../../hooks/usePaginatedModuleQuery';
-import { useDebounce, useDebouncedSearch } from '../../hooks/useDebounce';
-
-const defaultOrdersColumns: ManagedColumn[] = [
-  { id: 'order_date', label: 'Order Date', visible: true },
-  { id: 'status', label: 'Status', visible: true },
-  { id: 'completed_at', label: 'Completion Time', visible: true },
-  { id: 'vendor_id', label: 'Supplier', visible: true },
-  { id: 'city', label: 'City', visible: true },
-  { id: 'address', label: 'Address', visible: true },
-  { id: 'contacts', label: 'Contact', visible: true },
-  { id: 'note', label: 'Comment', visible: true },
-  { id: 'planned', label: 'Order Qty (L)', visible: true },
-  { id: 'tanks_to_bring', label: 'Order Pickup', visible: true },
-  { id: 'tanks_to_leave', label: 'Order Dropoff', visible: true },
-  { id: 'fact_qty', label: 'Fact Qty (L)', visible: true },
-  { id: 'fact_tank_pickup', label: 'Fact Pickup', visible: true },
-  { id: 'fact_tank_dropoff', label: 'Fact Dropoff', visible: true },
-  { id: 'district', label: 'District', visible: true },
-  { id: 'direction', label: 'Direction', visible: true },
-  { id: 'truck_plate', label: 'Vehicle', visible: true },
-  { id: 'driver_id', label: 'Driver', visible: true },
-  { id: 'companion_id', label: 'Assistant', visible: true },
-  { id: 'doc_number', label: 'Doc Num', visible: true },
-  { id: 'warehouse_id', label: 'Warehouse', visible: true },
-  { id: 'operator_id', label: 'Created By', visible: true },
-  { id: 'created_at', label: 'Created At', visible: true }
-];
+import ColumnsManagerModal from '../ColumnsManagerModal';
+import { useOrdersViewState } from '../orders/useOrdersViewState';
+import { OrdersViewFilters } from '../orders/OrdersViewFilters';
+import { OrdersViewHeaderActions } from '../orders/OrdersViewHeaderActions';
+import { OrderBulkDeleteModal } from '../orders/OrderBulkDeleteModal';
 
 interface Props {
   orders: Order[];
@@ -53,449 +25,131 @@ interface Props {
   trucks: Truck[];
   directions: Direction[];
   currentEmployee: User;
-  onSave: (order: Order) => void;
+  onSave: (order: Order) => Promise<any> | void;
   onDelete: (id: string, docNum: string) => void;
-  initialVendorId?: string;
-  onClearInitialVendorId?: () => void;
-  onNavigateToCommunicationsWithVendor?: (vendorId: string) => void;
   onSaveCommunication?: (comm: Communication) => Promise<void> | void;
   onDeleteCommunication?: (id: string) => Promise<void> | void;
+  initialOrderVendorId?: string;
+  onClearInitialOrderVendorId?: () => void;
+  initialVendorId?: string;
+  onClearInitialVendorId?: () => void;
+  onNavigateToNewOrderWithVendor?: (vendorId: string) => void;
+  onNavigateToCommunicationsWithVendor?: (vendorId: string) => void;
 }
 
-export default function OrdersView({ 
+export default function OrdersView({
   orders, suppliers, warehouses, employees, trucks, directions,
-  currentEmployee, onSave, onDelete, initialVendorId, onClearInitialVendorId,
-  onNavigateToCommunicationsWithVendor,
-  onSaveCommunication,
-  onDeleteCommunication
+  currentEmployee, onSave, onDelete, onSaveCommunication, onDeleteCommunication,
+  initialOrderVendorId, onClearInitialOrderVendorId,
+  initialVendorId, onClearInitialVendorId,
+  onNavigateToCommunicationsWithVendor
 }: Props) {
-  
-  const canAdd = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('add');
-  const canModify = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('modify');
-  const canDelete = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['orders']?.includes('delete');
-  const canAddComm = currentEmployee?.role === 'admin' || currentEmployee?.permissions?.['communications']?.includes('add');
-  const [isFormSaving, setIsFormSaving] = useState(false);
+  const effectiveInitialVendorId = initialOrderVendorId || initialVendorId;
+  const effectiveClearInitialVendorId = onClearInitialOrderVendorId || onClearInitialVendorId;
 
   const {
+    canAdd,
+    canDelete,
+    canAddComm,
     searchTerm,
     setSearchTerm,
-    debouncedSearchTerm,
-    triggerImmediateSearch
-  } = useDebouncedSearch('', 350);
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedDirection, setSelectedDirection] = useState<string>('');
-  const [selectedVehicle, setSelectedVehicle] = useState<string>('');
-  const [selectedManager, setSelectedManager] = useState<string>('');
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    triggerImmediateSearch,
+    selectedStatus,
+    setSelectedStatus,
+    selectedCity,
+    setSelectedCity,
+    selectedDistrict,
+    setSelectedDistrict,
+    selectedDirection,
+    setSelectedDirection,
+    selectedVehicle,
+    setSelectedVehicle,
+    selectedManager,
+    setSelectedManager,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isLogisticsManager,
+    page,
+    setPage,
+    displayOrders,
+    totalOrdersCount,
+    isOrdersLoading,
+    editingOrder,
+    setEditingOrder,
+    isFormSaving,
+    setIsFormSaving,
+    showSMSLogs,
+    setShowSMSLogs,
+    smsLogs,
+    loadSMSLogs,
+    showAssignDriverModal,
+    setShowAssignDriverModal,
+    selectedOrders,
+    setSelectedOrders,
+    showBulkDeleteConfirm,
+    setShowBulkDeleteConfirm,
+    isColModalOpen,
+    setIsColModalOpen,
+    managedCols,
+    handleSaveColumns,
+    defaultOrdersColumns,
+    deleteConfirmId,
+    setDeleteConfirmId,
+    deleteConfirmDocNum,
+    setDeleteConfirmDocNum,
+    formRef,
+    startNew,
+    startEdit,
+    handleBulkDeleteExecute,
+    handleSaveFromForm,
+    handleSaveAndReminder,
+    askDelete,
+    confirmDelete,
+    handleAssignDriverSave
+  } = useOrdersViewState({
+    orders,
+    suppliers,
+    warehouses,
+    trucks,
+    currentEmployee,
+    onSave,
+    onDelete,
+    initialOrderVendorId: effectiveInitialVendorId,
+    onClearInitialOrderVendorId: effectiveClearInitialVendorId
   });
-  const [endDate, setEndDate] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  });
-
-  const [page, setPage] = useState(1);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearchTerm, selectedStatus, selectedCity, selectedDistrict, selectedDirection, selectedVehicle, selectedManager, startDate, endDate]);
-
-  const isLogisticsManager = currentEmployee?.role === 'logistics_manager';
-  const todayTbilisi = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tbilisi" }).format(new Date());
-
-  const effectiveStartDate = isLogisticsManager ? todayTbilisi : startDate;
-  const effectiveEndDate = isLogisticsManager ? todayTbilisi : endDate;
-
-  const filters = {
-    searchTerm: debouncedSearchTerm,
-    status: selectedStatus,
-    city: selectedCity,
-    district: selectedDistrict,
-    directionId: selectedDirection,
-    vehicleId: selectedVehicle,
-    managerId: selectedManager,
-    startDate: effectiveStartDate,
-    endDate: effectiveEndDate
-  };
-
-  const { data: paginatedData, isLoading: isOrdersLoading } = usePaginatedOrders(page, filters, currentEmployee);
-
-  const displayOrders = paginatedData?.orders || [];
-  const totalOrdersCount = paginatedData?.totalCount || 0;
-
-  // Active form management
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [isNew, setIsNew] = useState(false);
-  const [showSMSLogs, setShowSMSLogs] = useState(false);
-  const [smsLogs, setSmsLogs] = useState<any[]>([]);
-
-  const salesManagers = useMemo(() => {
-    const allowedRoles = ['admin', 'super_admin', 'purchasing_head', 'purchasing_manager', 'operator'];
-    return employees.filter(e => {
-      if (e.is_deleted) return false;
-      const role = (e.role || '').toLowerCase().trim();
-      return allowedRoles.includes(role);
-    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ka'));
-  }, [employees]);
-
-  // Bulk-delete selection states
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
-
-  // Columns Manager State
-  const [isColModalOpen, setIsColModalOpen] = useState(false);
-  const [managedCols, setManagedCols] = useState<ManagedColumn[]>(() => {
-    const CURRENT_VERSION = 'v9_sheqmna_sheikmna_col';
-    const versionKey = 'orders_columns_version';
-    const loadedVersion = localStorage.getItem(versionKey);
-    const loaded = localStorage.getItem('orders_columns_managed');
-
-    if (!loaded || loadedVersion !== CURRENT_VERSION) {
-      let customCols: ManagedColumn[] = [];
-      const visibilityMap = new Map<string, boolean>();
-
-      if (loaded) {
-        try {
-          const parsed: ManagedColumn[] = JSON.parse(loaded);
-          parsed.forEach(c => {
-            if (c.isCustom) {
-              customCols.push(c);
-            } else {
-              visibilityMap.set(c.id, c.visible);
-            }
-          });
-        } catch (e) {
-          console.warn('Could not parse previous orders columns', e);
-        }
-      }
-
-      // Reconstruct with the new canonical order and new labels
-      const migrated = defaultOrdersColumns.map(col => ({
-        ...col,
-        visible: visibilityMap.has(col.id) ? visibilityMap.get(col.id)! : col.visible
-      }));
-
-      const finalCols = [...migrated, ...customCols];
-      localStorage.setItem('orders_columns_managed', JSON.stringify(finalCols));
-      localStorage.setItem(versionKey, CURRENT_VERSION);
-      return finalCols;
-    }
-
-    try {
-      const parsed: ManagedColumn[] = JSON.parse(loaded);
-      return parsed.filter(c => c.id !== 'pickup_date_time');
-    } catch {
-      return defaultOrdersColumns;
-    }
-  });
-
-  const handleSaveColumns = async (updated: ManagedColumn[]) => {
-    setManagedCols(updated);
-    localStorage.setItem('orders_columns_managed', JSON.stringify(updated));
-
-    // Provision each dynamic custom column securely in Supabase orders table
-    for (const col of updated) {
-      if (col.isCustom && col.id.startsWith('custom_')) {
-        try {
-          await createDatabaseOrderColumn(col.id);
-        } catch (err) {
-          console.error(`Error provisioning custom column on db [${col.id}]:`, err);
-        }
-      }
-    }
-  };
-
-  // Delete confirmation modal states
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [deleteConfirmDocNum, setDeleteConfirmDocNum] = useState<string | null>(null);
-
-  // Action triggers for child forms
-  const formRef = useRef<{ 
-    save: () => void; 
-    fillDummy: () => void;
-    saveAndReminder?: (onSuccess?: (vendorId: string) => void) => void;
-  }>(null);
-
-  const handleSaveAndReminder = () => {
-    if (isFormSaving) return;
-    if (formRef.current?.saveAndReminder) {
-      formRef.current.saveAndReminder((vendorId) => {
-        setEditingOrder(null);
-        if (onNavigateToCommunicationsWithVendor && vendorId) {
-          onNavigateToCommunicationsWithVendor(vendorId);
-        }
-      });
-    }
-  };
-
-  const scrollMainToTop = () => {
-    setTimeout(() => {
-      const mainElement = document.querySelector('main');
-      if (mainElement) {
-        mainElement.scrollTop = 0;
-      }
-    }, 0);
-  };
-
-  const loadSMSLogs = async () => {
-    const data = await getSMSLogs();
-    setSmsLogs(data);
-  };
-
-  useEffect(() => {
-    loadSMSLogs();
-  }, [orders]);
-
-  useEffect(() => {
-    if (initialVendorId) {
-      const cleanVId = String(initialVendorId).trim().toLowerCase();
-      const suppObj = suppliers.find(s => s.id === initialVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
-      const suppName = suppObj ? (suppObj.trade_name || suppObj.company_name || '') : '';
-
-      const defaultOrder: Order = {
-        id: '',
-        order_date: new Date().toISOString(),
-        doc_number: 'DOC-' + Math.floor(100000 + Math.random() * 900000),
-        vendor_id: initialVendorId,
-        vendor_name: suppName,
-        warehouse_id: suppObj?.warehouse_id || '',
-        city: suppObj?.city || '',
-        district: suppObj?.district || '',
-        address: suppObj?.address || '',
-        note: '',
-        qty_requested: undefined as any,
-        fact_qty: undefined,
-        tanks_to_leave: undefined as any,
-        tanks_to_bring: undefined as any,
-        fact_tank_dropoff: undefined,
-        fact_tank_pickup: undefined,
-        pickup_date_time: undefined,
-        operator_id: currentEmployee.id,
-        created_by: currentEmployee.id,
-        driver_id: '',
-        companion_id: '',
-        truck_plate: '',
-        status: 'registered'
-      };
-      setEditingOrder(defaultOrder);
-      setIsNew(true);
-      scrollMainToTop();
-      if (onClearInitialVendorId) {
-        onClearInitialVendorId();
-      }
-    }
-  }, [initialVendorId, currentEmployee.id, suppliers, onClearInitialVendorId]);
-
-  const startNew = () => {
-    const defaultOrder: Order = {
-      id: '',
-      order_date: new Date().toISOString(),
-      doc_number: 'DOC-' + Math.floor(100000 + Math.random() * 900000),
-      vendor_id: '',
-      warehouse_id: '',
-      note: '',
-      qty_requested: undefined as any,
-      fact_qty: undefined,
-      tanks_to_leave: undefined as any,
-      tanks_to_bring: undefined as any,
-      fact_tank_dropoff: undefined,
-      fact_tank_pickup: undefined,
-      pickup_date_time: undefined,
-      operator_id: currentEmployee.id,
-      created_by: currentEmployee.id,
-      driver_id: '',
-      companion_id: '',
-      truck_plate: '',
-      status: 'registered'
-    };
-    setEditingOrder(defaultOrder);
-    setIsNew(true);
-    scrollMainToTop();
-  };
-
-  const startEdit = (ord: Order) => {
-    setEditingOrder(JSON.parse(JSON.stringify(ord)));
-    setIsNew(false);
-    scrollMainToTop();
-  };
-
-  const handleBulkDeleteExecute = () => {
-    selectedOrders.forEach(id => {
-      const ord = orders.find(o => o.id === id);
-      onDelete(id, ord?.doc_number || '');
-    });
-    setSelectedOrders([]);
-    setShowBulkDeleteConfirm(false);
-  };
-
-  const handleSaveFromForm = (finalOrder: Order) => {
-    onSave(finalOrder);
-    setEditingOrder(null);
-  };
-
-  const filteredOrders = orders.filter(ord => {
-    if (ord.is_deleted) return false;
-    
-    const supplierObj = suppliers.find(s => s.id === ord.vendor_id);
-    const supplierName = supplierObj ? supplierObj.trade_name : (ord.vendor_name || '');
-    const matchesSearch = supplierName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          ord.doc_number.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === '' || ord.status === selectedStatus;
-    if (!matchesSearch || !matchesStatus) return false;
-
-    // City Filter
-    if (selectedCity && (!supplierObj || supplierObj.city !== selectedCity)) return false;
-
-    // District Filter
-    if (selectedDistrict && (!supplierObj || supplierObj.district !== selectedDistrict)) return false;
-
-    // Direction Filter
-    if (selectedDirection && (!supplierObj || supplierObj.direction_id !== selectedDirection)) return false;
-
-    // Vehicle/Truck Filter
-    if (selectedVehicle) {
-      const matchVehicle = ord.vehicle_id === selectedVehicle || 
-                           ord.truck_plate === selectedVehicle ||
-                           trucks.some(t => (t.id === selectedVehicle || t.plate_number === selectedVehicle) && 
-                                            (t.id === ord.vehicle_id || t.plate_number === ord.truck_plate));
-      if (!matchVehicle) return false;
-    }
-
-    // Period Filter
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const ordDate = new Date(ord.order_date);
-      if (ordDate < start) return false;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      const ordDate = new Date(ord.order_date);
-      if (ordDate > end) return false;
-    }
-
-    return true;
-  });
-
-  const askDelete = (id: string, docNum: string) => {
-    setDeleteConfirmId(id);
-    setDeleteConfirmDocNum(docNum);
-  };
-
-  const confirmDelete = () => {
-    if (deleteConfirmId) {
-      onDelete(deleteConfirmId, deleteConfirmDocNum || '');
-      if (editingOrder && editingOrder.id === deleteConfirmId) {
-        setEditingOrder(null);
-      }
-    }
-    setDeleteConfirmId(null);
-    setDeleteConfirmDocNum(null);
-  };
-
-  const headerActions = (
-    <>
-      {editingOrder ? (
-        <>
-          {editingOrder.id && (
-            <DeleteButton
-              onClick={() => {
-                askDelete(editingOrder.id, editingOrder.doc_number);
-              }}
-            />
-          )}
-          {canAddComm && (
-            <button
-              id="btn-order-save-and-reminder"
-              type="button"
-              onClick={handleSaveAndReminder}
-              disabled={isFormSaving}
-              className={`px-4 py-2 border border-emerald-700 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 font-bold rounded-lg text-xs transition cursor-pointer select-none inline-flex items-center gap-1.5 ${isFormSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
-              {t("Save and Reminder")}
-            </button>
-          )}
-          <button 
-            onClick={() => formRef.current?.fillDummy()}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
-          >
-            {t("Fill Dummy")}
-          </button>
-          <button 
-            onClick={() => formRef.current?.save()}
-            className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
-          >
-            {t("Save")}
-          </button>
-        </>
-      ) : (
-        <>
-          <div className="relative">
-            <select
-              value=""
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === 'sms_logs') {
-                  loadSMSLogs();
-                  setShowSMSLogs(true);
-                } else if (val === 'delete' && selectedOrders.length > 0) {
-                  setShowBulkDeleteConfirm(true);
-                } else if (val === 'assign_driver' && selectedOrders.length > 0) {
-                  setShowAssignDriverModal(true);
-                } else if (val === 'col_manager') {
-                  setIsColModalOpen(true);
-                }
-                e.target.value = ''; // Reset select trigger
-              }}
-              className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
-            >
-              <option value="" disabled hidden>{t("Actions")}</option>
-              <option value="sms_logs">{t("SMS Logs")} ({smsLogs.length})</option>
-              <option value="assign_driver" disabled={selectedOrders.length === 0}>
-                {t("Assign Crew")} {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
-              </option>
-              <option value="delete" disabled={selectedOrders.length === 0}>
-                {t("Delete")} {selectedOrders.length > 0 ? `(${selectedOrders.length})` : ''}
-              </option>
-              <option value="col_manager">{t("Columns Manager")}</option>
-            </select>
-            <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
-              ▼
-            </span>
-          </div>
-          
-          {canAdd && (<button 
-            onClick={startNew}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition shadow-sm cursor-pointer select-none font-sans"
-          >
-            <Plus size={15} />
-            {t("New Order")}
-          </button>)}
-        </>
-      )}
-    </>
-  );
 
   return (
     <div className="space-y-6">
-      
       {/* 1. STANDARDIZED PAGE HEADER */}
       <PageHeader 
         title={editingOrder ? (editingOrder.id ? `${t("Order")}: ${editingOrder.doc_number}` : t("New Order")) : t("Orders")}
         onBack={editingOrder ? () => setEditingOrder(null) : undefined}
         backButtonId="order-form-back-arrow"
-        actions={headerActions}
+        actions={
+          <OrdersViewHeaderActions
+            editingOrder={editingOrder}
+            canDelete={canDelete}
+            canAdd={canAdd}
+            canAddComm={canAddComm}
+            isFormSaving={isFormSaving}
+            selectedOrders={selectedOrders}
+            smsLogsCount={smsLogs.length}
+            handleSaveAndReminder={handleSaveAndReminder}
+            formRef={formRef}
+            askDelete={askDelete}
+            loadSMSLogs={loadSMSLogs}
+            setShowSMSLogs={setShowSMSLogs}
+            setShowBulkDeleteConfirm={setShowBulkDeleteConfirm}
+            setShowAssignDriverModal={setShowAssignDriverModal}
+            setIsColModalOpen={setIsColModalOpen}
+            startNew={startNew}
+          />
+        }
       />
 
-      {/* 2. FORM OR LIST SPREADSHEET */}
+      {/* 2. FORM OR LIST VIEW */}
       {editingOrder ? (
         <OrderForm
           editingOrder={editingOrder}
@@ -508,190 +162,42 @@ export default function OrdersView({
           onSave={handleSaveFromForm}
           onCancel={() => setEditingOrder(null)}
           formRef={formRef}
-          onSavingStateChange={setIsFormSaving}
-          onSaveCommunication={onSaveCommunication}
           onDeleteCommunication={onDeleteCommunication}
+          onSaveCommunication={onSaveCommunication}
+          onSavingStateChange={setIsFormSaving}
         />
       ) : (
         <div className="space-y-6 text-left">
-          {/* SEARCH & FILTERS CONTROLS */}
-          <div className="space-y-4 w-full">
-            {/* Search Bar - Full Width on Top */}
-            <div className="w-full">
-              <CentralSearchBar 
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                onSearchSubmit={triggerImmediateSearch}
-                idPrefix="orders-search"
-                searchPlaceholder={t("Search dispatches by supplier trade name, legal entity, or document coordinate...")}
-              />
-            </div>
+          <OrdersViewFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            triggerImmediateSearch={triggerImmediateSearch}
+            isLogisticsManager={isLogisticsManager}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            selectedStatus={selectedStatus}
+            setSelectedStatus={setSelectedStatus}
+            selectedCity={selectedCity}
+            setSelectedCity={setSelectedCity}
+            selectedDistrict={selectedDistrict}
+            setSelectedDistrict={setSelectedDistrict}
+            selectedDirection={selectedDirection}
+            setSelectedDirection={setSelectedDirection}
+            selectedVehicle={selectedVehicle}
+            setSelectedVehicle={setSelectedVehicle}
+            selectedManager={selectedManager}
+            setSelectedManager={setSelectedManager}
+            suppliers={suppliers}
+            directions={directions}
+            trucks={trucks}
+            employees={employees}
+            setPage={setPage}
+          />
 
-            {/* Filter Row */}
-            <div className="flex flex-wrap items-center gap-4 w-full select-none font-sans">
-              {/* Period Filter */}
-              {!isLogisticsManager && (
-                <div className="shrink-0">
-                  <PeriodFilter 
-                    startDate={startDate} 
-                    setStartDate={setStartDate} 
-                    endDate={endDate} 
-                    setEndDate={setEndDate} 
-                  />
-                </div>
-              )}
-
-              {/* Status Filter */}
-              <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                  {t("Status")}
-                </span>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => {
-                    setSelectedStatus(e.target.value);
-                    setPage(1);
-                  }}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">{t("All Statuses")}</option>
-                  <option value="registered">{t("Registered")}</option>
-                  <option value="driver_assigned">{t("Driver Assigned")}</option>
-                  <option value="completed">{t("Completed")}</option>
-                  <option value="uncompleted">{t("uncompleted")}</option>
-                  <option value="cancelled">{t("cancelled")}</option>
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-
-              {/* City Filter */}
-              <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                  ქალაქი
-                </span>
-                <select
-                  value={selectedCity}
-                  onChange={(e) => {
-                    setSelectedCity(e.target.value);
-                    setSelectedDistrict(''); // Reset district when city changes
-                    setPage(1);
-                  }}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">{t("All Cities")}</option>
-                  {Array.from(new Set(suppliers.map(s => s.city).filter(Boolean))).sort().map(city => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-
-              {/* District Filter */}
-              <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                  რაიონი
-                </span>
-                <select
-                  value={selectedDistrict}
-                  onChange={(e) => {
-                    setSelectedDistrict(e.target.value);
-                    setPage(1);
-                  }}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">{t("All Districts")}</option>
-                  {Array.from(
-                    new Set(
-                      suppliers
-                        .filter(s => !selectedCity || s.city === selectedCity)
-                        .map(s => s.district)
-                        .filter(Boolean)
-                    )
-                  ).sort().map(dist => (
-                    <option key={dist} value={dist}>{dist}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-
-              {/* Direction Filter */}
-              <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                  მიმართულება
-                </span>
-                <select
-                  value={selectedDirection}
-                  onChange={(e) => {
-                    setSelectedDirection(e.target.value);
-                    setPage(1);
-                  }}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">{t("All Directions")}</option>
-                  {directions.map(dir => (
-                    <option key={dir.id} value={dir.id}>{dir.name}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-
-              {/* Vehicle Filter */}
-              <div className="relative w-full md:w-auto min-w-[140px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                  მანქანა
-                </span>
-                <select
-                  value={selectedVehicle}
-                  onChange={(e) => {
-                    setSelectedVehicle(e.target.value);
-                    setPage(1);
-                  }}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">{t("All Vehicles")}</option>
-                  {trucks.map(truck => (
-                    <option key={truck.id || truck.plate_number} value={truck.id || truck.plate_number}>{truck.plate_number} ({truck.model})</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-
-              {/* Manager Filter */}
-              <div className="relative w-full md:w-auto min-w-[150px]">
-                <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                  {t("Manager") || "მენეჯერი"}
-                </span>
-                <select
-                  value={selectedManager}
-                  onChange={(e) => {
-                    setSelectedManager(e.target.value);
-                    setPage(1);
-                  }}
-                  className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-                >
-                  <option value="">{t("All Managers") || "ყველა მენეჯერი"}</option>
-                  {salesManagers.map(mgr => (
-                    <option key={mgr.id} value={mgr.id}>{mgr.name}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-                  ▼
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <OrdersList currentEmployee={currentEmployee} 
+          <OrdersList 
+            currentEmployee={currentEmployee}
             filteredOrders={displayOrders} 
             suppliers={suppliers} 
             warehouses={warehouses}
@@ -730,26 +236,7 @@ export default function OrdersView({
       <AssignDriverModal
         isOpen={showAssignDriverModal}
         onClose={() => setShowAssignDriverModal(false)}
-        onSave={async (driverId, companionId, truckPlate) => {
-          const matchingTruck = trucks.find(t => t.plate_number === truckPlate || t.id === truckPlate);
-          const finalPlate = matchingTruck?.plate_number || truckPlate;
-          const finalVehicleId = matchingTruck?.id;
-          
-          for (const id of selectedOrders) {
-            const ord = (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id);
-            if (ord) {
-              await onSave({
-                ...ord,
-                driver_id: driverId || undefined,
-                companion_id: companionId || undefined,
-                truck_plate: finalPlate || undefined,
-                vehicle_id: finalVehicleId || ord.vehicle_id,
-                status: 'driver_assigned'
-              });
-            }
-          }
-          setSelectedOrders([]);
-        }}
+        onSave={handleAssignDriverSave}
         orders={selectedOrders.map(id => (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id)!).filter(Boolean)}
         employees={employees}
         trucks={trucks}
@@ -765,7 +252,7 @@ export default function OrdersView({
           setDeleteConfirmDocNum(null);
         }}
         onConfirm={confirmDelete}
-        title={t("Cancel & Delete Order?")}
+        title={t("Order Dispatch Soft Deletion")}
         message={
           <span>
             {t("Are you sure you want to completely cancel and soft delete high-priority order dispatch")} <strong>"{deleteConfirmDocNum}"</strong>? {t("They will hide from the UI immediately.")}
@@ -774,38 +261,12 @@ export default function OrdersView({
       />
 
       {/* BULK DELETE CONFIRMATION MODAL */}
-      {showBulkDeleteConfirm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm border shadow-lg p-6 space-y-4 text-center">
-            <div className="w-12 h-12 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto">
-              <Trash2 size={24} />
-            </div>
-            <div>
-              <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest leading-none">{t("Confirm Bulk Orders Deleted")}</h4>
-              <p className="text-[11.5px] text-gray-455 mt-2 font-sans leading-normal">
-                {t("Are you sure you want to soft delete")} <strong>{selectedOrders.length} {t("selected orders")}</strong>? {t("They will hide from the UI immediately.")}
-              </p>
-            </div>
-            <div className="flex gap-2 font-sans pt-2">
-              <button
-                type="button"
-                onClick={() => setShowBulkDeleteConfirm(false)}
-                className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl cursor-pointer"
-              >
-                {t("No, Keep Them")}
-              </button>
-              <button
-                type="button"
-                onClick={handleBulkDeleteExecute}
-                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-black text-white rounded-xl cursor-pointer"
-              >
-                {t("Yes, Delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      <OrderBulkDeleteModal
+        isOpen={showBulkDeleteConfirm}
+        selectedCount={selectedOrders.length}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDeleteExecute}
+      />
     </div>
   );
 }

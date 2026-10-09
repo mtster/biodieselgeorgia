@@ -19,10 +19,10 @@ interface OrderSequenceItemProps {
   onPointerDown: (e: React.PointerEvent, index: number) => void;
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
-  onPointerCancel: () => void;
+  onPointerCancel: (e: React.PointerEvent) => void;
   onTouchStart: (e: React.TouchEvent, index: number) => void;
   onTouchMove: (e: React.TouchEvent) => void;
-  onTouchEnd: () => void;
+  onTouchEnd: (e: React.TouchEvent) => void;
   onTouchCancel: () => void;
 }
 

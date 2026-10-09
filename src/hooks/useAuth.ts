@@ -25,7 +25,7 @@ export function useAuth() {
       const { data: dbUser } = await supabase
         .from('profiles')
         .select('*')
-        .eq('email', session.user.email)
+        .or(`id.eq.${session.user.id},email.eq.${session.user.email}`)
         .maybeSingle();
 
       if (dbUser) {
@@ -35,9 +35,9 @@ export function useAuth() {
           setCurrentUser(null);
         } else {
           const secureUser = decodeProfile(dbUser);
-          secureUser.role = dbUser.role || session.user.user_metadata?.role || secureUser.role;
+          secureUser.role = dbUser.role || session.user.app_metadata?.role || session.user.user_metadata?.role || secureUser.role;
           if (secureUser.permissions === undefined || secureUser.permissions === null) {
-            const metaPerms = session.user.user_metadata?.permissions;
+            const metaPerms = session.user.app_metadata?.permissions || session.user.user_metadata?.permissions;
             if (metaPerms) {
               secureUser.permissions = metaPerms;
             } else if (defaultPermissions[secureUser.role]) {
@@ -49,7 +49,8 @@ export function useAuth() {
           setCurrentUser(secureUser);
         }
       } else {
-        const role = session.user.user_metadata?.role || 'vendor';
+        const role = session.user.app_metadata?.role || session.user.user_metadata?.role || 'vendor';
+        const metaPerms = session.user.app_metadata?.permissions || session.user.user_metadata?.permissions;
         const defPerms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
         const vendorUser: User = {
           id: session.user.id,
@@ -58,7 +59,7 @@ export function useAuth() {
           personal_id: session.user.user_metadata?.personal_id || '',
           phone: session.user.user_metadata?.phone || '',
           role: role,
-          permissions: session.user.user_metadata?.permissions || defPerms,
+          permissions: metaPerms || defPerms,
           is_blocked: false,
           created_at: session.user.created_at || new Date().toISOString(),
           vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,

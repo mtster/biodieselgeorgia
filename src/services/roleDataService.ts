@@ -114,6 +114,7 @@ export async function getDriverOrdersAndVendors(
 
       const orParts: string[] = [];
       if (myTruck?.id) orParts.push(`vehicle_id.eq.${myTruck.id}`);
+      if (myTruck?.plate_number) orParts.push(`vehicle_id.eq.${myTruck.plate_number}`);
       if (currentUser?.id) {
         orParts.push(`driver_id.eq.${currentUser.id}`);
         orParts.push(`companion_id.eq.${currentUser.id}`);
@@ -160,8 +161,9 @@ export async function getDriverOrdersAndVendors(
             const isActiveOrder = o.status !== 'completed' && o.status !== 'cancelled';
             if (!matchesDate && !isActiveOrder) return false;
 
-            // 1. Match by vehicle id
+            // 1. Match by vehicle id or vehicle plate
             if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;
+            if (myTruck?.plate_number && o.vehicle_id && o.vehicle_id === myTruck.plate_number) return true;
 
             // 2. Match by truck plate
             const oPlateClean = cleanStr(o.truck_plate);

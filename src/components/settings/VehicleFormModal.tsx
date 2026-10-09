@@ -318,7 +318,7 @@ export default function VehicleFormModal({
             onChange={(e) => setTCompanion(e.target.value)}
           >
             <option value="">{t("Select Companion")}</option>
-            {employees.filter(e => e.role !== 'driver').map(e => (
+            {employees.filter(e => !e.is_deleted && !e.is_blocked && (e.role === 'driver_assistant' || e.role === 'driver')).map(e => (
               <option key={e.id} value={e.id}>{e.name} ({t(e.role)})</option>
             ))}
           </FormSelect>
