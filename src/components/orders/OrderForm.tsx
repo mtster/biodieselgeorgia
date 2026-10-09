@@ -204,7 +204,7 @@ export default function OrderForm({
       const driverObj = employees.find(e => e.id === finalOrder.driver_id);
       const companionObj = employees.find(e => e.id === finalOrder.companion_id);
       const truckObj = trucks.find(t => 
-        (finalOrder.vehicle_id && t.id === finalOrder.vehicle_id) || 
+        (finalOrder.vehicle_id && (t.id === finalOrder.vehicle_id || t.plate_number === finalOrder.vehicle_id)) || 
         (finalOrder.truck_plate && (t.plate_number === finalOrder.truck_plate || t.id === finalOrder.truck_plate))
       );
 
@@ -215,8 +215,8 @@ export default function OrderForm({
         vendor_name: (supplierObj?.trade_name || supplierObj?.company_name) || finalOrder.vendor_name || vendorSearch || '',
         warehouse_name: warehouseObj?.name || '',
         operator_name: operatorObj?.name || currentEmployee.name,
-        driver_name: driverObj?.name || '',
-        companion_name: companionObj?.name || ''
+        driver_name: driverObj?.name || finalOrder.driver_name || '',
+        companion_name: companionObj?.name || finalOrder.companion_name || ''
       };
 
       await onSave(final);

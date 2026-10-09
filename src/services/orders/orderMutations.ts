@@ -61,6 +61,19 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
           resolvedVehicleId = matched.id;
           finalOrder.vehicle_id = matched.id;
           if (matched.plate_number) finalOrder.truck_plate = matched.plate_number;
+        } else if (isSupabaseConfigured && supabase) {
+          try {
+            const { data: vRow } = await supabase
+              .from('vehicles')
+              .select('id, plate_number')
+              .eq('plate_number', plateCandidate)
+              .maybeSingle();
+            if (vRow && isValidUuid(vRow.id)) {
+              resolvedVehicleId = vRow.id;
+              finalOrder.vehicle_id = vRow.id;
+              if (vRow.plate_number) finalOrder.truck_plate = vRow.plate_number;
+            }
+          } catch (_) {}
         }
       }
 

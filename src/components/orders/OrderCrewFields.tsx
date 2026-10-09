@@ -20,7 +20,10 @@ export const OrderCrewFields: React.FC<OrderCrewFieldsProps> = ({
   fieldErrors,
   setFieldErrors
 }) => {
-  const currentVehicleValue = editingOrder.vehicle_id || trucks.find(t => t.plate_number === editingOrder.truck_plate)?.id || '';
+  const currentVehicleValue = editingOrder.vehicle_id || trucks.find(t => 
+    (editingOrder.truck_plate && t.plate_number === editingOrder.truck_plate) ||
+    (editingOrder.vehicle_id && (t.id === editingOrder.vehicle_id || t.plate_number === editingOrder.vehicle_id))
+  )?.id || editingOrder.vehicle_id || '';
 
   const handleVehicleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedVal = e.target.value;
@@ -43,14 +46,14 @@ export const OrderCrewFields: React.FC<OrderCrewFieldsProps> = ({
     const truck = trucks.find(t => t.id === selectedVal || t.plate_number === selectedVal);
     setEditingOrder(prev => {
       if (!prev) return null;
+      const assignedDriver = (truck?.driver_id && String(truck.driver_id).trim()) || prev.driver_id || '';
+      const assignedCompanion = (truck?.companion_id && String(truck.companion_id).trim()) || prev.companion_id || '';
       return {
         ...prev,
         vehicle_id: truck?.id || selectedVal,
-        truck_plate: truck?.plate_number || '',
-        // If the newly selected vehicle has driver assigned, fill it; otherwise explicitly clear it
-        driver_id: (truck?.driver_id && String(truck.driver_id).trim()) || '',
-        // If the newly selected vehicle has companion assigned, fill it; otherwise explicitly clear it
-        companion_id: (truck?.companion_id && String(truck.companion_id).trim()) || '',
+        truck_plate: truck?.plate_number || selectedVal || '',
+        driver_id: assignedDriver,
+        companion_id: assignedCompanion,
         status: 'driver_assigned'
       };
     });

@@ -8,6 +8,7 @@ import { CompletedOrderCard } from '../mobile-logistics/CompletedOrderCard';
 import { OrderCompletionModal } from '../mobile-logistics/OrderCompletionModal';
 import { OrderSequenceModal } from '../logistics/OrderSequenceModal';
 import { sortOrdersByRouteRank } from '../../utils/lexorank';
+import { cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser } from '../../services/roleDataService';
 
 interface Props {
   currentUser: User;
@@ -32,39 +33,20 @@ export default function MobileLogisticsView({
     setLocalOrders(orders);
   }, [orders]);
 
-  // Helper function to sanitize a string for comparison
-  const cleanStr = (str?: string) => str ? str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
-
   const uEmail = currentUser.email || '';
   const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
   const uEmailClean = cleanStr(uEmailPart);
   const uNameClean = cleanStr(currentUser.name);
+  const uNameNorm = normalizeText(currentUser.name);
   const uPidClean = cleanStr(currentUser.personal_id);
-  const uIdClean = cleanStr(currentUser.id);
+  const uPlateClean = cleanStr((currentUser as any).plate_number);
 
   // Match user's assigned vehicle (truck)
-  const myTruck = trucks.find(t => {
-    if (!t) return false;
-
-    // 1. Match by auth_user_id or vehicle id
-    if (t.auth_user_id && t.auth_user_id === currentUser.id) return true;
-    if (t.id && t.id === currentUser.id) return true;
-
-    // 2. Match by driver_id or companion_id
-    if (t.driver_id && (t.driver_id === currentUser.id || (currentUser.personal_id && t.driver_id === currentUser.personal_id))) return true;
-    if (t.companion_id && (t.companion_id === currentUser.id || (currentUser.personal_id && t.companion_id === currentUser.personal_id))) return true;
-
-    // 3. Match sanitized plate number
-    const tPlateClean = cleanStr(t.plate_number);
-    if (tPlateClean) {
-      if (uEmailClean && (tPlateClean === uEmailClean || tPlateClean.includes(uEmailClean) || uEmailClean.includes(tPlateClean))) return true;
-      if (uNameClean && (tPlateClean === uNameClean || tPlateClean.includes(uNameClean) || uNameClean.includes(tPlateClean))) return true;
-      if (uPidClean && tPlateClean === uPidClean) return true;
-      if (uIdClean && tPlateClean === uIdClean) return true;
-    }
-
-    return false;
-  });
+  const myTruck = findUserAssignedTruck(currentUser, trucks);
+  const userTrucks = trucks.filter(t => isVehicleMatchingUser(t, currentUser));
+  if (myTruck && !userTrucks.some(ut => ut.id === myTruck.id)) {
+    userTrucks.push(myTruck);
+  }
 
   // Helper to match an employee from employees list
   const findEmp = (idOrName?: string) => {
@@ -81,7 +63,7 @@ export default function MobileLogisticsView({
     if (exactMatch) return exactMatch;
 
     // 2. Exact name match
-    const nameMatch = employees.find(e => e && e.name && e.name.toLowerCase() === trimmed.toLowerCase());
+    const nameMatch = employees.find(e => e && e.name && normalizeText(e.name) === normalizeText(trimmed));
     if (nameMatch) return nameMatch;
 
     // 3. Name or email match if not a UUID
@@ -147,6 +129,16 @@ export default function MobileLogisticsView({
     return datePart === todayStr;
   };
 
+  // Set of plate strings that associate with this user/vehicle
+  const userPlateSet = new Set<string>();
+  if (uPlateClean) userPlateSet.add(uPlateClean);
+  if (uEmailClean) userPlateSet.add(uEmailClean);
+  if (uNameClean) userPlateSet.add(uNameClean);
+  if (uPidClean) userPlateSet.add(uPidClean);
+  userTrucks.forEach(t => {
+    if (t.plate_number) userPlateSet.add(cleanStr(t.plate_number));
+  });
+
   // Filter orders assigned to this vehicle or driver or plate
   const myOrders = localOrders.filter(o => {
     if (!o || o.is_deleted) return false;
@@ -155,34 +147,56 @@ export default function MobileLogisticsView({
     const isActive = o.status !== 'completed' && o.status !== 'cancelled';
     if (!isTodayOrder(o) && !isActive) return false;
 
-    // 1. Match by vehicle_id
-    if (myTruck?.id && o.vehicle_id && o.vehicle_id === myTruck.id) return true;
-    if (myTruck?.plate_number && o.vehicle_id && o.vehicle_id === myTruck.plate_number) return true;
+    // 1. Check vehicle linked on the order
+    const oVehicleId = o.vehicle_id;
+    const ordTruck = trucks.find(t => 
+      (oVehicleId && (t.id === oVehicleId || cleanStr(t.plate_number) === cleanStr(oVehicleId))) ||
+      (o.truck_plate && (cleanStr(t.plate_number) === cleanStr(o.truck_plate) || t.id === o.truck_plate))
+    );
 
-    // 2. Match by truck_plate (sanitized comparison)
-    const oPlateClean = cleanStr(o.truck_plate);
-    if (oPlateClean) {
-      if (myTruck?.plate_number && (cleanStr(myTruck.plate_number) === oPlateClean || cleanStr(myTruck.plate_number).includes(oPlateClean) || oPlateClean.includes(cleanStr(myTruck.plate_number)))) return true;
-      if (uEmailClean && (oPlateClean === uEmailClean || oPlateClean.includes(uEmailClean) || uEmailClean.includes(oPlateClean))) return true;
-      if (uNameClean && (oPlateClean === uNameClean || oPlateClean.includes(uNameClean) || uNameClean.includes(oPlateClean))) return true;
-      if (uPidClean && oPlateClean === uPidClean) return true;
+    if (ordTruck && userTrucks.some(ut => ut.id === ordTruck.id || cleanStr(ut.plate_number) === cleanStr(ordTruck.plate_number))) return true;
+    if (ordTruck && isVehicleMatchingUser(ordTruck, currentUser)) return true;
+
+    // 2. Match order vehicle ID directly
+    if (oVehicleId) {
+      if (myTruck?.id && oVehicleId === myTruck.id) return true;
+      if (myTruck?.plate_number && cleanStr(oVehicleId) === cleanStr(myTruck.plate_number)) return true;
+      if (userTrucks.some(ut => ut.id === oVehicleId || cleanStr(ut.plate_number) === cleanStr(oVehicleId))) return true;
+      if (userPlateSet.has(cleanStr(oVehicleId))) return true;
+      if (oVehicleId === currentUser.id) return true;
     }
 
-    // 3. Match by driver_id or companion_id
+    // 3. Match truck plate
+    const oPlateClean = cleanStr(o.truck_plate);
+    if (oPlateClean) {
+      if (userPlateSet.has(oPlateClean)) return true;
+      if (userTrucks.some(ut => {
+        const p = cleanStr(ut.plate_number);
+        return p && (p === oPlateClean || p.includes(oPlateClean) || oPlateClean.includes(p));
+      })) return true;
+    }
+
+    // 4. Match by driver_id or companion_id
     if (o.driver_id) {
       if (o.driver_id === currentUser.id || (currentUser.personal_id && o.driver_id === currentUser.personal_id)) return true;
-      if (myTruck?.driver_id && o.driver_id === myTruck.driver_id) return true;
+      if (userTrucks.some(ut => ut.driver_id && o.driver_id === ut.driver_id)) return true;
       if (driverObj?.id && o.driver_id === driverObj.id) return true;
     }
     if (o.companion_id) {
       if (o.companion_id === currentUser.id || (currentUser.personal_id && o.companion_id === currentUser.personal_id)) return true;
-      if (myTruck?.companion_id && o.companion_id === myTruck.companion_id) return true;
+      if (userTrucks.some(ut => ut.companion_id && o.companion_id === ut.companion_id)) return true;
       if (companionObj?.id && o.companion_id === companionObj.id) return true;
     }
 
-    // 4. Match by driver_name or companion_name text
-    if (o.driver_name && assignedDriverName !== 'არ არის მინიჭებული' && (cleanStr(o.driver_name) === cleanStr(assignedDriverName) || cleanStr(o.driver_name) === uNameClean)) return true;
-    if (o.companion_name && assignedCompanionName !== 'არ არის მინიჭებული' && (cleanStr(o.companion_name) === cleanStr(assignedCompanionName) || cleanStr(o.companion_name) === uNameClean)) return true;
+    // 5. Match by driver_name or companion_name text
+    if (o.driver_name) {
+      const oDrvNorm = normalizeText(o.driver_name);
+      if (oDrvNorm && (oDrvNorm === uNameNorm || (assignedDriverName && oDrvNorm === normalizeText(assignedDriverName)))) return true;
+    }
+    if (o.companion_name) {
+      const oCmpNorm = normalizeText(o.companion_name);
+      if (oCmpNorm && (oCmpNorm === uNameNorm || (assignedCompanionName && oCmpNorm === normalizeText(assignedCompanionName)))) return true;
+    }
 
     return false;
   });
