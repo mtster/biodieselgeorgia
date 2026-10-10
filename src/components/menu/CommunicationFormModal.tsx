@@ -361,15 +361,6 @@ export default function CommunicationFormModal({
         ? editingComm.is_completed 
         : editingComm.task_status === 'completed';
 
-      setLocalComm({ 
-        ...editingComm,
-        responsible_user_id: respId,
-        user_id: respId,
-        is_completed: isDone
-      });
-      setIsCompletedStatus(isDone);
-      setFieldErrors({});
-
       let initVName = '';
       const vId = editingComm.vendor_id ? String(editingComm.vendor_id).trim() : '';
       const cleanVId = vId.toLowerCase();
@@ -396,6 +387,17 @@ export default function CommunicationFormModal({
         setVendorSearch('');
       }
 
+      setLocalComm({ 
+        ...editingComm,
+        vendor_id: vId,
+        vendor_name: initVName || editingComm.vendor_name || '',
+        responsible_user_id: respId,
+        user_id: respId,
+        is_completed: isDone
+      });
+      setIsCompletedStatus(isDone);
+      setFieldErrors({});
+
       // Parse reminder_time into separate Date and Time
       let parsedRDate = '';
       let parsedRTime = '';
@@ -420,12 +422,11 @@ export default function CommunicationFormModal({
           parsedRDate = raw.includes('T') ? raw.split('T')[0] : raw;
           parsedRTime = '';
         }
-        setReminderDate(parsedRDate);
-        setReminderTime(parsedRTime);
-      } else {
-        setReminderDate('');
-        setReminderTime('');
+      } else if (editingComm.type === 'reminder') {
+        parsedRDate = new Date().toISOString().substring(0, 10);
       }
+      setReminderDate(parsedRDate);
+      setReminderTime(parsedRTime);
 
       initialSnapshotRef.current = {
         isNew: Boolean(isNew || !editingComm.id),

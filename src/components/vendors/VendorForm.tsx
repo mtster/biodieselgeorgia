@@ -5,7 +5,7 @@ import {
   Warehouse, User, City, District, Communication, Direction 
 } from '../../types';
 import { saveUser } from '../../services/userService';
-import { getVendorContacts } from '../../services/vendorService';
+import { getVendorContacts, generateUuid } from '../../services/vendorService';
 
 function getCleanUsername(u: string | undefined): string {
   if (!u) return '';
@@ -429,8 +429,12 @@ export default function VendorForm({
         finalUsername = '';
       }
 
+      const resolvedVendorId = editingVendor.id || generateUuid();
+      editingVendor.id = resolvedVendorId;
+
       const payload: Vendor = {
         ...editingVendor,
+        id: resolvedVendorId,
         company_code: editingVendor.company_code || editingVendor.id_code || 'N/A',
         contacts: tempContacts,
         user_id: finalUserId || undefined,
@@ -439,7 +443,7 @@ export default function VendorForm({
 
       try {
         const savedRes = await onSave(payload);
-        const finalSavedId = (savedRes && (savedRes as any).id) || payload.id || editingVendor.id;
+        const finalSavedId = (savedRes && (savedRes as any).id) || payload.id || resolvedVendorId;
         onSavingStateChange?.(false);
         if (onSuccessCallback) {
           onSuccessCallback(finalSavedId);

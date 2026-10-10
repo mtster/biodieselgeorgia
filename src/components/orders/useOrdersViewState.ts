@@ -137,17 +137,18 @@ export function useOrdersViewState({
   // Prefill order if navigated with vendor ID
   useEffect(() => {
     if (initialOrderVendorId) {
-      const sup = suppliers.find(s => s.id === initialOrderVendorId);
+      const cleanVId = String(initialOrderVendorId).trim().toLowerCase();
+      const sup = suppliers.find(s => s.id === initialOrderVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
       const defaultOrder: Order = {
         id: '',
         order_date: new Date().toISOString().substring(0, 16),
         doc_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
         vendor_id: initialOrderVendorId,
-        vendor_name: sup?.trade_name || '',
-        warehouse_id: warehouses[0]?.id || '',
-        qty_requested: 0,
-        tanks_to_leave: 0,
-        tanks_to_bring: 0,
+        vendor_name: sup?.trade_name || sup?.company_name || '',
+        warehouse_id: sup?.warehouse_id || warehouses[0]?.id || '',
+        qty_requested: undefined as any,
+        tanks_to_leave: undefined as any,
+        tanks_to_bring: undefined as any,
         operator_id: currentEmployee?.id || '',
         created_by: currentEmployee?.id || '',
         driver_id: '',
@@ -169,9 +170,9 @@ export function useOrdersViewState({
       doc_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
       vendor_id: '',
       warehouse_id: warehouses[0]?.id || '',
-      qty_requested: 0,
-      tanks_to_leave: 0,
-      tanks_to_bring: 0,
+      qty_requested: undefined as any,
+      tanks_to_leave: undefined as any,
+      tanks_to_bring: undefined as any,
       operator_id: currentEmployee?.id || '',
       created_by: currentEmployee?.id || '',
       driver_id: '',
@@ -200,21 +201,27 @@ export function useOrdersViewState({
     setShowBulkDeleteConfirm(false);
   };
 
-  const handleSaveFromForm = (finalOrder: Order) => {
-    onSave(finalOrder);
+  const handleSaveFromForm = async (finalOrder: Order) => {
+    const saved = await onSave(finalOrder);
     setEditingOrder(null);
+    return saved;
   };
 
   const handleSaveAndReminder = () => {
-    if (!formRef.current) return;
-    const navCallback = (vendorId: string) => {
+    const vendorIdFromEditing = editingOrder?.vendor_id;
+    const navCallback = (vendorId?: string) => {
+      const targetVendorId = vendorId || vendorIdFromEditing || '';
       setEditingOrder(null);
-      onNavigateToCommunicationsWithVendor?.(vendorId);
+      if (targetVendorId) {
+        onNavigateToCommunicationsWithVendor?.(targetVendorId);
+      }
     };
-    if (formRef.current.saveAndReminder) {
+    if (formRef.current?.saveAndReminder) {
       formRef.current.saveAndReminder(navCallback);
-    } else {
+    } else if (formRef.current?.save) {
       formRef.current.save(navCallback);
+    } else if (vendorIdFromEditing) {
+      navCallback(vendorIdFromEditing);
     }
   };
 

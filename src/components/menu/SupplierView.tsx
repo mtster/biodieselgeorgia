@@ -190,9 +190,9 @@ export default function SupplierView({
       vendor_id: currentUser.vendor_id || '',
       warehouse_id: warehouses[0]?.id || '',
       operator_id: currentUser.id,
-      qty_requested: 0,
-      tanks_to_leave: 0,
-      tanks_to_bring: 0,
+      qty_requested: undefined as any,
+      tanks_to_leave: undefined as any,
+      tanks_to_bring: undefined as any,
       fact_qty: undefined,
       fact_tank_dropoff: undefined,
       fact_tank_pickup: undefined,
@@ -360,7 +360,7 @@ export default function SupplierView({
                   step="0.01"
                   fontClass="font-mono font-bold"
                   value={editingOrder.qty_requested === undefined || editingOrder.qty_requested === null ? '' : editingOrder.qty_requested}
-                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, qty_requested: e.target.value === '' ? 0 : parseFloat(e.target.value) } : null)}
+                  onChange={(e) => setEditingOrder(prev => prev ? { ...prev, qty_requested: e.target.value === '' ? undefined as any : parseFloat(e.target.value) } : null)}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -370,7 +370,7 @@ export default function SupplierView({
                     type="number"
                     fontClass="font-mono"
                     value={editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null ? '' : editingOrder.tanks_to_leave}
-                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_leave: e.target.value === '' ? 0 : parseInt(e.target.value, 10) } : null)}
+                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_leave: e.target.value === '' ? undefined as any : parseInt(e.target.value, 10) } : null)}
                   />
 
                   {/* Tanks to bring field */}
@@ -379,7 +379,7 @@ export default function SupplierView({
                     type="number"
                     fontClass="font-mono"
                     value={editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null ? '' : editingOrder.tanks_to_bring}
-                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: e.target.value === '' ? 0 : parseInt(e.target.value, 10) } : null)}
+                    onChange={(e) => setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: e.target.value === '' ? undefined as any : parseInt(e.target.value, 10) } : null)}
                   />
                 </div>
               </div>

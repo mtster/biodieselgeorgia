@@ -157,24 +157,30 @@ export function useVendorsViewState({
   };
 
   const handleSaveAndOrder = () => {
-    if (!formRef.current) return;
-    const navCallback = (savedVendorId: string) => {
+    const vendorIdFromEditing = editingVendor?.id;
+    const navCallback = (savedVendorId?: string) => {
+      const targetVendorId = savedVendorId || vendorIdFromEditing || '';
       setEditingVendor(null);
-      onNavigateToOrdersWithVendor?.(savedVendorId);
+      if (targetVendorId) {
+        onNavigateToOrdersWithVendor?.(targetVendorId);
+      }
     };
-    if (formRef.current.saveAndOrder) {
+    if (formRef.current?.saveAndOrder) {
       formRef.current.saveAndOrder(navCallback);
-    } else {
+    } else if (formRef.current?.save) {
       formRef.current.save(navCallback);
+    } else if (vendorIdFromEditing) {
+      navCallback(vendorIdFromEditing);
     }
   };
 
-  const handleSaveFromForm = (finalVendor: Vendor) => {
-    onSave(finalVendor);
+  const handleSaveFromForm = async (finalVendor: Vendor) => {
+    const res = await onSave(finalVendor);
     setEditingVendor(null);
     onClearInitialVendorId?.();
     queryClient.invalidateQueries({ queryKey: ['vendors'] });
     refetchVendors();
+    return res;
   };
 
   const askDelete = (id: string, name: string) => {

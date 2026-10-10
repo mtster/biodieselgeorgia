@@ -158,14 +158,19 @@ export default function OrderForm({
     if (!editingOrder.warehouse_id) {
       errs.warehouse_id = 'გთხოვთ აირჩიოთ დანიშნულების საწყობი.';
     }
-    if (editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null || isNaN(editingOrder.tanks_to_bring)) {
+
+    const cleanVendorId = String(editingOrder.vendor_id || '').trim().toLowerCase();
+    const supplierObj = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
+    const effectiveContactId = editingOrder.contact_id || supplierObj?.contacts?.find(c => c.is_default)?.id || supplierObj?.contacts?.[0]?.id || '';
+    if (!effectiveContactId && supplierObj?.contacts && supplierObj.contacts.length > 0) {
+      errs.contact_id = 'გთხოვთ აირჩიოთ კონტაქტი.';
+    }
+
+    if (editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null || isNaN(editingOrder.tanks_to_bring) || (editingOrder.tanks_to_bring as any) === '') {
       errs.tanks_to_bring = 'ავზების წამოღება სავალდებულოა.';
     }
-    if (editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null || isNaN(editingOrder.tanks_to_leave)) {
+    if (editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null || isNaN(editingOrder.tanks_to_leave) || (editingOrder.tanks_to_leave as any) === '') {
       errs.tanks_to_leave = 'ავზების დატოვება სავალდებულოა.';
-    }
-    if (!editingOrder.contact_id) {
-      errs.contact_id = 'გთხოვთ აირჩიოთ კონტაქტი.';
     }
 
     if (Object.keys(errs).length > 0) {
@@ -197,8 +202,6 @@ export default function OrderForm({
         }
       }
 
-      const cleanVendorId = String(finalOrder.vendor_id || '').trim().toLowerCase();
-      const supplierObj = suppliers.find(s => s.id === finalOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
       const warehouseObj = warehouses.find(w => w.id === finalOrder.warehouse_id);
       const operatorObj = employees.find(e => e.id === finalOrder.operator_id);
       const driverObj = employees.find(e => e.id === finalOrder.driver_id);
@@ -208,8 +211,15 @@ export default function OrderForm({
         (finalOrder.truck_plate && (t.plate_number === finalOrder.truck_plate || t.id === finalOrder.truck_plate))
       );
 
+      const finalVendorId = finalOrder.vendor_id || editingOrder.vendor_id;
+
       const final: Order = {
         ...finalOrder,
+        vendor_id: finalVendorId,
+        contact_id: effectiveContactId || finalOrder.contact_id,
+        qty_requested: (finalOrder.qty_requested !== undefined && finalOrder.qty_requested !== null && !isNaN(finalOrder.qty_requested)) ? Number(finalOrder.qty_requested) : undefined,
+        tanks_to_bring: (finalOrder.tanks_to_bring !== undefined && finalOrder.tanks_to_bring !== null && !isNaN(finalOrder.tanks_to_bring)) ? Number(finalOrder.tanks_to_bring) : 0,
+        tanks_to_leave: (finalOrder.tanks_to_leave !== undefined && finalOrder.tanks_to_leave !== null && !isNaN(finalOrder.tanks_to_leave)) ? Number(finalOrder.tanks_to_leave) : 0,
         vehicle_id: truckObj?.id || finalOrder.vehicle_id || undefined,
         truck_plate: truckObj?.plate_number || finalOrder.truck_plate || '',
         vendor_name: (supplierObj?.trade_name || supplierObj?.company_name) || finalOrder.vendor_name || vendorSearch || '',
@@ -220,9 +230,10 @@ export default function OrderForm({
       };
 
       await onSave(final);
+      const targetVendorId = finalVendorId;
       onSavingStateChange?.(false);
       if (onSuccessCallback) {
-        onSuccessCallback(final.vendor_id);
+        onSuccessCallback(targetVendorId);
       }
     } catch (err) {
       onSavingStateChange?.(false);
