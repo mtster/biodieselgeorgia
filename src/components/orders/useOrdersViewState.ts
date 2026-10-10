@@ -15,6 +15,7 @@ interface UseOrdersViewStateParams {
   onDelete: (id: string, docNum: string) => void;
   initialOrderVendorId?: string;
   onClearInitialOrderVendorId?: () => void;
+  onNavigateToCommunicationsWithVendor?: (vendorId: string) => void;
 }
 
 export function useOrdersViewState({
@@ -26,7 +27,8 @@ export function useOrdersViewState({
   onSave,
   onDelete,
   initialOrderVendorId,
-  onClearInitialOrderVendorId
+  onClearInitialOrderVendorId,
+  onNavigateToCommunicationsWithVendor
 }: UseOrdersViewStateParams) {
   const canAdd = currentEmployee?.role === 'admin' || (currentEmployee?.permissions?.['orders']?.includes('add') ?? false);
   const canModify = currentEmployee?.role === 'admin' || (currentEmployee?.permissions?.['orders']?.includes('modify') ?? false);
@@ -112,7 +114,7 @@ export function useOrdersViewState({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmDocNum, setDeleteConfirmDocNum] = useState<string | null>(null);
 
-  const formRef = useRef<{ save: () => void; fillDummy: () => void; saveAndReminder?: (onSuccess?: (vendorId: string) => void) => void }>(null);
+  const formRef = useRef<{ save: (onSuccess?: (vendorId: string) => void) => void; fillDummy: () => void; saveAndReminder?: (onSuccess?: (vendorId: string) => void) => void }>(null);
 
   const loadSMSLogs = async () => {
     try {
@@ -205,10 +207,14 @@ export function useOrdersViewState({
 
   const handleSaveAndReminder = () => {
     if (!formRef.current) return;
+    const navCallback = (vendorId: string) => {
+      setEditingOrder(null);
+      onNavigateToCommunicationsWithVendor?.(vendorId);
+    };
     if (formRef.current.saveAndReminder) {
-      formRef.current.saveAndReminder();
+      formRef.current.saveAndReminder(navCallback);
     } else {
-      formRef.current.save();
+      formRef.current.save(navCallback);
     }
   };
 

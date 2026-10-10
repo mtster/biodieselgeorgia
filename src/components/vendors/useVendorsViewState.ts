@@ -12,6 +12,7 @@ interface UseVendorsViewStateParams {
   onDelete: (id: string, tradeName: string) => void;
   initialVendorId?: string;
   onClearInitialVendorId?: () => void;
+  onNavigateToOrdersWithVendor?: (vendorId: string) => void;
 }
 
 export function useVendorsViewState({
@@ -20,7 +21,8 @@ export function useVendorsViewState({
   onSave,
   onDelete,
   initialVendorId,
-  onClearInitialVendorId
+  onClearInitialVendorId,
+  onNavigateToOrdersWithVendor
 }: UseVendorsViewStateParams) {
   const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('add');
   const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['suppliers']?.includes('modify');
@@ -108,7 +110,7 @@ export function useVendorsViewState({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState<string | null>(null);
 
-  const formRef = useRef<{ save: () => void; fillDummy: () => void; saveAndOrder?: () => void }>(null);
+  const formRef = useRef<{ save: (onSuccess?: (savedVendorId: string) => void) => void; fillDummy: () => void; saveAndOrder?: (onSuccess?: (savedVendorId: string) => void) => void }>(null);
 
   const scrollMainToTop = () => {
     setTimeout(() => {
@@ -156,10 +158,14 @@ export function useVendorsViewState({
 
   const handleSaveAndOrder = () => {
     if (!formRef.current) return;
+    const navCallback = (savedVendorId: string) => {
+      setEditingVendor(null);
+      onNavigateToOrdersWithVendor?.(savedVendorId);
+    };
     if (formRef.current.saveAndOrder) {
-      formRef.current.saveAndOrder();
+      formRef.current.saveAndOrder(navCallback);
     } else {
-      formRef.current.save();
+      formRef.current.save(navCallback);
     }
   };
 

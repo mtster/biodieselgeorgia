@@ -117,7 +117,8 @@ export default function OrdersView({
     onSave,
     onDelete,
     initialOrderVendorId: effectiveInitialVendorId,
-    onClearInitialOrderVendorId: effectiveClearInitialVendorId
+    onClearInitialOrderVendorId: effectiveClearInitialVendorId,
+    onNavigateToCommunicationsWithVendor
   });
 
   return (

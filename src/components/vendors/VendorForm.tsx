@@ -51,7 +51,7 @@ interface Props {
   currentUser: User;
   onSave: (vendor: Vendor) => Promise<any> | void;
   onCancel: () => void;
-  formRef?: React.RefObject<{ save: () => void; fillDummy: () => void; saveAndOrder?: (onSuccess?: (savedVendorId: string) => void) => void }>;
+  formRef?: React.RefObject<{ save: (onSuccess?: (savedVendorId: string) => void) => void; fillDummy: () => void; saveAndOrder?: (onSuccess?: (savedVendorId: string) => void) => void }>;
   isReadOnly?: boolean;
 
   communications?: Communication[];
@@ -163,7 +163,7 @@ export default function VendorForm({
   }, [tempContacts]);
 
   React.useImperativeHandle(formRef, () => ({
-    save: () => handleSaveAll(),
+    save: (onSuccess?: (savedVendorId: string) => void) => handleSaveAll(onSuccess),
     fillDummy: fillDummyData,
     saveAndOrder: (onSuccess?: (savedVendorId: string) => void) => handleSaveAll(onSuccess)
   }));

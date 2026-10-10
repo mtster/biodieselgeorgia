@@ -108,7 +108,8 @@ export default function VendorsView({
     onSave,
     onDelete,
     initialVendorId,
-    onClearInitialVendorId
+    onClearInitialVendorId,
+    onNavigateToOrdersWithVendor
   });
 
   return (

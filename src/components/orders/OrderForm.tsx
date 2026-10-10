@@ -17,7 +17,7 @@ interface Props {
   onSave: (order: Order) => Promise<void> | void;
   onCancel: () => void;
   formRef?: React.RefObject<{ 
-    save: () => void; 
+    save: (onSuccess?: (vendorId: string) => void) => void; 
     fillDummy: () => void;
     saveAndReminder?: (onSuccess?: (vendorId: string) => void) => void;
   }>;
@@ -231,7 +231,7 @@ export default function OrderForm({
   };
 
   React.useImperativeHandle(formRef, () => ({
-    save: () => handleSaveAll(),
+    save: (onSuccess?: (vendorId: string) => void) => handleSaveAll(onSuccess),
     fillDummy: fillDummyOrder,
     saveAndReminder: (onSuccess?: (vendorId: string) => void) => handleSaveAll(onSuccess)
   }));
