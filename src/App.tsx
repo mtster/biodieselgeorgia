@@ -203,6 +203,7 @@ export default function App() {
                 trucks={trucks}
                 warehouses={warehouses}
                 communications={communications}
+                currentUser={currentUser}
                 onSelectReminder={(comm) => {
                   setSelectedCommunication(comm);
                   setActiveTab('communications');

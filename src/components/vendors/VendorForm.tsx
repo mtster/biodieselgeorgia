@@ -53,6 +53,7 @@ interface Props {
   onCancel: () => void;
   formRef?: React.RefObject<{ save: (onSuccess?: (savedVendorId: string) => void) => void; fillDummy: () => void; saveAndOrder?: (onSuccess?: (savedVendorId: string) => void) => void }>;
   isReadOnly?: boolean;
+  isNew?: boolean;
 
   communications?: Communication[];
   onSaveCommunication?: (comm: Communication) => Promise<void> | void;
@@ -73,11 +74,13 @@ export default function VendorForm({
   onCancel,
   formRef,
   isReadOnly = false,
+  isNew: isNewProp,
   communications = [],
   onSaveCommunication,
   onDeleteCommunication,
   onSavingStateChange
 }: Props) {
+  const isNew = isNewProp !== undefined ? isNewProp : !editingVendor.id;
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title: string; errorMsg: string }>({
     isOpen: false,
@@ -165,7 +168,13 @@ export default function VendorForm({
   React.useImperativeHandle(formRef, () => ({
     save: (onSuccess?: (savedVendorId: string) => void) => handleSaveAll(onSuccess),
     fillDummy: fillDummyData,
-    saveAndOrder: (onSuccess?: (savedVendorId: string) => void) => handleSaveAll(onSuccess)
+    saveAndOrder: (onSuccess?: (savedVendorId: string) => void) => {
+      if (!isNew && editingVendor.id && !hasVendorChanges()) {
+        onSuccess?.(editingVendor.id);
+        return;
+      }
+      handleSaveAll(onSuccess);
+    }
   }));
 
   // Contacts Actions
@@ -327,6 +336,19 @@ export default function VendorForm({
   };
 
   const handleSaveAll = async (onSuccessCallback?: (savedVendorId: string) => void) => {
+    // 1. If this is an existing supplier and no user changes were made, immediately transition or close
+    if (!isNew && editingVendor.id && !hasVendorChanges()) {
+      onSavingStateChange?.(false);
+      if (onSuccessCallback) {
+        // Direct transition on "Save and Order" without network delay
+        onSuccessCallback(editingVendor.id);
+      } else {
+        // Direct close on "Save"
+        onCancel();
+      }
+      return;
+    }
+
     const errs: Record<string, string> = {};
 
     if (!editingVendor.trade_name || !editingVendor.trade_name.trim()) {
@@ -347,7 +369,9 @@ export default function VendorForm({
     if (!editingVendor.direction_id) {
       errs.direction_id = 'მიმართულება სავალდებულოა.';
     }
-    if (tempContacts.length === 0) {
+    
+    const effectiveContacts = tempContacts.length > 0 ? tempContacts : (editingVendor.contacts || []);
+    if (isNew && effectiveContacts.length === 0) {
       errs.contacts = 'სულ მცირე ერთი კონტაქტი უნდა იყოს დამატებული.';
     }
 
@@ -377,10 +401,8 @@ export default function VendorForm({
     if (!hasVendorChanges()) {
       onSavingStateChange?.(false);
       if (onSuccessCallback) {
-        // Direct transition on "Save and Order" without network delay
         onSuccessCallback(editingVendor.id);
       } else {
-        // Direct close on "Save"
         onCancel();
       }
       return;
@@ -436,7 +458,7 @@ export default function VendorForm({
         ...editingVendor,
         id: resolvedVendorId,
         company_code: editingVendor.company_code || editingVendor.id_code || 'N/A',
-        contacts: tempContacts,
+        contacts: tempContacts.length > 0 ? tempContacts : (editingVendor.contacts || []),
         user_id: finalUserId || undefined,
         username: finalUsername || undefined
       };

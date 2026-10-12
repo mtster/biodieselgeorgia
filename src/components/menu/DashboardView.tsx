@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Vendor, Order, User, Truck, Communication, Warehouse } from '../../types';
 import { 
   Building2, ShoppingBag, Truck as TruckIcon, 
-  Users, Fuel, Calendar, HelpCircle 
+  Users, Fuel, Calendar, HelpCircle, User as UserIcon, ChevronDown 
 } from 'lucide-react';
 import { t } from '../../utils/lang';
 import { getActiveOrdersCount } from '../../lib/db';
@@ -16,6 +16,7 @@ interface Props {
   trucks: Truck[];
   warehouses?: Warehouse[];
   communications?: Communication[];
+  currentUser?: User;
   onNavigate: (tab: string) => void;
   onSelectReminder?: (comm: Communication) => void;
 }
@@ -29,6 +30,7 @@ export default function DashboardView({
   trucks, 
   warehouses = [],
   communications = [], 
+  currentUser,
   onNavigate,
   onSelectReminder
 }: Props) {
@@ -48,21 +50,120 @@ export default function DashboardView({
   const totalLiters = orders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  
-  const todayReminders = (communications || []).filter(c => {
-    if (c.is_deleted || c.type !== 'reminder' || !c.reminder_time) return false;
-    if (c.has_time) {
-      const d = new Date(c.reminder_time);
-      if (!isNaN(d.getTime())) {
-        const dStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-        return dStr === todayStr;
+  // Filter all users except driver and driver assistants
+  const eligibleUsers = useMemo(() => {
+    const excludedRoles = ['driver', 'driver_assistant', 'assistant_driver', 'assistant'];
+    const map = new Map<string, User>();
+    (employees || []).forEach(e => {
+      const r = (e.role || '').toLowerCase().trim();
+      if (!e.is_deleted && !excludedRoles.includes(r)) {
+        map.set(e.id, e);
+      }
+    });
+    if (currentUser && !currentUser.is_deleted) {
+      const curRole = (currentUser.role || '').toLowerCase().trim();
+      if (!excludedRoles.includes(curRole)) {
+        map.set(currentUser.id, currentUser);
       }
     }
-    return c.reminder_time.split('T')[0] === todayStr;
-  });
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ka'));
+  }, [employees, currentUser]);
+
+  // Pre-choose the currently logged in user when app loads
+  const [selectedUserId, setSelectedUserId] = useState<string>(() => currentUser?.id || '');
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      setSelectedUserId(currentUser.id);
+    }
+  }, [currentUser?.id]);
+
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayYear = now.getFullYear();
+  const todayMonth = now.getMonth();
+  const todayDate = now.getDate();
+  const todayStr = `${todayYear}-${pad(todayMonth + 1)}-${pad(todayDate)}`;
+
+  // Also calculate current date in Georgia / Tbilisi timezone (Asia/Tbilisi UTC+4)
+  const tbilisiTodayStr = (() => {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(now);
+    } catch {
+      return todayStr;
+    }
+  })();
+
+  const isReminderForToday = (c: Communication): boolean => {
+    if (c.is_deleted) return false;
+    const hasReminderTime = !!c.reminder_time && String(c.reminder_time).trim().length > 0;
+    const isReminderType = (c.type || '').toString().toLowerCase().trim() === 'reminder';
+    if (!hasReminderTime && !isReminderType) return false;
+
+    const raw = String(c.reminder_time || c.date_time || '').trim();
+    if (!raw) return false;
+
+    // 1. Direct string match for YYYY-MM-DD against local or Tbilisi date
+    if (raw.startsWith(todayStr) || raw.startsWith(tbilisiTodayStr)) return true;
+    const datePart = raw.split('T')[0].split(' ')[0];
+    if (datePart === todayStr || datePart === tbilisiTodayStr) return true;
+
+    // Extract YYYY-MM-DD pattern from string
+    const match = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (match) {
+      const extractedDate = `${match[1]}-${pad(Number(match[2]))}-${pad(Number(match[3]))}`;
+      if (extractedDate === todayStr || extractedDate === tbilisiTodayStr) return true;
+    }
+
+    // 2. Parse Date and check local user timezone, Georgia (Tbilisi) timezone, and UTC
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      // Local client date
+      if (d.getFullYear() === todayYear && d.getMonth() === todayMonth && d.getDate() === todayDate) {
+        return true;
+      }
+      // Tbilisi timezone (Asia/Tbilisi UTC+4)
+      try {
+        const remTbilisiStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
+        if (remTbilisiStr === tbilisiTodayStr || remTbilisiStr === todayStr) return true;
+      } catch {}
+      // UTC date check (in case stored as UTC without local conversion)
+      const utcDateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+      if (utcDateStr === todayStr || utcDateStr === tbilisiTodayStr) return true;
+    }
+
+    return false;
+  };
+
+  const allTodayReminders = useMemo(() => {
+    return (communications || []).filter(isReminderForToday);
+  }, [communications, todayStr, tbilisiTodayStr]);
+
+  const filteredTodayReminders = useMemo(() => {
+    if (!selectedUserId || selectedUserId === 'all') {
+      return allTodayReminders;
+    }
+
+    const selectedEmployee = eligibleUsers.find(e => e.id === selectedUserId) || employees.find(e => e.id === selectedUserId);
+    const selectedEmpName = (selectedEmployee?.name || '').toLowerCase().trim();
+    const selId = selectedUserId.toLowerCase().trim();
+
+    return allTodayReminders.filter(rem => {
+      // Check ID on all potential user fields
+      if (rem.responsible_user_id && String(rem.responsible_user_id).toLowerCase().trim() === selId) return true;
+      if (rem.user_id && String(rem.user_id).toLowerCase().trim() === selId) return true;
+      if (rem.created_by && String(rem.created_by).toLowerCase().trim() === selId) return true;
+      
+      // Check names
+      if (selectedEmpName) {
+        if (rem.responsible_user_name && rem.responsible_user_name.toLowerCase().trim() === selectedEmpName) return true;
+        if (rem.user_name && rem.user_name.toLowerCase().trim() === selectedEmpName) return true;
+        if (rem.created_by && rem.created_by.toLowerCase().trim() === selectedEmpName) return true;
+      }
+
+      return false;
+    });
+  }, [allTodayReminders, selectedUserId, eligibleUsers, employees]);
 
   return (
     <div className="space-y-6 pt-4 md:pt-6" id="dashboard-view-panel">
@@ -221,20 +322,46 @@ export default function DashboardView({
 
         {/* Reminders panel */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
-          <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+          <div className="flex items-center justify-between border-b border-gray-50 pb-3 gap-2">
             <h3 className="font-extrabold text-sm text-gray-800">{t("Reminders")}</h3>
-            <span className="text-[10px] font-extrabold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full">
-              {todayReminders.length}
-            </span>
+
+            <div className="flex items-center gap-2">
+              {/* User icon button filter dropdown */}
+              <div className="relative inline-flex items-center" title={t("Filter by user") || "მომხმარებლით გაფილტვრა"}>
+                <div className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 border border-gray-200/90 rounded-lg px-2 py-1 text-xs transition shadow-2xs cursor-pointer">
+                  <UserIcon size={13} className="text-emerald-700 shrink-0" />
+                  <ChevronDown size={11} className="text-gray-400 shrink-0" />
+                </div>
+                <select
+                  id="dashboard-reminders-user-filter"
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  title={t("Filter by user") || "მომხმარებლით გაფილტვრა"}
+                >
+                  <option value="all">{t("All Users")}</option>
+                  {eligibleUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reminders count badge */}
+              <span className="text-[10px] font-extrabold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full border border-rose-100/60">
+                {filteredTodayReminders.length}
+              </span>
+            </div>
           </div>
 
           <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
-            {todayReminders.length === 0 ? (
+            {filteredTodayReminders.length === 0 ? (
               <p className="text-xs text-gray-400 text-center py-6">
                 {t("No reminders for today.")}
               </p>
             ) : (
-              todayReminders.map(rem => {
+              filteredTodayReminders.map(rem => {
                 const supplier = suppliers.find(s => s.id === rem.vendor_id);
                 const hasTime = !!rem.has_time;
                 const reminderDate = rem.reminder_time ? new Date(rem.reminder_time) : null;

@@ -283,20 +283,35 @@ export async function getCommunicationsPaginated(
   };
 }
 
-export async function getCommunications(limit = 100): Promise<Communication[]> {
+export async function getCommunications(limit = 300): Promise<Communication[]> {
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
+      const { data: recentData } = await supabase
         .from('communications')
         .select('*')
         .eq('is_deleted', false)
         .order('date_time', { ascending: false })
         .limit(limit);
-      if (!error && data) {
-        const vendorIds = (data as any[]).map(item => item.vendor_id).filter(Boolean);
+
+      // Also specifically fetch reminders to guarantee older creation date reminders with today's reminder_time are loaded
+      const { data: reminderData } = await supabase
+        .from('communications')
+        .select('*')
+        .eq('is_deleted', false)
+        .or('type.eq.reminder,reminder_time.not.is.null')
+        .order('reminder_time', { ascending: false })
+        .limit(300);
+
+      const combinedMap = new Map<string, any>();
+      (recentData || []).forEach((item: any) => combinedMap.set(item.id, item));
+      (reminderData || []).forEach((item: any) => combinedMap.set(item.id, item));
+      const combined = Array.from(combinedMap.values());
+
+      if (combined.length > 0) {
+        const vendorIds = combined.map(item => item.vendor_id).filter(Boolean);
         const vendorMap = await resolveVendorsMap(vendorIds);
 
-        return (data as any[]).map(c => {
+        return combined.map(c => {
           const isDone = typeof c.is_completed === 'boolean' ? c.is_completed : (c.task_status === 'completed' || c.task_status === 'done');
           const cleanVId = c.vendor_id ? String(c.vendor_id).trim().toLowerCase() : '';
           const v = c.vendor_id ? (vendorMap.get(c.vendor_id) || vendorMap.get(cleanVId)) : null;

@@ -158,6 +158,7 @@ export default function VendorsView({
           onSaveCommunication={onSaveCommunication}
           onDeleteCommunication={onDeleteCommunication}
           isReadOnly={isReadOnly}
+          isNew={isNew}
           onSavingStateChange={setIsFormSaving}
         />
       ) : (

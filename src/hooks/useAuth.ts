@@ -36,9 +36,9 @@ export function useAuth() {
         } else {
           const secureUser = decodeProfile(dbUser);
           secureUser.role = dbUser.role || session.user.app_metadata?.role || session.user.user_metadata?.role || secureUser.role;
-          if (secureUser.permissions === undefined || secureUser.permissions === null) {
+          if (!secureUser.permissions || Object.keys(secureUser.permissions).length === 0) {
             const metaPerms = session.user.app_metadata?.permissions || session.user.user_metadata?.permissions;
-            if (metaPerms) {
+            if (metaPerms && Object.keys(metaPerms).length > 0) {
               secureUser.permissions = metaPerms;
             } else if (defaultPermissions[secureUser.role]) {
               secureUser.permissions = JSON.parse(JSON.stringify(defaultPermissions[secureUser.role]));

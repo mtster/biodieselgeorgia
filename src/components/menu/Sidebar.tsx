@@ -18,6 +18,36 @@ interface SidebarProps {
   onLogOut: () => void;
 }
 
+function getUserRoleLabel(role?: string): string {
+  switch ((role || '').toLowerCase().trim()) {
+    case 'admin':
+    case 'super_admin':
+      return 'ადმინისტრატორი';
+    case 'manager':
+      return 'მენეჯერი';
+    case 'purchasing_head':
+      return 'შესყიდვების ხელმძღვანელი';
+    case 'purchasing_manager':
+      return 'შესყიდვების მენეჯერი';
+    case 'operator':
+      return 'ოპერატორი';
+    case 'logistics_manager':
+      return 'ლოჯისტიკის მენეჯერი';
+    case 'driver':
+      return 'მძღოლი';
+    case 'driver_assistant':
+    case 'assistant_driver':
+    case 'assistant':
+      return 'მძღოლის დამხმარე';
+    case 'warehouse_manager':
+      return 'საწყობის მენეჯერი';
+    case 'vendor':
+      return 'მომწოდებელი';
+    default:
+      return 'თანამშრომელი';
+  }
+}
+
 export default function Sidebar({
   currentUser,
   activeTab,
@@ -164,16 +194,16 @@ export default function Sidebar({
       </div>
 
       {/* Profile and signout */}
-      <div className="p-3.5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800 bg-slate-950/20 select-none">
-        <PWAInstallButton className="w-full mb-2.5 justify-center" />
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-xs text-slate-200 uppercase shrink-0">
+      <div className="p-2.5 pb-[calc(0.6rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800 bg-slate-950/20 select-none">
+        <PWAInstallButton className="w-full mb-2 justify-center text-xs py-1" />
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-[11px] text-slate-200 uppercase shrink-0">
             {currentUser.name.slice(0, 2)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-white truncate">{currentUser.name}</p>
-            <span className="text-xs text-emerald-400 font-medium block truncate">
-              {currentUser.role === 'admin' ? t('Administrator') : t('Staff')}
+            <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+            <span className="text-[11px] text-emerald-400 font-medium block truncate">
+              {getUserRoleLabel(currentUser.role)}
             </span>
           </div>
         </div>
@@ -181,9 +211,9 @@ export default function Sidebar({
         <button 
           onClick={onLogOut}
           type="button"
-          className="w-full py-2.5 bg-slate-800/80 hover:bg-red-900 border border-slate-700/50 hover:border-red-950 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full py-1.5 px-2 bg-slate-800/80 hover:bg-red-900 border border-slate-700/50 hover:border-red-950 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
         >
-          <LogOut size={14} />
+          <LogOut size={13} />
           {t("Log Out")}
         </button>
       </div>

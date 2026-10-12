@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { User } from '../types';
 import { appCache } from '../utils/cache';
+import { defaultPermissions } from '../components/users/UserForm';
 
 // Relational dependency map: maps updated DB table to all dependent Query Keys
 export const DB_DEPENDENCY_MAP: Record<string, string[]> = {
@@ -125,14 +126,16 @@ export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DEL
  */
 export function hasModuleViewPermission(currentUser: User | null, moduleName: string): boolean {
   if (!currentUser) return false;
-  if (currentUser.role === 'admin') return true;
+  if (currentUser.role === 'admin' || currentUser.role === 'manager') return true;
   if (currentUser.role === 'driver' || currentUser.role === 'driver_assistant') {
     return moduleName === 'orders' || moduleName === 'logistics' || moduleName === 'directions';
   }
   if (currentUser.role === 'vendor') {
     return moduleName === 'orders' || moduleName === 'vendors' || moduleName === 'suppliers';
   }
-  const userPerms = (currentUser.permissions || {}) as Record<string, any>;
+  const userPerms = (currentUser.permissions && Object.keys(currentUser.permissions).length > 0)
+    ? (currentUser.permissions as Record<string, any>)
+    : ((defaultPermissions[currentUser.role] || {}) as Record<string, any>);
   let modulePerms = userPerms[moduleName];
   if (modulePerms === undefined) {
     if (moduleName === 'users') modulePerms = userPerms['employees'];

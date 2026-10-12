@@ -37,8 +37,8 @@ export function decodeProfile(p: any): User {
     }
   }
 
-  // If perms is null/undefined, initialize with defaultPermissions for role
-  if (perms === null || perms === undefined) {
+  // If perms is null/undefined or empty object, initialize with defaultPermissions for role
+  if (!perms || (typeof perms === 'object' && Object.keys(perms).length === 0)) {
     perms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
   }
 

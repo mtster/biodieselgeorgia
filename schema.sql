@@ -102,12 +102,11 @@ ALTER TABLE public.profiles ALTER COLUMN email DROP NOT NULL;
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
 -- Standardize and map legacy roles to clean, standard roles
-UPDATE public.profiles SET role = 'purchasing_head' WHERE role = 'manager';
-UPDATE public.profiles SET role = 'operator' WHERE role NOT IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver', 'driver_assistant');
+UPDATE public.profiles SET role = 'operator' WHERE role NOT IN ('admin', 'manager', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver', 'driver_assistant', 'vendor');
 
 -- Enforce check constraint to only allow standardized role names
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS check_valid_role;
-ALTER TABLE public.profiles ADD CONSTRAINT check_valid_role CHECK (role IN ('admin', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver', 'driver_assistant'));
+ALTER TABLE public.profiles ADD CONSTRAINT check_valid_role CHECK (role IN ('admin', 'manager', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager', 'driver', 'driver_assistant', 'vendor'));
 
 -- 5. Vehicles
 CREATE TABLE IF NOT EXISTS public.vehicles (
@@ -488,23 +487,38 @@ BEGIN
     RETURN true;
   END IF;
 
-  -- 2. Admin in JWT token app_metadata (tamper-proof, set only by database/backend)
-  jwt_role := COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '');
-  IF jwt_role = 'admin' THEN
+  -- 2. Admin & Manager in JWT token claims
+  jwt_role := COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role', '');
+  IF jwt_role IN ('admin', 'manager') THEN
     RETURN true;
   END IF;
 
-  -- 3. Check verified JWT app_metadata claims for permissions
-  jwt_perms := auth.jwt() -> 'app_metadata' -> 'permissions';
+  -- 3. Check verified JWT claims for permissions (supporting module aliases)
+  jwt_perms := COALESCE(auth.jwt() -> 'app_metadata' -> 'permissions', auth.jwt() -> 'user_metadata' -> 'permissions');
   IF jwt_perms IS NOT NULL AND jsonb_typeof(jwt_perms) = 'object' THEN
-    IF (jwt_perms -> module) IS NOT NULL AND jsonb_typeof(jwt_perms -> module) = 'array' THEN
-      RETURN (jwt_perms -> module) ? perm;
+    IF (jwt_perms -> module) IS NOT NULL AND jsonb_typeof(jwt_perms -> module) = 'array' AND (jwt_perms -> module) ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'suppliers' AND (jwt_perms -> 'vendors') IS NOT NULL AND jsonb_typeof(jwt_perms -> 'vendors') = 'array' AND (jwt_perms -> 'vendors') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'vendors' AND (jwt_perms -> 'suppliers') IS NOT NULL AND jsonb_typeof(jwt_perms -> 'suppliers') = 'array' AND (jwt_perms -> 'suppliers') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'users' AND (jwt_perms -> 'employees') IS NOT NULL AND jsonb_typeof(jwt_perms -> 'employees') = 'array' AND (jwt_perms -> 'employees') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'employees' AND (jwt_perms -> 'users') IS NOT NULL AND jsonb_typeof(jwt_perms -> 'users') = 'array' AND (jwt_perms -> 'users') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'vehicles' AND (jwt_perms -> 'trucks') IS NOT NULL AND jsonb_typeof(jwt_perms -> 'trucks') = 'array' AND (jwt_perms -> 'trucks') ? perm THEN
+      RETURN true;
     END IF;
   END IF;
 
   -- 4. Vehicle / Driver accounts
   IF jwt_role IN ('vehicle', 'driver') THEN
-    IF module IN ('vehicles', 'orders', 'suppliers', 'warehouses', 'cities', 'districts', 'directions', 'contacts') AND perm = 'view' THEN
+    IF module IN ('vehicles', 'orders', 'suppliers', 'vendors', 'warehouses', 'cities', 'districts', 'directions', 'contacts') AND perm = 'view' THEN
       RETURN true;
     END IF;
     IF module = 'orders' AND perm = 'modify' THEN
@@ -520,12 +534,17 @@ BEGIN
   FROM public.profiles 
   WHERE id = auth.uid() AND is_deleted = false AND is_blocked = false;
 
-  IF u_role::text = 'admin' THEN
+  IF u_role::text IN ('admin', 'manager') THEN
+    RETURN true;
+  END IF;
+
+  -- Allowed role defaults for viewing suppliers
+  IF u_role::text IN ('purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager') AND module IN ('suppliers', 'vendors') AND perm = 'view' THEN
     RETURN true;
   END IF;
   
   IF u_role::text IN ('vehicle', 'driver') THEN
-    IF module IN ('vehicles', 'orders', 'suppliers', 'warehouses', 'cities', 'districts', 'directions', 'contacts') AND perm = 'view' THEN
+    IF module IN ('vehicles', 'orders', 'suppliers', 'vendors', 'warehouses', 'cities', 'districts', 'directions', 'contacts') AND perm = 'view' THEN
       RETURN true;
     END IF;
     IF module = 'orders' AND perm = 'modify' THEN
@@ -538,8 +557,23 @@ BEGIN
 
   -- Handle permissions checking using JSONB containment or extraction
   IF u_permissions IS NOT NULL AND jsonb_typeof(u_permissions) = 'object' THEN
-    IF (u_permissions -> module) IS NOT NULL AND jsonb_typeof(u_permissions -> module) = 'array' THEN
-      RETURN (u_permissions -> module) ? perm;
+    IF (u_permissions -> module) IS NOT NULL AND jsonb_typeof(u_permissions -> module) = 'array' AND (u_permissions -> module) ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'suppliers' AND (u_permissions -> 'vendors') IS NOT NULL AND jsonb_typeof(u_permissions -> 'vendors') = 'array' AND (u_permissions -> 'vendors') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'vendors' AND (u_permissions -> 'suppliers') IS NOT NULL AND jsonb_typeof(u_permissions -> 'suppliers') = 'array' AND (u_permissions -> 'suppliers') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'users' AND (u_permissions -> 'employees') IS NOT NULL AND jsonb_typeof(u_permissions -> 'employees') = 'array' AND (u_permissions -> 'employees') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'employees' AND (u_permissions -> 'users') IS NOT NULL AND jsonb_typeof(u_permissions -> 'users') = 'array' AND (u_permissions -> 'users') ? perm THEN
+      RETURN true;
+    END IF;
+    IF module = 'vehicles' AND (u_permissions -> 'trucks') IS NOT NULL AND jsonb_typeof(u_permissions -> 'trucks') = 'array' AND (u_permissions -> 'trucks') ? perm THEN
+      RETURN true;
     END IF;
   END IF;
 
