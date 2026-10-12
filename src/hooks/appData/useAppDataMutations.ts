@@ -212,11 +212,25 @@ export function useAppDataMutations({
   };
 
   const handleCommunicationDelete = async (id: string) => {
+    const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['communications']?.includes('delete');
+    if (!canDelete) {
+      setErrorModal({
+        isOpen: true,
+        title: 'წვდომა შეზღუდულია',
+        errorMsg: 'კომუნიკაციის წაშლის უფლება არ გაქვთ.'
+      });
+      return;
+    }
     try {
       await deleteCommunication(id, currentUser?.name || 'System');
       setCommunications(prev => prev.filter(c => c.id !== id));
     } catch (e: any) {
       console.error('Error deleting communication:', e);
+      setErrorModal({
+        isOpen: true,
+        title: 'წვდომა შეზღუდულია',
+        errorMsg: e.message || 'კომუნიკაციის წაშლის უფლება არ გაქვთ.'
+      });
     }
   };
 

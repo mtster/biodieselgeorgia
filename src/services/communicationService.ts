@@ -447,9 +447,14 @@ export async function saveCommunication(comm: Communication, loggerName: string,
 export async function deleteCommunication(id: string, loggerName: string): Promise<boolean> {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('communications').update({ is_deleted: true }).eq('id', id);
+      const { error } = await supabase.from('communications').update({ is_deleted: true }).eq('id', id);
+      if (error) {
+        console.error('Supabase deleteCommunication error:', error);
+        throw error;
+      }
     } catch (e) {
       console.error('Supabase deleteCommunication failed', e);
+      throw e;
     }
   }
 

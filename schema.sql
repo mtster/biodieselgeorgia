@@ -13,64 +13,9 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 
--- Drop all existing policies before table definition/alteration so they don't block column type changes
-DROP POLICY IF EXISTS "Cities view" ON public.cities;
-DROP POLICY IF EXISTS "Cities add" ON public.cities;
-DROP POLICY IF EXISTS "Cities modify" ON public.cities;
-DROP POLICY IF EXISTS "Cities delete" ON public.cities;
-
-DROP POLICY IF EXISTS "Districts view" ON public.districts;
-DROP POLICY IF EXISTS "Districts add" ON public.districts;
-DROP POLICY IF EXISTS "Districts modify" ON public.districts;
-DROP POLICY IF EXISTS "Districts delete" ON public.districts;
-
-DROP POLICY IF EXISTS "Directions view" ON public.directions;
-DROP POLICY IF EXISTS "Directions add" ON public.directions;
-DROP POLICY IF EXISTS "Directions modify" ON public.directions;
-DROP POLICY IF EXISTS "Directions delete" ON public.directions;
-
-DROP POLICY IF EXISTS "Warehouses view" ON public.warehouses;
-DROP POLICY IF EXISTS "Warehouses add" ON public.warehouses;
-DROP POLICY IF EXISTS "Warehouses modify" ON public.warehouses;
-DROP POLICY IF EXISTS "Warehouses delete" ON public.warehouses;
-
-DROP POLICY IF EXISTS "Vehicles view" ON public.vehicles;
-DROP POLICY IF EXISTS "Vehicles add" ON public.vehicles;
-DROP POLICY IF EXISTS "Vehicles modify" ON public.vehicles;
-DROP POLICY IF EXISTS "Vehicles delete" ON public.vehicles;
-
-DROP POLICY IF EXISTS "Vendors view" ON public.vendors;
-DROP POLICY IF EXISTS "Vendors add" ON public.vendors;
-DROP POLICY IF EXISTS "Vendors modify" ON public.vendors;
-DROP POLICY IF EXISTS "Vendors delete" ON public.vendors;
-
-DROP POLICY IF EXISTS "Vendor Contacts view" ON public.vendor_contacts;
-DROP POLICY IF EXISTS "Vendor Contacts add" ON public.vendor_contacts;
-DROP POLICY IF EXISTS "Vendor Contacts modify" ON public.vendor_contacts;
-DROP POLICY IF EXISTS "Vendor Contacts delete" ON public.vendor_contacts;
-
-DROP POLICY IF EXISTS "Communications view" ON public.communications;
-DROP POLICY IF EXISTS "Communications add" ON public.communications;
-DROP POLICY IF EXISTS "Communications modify" ON public.communications;
-DROP POLICY IF EXISTS "Communications delete" ON public.communications;
-
-DROP POLICY IF EXISTS "Orders view access" ON public.orders;
-DROP POLICY IF EXISTS "Orders add access" ON public.orders;
-DROP POLICY IF EXISTS "Orders modify access" ON public.orders;
-DROP POLICY IF EXISTS "Orders delete access" ON public.orders;
-
-DROP POLICY IF EXISTS "History view" ON public.change_history;
-DROP POLICY IF EXISTS "History modify (System only usually)" ON public.change_history;
-
-DROP POLICY IF EXISTS "Authenticated full access on cities" ON public.cities;
-DROP POLICY IF EXISTS "Authenticated full access on districts" ON public.districts;
-DROP POLICY IF EXISTS "Authenticated full access on directions" ON public.directions;
-DROP POLICY IF EXISTS "Authenticated full access on warehouses" ON public.warehouses;
-DROP POLICY IF EXISTS "Authenticated full access on vehicles" ON public.vehicles;
-DROP POLICY IF EXISTS "Authenticated full access on vendors" ON public.vendors;
-DROP POLICY IF EXISTS "Authenticated full access on vendor_contacts" ON public.vendor_contacts;
-DROP POLICY IF EXISTS "Authenticated full access on communications" ON public.communications;
-DROP POLICY IF EXISTS "Authenticated full access on change_history" ON public.change_history;
+-- Set safe lock timeout to avoid blocking or hanging on concurrent transactions
+SET lock_timeout = '5s';
+SET statement_timeout = '60s';
 
 -- Create role Enum type (checking first to be re-runnable)
 DO $$
@@ -536,49 +481,66 @@ DECLARE
   u_role TEXT;
   u_permissions jsonb;
   jwt_perms jsonb;
+  jwt_role TEXT;
 BEGIN
-  -- Service role and postgres superuser always have all permissions
-  IF auth.role() = 'service_role' OR current_user IN ('postgres', 'supabase_admin') THEN
+  -- 1. Service role (backend) and direct postgres connection bypass
+  IF auth.role() = 'service_role' OR session_user IN ('postgres', 'supabase_admin') THEN
     RETURN true;
   END IF;
 
-  -- Admin in JWT token app_metadata or user_metadata always has all permissions
-  IF COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' THEN
+  -- 2. Admin in JWT token app_metadata (tamper-proof, set only by database/backend)
+  jwt_role := COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '');
+  IF jwt_role = 'admin' THEN
     RETURN true;
   END IF;
 
-  -- Handle vehicle accounts (authenticated user linked to a vehicle or driver role)
-  IF EXISTS (
-    SELECT 1 FROM public.vehicles 
-    WHERE auth_user_id = auth.uid() OR id = auth.uid()
-  ) OR EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND (role::text = 'vehicle' OR role::text = 'driver')
-  ) THEN
+  -- 3. Check verified JWT app_metadata claims for permissions
+  jwt_perms := auth.jwt() -> 'app_metadata' -> 'permissions';
+  IF jwt_perms IS NOT NULL AND jsonb_typeof(jwt_perms) = 'object' THEN
+    IF (jwt_perms -> module) IS NOT NULL AND jsonb_typeof(jwt_perms -> module) = 'array' THEN
+      RETURN (jwt_perms -> module) ? perm;
+    END IF;
+  END IF;
+
+  -- 4. Vehicle / Driver accounts
+  IF jwt_role IN ('vehicle', 'driver') THEN
     IF module IN ('vehicles', 'orders', 'suppliers', 'warehouses', 'cities', 'districts', 'directions', 'contacts') AND perm = 'view' THEN
       RETURN true;
     END IF;
     IF module = 'orders' AND perm = 'modify' THEN
       RETURN true;
     END IF;
-  END IF;
-
-  -- Check JWT token claims for permissions (JWT permissions architecture)
-  jwt_perms := COALESCE(auth.jwt() -> 'app_metadata' -> 'permissions', auth.jwt() -> 'user_metadata' -> 'permissions');
-  IF jwt_perms IS NOT NULL AND jsonb_typeof(jwt_perms) = 'object' THEN
-    IF (jwt_perms -> module) IS NOT NULL AND (jwt_perms -> module) ? perm THEN
-      RETURN true;
+    IF perm = 'delete' THEN
+      RETURN false;
     END IF;
   END IF;
 
-  SELECT role, permissions INTO u_role, u_permissions FROM public.profiles WHERE id = auth.uid();
+  -- 5. Fallback to authoritative database profiles table
+  SELECT role, permissions INTO u_role, u_permissions 
+  FROM public.profiles 
+  WHERE id = auth.uid() AND is_deleted = false AND is_blocked = false;
+
   IF u_role::text = 'admin' THEN
     RETURN true;
   END IF;
   
+  IF u_role::text IN ('vehicle', 'driver') THEN
+    IF module IN ('vehicles', 'orders', 'suppliers', 'warehouses', 'cities', 'districts', 'directions', 'contacts') AND perm = 'view' THEN
+      RETURN true;
+    END IF;
+    IF module = 'orders' AND perm = 'modify' THEN
+      RETURN true;
+    END IF;
+    IF perm = 'delete' THEN
+      RETURN false;
+    END IF;
+  END IF;
+
   -- Handle permissions checking using JSONB containment or extraction
   IF u_permissions IS NOT NULL AND jsonb_typeof(u_permissions) = 'object' THEN
-    RETURN COALESCE((u_permissions -> module) ? perm, false);
+    IF (u_permissions -> module) IS NOT NULL AND jsonb_typeof(u_permissions -> module) = 'array' THEN
+      RETURN (u_permissions -> module) ? perm;
+    END IF;
   END IF;
 
   RETURN false;
@@ -660,25 +622,25 @@ DROP POLICY IF EXISTS "Authenticated full access on vendor_contacts" ON public.v
 -- CITIES
 CREATE POLICY "Cities view" ON public.cities FOR SELECT TO authenticated USING (public.has_permission('cities', 'view'));
 CREATE POLICY "Cities add" ON public.cities FOR INSERT TO authenticated WITH CHECK (public.has_permission('cities', 'add'));
-CREATE POLICY "Cities modify" ON public.cities FOR UPDATE TO authenticated USING (public.has_permission('cities', 'modify'));
+CREATE POLICY "Cities modify" ON public.cities FOR UPDATE TO authenticated USING (public.has_permission('cities', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('cities', 'delete')) AND public.has_permission('cities', 'modify'));
 CREATE POLICY "Cities delete" ON public.cities FOR DELETE TO authenticated USING (public.has_permission('cities', 'delete'));
 
 -- DISTRICTS (Assuming district is tied to cities permissions)
 CREATE POLICY "Districts view" ON public.districts FOR SELECT TO authenticated USING (public.has_permission('cities', 'view'));
 CREATE POLICY "Districts add" ON public.districts FOR INSERT TO authenticated WITH CHECK (public.has_permission('cities', 'add'));
-CREATE POLICY "Districts modify" ON public.districts FOR UPDATE TO authenticated USING (public.has_permission('cities', 'modify'));
+CREATE POLICY "Districts modify" ON public.districts FOR UPDATE TO authenticated USING (public.has_permission('cities', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('cities', 'delete')) AND public.has_permission('cities', 'modify'));
 CREATE POLICY "Districts delete" ON public.districts FOR DELETE TO authenticated USING (public.has_permission('cities', 'delete'));
 
 -- DIRECTIONS
 CREATE POLICY "Directions view" ON public.directions FOR SELECT TO authenticated USING (public.has_permission('directions', 'view'));
 CREATE POLICY "Directions add" ON public.directions FOR INSERT TO authenticated WITH CHECK (public.has_permission('directions', 'add'));
-CREATE POLICY "Directions modify" ON public.directions FOR UPDATE TO authenticated USING (public.has_permission('directions', 'modify'));
+CREATE POLICY "Directions modify" ON public.directions FOR UPDATE TO authenticated USING (public.has_permission('directions', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('directions', 'delete')) AND public.has_permission('directions', 'modify'));
 CREATE POLICY "Directions delete" ON public.directions FOR DELETE TO authenticated USING (public.has_permission('directions', 'delete'));
 
 -- WAREHOUSES
 CREATE POLICY "Warehouses view" ON public.warehouses FOR SELECT TO authenticated USING (public.has_permission('warehouses', 'view'));
 CREATE POLICY "Warehouses add" ON public.warehouses FOR INSERT TO authenticated WITH CHECK (public.has_permission('warehouses', 'add'));
-CREATE POLICY "Warehouses modify" ON public.warehouses FOR UPDATE TO authenticated USING (public.has_permission('warehouses', 'modify'));
+CREATE POLICY "Warehouses modify" ON public.warehouses FOR UPDATE TO authenticated USING (public.has_permission('warehouses', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('warehouses', 'delete')) AND public.has_permission('warehouses', 'modify'));
 CREATE POLICY "Warehouses delete" ON public.warehouses FOR DELETE TO authenticated USING (public.has_permission('warehouses', 'delete'));
 
 -- VEHICLES
@@ -694,6 +656,13 @@ CREATE POLICY "Vehicles modify" ON public.vehicles FOR UPDATE TO authenticated U
   public.has_permission('vehicles', 'modify') 
   OR auth_user_id = auth.uid() 
   OR id = auth.uid()
+) WITH CHECK (
+  (is_deleted = false OR public.has_permission('vehicles', 'delete')) 
+  AND (
+    public.has_permission('vehicles', 'modify') 
+    OR auth_user_id = auth.uid() 
+    OR id = auth.uid()
+  )
 );
 CREATE POLICY "Vehicles delete" ON public.vehicles FOR DELETE TO authenticated USING (public.has_permission('vehicles', 'delete'));
 
@@ -706,13 +675,13 @@ CREATE POLICY "Vendors delete" ON public.vendors FOR DELETE TO authenticated USI
 -- VENDOR CONTACTS
 CREATE POLICY "Vendor Contacts view" ON public.vendor_contacts FOR SELECT TO authenticated USING (public.has_permission('contacts', 'view'));
 CREATE POLICY "Vendor Contacts add" ON public.vendor_contacts FOR INSERT TO authenticated WITH CHECK (public.has_permission('contacts', 'add'));
-CREATE POLICY "Vendor Contacts modify" ON public.vendor_contacts FOR UPDATE TO authenticated USING (public.has_permission('contacts', 'modify'));
+CREATE POLICY "Vendor Contacts modify" ON public.vendor_contacts FOR UPDATE TO authenticated USING (public.has_permission('contacts', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('contacts', 'delete')) AND public.has_permission('contacts', 'modify'));
 CREATE POLICY "Vendor Contacts delete" ON public.vendor_contacts FOR DELETE TO authenticated USING (public.has_permission('contacts', 'delete'));
 
 -- COMMUNICATIONS
 CREATE POLICY "Communications view" ON public.communications FOR SELECT TO authenticated USING (public.has_permission('communications', 'view'));
 CREATE POLICY "Communications add" ON public.communications FOR INSERT TO authenticated WITH CHECK (public.has_permission('communications', 'add'));
-CREATE POLICY "Communications modify" ON public.communications FOR UPDATE TO authenticated USING (public.has_permission('communications', 'modify'));
+CREATE POLICY "Communications modify" ON public.communications FOR UPDATE TO authenticated USING (public.has_permission('communications', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('communications', 'delete')) AND public.has_permission('communications', 'modify'));
 CREATE POLICY "Communications delete" ON public.communications FOR DELETE TO authenticated USING (public.has_permission('communications', 'delete'));
 
 -- ORDERS
@@ -791,6 +760,118 @@ CREATE POLICY "Admins have full access on profiles" ON public.profiles FOR ALL T
 -- Ensure trg_protect_admin_profiles is removed
 DROP TRIGGER IF EXISTS trg_protect_admin_profiles ON public.profiles;
 DROP FUNCTION IF EXISTS public.protect_admin_profiles();
+
+-- 1. Automated Sync from profiles to auth.users.raw_app_meta_data
+-- Syncs role and permissions directly into the tamper-proof JWT app_metadata claim
+CREATE OR REPLACE FUNCTION public.sync_profile_to_auth_user()
+RETURNS TRIGGER SECURITY DEFINER AS $$
+BEGIN
+  UPDATE auth.users
+  SET raw_app_meta_data = 
+    COALESCE(raw_app_meta_data, '{}'::jsonb) || 
+    jsonb_build_object(
+      'role', NEW.role,
+      'permissions', COALESCE(NEW.permissions, '{}'::jsonb)
+    )
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_profile_to_auth_user ON public.profiles;
+CREATE TRIGGER trg_sync_profile_to_auth_user
+AFTER INSERT OR UPDATE OF role, permissions ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_profile_to_auth_user();
+
+-- Immediate backfill for all existing users
+UPDATE auth.users u
+SET raw_app_meta_data = 
+  COALESCE(u.raw_app_meta_data, '{}'::jsonb) || 
+  jsonb_build_object(
+    'role', p.role,
+    'permissions', COALESCE(p.permissions, '{}'::jsonb)
+  )
+FROM public.profiles p
+WHERE u.id = p.id;
+
+-- 2. Database-level triggers: strictly block soft-delete (is_deleted = true) and hard-delete
+
+-- Orders soft-delete blocker
+CREATE OR REPLACE FUNCTION public.check_order_delete_permission()
+RETURNS TRIGGER SECURITY DEFINER AS $$
+BEGIN
+  IF (OLD.is_deleted IS DISTINCT FROM TRUE) AND NEW.is_deleted = TRUE THEN
+    IF NOT public.has_permission('orders', 'delete') THEN
+      RAISE EXCEPTION 'წვდომა შეზღუდულია: შეკვეთის წაშლის უფლება არ გაქვთ (Permission denied: orders.delete)'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_order_delete_permission ON public.orders;
+CREATE TRIGGER trg_check_order_delete_permission
+BEFORE UPDATE OF is_deleted ON public.orders
+FOR EACH ROW
+EXECUTE FUNCTION public.check_order_delete_permission();
+
+-- Orders hard-delete blocker
+CREATE OR REPLACE FUNCTION public.check_order_hard_delete_permission()
+RETURNS TRIGGER SECURITY DEFINER AS $$
+BEGIN
+  IF NOT public.has_permission('orders', 'delete') THEN
+    RAISE EXCEPTION 'წვდომა შეზღუდულია: შეკვეთის წაშლის უფლება არ გაქვთ (Permission denied: orders.delete)'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_order_hard_delete_permission ON public.orders;
+CREATE TRIGGER trg_check_order_hard_delete_permission
+BEFORE DELETE ON public.orders
+FOR EACH ROW
+EXECUTE FUNCTION public.check_order_hard_delete_permission();
+
+-- Communications soft-delete blocker
+CREATE OR REPLACE FUNCTION public.check_communication_delete_permission()
+RETURNS TRIGGER SECURITY DEFINER AS $$
+BEGIN
+  IF (OLD.is_deleted IS DISTINCT FROM TRUE) AND NEW.is_deleted = TRUE THEN
+    IF NOT public.has_permission('communications', 'delete') THEN
+      RAISE EXCEPTION 'წვდომა შეზღუდულია: კომუნიკაციის წაშლის უფლება არ გაქვთ (Permission denied: communications.delete)'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_communication_delete_permission ON public.communications;
+CREATE TRIGGER trg_check_communication_delete_permission
+BEFORE UPDATE OF is_deleted ON public.communications
+FOR EACH ROW
+EXECUTE FUNCTION public.check_communication_delete_permission();
+
+-- Communications hard-delete blocker
+CREATE OR REPLACE FUNCTION public.check_communication_hard_delete_permission()
+RETURNS TRIGGER SECURITY DEFINER AS $$
+BEGIN
+  IF NOT public.has_permission('communications', 'delete') THEN
+    RAISE EXCEPTION 'წვდომა შეზღუდულია: კომუნიკაციის წაშლის უფლება არ გაქვთ (Permission denied: communications.delete)'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_communication_hard_delete_permission ON public.communications;
+CREATE TRIGGER trg_check_communication_hard_delete_permission
+BEFORE DELETE ON public.communications
+FOR EACH ROW
+EXECUTE FUNCTION public.check_communication_hard_delete_permission();
 
 -- Indices for high-speed performance
 CREATE INDEX IF NOT EXISTS idx_districts_city_id ON public.districts (city_id);
