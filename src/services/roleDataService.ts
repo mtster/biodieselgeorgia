@@ -7,6 +7,8 @@ import { decodeVendorCustomFields } from './vendorService';
 import { sortOrdersByRouteRank } from '../utils/lexorank';
 import { KEY_ORDERS, KEY_VENDORS, getLocal } from './localStorage';
 
+const inFlightDriverVendorsCache = new Map<string, Promise<{ vData: any[]; cData: any[] }>>();
+
 // Georgian to English transliteration map for license plate and keyword comparisons
 const ge2enPlateMap: Record<string, string> = {
   'ა':'a','ბ':'b','გ':'g','დ':'d','ე':'e','ვ':'v','ზ':'z','თ':'t','ი':'i','კ':'k',
@@ -401,24 +403,38 @@ export async function getDriverOrdersAndVendors(
     assignedVendors = cachedVendors.filter(v => vendorIds.includes(v.id));
   } else if (vendorIds.length > 0 && isSupabaseConfigured && supabase) {
     try {
-      const [vRes, cRes] = await Promise.all([
-        supabase
-          .from('vendors')
-          .select('*')
-          .in('id', vendorIds)
-          .eq('is_deleted', false),
-        supabase
-          .from('vendor_contacts')
-          .select('*')
-          .in('vendor_id', vendorIds)
-          .eq('is_deleted', false)
-      ]);
+      const cacheKey = vendorIds.slice().sort().join(',');
+      let fetchPromise = inFlightDriverVendorsCache.get(cacheKey);
 
-      if (vRes.data) {
-        const contacts = cRes.data || [];
-        assignedVendors = vRes.data.map(v => {
+      if (!fetchPromise) {
+        fetchPromise = (async () => {
+          const [vRes, cRes] = await Promise.all([
+            supabase
+              .from('vendors')
+              .select('*')
+              .in('id', vendorIds)
+              .eq('is_deleted', false),
+            supabase
+              .from('vendor_contacts')
+              .select('*')
+              .in('vendor_id', vendorIds)
+              .eq('is_deleted', false)
+          ]);
+          return { vData: vRes.data || [], cData: cRes.data || [] };
+        })();
+
+        inFlightDriverVendorsCache.set(cacheKey, fetchPromise);
+        setTimeout(() => {
+          inFlightDriverVendorsCache.delete(cacheKey);
+        }, 1000);
+      }
+
+      const { vData, cData } = await fetchPromise;
+
+      if (vData) {
+        assignedVendors = vData.map(v => {
           const decoded = decodeVendorCustomFields(v);
-          decoded.contacts = contacts
+          decoded.contacts = cData
             .filter((c: any) => c.vendor_id === v.id)
             .sort((a: any, b: any) => {
               if (a.is_default && !b.is_default) return -1;

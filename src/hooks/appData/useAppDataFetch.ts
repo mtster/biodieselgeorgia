@@ -250,10 +250,20 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
         refreshAllData();
       }
       // Listen for database broadcasts and live changes across the system
+      const refreshTimers: Record<string, NodeJS.Timeout> = {};
+
       const unsubscribe = onRealtimeDbChange((table) => {
-        refreshTable(table);
+        const t = (table || '').toLowerCase();
+        if (refreshTimers[t]) {
+          clearTimeout(refreshTimers[t]);
+        }
+        refreshTimers[t] = setTimeout(() => {
+          refreshTable(table);
+          delete refreshTimers[t];
+        }, 200);
       });
       return () => {
+        Object.values(refreshTimers).forEach(clearTimeout);
         unsubscribe();
       };
     } else {
