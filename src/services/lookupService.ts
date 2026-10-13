@@ -6,6 +6,7 @@ import {
   getLocal, setLocal 
 } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
+import { appCache } from '../utils/cache';
 
 export { KEY_WAREHOUSES, KEY_CITIES, KEY_DISTRICTS, KEY_DIRECTIONS };
 
@@ -27,10 +28,20 @@ const cleanUserUuid = (val: string | null | undefined): string | null => {
 
 // 1. Warehouses
 export async function getWarehouses(): Promise<Warehouse[]> {
+  const cached = appCache.get<Warehouse[]>('warehouses_cache');
+  if (cached && cached.length > 0) return cached;
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('warehouses').select('*').order('name');
-      if (!error && data) return data.filter((w: any) => !w.is_deleted);
+      if (!error && data) {
+        const filtered = data.filter((w: any) => !w.is_deleted);
+        appCache.set('warehouses_cache', filtered);
+        const map = new Map<string, string>();
+        filtered.forEach((w: any) => map.set(w.id, w.name));
+        appCache.set('warehouses_map', map);
+        return filtered;
+      }
     } catch (e) {
       console.warn('Supabase getWarehouses failed', e);
     }
@@ -90,11 +101,16 @@ export async function deleteWarehouse(id: string, name: string, loggerName: stri
 
 // 2. Cities
 export async function getCities(): Promise<City[]> {
+  const cached = appCache.get<City[]>('cities_cache');
+  if (cached && cached.length > 0) return cached;
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('cities').select('*').order('name');
       if (!error && data) {
-        return data.filter((c: any) => !c.is_deleted);
+        const filtered = data.filter((c: any) => !c.is_deleted);
+        appCache.set('cities_cache', filtered);
+        return filtered;
       }
     } catch (e) {
       console.warn('Supabase getCities failed', e);
@@ -155,10 +171,16 @@ export async function deleteCity(id: string, name: string, loggerName: string): 
 
 // 3. Districts
 export async function getDistricts(): Promise<District[]> {
+  const cached = appCache.get<District[]>('districts_cache');
+  if (cached && cached.length > 0) return cached;
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('districts').select('*').order('name');
-      if (!error && data) return data;
+      if (!error && data) {
+        appCache.set('districts_cache', data);
+        return data;
+      }
     } catch (e) {
       console.warn('Supabase getDistricts failed', e);
     }
@@ -218,11 +240,16 @@ export async function deleteDistrict(id: string, name: string, loggerName: strin
 
 // 4. Directions
 export async function getDirections(): Promise<Direction[]> {
+  const cached = appCache.get<Direction[]>('directions_cache');
+  if (cached && cached.length > 0) return cached;
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('directions').select('*').order('name');
       if (!error && data) {
-        return data.filter((d: any) => !d.is_deleted);
+        const filtered = data.filter((d: any) => !d.is_deleted);
+        appCache.set('directions_cache', filtered);
+        return filtered;
       }
     } catch (e) {
       console.warn('Supabase getDirections failed', e);

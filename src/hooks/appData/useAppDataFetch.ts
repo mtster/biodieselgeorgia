@@ -87,13 +87,10 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
         return;
       }
 
-      // 3. Full management system data sync for admin / managers
-      const [usrs, vnds, ords, activeOrdCount, comms, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
+      // 3. Full management system data sync for admin / managers (clean, lightweight initial load)
+      const [usrs, activeOrdCount, trks, hist, whs, cts, dsts, dirs] = await Promise.all([
         getUsers(),
-        getVendors(1000),
-        getOrders(1000, currentUser),
         getActiveOrdersCount(currentUser),
-        getCommunications(),
         getTrucks(),
         getChangeHistory(50, 0),
         getWarehouses(),
@@ -104,10 +101,10 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
 
       setHistoryOffset(0);
       setUsers(usrs);
-      setVendors(vnds);
-      setOrders(ords);
+      setVendors([]);
+      setOrders([]);
       setActiveOrdersCount(activeOrdCount);
-      setCommunications(comms);
+      setCommunications([]);
       setTrucks(trks);
       setChangeHistory(hist);
       setWarehouses(whs);
@@ -205,14 +202,35 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
         setUsers(usrs);
       } else if (t === 'orders') {
         const [ords, activeOrdCount] = await Promise.all([
-          getOrders(1000, currentUser),
+          getOrders(300, currentUser),
           getActiveOrdersCount(currentUser)
         ]);
-        setOrders(ords);
+        const vMap = new Map<string, Vendor>();
+        vendorsRef.current.forEach(v => {
+          if (v?.id) {
+            vMap.set(v.id, v);
+            vMap.set(String(v.id).trim().toLowerCase(), v);
+          }
+        });
+        const tMap = new Map<string, string>();
+        trucksRef.current.forEach(t => {
+          if (t?.id) tMap.set(t.id, t.plate_number);
+        });
+
+        const enriched = ords.map(o => {
+          const v = o.vendor_id ? (vMap.get(o.vendor_id) || vMap.get(String(o.vendor_id).trim().toLowerCase())) : null;
+          const plate = o.truck_plate || (o.vehicle_id ? tMap.get(o.vehicle_id) : '') || '';
+          return {
+            ...o,
+            vendor: v || o.vendor || null,
+            vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
+            truck_plate: plate
+          };
+        });
+        setOrders(enriched);
         setActiveOrdersCount(activeOrdCount);
       } else if (t === 'vendors') {
-        const vnds = await getVendors(100);
-        setVendors(vnds);
+        // VendorsView is paginated (12/page) and cache invalidation is handled via queryClient
       } else if (t === 'communications' || t === 'vendor_communications') {
         const comms = await getCommunications(50);
         setCommunications(comms);

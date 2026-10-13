@@ -61,9 +61,10 @@ export default function ContactsView({
   onDeleteCommunication
 }: ContactsViewProps) {
 
-  const canAdd = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('add');
-  const canModify = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('modify');
-  const canDelete = currentUser?.role === 'admin' || currentUser?.permissions?.['contacts']?.includes('delete');
+  const isOperator = currentUser?.role === 'operator';
+  const canAdd = currentUser?.role === 'admin' || isOperator || currentUser?.permissions?.['contacts']?.includes('add');
+  const canModify = currentUser?.role === 'admin' || isOperator || currentUser?.permissions?.['contacts']?.includes('modify');
+  const canDelete = currentUser?.role === 'admin' || isOperator || currentUser?.permissions?.['contacts']?.includes('delete');
 
   const {
     searchTerm,
@@ -444,14 +445,6 @@ export default function ContactsView({
                 matchedVendor = await getVendorById(row.vendor_id);
               }
               if (matchedVendor) {
-                if (!matchedVendor.contacts || matchedVendor.contacts.length === 0) {
-                  try {
-                    const contacts = await getVendorContacts(matchedVendor.id);
-                    matchedVendor = { ...matchedVendor, contacts: contacts || [] };
-                  } catch {
-                    // ignore
-                  }
-                }
                 setSelectedVendorForForm(matchedVendor);
               }
             }}

@@ -18,6 +18,14 @@ const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a
 
 export async function resolveVendorsMap(vendorIds: string[]): Promise<Map<string, any>> {
   const vendorMap = new Map<string, any>();
+
+  // 1. Check in-memory appCache first
+  const cachedMap = appCache.get<Map<string, any>>('vendors_map');
+  if (cachedMap) {
+    cachedMap.forEach((val, key) => vendorMap.set(key, val));
+  }
+
+  // 2. Check local vendors
   const localVendors = getLocal<any[]>(KEY_VENDORS, []);
   localVendors.forEach(v => {
     if (v && v.id) {
@@ -28,16 +36,27 @@ export async function resolveVendorsMap(vendorIds: string[]): Promise<Map<string
     }
   });
 
+  // 3. Only query missing vendor IDs from Supabase if any
   const uniqueIds = Array.from(new Set(vendorIds.map(id => String(id || '').trim()).filter(Boolean)));
-  if (uniqueIds.length > 0 && isSupabaseConfigured && supabase) {
+  uniqueIds.forEach(id => {
+    const cachedV = appCache.get<any>(`vendor_summary_${id}`) || appCache.get<any>(`vendor_${id}`);
+    if (cachedV) {
+      vendorMap.set(id, cachedV);
+      vendorMap.set(String(id).trim().toLowerCase(), cachedV);
+    }
+  });
+  const missingIds = uniqueIds.filter(id => !vendorMap.has(id));
+
+  if (missingIds.length > 0 && isSupabaseConfigured && supabase) {
     try {
       const { data: vendorsData } = await supabase
         .from('vendors')
         .select('id, trade_name, company_name, id_code, address, company_code')
-        .in('id', uniqueIds);
+        .in('id', missingIds.slice(0, 50));
       if (vendorsData) {
         vendorsData.forEach(v => {
           if (v && v.id) {
+            appCache.set(`vendor_summary_${v.id}`, v);
             vendorMap.set(v.id, v);
             vendorMap.set(String(v.id).trim().toLowerCase(), v);
             if (v.company_code) vendorMap.set(String(v.company_code).trim().toLowerCase(), v);
@@ -52,6 +71,8 @@ export async function resolveVendorsMap(vendorIds: string[]): Promise<Map<string
 
   return vendorMap;
 }
+
+const inFlightCommunications = new Map<string, Promise<PaginatedCommunicationsResult>>();
 
 export async function getCommunicationsPaginated(
   limit: number = 12,
@@ -80,6 +101,12 @@ export async function getCommunicationsPaginated(
   if (cachedCount !== null && offset >= cachedCount && cachedCount > 0) {
     return { communications: [], totalCount: cachedCount };
   }
+
+  if (inFlightCommunications.has(pageCacheKey)) {
+    return inFlightCommunications.get(pageCacheKey)!;
+  }
+
+  const promise = (async (): Promise<PaginatedCommunicationsResult> => {
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -277,13 +304,23 @@ export async function getCommunicationsPaginated(
     });
   }
 
-  return {
-    communications: filtered.slice(offset, offset + limit),
-    totalCount: filtered.length
-  };
+    const localResult: PaginatedCommunicationsResult = {
+      communications: filtered.slice(offset, offset + limit),
+      totalCount: filtered.length
+    };
+    appCache.set(pageCacheKey, localResult);
+    return localResult;
+  })();
+
+  inFlightCommunications.set(pageCacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlightCommunications.delete(pageCacheKey);
+  }
 }
 
-export async function getCommunications(limit = 300): Promise<Communication[]> {
+export async function getCommunications(limit = 100): Promise<Communication[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data: recentData } = await supabase
@@ -293,19 +330,7 @@ export async function getCommunications(limit = 300): Promise<Communication[]> {
         .order('date_time', { ascending: false })
         .limit(limit);
 
-      // Also specifically fetch reminders to guarantee older creation date reminders with today's reminder_time are loaded
-      const { data: reminderData } = await supabase
-        .from('communications')
-        .select('*')
-        .eq('is_deleted', false)
-        .or('type.eq.reminder,reminder_time.not.is.null')
-        .order('reminder_time', { ascending: false })
-        .limit(300);
-
-      const combinedMap = new Map<string, any>();
-      (recentData || []).forEach((item: any) => combinedMap.set(item.id, item));
-      (reminderData || []).forEach((item: any) => combinedMap.set(item.id, item));
-      const combined = Array.from(combinedMap.values());
+      const combined = recentData || [];
 
       if (combined.length > 0) {
         const vendorIds = combined.map(item => item.vendor_id).filter(Boolean);

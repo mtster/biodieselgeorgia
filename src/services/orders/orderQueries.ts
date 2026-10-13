@@ -192,91 +192,115 @@ export async function getOrdersPaginated(
           appCache.set(countCacheKey, count);
         }
 
-        // Fetch vendor info for all vendor_ids present on this page
-        const vendorIds = Array.from(new Set((data as any[]).map(item => item.vendor_id).filter(Boolean)));
+        // Fetch vendor info for all vendor_ids present on this page in chunks
+        const vendorIds = Array.from(new Set((data as any[]).map(item => item.vendor_id).filter(id => typeof id === 'string' && id.trim().length > 0)));
         const vendorMap = new Map<string, any>();
         if (vendorIds.length > 0) {
           try {
-            const { data: vendorsData } = await supabase
-              .from('vendors')
-              .select('id, trade_name, company_name, id_code, address, city, district, direction_id')
-              .in('id', vendorIds);
-            if (vendorsData) {
-              vendorsData.forEach(v => {
-                vendorMap.set(v.id, v);
-                if (v.id) {
-                  vendorMap.set(v.id.toLowerCase().trim(), v);
-                }
-              });
+            const vendorChunks: string[][] = [];
+            for (let i = 0; i < vendorIds.length; i += 35) {
+              vendorChunks.push(vendorIds.slice(i, i + 35));
             }
+            await Promise.all(vendorChunks.map(async (chunk) => {
+              const { data: vendorsData } = await supabase
+                .from('vendors')
+                .select('id, trade_name, company_name, id_code, address, city, district, direction_id')
+                .in('id', chunk);
+              if (vendorsData) {
+                vendorsData.forEach(v => {
+                  vendorMap.set(v.id, v);
+                  if (v.id) {
+                    vendorMap.set(v.id.toLowerCase().trim(), v);
+                  }
+                });
+              }
+            }));
           } catch (vErr) {
             console.warn('Failed to prefetch vendors for orders page:', vErr);
           }
         }
 
-        // Prefetch vehicle info for plate numbers
-        const vehicleIds = Array.from(new Set((data as any[]).map(item => item.vehicle_id).filter(Boolean)));
+        // Prefetch vehicle info for plate numbers in chunks
+        const vehicleIds = Array.from(new Set((data as any[]).map(item => item.vehicle_id).filter(id => typeof id === 'string' && id.trim().length > 0)));
         const vehicleMap = new Map<string, string>();
         if (vehicleIds.length > 0) {
           try {
-            const { data: vhData } = await supabase
-              .from('vehicles')
-              .select('id, plate_number')
-              .in('id', vehicleIds);
-            if (vhData) {
-              vhData.forEach(vh => {
-                if (vh.id) {
-                  vehicleMap.set(vh.id, vh.plate_number);
-                }
-              });
+            const vhChunks: string[][] = [];
+            for (let i = 0; i < vehicleIds.length; i += 35) {
+              vhChunks.push(vehicleIds.slice(i, i + 35));
             }
+            await Promise.all(vhChunks.map(async (chunk) => {
+              const { data: vhData } = await supabase
+                .from('vehicles')
+                .select('id, plate_number')
+                .in('id', chunk);
+              if (vhData) {
+                vhData.forEach(vh => {
+                  if (vh.id) {
+                    vehicleMap.set(vh.id, vh.plate_number);
+                  }
+                });
+              }
+            }));
           } catch (vhErr) {
             console.warn('Failed to prefetch vehicles for orders page:', vhErr);
           }
         }
 
-        // Prefetch contact info for all orders on this page
-        const contactIds = Array.from(new Set((data as any[]).map(item => item.contact_id).filter(Boolean)));
+        // Prefetch contact info for all orders on this page in chunks
+        const contactIds = Array.from(new Set((data as any[]).map(item => item.contact_id).filter(id => typeof id === 'string' && id.trim().length > 0)));
         const contactMap = new Map<string, any>();
         if (contactIds.length > 0) {
           try {
-            const { data: contactsData } = await supabase
-              .from('vendor_contacts')
-              .select('id, vendor_id, name, phone, is_default, position')
-              .in('id', contactIds);
-            if (contactsData) {
-              contactsData.forEach(c => {
-                contactMap.set(c.id, c);
-              });
+            const contactChunks: string[][] = [];
+            for (let i = 0; i < contactIds.length; i += 35) {
+              contactChunks.push(contactIds.slice(i, i + 35));
             }
+            await Promise.all(contactChunks.map(async (chunk) => {
+              const { data: contactsData } = await supabase
+                .from('vendor_contacts')
+                .select('id, vendor_id, name, phone, is_default, position')
+                .in('id', chunk);
+              if (contactsData) {
+                contactsData.forEach(c => {
+                  contactMap.set(c.id, c);
+                });
+              }
+            }));
           } catch (cErr) {
             console.warn('Failed to prefetch contacts by id for orders page:', cErr);
           }
         }
 
-        // Also prefetch default contacts for vendors of orders that don't have a contact_id or if contact wasn't found
+        // Also prefetch default contacts for vendors of orders that don't have a contact_id or if contact wasn't found in chunks
         const unresolvedVendorIds = Array.from(new Set(
           (data as any[])
             .filter(item => !item.contact_id || !contactMap.has(item.contact_id))
             .map(item => item.vendor_id)
-            .filter(Boolean)
+            .filter(id => typeof id === 'string' && id.trim().length > 0)
         ));
         const vendorContactsMap = new Map<string, any[]>();
         if (unresolvedVendorIds.length > 0) {
           try {
-            const { data: vContactsData } = await supabase
-              .from('vendor_contacts')
-              .select('id, vendor_id, name, phone, is_default, position')
-              .in('vendor_id', unresolvedVendorIds)
-              .eq('is_deleted', false);
-            if (vContactsData) {
-              vContactsData.forEach(c => {
-                if (!vendorContactsMap.has(c.vendor_id)) {
-                  vendorContactsMap.set(c.vendor_id, []);
-                }
-                vendorContactsMap.get(c.vendor_id)!.push(c);
-              });
+            const unresChunks: string[][] = [];
+            for (let i = 0; i < unresolvedVendorIds.length; i += 35) {
+              unresChunks.push(unresolvedVendorIds.slice(i, i + 35));
             }
+            await Promise.all(unresChunks.map(async (chunk) => {
+              const { data: vContactsData } = await supabase
+                .from('vendor_contacts')
+                .select('id, vendor_id, name, phone, is_default, position')
+                .in('vendor_id', chunk)
+                .eq('is_deleted', false);
+              if (vContactsData) {
+                vContactsData.forEach(c => {
+                  if (!vendorContactsMap.has(c.vendor_id)) {
+                    vendorContactsMap.set(c.vendor_id, []);
+                  }
+                  vendorContactsMap.get(c.vendor_id)!.push(c);
+                });
+              }
+            }));
           } catch (vcErr) {
             console.warn('Failed to prefetch contacts by vendor_id for orders page:', vcErr);
           }
@@ -447,124 +471,44 @@ export async function getOrders(limit = 1000, currentUser?: User | null): Promis
         .limit(limit);
 
       if (!error && data && data.length > 0) {
-        const vendorIds = Array.from(new Set(data.map((o: any) => o.vendor_id).filter(Boolean)));
-        const warehouseIds = Array.from(new Set(data.map((o: any) => o.warehouse_id).filter(Boolean)));
+        // Retrieve cached reference maps without issuing secondary network queries
+        const cachedVendorsMap = appCache.get<Map<string, any>>('vendors_map');
+        const cachedWarehousesMap = appCache.get<Map<string, string>>('warehouses_map');
+        const cachedVehiclesMap = appCache.get<Map<string, string>>('vehicles_map');
 
-        const vendorMap = new Map<string, any>();
-        const warehouseMap = new Map<string, any>();
+        const vendorMap = new Map<string, any>(cachedVendorsMap || []);
+        const warehouseMap = new Map<string, string>(cachedWarehousesMap || []);
+        const vehicleMap = new Map<string, string>(cachedVehiclesMap || []);
 
-        if (vendorIds.length > 0) {
-          try {
-            const { data: vData } = await supabase
-              .from('vendors')
-              .select('id, trade_name, company_name, warehouse_id, city, district, address, manager_id')
-              .in('id', vendorIds);
-            if (vData) {
-              vData.forEach(v => {
-                if (v.id) vendorMap.set(v.id, v);
-              });
+        // Fallback to local storage if in-memory cache has not initialized yet
+        if (vendorMap.size === 0) {
+          const localVendors = getLocal<Vendor[]>('vendors', []);
+          localVendors.forEach(v => {
+            if (v && v.id) {
+              vendorMap.set(v.id, v);
+              vendorMap.set(String(v.id).trim().toLowerCase(), v);
             }
-          } catch (ve) {
-            console.warn('getOrders vendor lookup error:', ve);
-          }
+          });
         }
-
-        // Gather any additional warehouse IDs referenced by vendors
-        vendorMap.forEach(v => {
-          if (v.warehouse_id && !warehouseIds.includes(v.warehouse_id)) {
-            warehouseIds.push(v.warehouse_id);
-          }
-        });
-
-        if (warehouseIds.length > 0) {
-          try {
-            const { data: wData } = await supabase
-              .from('warehouses')
-              .select('id, name')
-              .in('id', warehouseIds);
-            if (wData) {
-              wData.forEach(w => {
-                if (w.id) warehouseMap.set(w.id, w.name);
-              });
-            }
-          } catch (we) {
-            console.warn('getOrders warehouse lookup error:', we);
-          }
+        if (warehouseMap.size === 0) {
+          const localWarehouses = getLocal<any[]>('warehouses', []);
+          localWarehouses.forEach(w => {
+            if (w && w.id) warehouseMap.set(w.id, w.name);
+          });
         }
-
-        const vehicleIds = Array.from(new Set(data.map((o: any) => o.vehicle_id).filter(Boolean)));
-        const vehicleMap = new Map<string, string>();
-        if (vehicleIds.length > 0) {
-          try {
-            const { data: vhData } = await supabase
-              .from('vehicles')
-              .select('id, plate_number')
-              .in('id', vehicleIds);
-            if (vhData) {
-              vhData.forEach(vh => {
-                if (vh.id) vehicleMap.set(vh.id, vh.plate_number);
-              });
-            }
-          } catch (ve) {
-            console.warn('getOrders vehicle lookup error:', ve);
-          }
-        }
-
-        // Prefetch contacts for getOrders
-        const contactIds = Array.from(new Set(data.map((o: any) => o.contact_id).filter(Boolean)));
-        const contactMap = new Map<string, any>();
-        if (contactIds.length > 0) {
-          try {
-            const { data: cData } = await supabase
-              .from('vendor_contacts')
-              .select('id, vendor_id, name, phone, is_default, position')
-              .in('id', contactIds);
-            if (cData) {
-              cData.forEach(c => contactMap.set(c.id, c));
-            }
-          } catch (ce) {
-            console.warn('getOrders contact lookup error:', ce);
-          }
-        }
-
-        const missingContactVendorIds = Array.from(new Set(
-          data
-            .filter((o: any) => !o.contact_id || !contactMap.has(o.contact_id))
-            .map((o: any) => o.vendor_id)
-            .filter(Boolean)
-        ));
-        const vendorContactsMap = new Map<string, any[]>();
-        if (missingContactVendorIds.length > 0) {
-          try {
-            const { data: vcData } = await supabase
-              .from('vendor_contacts')
-              .select('id, vendor_id, name, phone, is_default, position')
-              .in('vendor_id', missingContactVendorIds)
-              .eq('is_deleted', false);
-            if (vcData) {
-              vcData.forEach(c => {
-                if (!vendorContactsMap.has(c.vendor_id)) {
-                  vendorContactsMap.set(c.vendor_id, []);
-                }
-                vendorContactsMap.get(c.vendor_id)!.push(c);
-              });
-            }
-          } catch (vce) {
-            console.warn('getOrders vendor contact lookup error:', vce);
-          }
+        if (vehicleMap.size === 0) {
+          const localVehicles = getLocal<any[]>('vehicles', []);
+          localVehicles.forEach(vh => {
+            if (vh && vh.id) vehicleMap.set(vh.id, vh.plate_number);
+          });
         }
 
         const mapped = data.map((o: any) => {
-          const v = o.vendor_id ? vendorMap.get(o.vendor_id) : null;
+          const cleanVId = o.vendor_id ? String(o.vendor_id).trim().toLowerCase() : '';
+          const v = o.vendor_id ? (vendorMap.get(o.vendor_id) || vendorMap.get(cleanVId)) : null;
           const targetWhId = o.warehouse_id || v?.warehouse_id;
           const wName = targetWhId ? warehouseMap.get(targetWhId) : null;
           const plate = o.truck_plate || (o.vehicle_id ? vehicleMap.get(o.vehicle_id) : '') || '';
-
-          let c = o.contact_id ? contactMap.get(o.contact_id) : null;
-          if (!c && o.vendor_id) {
-            const vContacts = vendorContactsMap.get(o.vendor_id) || [];
-            c = vContacts.find(item => item.is_default) || vContacts[0] || null;
-          }
 
           return {
             ...o,
@@ -573,14 +517,13 @@ export async function getOrders(limit = 1000, currentUser?: User | null): Promis
             district: o.district || v?.district || '',
             address: o.address || v?.address || '',
             manager_id: o.manager_id || v?.manager_id || null,
-            contact: c || null,
-            contact_name: c?.name || '',
-            contact_phone: c?.phone || '',
-            completed_at: o.completed_at || null,
             truck_plate: plate,
             vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
             warehouse_name: o.warehouse_name || wName || '',
             warehouse_id: o.warehouse_id || v?.warehouse_id || '',
+            contact_name: o.contact_name || '',
+            contact_phone: o.contact_phone || '',
+            completed_at: o.completed_at || null,
             notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
           };
         });

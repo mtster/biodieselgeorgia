@@ -133,10 +133,12 @@ export default function VendorForm({
 
     if (editingVendor.id) {
       getVendorContacts(editingVendor.id).then(contacts => {
-        if (isMounted && contacts && contacts.length > 0) {
+        if (isMounted && contacts) {
           setTempContacts(contacts);
           initialSnapshotRef.current.contacts = JSON.parse(JSON.stringify(contacts));
-          setEditingVendor(prev => prev ? { ...prev, contacts } : prev);
+          if (!editingVendor.contacts || editingVendor.contacts.length !== contacts.length) {
+            setEditingVendor(prev => prev ? { ...prev, contacts } : prev);
+          }
         }
       }).catch(err => {
         console.warn('Failed to load contacts for vendor:', err);
@@ -273,12 +275,16 @@ export default function VendorForm({
       return;
     }
 
-    const { errs, needsUserCreationOrUpdate } = validateVendorForm();
-    if (Object.keys(errs).length > 0) {
-      setFieldErrors(errs);
-      return;
+    const isOperator = currentUser?.role === 'operator';
+    let needsUserCreationOrUpdate = false;
+    if (!isOperator) {
+      const valRes = validateVendorForm();
+      if (Object.keys(valRes.errs).length > 0) {
+        setFieldErrors(valRes.errs);
+        return;
+      }
+      needsUserCreationOrUpdate = valRes.needsUserCreationOrUpdate;
     }
-
     setFieldErrors({});
 
     // If no changes were made to an existing supplier, do NOT send unnecessary DB update request
@@ -338,7 +344,7 @@ export default function VendorForm({
       const resolvedVendorId = editingVendor.id || generateUuid();
       editingVendor.id = resolvedVendorId;
 
-      const payload: Vendor = {
+      let payload: Vendor = {
         ...editingVendor,
         id: resolvedVendorId,
         company_code: editingVendor.company_code || editingVendor.id_code || 'N/A',
@@ -347,8 +353,23 @@ export default function VendorForm({
         username: finalUsername || undefined
       };
 
+      if (isOperator && (initialSnapshotRef.current?.vendor?.id || editingVendor.id)) {
+        // Enforce that operator payload strictly preserves all core vendor parameters from initial snapshot
+        const init = initialSnapshotRef.current?.vendor || editingVendor;
+        payload = {
+          ...init,
+          id: resolvedVendorId,
+          comments: editingVendor.comments || [],
+          contacts: tempContacts.length > 0 ? tempContacts : (init.contacts || [])
+        };
+      }
+
       try {
         const savedRes = await onSave(payload);
+        if (savedRes === null) {
+          onSavingStateChange?.(false);
+          return;
+        }
         const finalSavedId = (savedRes && (savedRes as any).id) || payload.id || resolvedVendorId;
         onSavingStateChange?.(false);
         if (onSuccessCallback) {
@@ -458,33 +479,51 @@ export default function VendorForm({
     ]);
   };
 
+  const isOperator = currentUser?.role === 'operator';
+
   return (
     <div className="animate-in fade-in duration-200 max-w-4xl" id="vendors-form-panel">
       <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
         <div className="space-y-6 pt-2 text-left">
-          <VendorFormFields
-            editingVendor={editingVendor}
-            setEditingVendor={setEditingVendor}
-            fieldErrors={fieldErrors}
-            setFieldErrors={setFieldErrors}
-            warehouses={warehouses}
-            users={users}
-            cities={cities}
-            districts={districts}
-            directions={directions}
-            currentUser={currentUser}
-          />
+          <div 
+            className={isOperator ? "pointer-events-none select-none" : ""}
+            onFocusCapture={(e) => {
+              if (isOperator) {
+                (e.target as HTMLElement).blur?.();
+              }
+            }}
+            onKeyDownCapture={(e) => {
+              if (isOperator) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+            aria-readonly={isOperator ? true : undefined}
+          >
+            <VendorFormFields
+              editingVendor={editingVendor}
+              setEditingVendor={setEditingVendor}
+              fieldErrors={fieldErrors}
+              setFieldErrors={setFieldErrors}
+              warehouses={warehouses}
+              users={users}
+              cities={cities}
+              districts={districts}
+              directions={directions}
+              currentUser={currentUser}
+            />
 
-          {/* Supplier Login Account Fields */}
-          <VendorAccountSection
-            usernameInput={usernameInput}
-            setUsernameInput={setUsernameInput}
-            passwordInput={passwordInput}
-            setPasswordInput={setPasswordInput}
-            usernameError={fieldErrors.username}
-            passwordError={fieldErrors.password}
-            onClearErrors={(field) => setFieldErrors(prev => ({ ...prev, [field]: '' }))}
-          />
+            {/* Supplier Login Account Fields */}
+            <VendorAccountSection
+              usernameInput={usernameInput}
+              setUsernameInput={setUsernameInput}
+              passwordInput={passwordInput}
+              setPasswordInput={setPasswordInput}
+              usernameError={fieldErrors.username}
+              passwordError={fieldErrors.password}
+              onClearErrors={(field) => setFieldErrors(prev => ({ ...prev, [field]: '' }))}
+            />
+          </div>
 
           {/* Contacts & Comments Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-0">

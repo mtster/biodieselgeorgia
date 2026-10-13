@@ -34,6 +34,25 @@ export function onRealtimeDbChange(listener: (table: string, action?: string, re
 
 const lastTableUpdate: Record<string, number> = {};
 
+const pendingInvalidationKeys = new Set<string>();
+let invalidationTimer: any = null;
+
+export function debouncedInvalidateQueries(keys: string[]) {
+  keys.forEach(k => pendingInvalidationKeys.add(k));
+  if (invalidationTimer) {
+    clearTimeout(invalidationTimer);
+  }
+  invalidationTimer = setTimeout(() => {
+    if (globalQueryClient && pendingInvalidationKeys.size > 0) {
+      const keysToRun = Array.from(pendingInvalidationKeys);
+      pendingInvalidationKeys.clear();
+      keysToRun.forEach(key => {
+        globalQueryClient?.invalidateQueries({ queryKey: [key] });
+      });
+    }
+  }, 100);
+}
+
 export function initRealtimeBroadcast(queryClient: QueryClient) {
   globalQueryClient = queryClient;
   if (!isSupabaseConfigured || !supabase) return;
@@ -42,7 +61,7 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
     if (!table) return;
     const now = Date.now();
     const last = lastTableUpdate[table] || 0;
-    if (now - last < 1000) {
+    if (now - last < 2000) {
       return; // Deduplicate rapid multiple events / self-echoes for the same table
     }
     lastTableUpdate[table] = now;
@@ -51,9 +70,7 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
     appCache.clear();
 
     const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
-    dependentKeys.forEach((key) => {
-      queryClient.invalidateQueries({ queryKey: [key] });
-    });
+    debouncedInvalidateQueries(dependentKeys);
 
     changeListeners.forEach((listener) => {
       try {
@@ -85,8 +102,14 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
 }
 
 export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DELETE' = 'UPDATE', recordId?: string) {
+  const now = Date.now();
   // Mark local update timestamp to ignore subsequent echo from realtime websocket
-  lastTableUpdate[table] = Date.now();
+  lastTableUpdate[table] = now;
+  if (table === 'vendors') {
+    lastTableUpdate['vendor_contacts'] = now;
+  } else if (table === 'vendor_contacts') {
+    lastTableUpdate['vendors'] = now;
+  }
 
   // Clear in-memory query cache immediately
   appCache.clear();
@@ -94,9 +117,7 @@ export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DEL
   // Invalidate TanStack Query cache locally for the acting client user
   if (globalQueryClient) {
     const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
-    dependentKeys.forEach((key) => {
-      globalQueryClient?.invalidateQueries({ queryKey: [key] });
-    });
+    debouncedInvalidateQueries(dependentKeys);
   }
 
   changeListeners.forEach((listener) => {

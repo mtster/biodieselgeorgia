@@ -77,8 +77,8 @@ export const defaultPermissions: Record<string, Record<string, string[]>> = {
   operator: {
     dashboard: ['view'],
     suppliers: ['view'],
-    contacts: ['view', 'add', 'modify'],
-    communications: ['view', 'add', 'modify'],
+    contacts: ['view', 'add', 'modify', 'delete'],
+    communications: ['view', 'add', 'modify', 'delete'],
     orders: ['view', 'add', 'modify'],
     reports: [],
     users: ['view'],

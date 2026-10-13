@@ -9,7 +9,7 @@ export function useAuth() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const currentUserRef = useRef<User | null>(null);
-  const isSyncingAuthRef = useRef(false);
+  const syncPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -17,62 +17,68 @@ export function useAuth() {
 
   const syncUserFromSession = async (session: any) => {
     if (!session?.user || !isSupabaseConfigured || !supabase) return;
-    if (isSyncingAuthRef.current && currentUserRef.current?.id === session.user.id) return;
     if (currentUserRef.current?.id === session.user.id && currentUserRef.current?.email === session.user.email) return;
 
-    isSyncingAuthRef.current = true;
-    try {
-      const { data: dbUser } = await supabase
-        .from('profiles')
-        .select('*')
-        .or(`id.eq.${session.user.id},email.eq.${session.user.email}`)
-        .maybeSingle();
-
-      if (dbUser) {
-        if (dbUser.is_deleted || dbUser.is_blocked) {
-          console.warn('Access denied: User is blocked or deleted.');
-          await supabase.auth.signOut();
-          setCurrentUser(null);
-        } else {
-          const secureUser = decodeProfile(dbUser);
-          secureUser.role = dbUser.role || session.user.app_metadata?.role || session.user.user_metadata?.role || secureUser.role;
-          if (!secureUser.permissions || Object.keys(secureUser.permissions).length === 0) {
-            const metaPerms = session.user.app_metadata?.permissions || session.user.user_metadata?.permissions;
-            if (metaPerms && Object.keys(metaPerms).length > 0) {
-              secureUser.permissions = metaPerms;
-            } else if (defaultPermissions[secureUser.role]) {
-              secureUser.permissions = JSON.parse(JSON.stringify(defaultPermissions[secureUser.role]));
-            } else {
-              secureUser.permissions = {};
-            }
-          }
-          setCurrentUser(secureUser);
-        }
-      } else {
-        const role = session.user.app_metadata?.role || session.user.user_metadata?.role || 'vendor';
-        const metaPerms = session.user.app_metadata?.permissions || session.user.user_metadata?.permissions;
-        const defPerms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
-        const vendorUser: User = {
-          id: session.user.id,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
-          email: session.user.email || '',
-          personal_id: session.user.user_metadata?.personal_id || '',
-          phone: session.user.user_metadata?.phone || '',
-          role: role,
-          permissions: metaPerms || defPerms,
-          is_blocked: false,
-          created_at: session.user.created_at || new Date().toISOString(),
-          vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,
-          warehouse_id: session.user.user_metadata?.warehouse_id || session.user.user_metadata?.edit_permissions?.warehouse_id || undefined
-        };
-        setCurrentUser(vendorUser);
-      }
-    } catch (e) {
-      console.error('Session sync error:', e);
-    } finally {
-      isSyncingAuthRef.current = false;
-      setIsLoadingAuth(false);
+    if (syncPromiseRef.current) {
+      return syncPromiseRef.current;
     }
+
+    syncPromiseRef.current = (async () => {
+      try {
+        const { data: dbUser } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`id.eq.${session.user.id},email.eq.${session.user.email}`)
+          .maybeSingle();
+
+        if (dbUser) {
+          if (dbUser.is_deleted || dbUser.is_blocked) {
+            console.warn('Access denied: User is blocked or deleted.');
+            await supabase.auth.signOut();
+            setCurrentUser(null);
+          } else {
+            const secureUser = decodeProfile(dbUser);
+            secureUser.role = dbUser.role || session.user.app_metadata?.role || session.user.user_metadata?.role || secureUser.role;
+            if (!secureUser.permissions || Object.keys(secureUser.permissions).length === 0) {
+              const metaPerms = session.user.app_metadata?.permissions || session.user.user_metadata?.permissions;
+              if (metaPerms && Object.keys(metaPerms).length > 0) {
+                secureUser.permissions = metaPerms;
+              } else if (defaultPermissions[secureUser.role]) {
+                secureUser.permissions = JSON.parse(JSON.stringify(defaultPermissions[secureUser.role]));
+              } else {
+                secureUser.permissions = {};
+              }
+            }
+            setCurrentUser(secureUser);
+          }
+        } else {
+          const role = session.user.app_metadata?.role || session.user.user_metadata?.role || 'vendor';
+          const metaPerms = session.user.app_metadata?.permissions || session.user.user_metadata?.permissions;
+          const defPerms = defaultPermissions[role] ? JSON.parse(JSON.stringify(defaultPermissions[role])) : {};
+          const vendorUser: User = {
+            id: session.user.id,
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Supplier',
+            email: session.user.email || '',
+            personal_id: session.user.user_metadata?.personal_id || '',
+            phone: session.user.user_metadata?.phone || '',
+            role: role,
+            permissions: metaPerms || defPerms,
+            is_blocked: false,
+            created_at: session.user.created_at || new Date().toISOString(),
+            vendor_id: session.user.user_metadata?.vendor_id || session.user.user_metadata?.edit_permissions?.vendor_id || undefined,
+            warehouse_id: session.user.user_metadata?.warehouse_id || session.user.user_metadata?.edit_permissions?.warehouse_id || undefined
+          };
+          setCurrentUser(vendorUser);
+        }
+      } catch (e) {
+        console.error('Session sync error:', e);
+      } finally {
+        syncPromiseRef.current = null;
+        setIsLoadingAuth(false);
+      }
+    })();
+
+    return syncPromiseRef.current;
   };
 
   // Read Supabase auth session on boot

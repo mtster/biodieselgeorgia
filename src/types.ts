@@ -123,6 +123,7 @@ export interface Order {
   tanks_to_bring: number;     // წამოსაღები ავზების რაოდ
   sms_sent?: boolean;         // გაიგზავნა თუ არა სმს ბუღალტერთან დასრულებისას
   is_deleted?: boolean;
+  vendor?: Vendor | null;
   contact_id?: string;
   contact?: VendorContact | null;
   contact_name?: string;

@@ -194,14 +194,14 @@ export default function Sidebar({
       </div>
 
       {/* Profile and signout */}
-      <div className="p-2.5 pb-[calc(0.6rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800 bg-slate-950/20 select-none">
-        <PWAInstallButton className="w-full mb-2 justify-center text-xs py-1" />
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 font-extrabold flex items-center justify-center text-[11px] text-slate-200 uppercase shrink-0">
+      <div className="p-3 pb-[calc(0.6rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800/80 bg-slate-950/40 select-none space-y-2.5">
+        <PWAInstallButton className="w-full mb-1 justify-center text-xs py-1" />
+        <div className="flex items-center gap-2.5 pt-1.5 bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60">
+          <div className="w-8 h-8 rounded-full bg-emerald-950/60 border border-emerald-800/60 font-extrabold flex items-center justify-center text-[11px] text-emerald-300 uppercase shrink-0 shadow-2xs">
             {currentUser.name.slice(0, 2)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+            <p className="text-xs font-extrabold text-white truncate">{currentUser.name}</p>
             <span className="text-[11px] text-emerald-400 font-medium block truncate">
               {getUserRoleLabel(currentUser.role)}
             </span>
@@ -211,9 +211,9 @@ export default function Sidebar({
         <button 
           onClick={onLogOut}
           type="button"
-          className="w-full py-1.5 px-2 bg-slate-800/80 hover:bg-red-900 border border-slate-700/50 hover:border-red-950 text-slate-300 hover:text-white rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+          className="w-[92%] mx-auto py-1.5 px-3 bg-slate-800/80 hover:bg-rose-950/90 border border-slate-700/60 hover:border-rose-800/60 text-slate-300 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
         >
-          <LogOut size={13} />
+          <LogOut size={13} className="text-rose-400" />
           {t("Log Out")}
         </button>
       </div>

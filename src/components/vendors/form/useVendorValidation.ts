@@ -83,7 +83,9 @@ export function useVendorValidation(
     const allKeys = Array.from(new Set([...Object.keys(editingVendor), ...Object.keys(initV)]));
     for (const k of allKeys) {
       if (k.startsWith('custom_')) {
-        if ((editingVendor as any)[k] !== (initV as any)[k]) return true;
+        const val1 = ((editingVendor as any)[k] ?? '').toString().trim();
+        const val2 = ((initV as any)[k] ?? '').toString().trim();
+        if (val1 !== val2) return true;
       }
     }
 

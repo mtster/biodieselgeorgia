@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { useAppData } from './hooks/useAppData';
-import { usePaginatedVendors } from './hooks/usePaginatedModuleQuery';
+import { useTotalVendorsCount } from './hooks/usePaginatedModuleQuery';
 import { Communication } from './types';
 import { t } from './utils/lang';
 import ErrorModal from './components/ErrorModal';
@@ -82,8 +82,7 @@ export default function App() {
     setErrorModal
   } = useAppData();
 
-  const { data: initialVendorsPaginated } = usePaginatedVendors(1, {}, currentUser);
-  const totalVendorsCount = initialVendorsPaginated?.totalCount;
+  const { data: totalVendorsCount } = useTotalVendorsCount(currentUser);
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
   const [selectedOrderVendorId, setSelectedOrderVendorId] = React.useState<string | undefined>(undefined);

@@ -9,6 +9,7 @@ import {
   getChangeHistoryPaginated
 } from '../lib/db';
 import { hasModuleViewPermission } from '../lib/realtime';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export function usePaginatedHistory(
   page: number,
@@ -72,6 +73,32 @@ export function usePaginatedVendors(
   });
 
   return query;
+}
+
+export function useTotalVendorsCount(currentUser: User | null) {
+  const isAllowed = hasModuleViewPermission(currentUser, 'suppliers') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
+
+  return useQuery({
+    queryKey: ['vendors_count'],
+    queryFn: async () => {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { count, error } = await supabase
+            .from('vendors')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_deleted', false);
+          if (!error && typeof count === 'number') {
+            return count;
+          }
+        } catch (e) {
+          console.warn('Failed to fetch vendors count:', e);
+        }
+      }
+      return 0;
+    },
+    enabled: isAllowed && !!currentUser,
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 export function usePaginatedOrders(

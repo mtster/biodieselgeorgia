@@ -178,8 +178,6 @@ export function useVendorsViewState({
     const res = await onSave(finalVendor);
     setEditingVendor(null);
     onClearInitialVendorId?.();
-    queryClient.invalidateQueries({ queryKey: ['vendors'] });
-    refetchVendors();
     return res;
   };
 
@@ -195,8 +193,6 @@ export function useVendorsViewState({
         setEditingVendor(null);
         onClearInitialVendorId?.();
       }
-      queryClient.invalidateQueries({ queryKey: ['vendors'] });
-      refetchVendors();
     }
     setDeleteConfirmId(null);
     setDeleteConfirmName(null);
@@ -209,13 +205,10 @@ export function useVendorsViewState({
     });
     setSelectedVendors([]);
     setShowBulkDeleteConfirm(false);
-    queryClient.invalidateQueries({ queryKey: ['vendors'] });
-    refetchVendors();
   };
 
   const refreshVendorsQuery = () => {
     queryClient.invalidateQueries({ queryKey: ['vendors'] });
-    refetchVendors();
   };
 
   return {

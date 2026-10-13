@@ -90,7 +90,7 @@ export function useAppDataMutations({
 
   const handleVendorSave = async (vnd: Vendor) => {
     try {
-      const saved = await saveVendor(vnd, currentUser?.name || 'System', currentUser?.id);
+      const saved = await saveVendor(vnd, currentUser?.name || 'System', currentUser?.id, currentUser?.role);
       setVendors(prev => {
         const exists = prev.some(v => v.id === saved.id);
         return exists ? prev.map(v => v.id === saved.id ? saved : v) : [saved, ...prev];

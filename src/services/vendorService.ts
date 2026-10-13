@@ -57,82 +57,115 @@ export function decodeVendorCustomFields(vendor: any): Vendor {
   return decoded;
 }
 
-// Fetch all contacts from vendor_contacts table
+const inFlightContacts = new Map<string, Promise<VendorContact[]>>();
+
+// Fetch all contacts from vendor_contacts table with in-flight deduplication and memory caching
 export async function getVendorContacts(vendorId?: string): Promise<VendorContact[]> {
-  if (isSupabaseConfigured && supabase) {
-    try {
-      if (vendorId) {
-        const { data, error } = await supabase
-          .from('vendor_contacts')
-          .select('*')
-          .eq('is_deleted', false)
-          .eq('vendor_id', vendorId)
-          .order('is_default', { ascending: false })
-          .order('sort_order', { ascending: false })
-          .order('id', { ascending: false });
-        if (!error && data) {
-          return (data as any[]).sort((a, b) => {
-            if (a.is_default && !b.is_default) return -1;
-            if (!a.is_default && b.is_default) return 1;
-            return (b.sort_order || 0) - (a.sort_order || 0);
-          });
-        }
-      } else {
-        // Fetch all contacts in chunks to bypass 1000 row limit
-        const CHUNK_SIZE = 1000;
-        let from = 0;
-        let hasMore = true;
-        const allContacts: any[] = [];
-        while (hasMore) {
+  const cacheKey = vendorId ? `vendor_contacts_${vendorId}` : 'vendor_contacts_all';
+
+  // 1. Check in-memory appCache first
+  const cached = appCache.get<VendorContact[]>(cacheKey);
+  if (cached !== null && cached !== undefined) {
+    return cached;
+  }
+
+  // 2. In-flight promise deduplication
+  if (inFlightContacts.has(cacheKey)) {
+    return inFlightContacts.get(cacheKey)!;
+  }
+
+  const promise = (async () => {
+    let resultContacts: VendorContact[] = [];
+    if (isSupabaseConfigured && supabase) {
+      try {
+        if (vendorId) {
           const { data, error } = await supabase
             .from('vendor_contacts')
             .select('*')
             .eq('is_deleted', false)
-            .order('id')
-            .range(from, from + CHUNK_SIZE - 1);
-          if (error) {
-            console.warn('Error fetching vendor contacts chunk:', error);
-            break;
+            .eq('vendor_id', vendorId)
+            .order('is_default', { ascending: false })
+            .order('sort_order', { ascending: false })
+            .order('id', { ascending: false });
+          if (!error && data) {
+            resultContacts = (data as any[]).sort((a, b) => {
+              if (a.is_default && !b.is_default) return -1;
+              if (!a.is_default && b.is_default) return 1;
+              return (b.sort_order || 0) - (a.sort_order || 0);
+            });
+            appCache.set(cacheKey, resultContacts);
+            return resultContacts;
           }
-          if (data && data.length > 0) {
-            allContacts.push(...data);
-            from += CHUNK_SIZE;
-            if (data.length < CHUNK_SIZE) {
+        } else {
+          // Fetch all contacts in chunks to bypass 1000 row limit
+          const CHUNK_SIZE = 1000;
+          let from = 0;
+          let hasMore = true;
+          const allContacts: any[] = [];
+          while (hasMore) {
+            const { data, error } = await supabase
+              .from('vendor_contacts')
+              .select('*')
+              .eq('is_deleted', false)
+              .order('id')
+              .range(from, from + CHUNK_SIZE - 1);
+            if (error) {
+              console.warn('Error fetching vendor contacts chunk:', error);
+              break;
+            }
+            if (data && data.length > 0) {
+              allContacts.push(...data);
+              from += CHUNK_SIZE;
+              if (data.length < CHUNK_SIZE) {
+                hasMore = false;
+              }
+            } else {
               hasMore = false;
             }
-          } else {
-            hasMore = false;
+          }
+          if (allContacts.length > 0) {
+            resultContacts = allContacts.sort((a, b) => {
+              if (a.is_default && !b.is_default) return -1;
+              if (!a.is_default && b.is_default) return 1;
+              return (b.sort_order || 0) - (a.sort_order || 0);
+            });
+            appCache.set(cacheKey, resultContacts);
+            return resultContacts;
           }
         }
-        if (allContacts.length > 0) {
-          return allContacts.sort((a, b) => {
-            if (a.is_default && !b.is_default) return -1;
-            if (!a.is_default && b.is_default) return 1;
-            return (b.sort_order || 0) - (a.sort_order || 0);
-          });
-        }
+      } catch (e) {
+        console.warn('Supabase getVendorContacts failed', e);
       }
-    } catch (e) {
-      console.warn('Supabase getVendorContacts failed', e);
     }
+    // Local fallback
+    const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
+    const filtered = vendorId 
+      ? allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted) 
+      : allContacts.filter(c => !c.is_deleted);
+    
+    resultContacts = filtered.sort((a, b) => {
+      if (a.is_default && !b.is_default) return -1;
+      if (!a.is_default && b.is_default) return 1;
+      return (b.sort_order || 0) - (a.sort_order || 0);
+    });
+    appCache.set(cacheKey, resultContacts);
+    return resultContacts;
+  })();
+
+  inFlightContacts.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlightContacts.delete(cacheKey);
   }
-  // Local fallback
-  const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
-  const filtered = vendorId 
-    ? allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted) 
-    : allContacts.filter(c => !c.is_deleted);
-  
-  return filtered.sort((a, b) => {
-    if (a.is_default && !b.is_default) return -1;
-    if (!a.is_default && b.is_default) return 1;
-    return (b.sort_order || 0) - (a.sort_order || 0);
-  });
 }
 
 export interface PaginatedVendorContactsResult {
   contacts: VendorContact[];
   totalCount: number;
 }
+
+const inFlightVendorContactsPaginated = new Map<string, Promise<PaginatedVendorContactsResult>>();
 
 // Fetch paginated contacts for a specific vendor from vendor_contacts table
 export async function getVendorContactsPaginated(
@@ -157,64 +190,79 @@ export async function getVendorContactsPaginated(
     return { contacts: [], totalCount: cachedCount };
   }
 
-  if (isSupabaseConfigured && supabase) {
-    try {
-      let query = supabase
-        .from('vendor_contacts')
-        .select('*', cachedCount !== null ? {} : { count: 'exact' })
-        .eq('is_deleted', false)
-        .eq('vendor_id', vendorId)
-        .order('is_default', { ascending: false })
-        .order('sort_order', { ascending: false })
-        .order('id', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      const { data, count, error } = await query;
-
-      if (!error && data) {
-        const finalCount = cachedCount !== null ? cachedCount : (count || 0);
-        if (cachedCount === null && count !== null) {
-          appCache.set(countCacheKey, count);
-        }
-
-        const sorted = (data as any[]).sort((a, b) => {
-          if (a.is_default && !b.is_default) return -1;
-          if (!a.is_default && b.is_default) return 1;
-          return (b.sort_order || 0) - (a.sort_order || 0);
-        });
-
-        const result: PaginatedVendorContactsResult = {
-          contacts: sorted,
-          totalCount: finalCount
-        };
-
-        appCache.set(pageCacheKey, result);
-        return result;
-      }
-    } catch (e) {
-      console.warn('Supabase getVendorContactsPaginated failed', e);
-    }
+  if (inFlightVendorContactsPaginated.has(pageCacheKey)) {
+    return inFlightVendorContactsPaginated.get(pageCacheKey)!;
   }
 
-  // Local fallback
-  const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
-  const filtered = allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted);
-  const sorted = filtered.sort((a, b) => {
-    if (a.is_default && !b.is_default) return -1;
-    if (!a.is_default && b.is_default) return 1;
-    return (b.sort_order || 0) - (a.sort_order || 0);
-  });
+  const promise = (async (): Promise<PaginatedVendorContactsResult> => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let query = supabase
+          .from('vendor_contacts')
+          .select('*', cachedCount !== null ? {} : { count: 'exact' })
+          .eq('is_deleted', false)
+          .eq('vendor_id', vendorId)
+          .order('is_default', { ascending: false })
+          .order('sort_order', { ascending: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + limit - 1);
 
-  const sliced = sorted.slice(offset, offset + limit);
-  const result: PaginatedVendorContactsResult = {
-    contacts: sliced,
-    totalCount: sorted.length
-  };
-  return result;
+        const { data, count, error } = await query;
+
+        if (!error && data) {
+          const finalCount = cachedCount !== null ? cachedCount : (count || 0);
+          if (cachedCount === null && count !== null) {
+            appCache.set(countCacheKey, count);
+          }
+
+          const sorted = (data as any[]).sort((a, b) => {
+            if (a.is_default && !b.is_default) return -1;
+            if (!a.is_default && b.is_default) return 1;
+            return (b.sort_order || 0) - (a.sort_order || 0);
+          });
+
+          const result: PaginatedVendorContactsResult = {
+            contacts: sorted,
+            totalCount: finalCount
+          };
+
+          appCache.set(pageCacheKey, result);
+          return result;
+        }
+      } catch (e) {
+        console.warn('Supabase getVendorContactsPaginated failed', e);
+      }
+    }
+
+    // Local fallback
+    const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
+    const filtered = allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted);
+    const sorted = filtered.sort((a, b) => {
+      if (a.is_default && !b.is_default) return -1;
+      if (!a.is_default && b.is_default) return 1;
+      return (b.sort_order || 0) - (a.sort_order || 0);
+    });
+
+    const sliced = sorted.slice(offset, offset + limit);
+    const result: PaginatedVendorContactsResult = {
+      contacts: sliced,
+      totalCount: sorted.length
+    };
+    appCache.set(pageCacheKey, result);
+    return result;
+  })();
+
+  inFlightVendorContactsPaginated.set(pageCacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlightVendorContactsPaginated.delete(pageCacheKey);
+  }
 }
 
 // Save/update all contacts for a specific vendor
 export async function saveVendorContacts(vendorId: string, contacts: VendorContact[], currentUserId?: string): Promise<void> {
+  notifyDbChange('vendor_contacts', 'UPDATE', vendorId);
   appCache.clear('contacts_');
   appCache.clear('vendor_contacts_');
   appCache.clear('count_vendor_contacts_');
@@ -570,7 +618,11 @@ export async function getVendorsPaginated(
             .eq('is_deleted', false);
           if (contactsData) {
             decoded.forEach(v => {
-              v.contacts = contactsData.filter(c => c.vendor_id === v.id);
+              const vContacts = contactsData.filter(c => c.vendor_id === v.id);
+              v.contacts = vContacts;
+              if (v.id) {
+                appCache.set(`vendor_contacts_${v.id}`, vContacts);
+              }
             });
           }
         }
@@ -623,28 +675,51 @@ export async function getVendorsPaginated(
   };
 }
 
+const inFlightVendorById = new Map<string, Promise<Vendor | null>>();
+
 export async function getVendorById(id: string): Promise<Vendor | null> {
   if (!id) return null;
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase.from('vendors').select('*').eq('id', id).single();
-      if (!error && data) {
-        const decoded = decodeVendorCustomFields(data);
-        const contacts = await getVendorContacts(id);
-        decoded.contacts = contacts;
-        return decoded;
+  const cacheKey = `vendor_${id}`;
+  const cached = appCache.get<Vendor>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  if (inFlightVendorById.has(id)) {
+    return inFlightVendorById.get(id)!;
+  }
+
+  const promise = (async (): Promise<Vendor | null> => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.from('vendors').select('*').eq('id', id).single();
+        if (!error && data) {
+          const decoded = decodeVendorCustomFields(data);
+          const contacts = await getVendorContacts(id);
+          decoded.contacts = contacts;
+          appCache.set(cacheKey, decoded);
+          return decoded;
+        }
+      } catch (e) {
+        console.warn('Supabase getVendorById failed:', e);
       }
-    } catch (e) {
-      console.warn('Supabase getVendorById failed:', e);
     }
+    const localVendors = getLocal<Vendor[]>(KEY_VENDORS, []);
+    const found = localVendors.find(v => v.id === id || String(v.id).toLowerCase().trim() === String(id).toLowerCase().trim());
+    if (found) {
+      const contacts = await getVendorContacts(id);
+      const res = { ...decodeVendorCustomFields(found), contacts };
+      appCache.set(cacheKey, res);
+      return res;
+    }
+    return null;
+  })();
+
+  inFlightVendorById.set(id, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlightVendorById.delete(id);
   }
-  const localVendors = getLocal<Vendor[]>(KEY_VENDORS, []);
-  const found = localVendors.find(v => v.id === id || String(v.id).toLowerCase().trim() === String(id).toLowerCase().trim());
-  if (found) {
-    const contacts = await getVendorContacts(id);
-    return { ...decodeVendorCustomFields(found), contacts };
-  }
-  return null;
 }
 
 export async function getVendors(limit = 250): Promise<Vendor[]> {
@@ -669,11 +744,19 @@ export async function getVendors(limit = 250): Promise<Vendor[]> {
     vendors = getLocal<Vendor[]>(KEY_VENDORS, []).filter(item => !item.is_deleted).slice(0, limit).map(v => decodeVendorCustomFields(v));
   }
 
-  // Populate dynamic contacts
-  const allContacts = await getVendorContacts();
+  // Populate default contacts array safely without downloading entire contacts table
+  const vendorMap = new Map<string, any>();
   vendors.forEach(v => {
-    v.contacts = allContacts.filter(c => c.vendor_id === v.id);
+    v.contacts = v.contacts || [];
+    if (v && v.id) {
+      vendorMap.set(v.id, v);
+      vendorMap.set(String(v.id).trim().toLowerCase(), v);
+    }
   });
+
+  // Cache vendors in memory for fast synchronous enrichment
+  appCache.set('vendors_list', vendors);
+  appCache.set('vendors_map', vendorMap);
 
   return vendors;
 }
@@ -771,7 +854,12 @@ export async function createDatabaseColumn(columnName: string): Promise<void> {
   }
 }
 
-export async function saveVendor(vendor: Vendor, loggerName: string, currentUserId?: string): Promise<Vendor> {
+export async function saveVendor(
+  vendor: Vendor,
+  loggerName: string,
+  currentUserId?: string,
+  currentUserRole?: string
+): Promise<Vendor> {
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
   const isNew = !vendor.id;
 
@@ -796,29 +884,90 @@ export async function saveVendor(vendor: Vendor, loggerName: string, currentUser
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // Check if a vendor with the same company_code already exists in DB to reuse its ID
-      if (finalCompCode && isNew) {
-        const { data: existingComp } = await supabase
-          .from('vendors')
-          .select('id')
-          .eq('is_deleted', false)
-          .ilike('company_code', finalCompCode)
-          .maybeSingle();
-
-        if (existingComp?.id) {
-          finalVendor.id = existingComp.id;
+      // Determine if acting user is an operator
+      let isOperator = currentUserRole === 'operator';
+      if (!isOperator && supabase) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const uid = sessionData.session?.user?.id;
+          const role = sessionData.session?.user?.app_metadata?.role || sessionData.session?.user?.user_metadata?.role;
+          if (role === 'operator') {
+            isOperator = true;
+          } else if (!role && uid) {
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', uid).maybeSingle();
+            if (profile?.role === 'operator') {
+              isOperator = true;
+            }
+          }
+        } catch {
+          // ignore session retrieval error
         }
       }
 
-      const dbPayload = cleanVendorDbPayload(finalVendor);
-      const { error } = await supabase.from('vendors').upsert([dbPayload], { onConflict: 'id' });
-      if (error) {
-        console.error('Supabase upsert error details:', error);
-        if ((error as any).code === '23505') {
-          console.warn('Skipping duplicate company_code conflict in Supabase:', finalCompCode);
-          return decodeVendorCustomFields(finalVendor);
+      if (isNew) {
+        // Check if a vendor with the same company_code already exists in DB to reuse its ID
+        if (finalCompCode) {
+          const { data: existingComp } = await supabase
+            .from('vendors')
+            .select('id')
+            .eq('is_deleted', false)
+            .ilike('company_code', finalCompCode)
+            .maybeSingle();
+
+          if (existingComp?.id) {
+            finalVendor.id = existingComp.id;
+          }
         }
-        throw error;
+
+        const dbPayload = cleanVendorDbPayload(finalVendor);
+        const { error } = await supabase.from('vendors').insert([dbPayload]);
+        if (error) {
+          console.error('Supabase insert error details:', error);
+          if ((error as any).code === '23505') {
+            console.warn('Skipping duplicate company_code conflict in Supabase:', finalCompCode);
+            return decodeVendorCustomFields(finalVendor);
+          }
+          throw error;
+        }
+      } else {
+        // Updating existing vendor - NEVER use upsert!
+        if (isOperator) {
+          // Compare whether comments actually changed before issuing update to vendors table
+          // If operator only modified contacts, skip updating vendors table to avoid unnecessary triggers
+          const existingVendor = list.find(item => item.id === finalVendor.id);
+          const existingCommentsJson = JSON.stringify(existingVendor?.comments || []);
+          const newCommentsJson = JSON.stringify(finalVendor.comments || []);
+          const commentsChanged = existingCommentsJson !== newCommentsJson;
+
+          if (commentsChanged && finalVendor.comments !== undefined) {
+            const { error: commentsErr } = await supabase
+              .from('vendors')
+              .update({ comments: Array.isArray(finalVendor.comments) ? finalVendor.comments : [] })
+              .eq('id', finalVendor.id);
+
+            if (commentsErr) {
+              console.error('Supabase operator comments update error:', commentsErr);
+              throw commentsErr;
+            }
+          }
+        } else {
+          // Full update for authorized users (admin, manager, or users with suppliers.modify)
+          const dbPayload = cleanVendorDbPayload(finalVendor);
+          delete dbPayload.id; // Do not alter primary key
+          const { error } = await supabase
+            .from('vendors')
+            .update(dbPayload)
+            .eq('id', finalVendor.id);
+
+          if (error) {
+            console.error('Supabase update vendor error details:', error);
+            if ((error as any).code === '23505') {
+              console.warn('Skipping duplicate company_code conflict in Supabase:', finalCompCode);
+              return decodeVendorCustomFields(finalVendor);
+            }
+            throw error;
+          }
+        }
       }
       
       // Save contacts to separate table

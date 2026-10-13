@@ -468,7 +468,13 @@ BEGIN
     RETURN v_role;
   END IF;
 
-  -- 2. Fallback to authoritative database profiles table
+  -- 2. Check user_metadata in JWT
+  v_role := auth.jwt() -> 'user_metadata' ->> 'role';
+  IF v_role IS NOT NULL AND v_role != '' THEN
+    RETURN v_role;
+  END IF;
+
+  -- 3. Fallback to authoritative database profiles table
   SELECT role INTO v_role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
   RETURN COALESCE(v_role, '');
 END;
@@ -542,6 +548,16 @@ BEGIN
   -- Allowed role defaults for viewing suppliers if custom permissions are not yet configured
   IF (u_permissions IS NULL OR u_permissions = '{}'::jsonb) AND u_role::text IN ('manager', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager') AND module IN ('suppliers', 'vendors') AND perm = 'view' THEN
     RETURN true;
+  END IF;
+
+  -- Operator role default permissions: full access to contacts and communications
+  IF (u_role::text = 'operator' OR jwt_role = 'operator') THEN
+    IF module IN ('contacts', 'vendor_contacts') AND perm IN ('view', 'add', 'modify', 'delete') THEN
+      RETURN true;
+    END IF;
+    IF module IN ('communications') AND perm IN ('view', 'add', 'modify', 'delete') THEN
+      RETURN true;
+    END IF;
   END IF;
   
   IF u_role::text IN ('vehicle', 'driver') THEN
@@ -702,22 +718,130 @@ CREATE POLICY "Vehicles modify" ON public.vehicles FOR UPDATE TO authenticated U
 CREATE POLICY "Vehicles delete" ON public.vehicles FOR DELETE TO authenticated USING (public.has_permission('vehicles', 'delete'));
 
 -- VENDORS
-CREATE POLICY "Vendors view" ON public.vendors FOR SELECT TO authenticated USING (public.has_permission('suppliers', 'view'));
-CREATE POLICY "Vendors add" ON public.vendors FOR INSERT TO authenticated WITH CHECK (public.has_permission('suppliers', 'add'));
-CREATE POLICY "Vendors modify" ON public.vendors FOR UPDATE TO authenticated USING (public.has_permission('suppliers', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('suppliers', 'delete')) AND public.has_permission('suppliers', 'modify'));
-CREATE POLICY "Vendors delete" ON public.vendors FOR DELETE TO authenticated USING (public.has_permission('suppliers', 'delete'));
+CREATE POLICY "Vendors view" ON public.vendors FOR SELECT TO authenticated USING (
+  public.has_permission('suppliers', 'view') 
+  OR public.has_permission('vendors', 'view')
+  OR public.get_current_user_role() = 'operator'
+);
+CREATE POLICY "Vendors add" ON public.vendors FOR INSERT TO authenticated WITH CHECK (
+  public.has_permission('suppliers', 'add') 
+  OR public.has_permission('vendors', 'add')
+);
+CREATE POLICY "Vendors modify" ON public.vendors FOR UPDATE TO authenticated USING (
+  public.has_permission('suppliers', 'modify')
+  OR public.has_permission('vendors', 'modify')
+  OR (public.get_current_user_role() = 'operator' AND is_deleted = false)
+) WITH CHECK (
+  (
+    (public.has_permission('suppliers', 'modify') OR public.has_permission('vendors', 'modify')) 
+    AND (is_deleted = false OR public.has_permission('suppliers', 'delete') OR public.has_permission('vendors', 'delete'))
+  )
+  OR (public.get_current_user_role() = 'operator' AND is_deleted = false)
+);
+CREATE POLICY "Vendors delete" ON public.vendors FOR DELETE TO authenticated USING (
+  public.has_permission('suppliers', 'delete') 
+  OR public.has_permission('vendors', 'delete')
+);
+
+-- Trigger to enforce that operators can ONLY modify comments (not core supplier details) on vendors table
+CREATE OR REPLACE FUNCTION public.check_operator_vendor_update()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_role TEXT;
+BEGIN
+  -- Service role and administrative connections bypass
+  IF auth.role() = 'service_role' OR session_user IN ('postgres', 'supabase_admin') OR auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  v_role := public.get_current_user_role();
+
+  -- Admins or users with suppliers/vendors modify permission can update anything
+  IF v_role = 'admin' OR public.has_permission('suppliers', 'modify') OR public.has_permission('vendors', 'modify') THEN
+    RETURN NEW;
+  END IF;
+
+  -- If user is an operator, strictly forbid altering core vendor fields
+  IF v_role = 'operator' THEN
+    -- Operators cannot soft-delete vendors
+    IF NEW.is_deleted IS DISTINCT FROM OLD.is_deleted AND NEW.is_deleted = true THEN
+      RAISE EXCEPTION 'Operators are not permitted to delete suppliers.';
+    END IF;
+
+    -- Operators cannot modify any core supplier attributes except comments
+    IF NEW.trade_name IS DISTINCT FROM OLD.trade_name
+       OR NEW.company_name IS DISTINCT FROM OLD.company_name
+       OR NEW.id_code IS DISTINCT FROM OLD.id_code
+       OR NEW.company_code IS DISTINCT FROM OLD.company_code
+       OR NEW.address IS DISTINCT FROM OLD.address
+       OR NEW.city IS DISTINCT FROM OLD.city
+       OR NEW.district IS DISTINCT FROM OLD.district
+       OR NEW.direction_id IS DISTINCT FROM OLD.direction_id
+       OR NEW.warehouse_id IS DISTINCT FROM OLD.warehouse_id
+       OR NEW.price_per_liter IS DISTINCT FROM OLD.price_per_liter
+       OR NEW.bank_account IS DISTINCT FROM OLD.bank_account
+       OR NEW.working_hours IS DISTINCT FROM OLD.working_hours
+       OR NEW.status IS DISTINCT FROM OLD.status
+       OR NEW.manager_id IS DISTINCT FROM OLD.manager_id
+       OR NEW.operator_id IS DISTINCT FROM OLD.operator_id
+       OR NEW.user_id IS DISTINCT FROM OLD.user_id
+       OR NEW.is_planned IS DISTINCT FROM OLD.is_planned
+       OR NEW.planned_weekday IS DISTINCT FROM OLD.planned_weekday
+       OR NEW.frequency_weeks IS DISTINCT FROM OLD.frequency_weeks
+       OR NEW.tanks_to_bring IS DISTINCT FROM OLD.tanks_to_bring
+       OR NEW.tanks_to_leave IS DISTINCT FROM OLD.tanks_to_leave
+       OR NEW.overdue_threshold_days IS DISTINCT FROM OLD.overdue_threshold_days
+       OR NEW.custom_fields IS DISTINCT FROM OLD.custom_fields
+    THEN
+      RAISE EXCEPTION 'Operators are only authorized to modify vendor comments and contacts.';
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_check_operator_vendor_update ON public.vendors;
+CREATE TRIGGER trg_check_operator_vendor_update
+  BEFORE UPDATE ON public.vendors
+  FOR EACH ROW
+  EXECUTE FUNCTION public.check_operator_vendor_update();
 
 -- VENDOR CONTACTS
-CREATE POLICY "Vendor Contacts view" ON public.vendor_contacts FOR SELECT TO authenticated USING (public.has_permission('contacts', 'view'));
-CREATE POLICY "Vendor Contacts add" ON public.vendor_contacts FOR INSERT TO authenticated WITH CHECK (public.has_permission('contacts', 'add'));
-CREATE POLICY "Vendor Contacts modify" ON public.vendor_contacts FOR UPDATE TO authenticated USING (public.has_permission('contacts', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('contacts', 'delete')) AND public.has_permission('contacts', 'modify'));
-CREATE POLICY "Vendor Contacts delete" ON public.vendor_contacts FOR DELETE TO authenticated USING (public.has_permission('contacts', 'delete'));
+CREATE POLICY "Vendor Contacts view" ON public.vendor_contacts FOR SELECT TO authenticated USING (
+  public.has_permission('contacts', 'view') OR public.get_current_user_role() = 'operator'
+);
+CREATE POLICY "Vendor Contacts add" ON public.vendor_contacts FOR INSERT TO authenticated WITH CHECK (
+  public.has_permission('contacts', 'add') OR public.get_current_user_role() = 'operator'
+);
+CREATE POLICY "Vendor Contacts modify" ON public.vendor_contacts FOR UPDATE TO authenticated USING (
+  public.has_permission('contacts', 'modify') OR public.get_current_user_role() = 'operator'
+) WITH CHECK (
+  ((is_deleted = false OR public.has_permission('contacts', 'delete')) AND public.has_permission('contacts', 'modify'))
+  OR (public.get_current_user_role() = 'operator')
+);
+CREATE POLICY "Vendor Contacts delete" ON public.vendor_contacts FOR DELETE TO authenticated USING (
+  public.has_permission('contacts', 'delete') OR public.get_current_user_role() = 'operator'
+);
 
 -- COMMUNICATIONS
-CREATE POLICY "Communications view" ON public.communications FOR SELECT TO authenticated USING (public.has_permission('communications', 'view'));
-CREATE POLICY "Communications add" ON public.communications FOR INSERT TO authenticated WITH CHECK (public.has_permission('communications', 'add'));
-CREATE POLICY "Communications modify" ON public.communications FOR UPDATE TO authenticated USING (public.has_permission('communications', 'modify')) WITH CHECK ((is_deleted = false OR public.has_permission('communications', 'delete')) AND public.has_permission('communications', 'modify'));
-CREATE POLICY "Communications delete" ON public.communications FOR DELETE TO authenticated USING (public.has_permission('communications', 'delete'));
+CREATE POLICY "Communications view" ON public.communications FOR SELECT TO authenticated USING (
+  public.has_permission('communications', 'view') OR public.get_current_user_role() = 'operator'
+);
+CREATE POLICY "Communications add" ON public.communications FOR INSERT TO authenticated WITH CHECK (
+  public.has_permission('communications', 'add') OR public.get_current_user_role() = 'operator'
+);
+CREATE POLICY "Communications modify" ON public.communications FOR UPDATE TO authenticated USING (
+  public.has_permission('communications', 'modify') OR public.get_current_user_role() = 'operator'
+) WITH CHECK (
+  ((is_deleted = false OR public.has_permission('communications', 'delete')) AND public.has_permission('communications', 'modify'))
+  OR (public.get_current_user_role() = 'operator')
+);
+CREATE POLICY "Communications delete" ON public.communications FOR DELETE TO authenticated USING (
+  public.has_permission('communications', 'delete') OR public.get_current_user_role() = 'operator'
+);
 
 -- ORDERS
 CREATE POLICY "Orders view access" ON public.orders FOR SELECT TO authenticated USING (

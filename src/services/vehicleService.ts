@@ -3,6 +3,7 @@ import { Vehicle } from '../types';
 import { trackChange } from './historyService';
 import { KEY_TRUCKS as KEY_VEHICLES, getLocal, setLocal } from './localStorage';
 import { notifyDbChange } from '../lib/realtime';
+import { appCache } from '../utils/cache';
 
 export { KEY_VEHICLES };
 
@@ -27,24 +28,44 @@ export function decodeVehicle(vehicle: any): Vehicle {
 }
 
 export async function getVehicles(): Promise<Vehicle[]> {
+  const cached = appCache.get<Vehicle[]>('vehicles_cache');
+  if (cached && cached.length > 0) return cached;
+
+  let result: Vehicle[] = [];
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('vehicles').select('*').eq('is_deleted', false).order('plate_number');
-      if (!error && data) return data.map(v => decodeVehicle(v));
-      
-      const { data: fallbackData, error: fallbackError } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
-      if (!fallbackError && fallbackData) return fallbackData.map(v => decodeVehicle(v));
+      if (!error && data) {
+        result = data.map(v => decodeVehicle(v));
+      } else {
+        const { data: fallbackData, error: fallbackError } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
+        if (!fallbackError && fallbackData) result = fallbackData.map(v => decodeVehicle(v));
+      }
     } catch (e) {
       console.warn('Supabase getVehicles failed, trying trucks table...', e);
       try {
         const { data, error } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
-        if (!error && data) return data.map(v => decodeVehicle(v));
+        if (!error && data) result = data.map(v => decodeVehicle(v));
       } catch (err) {
         console.error('Unified getVehicles fallback failed', err);
       }
     }
   }
-  return getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
+
+  if (result.length === 0) {
+    result = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
+  }
+
+  if (result.length > 0) {
+    appCache.set('vehicles_cache', result);
+    const map = new Map<string, string>();
+    result.forEach(v => {
+      if (v?.id) map.set(v.id, v.plate_number);
+    });
+    appCache.set('vehicles_map', map);
+  }
+
+  return result;
 }
 
 export async function findDeletedVehicle(plate: string): Promise<Vehicle | null> {
