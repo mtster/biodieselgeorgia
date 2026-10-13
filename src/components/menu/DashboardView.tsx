@@ -4,8 +4,9 @@ import {
   Building2, ShoppingBag, Truck as TruckIcon, 
   Users, Fuel, Calendar, HelpCircle, User as UserIcon, ChevronDown 
 } from 'lucide-react';
-import { t } from '../../utils/lang';
+import { t, formatDate } from '../../utils/lang';
 import { getActiveOrdersCount } from '../../lib/db';
+import { getDashboardTodayRemindersPaginated } from '../../services/dashboardRemindersService';
 
 interface Props {
   suppliers: Vendor[]; // Pass vendors from parent App
@@ -50,120 +51,109 @@ export default function DashboardView({
   const totalLiters = orders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
-  // Filter all users except driver and driver assistants
+  // Filter staff roles strictly excluding drivers, driver assistants, and warehouse managers
+  const isExcluded = (user?: User | null) => {
+    if (!user) return true;
+    const r = (user.role || '').toLowerCase().trim();
+    if (r === 'warehouse_manager' || r === 'logistics_manager' || r === 'warehouse_head' || r === 'warehouse' || r.includes('warehouse') || r.includes('საწყობ') || r.includes('ლოჯისტიკ')) return true;
+    if (r === 'driver' || r === 'driver_assistant' || r === 'assistant_driver' || r === 'assistant' || r.includes('driver') || r.includes('მძღოლ')) return true;
+    if (r === 'vendor' || r.includes('vendor') || r.includes('მომწოდებ')) return true;
+    return false;
+  };
+
   const eligibleUsers = useMemo(() => {
-    const excludedRoles = ['driver', 'driver_assistant', 'assistant_driver', 'assistant'];
     const map = new Map<string, User>();
     (employees || []).forEach(e => {
-      const r = (e.role || '').toLowerCase().trim();
-      if (!e.is_deleted && !excludedRoles.includes(r)) {
+      if (!e.is_deleted && !isExcluded(e)) {
         map.set(e.id, e);
       }
     });
-    if (currentUser && !currentUser.is_deleted) {
-      const curRole = (currentUser.role || '').toLowerCase().trim();
-      if (!excludedRoles.includes(curRole)) {
-        map.set(currentUser.id, currentUser);
-      }
+    if (currentUser && !currentUser.is_deleted && !isExcluded(currentUser)) {
+      map.set(currentUser.id, currentUser);
     }
     return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ka'));
   }, [employees, currentUser]);
 
-  // Pre-choose the currently logged in user when app loads
-  const [selectedUserId, setSelectedUserId] = useState<string>(() => currentUser?.id || '');
+  // Pre-choose the currently logged in user when app loads IF eligible, otherwise 'all'
+  const [selectedUserId, setSelectedUserId] = useState<string>(() => {
+    if (currentUser && !isExcluded(currentUser)) {
+      return currentUser.id || 'all';
+    }
+    return 'all';
+  });
 
   useEffect(() => {
     if (currentUser?.id) {
-      setSelectedUserId(currentUser.id);
+      if (!isExcluded(currentUser)) {
+        setSelectedUserId(currentUser.id);
+      } else {
+        setSelectedUserId('all');
+      }
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, currentUser?.role]);
 
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
-  const todayYear = now.getFullYear();
-  const todayMonth = now.getMonth();
-  const todayDate = now.getDate();
-  const todayStr = `${todayYear}-${pad(todayMonth + 1)}-${pad(todayDate)}`;
 
-  // Also calculate current date in Georgia / Tbilisi timezone (Asia/Tbilisi UTC+4)
-  const tbilisiTodayStr = (() => {
-    try {
-      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(now);
-    } catch {
-      return todayStr;
-    }
-  })();
+  // Paginated Reminders State
+  const [reminders, setReminders] = useState<Communication[]>([]);
+  const [totalRemindersCount, setTotalRemindersCount] = useState<number>(0);
+  const [isLoadingReminders, setIsLoadingReminders] = useState<boolean>(false);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-  const isReminderForToday = (c: Communication): boolean => {
-    if (c.is_deleted) return false;
-    const hasReminderTime = !!c.reminder_time && String(c.reminder_time).trim().length > 0;
-    const isReminderType = (c.type || '').toString().toLowerCase().trim() === 'reminder';
-    if (!hasReminderTime && !isReminderType) return false;
-
-    const raw = String(c.reminder_time || c.date_time || '').trim();
-    if (!raw) return false;
-
-    // 1. Direct string match for YYYY-MM-DD against local or Tbilisi date
-    if (raw.startsWith(todayStr) || raw.startsWith(tbilisiTodayStr)) return true;
-    const datePart = raw.split('T')[0].split(' ')[0];
-    if (datePart === todayStr || datePart === tbilisiTodayStr) return true;
-
-    // Extract YYYY-MM-DD pattern from string
-    const match = raw.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-    if (match) {
-      const extractedDate = `${match[1]}-${pad(Number(match[2]))}-${pad(Number(match[3]))}`;
-      if (extractedDate === todayStr || extractedDate === tbilisiTodayStr) return true;
-    }
-
-    // 2. Parse Date and check local user timezone, Georgia (Tbilisi) timezone, and UTC
-    const d = new Date(raw);
-    if (!isNaN(d.getTime())) {
-      // Local client date
-      if (d.getFullYear() === todayYear && d.getMonth() === todayMonth && d.getDate() === todayDate) {
-        return true;
-      }
-      // Tbilisi timezone (Asia/Tbilisi UTC+4)
-      try {
-        const remTbilisiStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(d);
-        if (remTbilisiStr === tbilisiTodayStr || remTbilisiStr === todayStr) return true;
-      } catch {}
-      // UTC date check (in case stored as UTC without local conversion)
-      const utcDateStr = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-      if (utcDateStr === todayStr || utcDateStr === tbilisiTodayStr) return true;
-    }
-
-    return false;
-  };
-
-  const allTodayReminders = useMemo(() => {
-    return (communications || []).filter(isReminderForToday);
-  }, [communications, todayStr, tbilisiTodayStr]);
-
-  const filteredTodayReminders = useMemo(() => {
-    if (!selectedUserId || selectedUserId === 'all') {
-      return allTodayReminders;
-    }
-
+  // Fetch initial 7 rows on filter change / initial load
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingReminders(true);
     const selectedEmployee = eligibleUsers.find(e => e.id === selectedUserId) || employees.find(e => e.id === selectedUserId);
-    const selectedEmpName = (selectedEmployee?.name || '').toLowerCase().trim();
-    const selId = selectedUserId.toLowerCase().trim();
+    const selectedEmpName = selectedEmployee?.name || '';
 
-    return allTodayReminders.filter(rem => {
-      // Check ID on all potential user fields
-      if (rem.responsible_user_id && String(rem.responsible_user_id).toLowerCase().trim() === selId) return true;
-      if (rem.user_id && String(rem.user_id).toLowerCase().trim() === selId) return true;
-      if (rem.created_by && String(rem.created_by).toLowerCase().trim() === selId) return true;
-      
-      // Check names
-      if (selectedEmpName) {
-        if (rem.responsible_user_name && rem.responsible_user_name.toLowerCase().trim() === selectedEmpName) return true;
-        if (rem.user_name && rem.user_name.toLowerCase().trim() === selectedEmpName) return true;
-        if (rem.created_by && rem.created_by.toLowerCase().trim() === selectedEmpName) return true;
-      }
+    getDashboardTodayRemindersPaginated(7, 0, selectedUserId, selectedEmpName)
+      .then(res => {
+        if (!isMounted) return;
+        setReminders(res.reminders);
+        setTotalRemindersCount(res.totalCount);
+        setIsLoadingReminders(false);
+      })
+      .catch(err => {
+        if (!isMounted) return;
+        console.error('Failed to load dashboard reminders:', err);
+        setIsLoadingReminders(false);
+      });
 
-      return false;
-    });
-  }, [allTodayReminders, selectedUserId, eligibleUsers, employees]);
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedUserId, eligibleUsers, employees]);
+
+  // Infinite scroll gesture: fetch 5 more rows when scrolling near bottom
+  const handleRemindersScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (isLoadingReminders || isLoadingMore) return;
+    if (reminders.length >= totalRemindersCount) return;
+
+    if (target.scrollHeight - target.scrollTop - target.clientHeight < 40) {
+      setIsLoadingMore(true);
+      const selectedEmployee = eligibleUsers.find(e => e.id === selectedUserId) || employees.find(e => e.id === selectedUserId);
+      const selectedEmpName = selectedEmployee?.name || '';
+      const currentOffset = reminders.length;
+
+      getDashboardTodayRemindersPaginated(5, currentOffset, selectedUserId, selectedEmpName)
+        .then(res => {
+          setReminders(prev => {
+            const seen = new Set(prev.map(r => r.id));
+            const fresh = res.reminders.filter(r => !seen.has(r.id));
+            return [...prev, ...fresh];
+          });
+          setTotalRemindersCount(res.totalCount);
+          setIsLoadingMore(false);
+        })
+        .catch(() => {
+          setIsLoadingMore(false);
+        });
+    }
+  };
 
   return (
     <div className="space-y-6 pt-4 md:pt-6" id="dashboard-view-panel">
@@ -323,25 +313,26 @@ export default function DashboardView({
         {/* Reminders panel */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-xs">
           <div className="flex items-center justify-between border-b border-gray-50 pb-3 gap-2">
-            <h3 className="font-extrabold text-sm text-gray-800">{t("Reminders")}</h3>
+            <h3 className="font-extrabold text-sm text-gray-800 tracking-tight">{t("Reminders")}</h3>
 
             <div className="flex items-center gap-2">
               {/* User icon button filter dropdown */}
               <div className="relative inline-flex items-center" title={t("Filter by user") || "მომხმარებლით გაფილტვრა"}>
-                <div className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 border border-gray-200/90 rounded-lg px-2 py-1 text-xs transition shadow-2xs cursor-pointer">
-                  <UserIcon size={13} className="text-emerald-700 shrink-0" />
-                  <ChevronDown size={11} className="text-gray-400 shrink-0" />
+                <div className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-gray-200/90 rounded-lg px-2.5 py-1.5 text-xs transition shadow-2xs cursor-pointer">
+                  <UserIcon size={14} className="text-emerald-700 shrink-0" />
+                  <ChevronDown size={12} className="text-gray-400 shrink-0" />
                 </div>
                 <select
                   id="dashboard-reminders-user-filter"
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer text-xs font-sans"
                   title={t("Filter by user") || "მომხმარებლით გაფილტვრა"}
+                  style={{ fontSize: '12px' }}
                 >
-                  <option value="all">{t("All Users")}</option>
+                  <option value="all" className="text-xs py-1 font-sans">{t("All Users")}</option>
                   {eligibleUsers.map(u => (
-                    <option key={u.id} value={u.id}>
+                    <option key={u.id} value={u.id} className="text-xs py-1 font-sans">
                       {u.name}
                     </option>
                   ))}
@@ -349,26 +340,36 @@ export default function DashboardView({
               </div>
 
               {/* Reminders count badge */}
-              <span className="text-[10px] font-extrabold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full border border-rose-100/60">
-                {filteredTodayReminders.length}
+              <span className="text-[11px] font-extrabold bg-rose-50 text-rose-700 px-2.5 py-0.5 rounded-full border border-rose-100/60 min-w-[20px] text-center">
+                {totalRemindersCount}
               </span>
             </div>
           </div>
 
-          <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
-            {filteredTodayReminders.length === 0 ? (
+          <div 
+            ref={scrollContainerRef}
+            onScroll={handleRemindersScroll}
+            className="space-y-3 max-h-[280px] overflow-y-auto pr-1"
+          >
+            {isLoadingReminders && reminders.length === 0 ? (
+              <div className="text-center py-8 text-xs text-gray-400 animate-pulse">
+                {t("Loading...") || "იტვირთება..."}
+              </div>
+            ) : reminders.length === 0 ? (
               <p className="text-xs text-gray-400 text-center py-6">
                 {t("No reminders for today.")}
               </p>
             ) : (
-              filteredTodayReminders.map(rem => {
+              reminders.map(rem => {
                 const supplier = suppliers.find(s => s.id === rem.vendor_id);
                 const hasTime = !!rem.has_time;
                 const reminderDate = rem.reminder_time ? new Date(rem.reminder_time) : null;
                 const timeStr = hasTime && reminderDate && !isNaN(reminderDate.getTime())
                   ? `${pad(reminderDate.getHours())}:${pad(reminderDate.getMinutes())}`
                   : null;
-                const isPastDue = hasTime && reminderDate && !isNaN(reminderDate.getTime()) ? now.getTime() > reminderDate.getTime() : false;
+                const isPastDue = hasTime && reminderDate && !isNaN(reminderDate.getTime())
+                  ? now.getTime() > reminderDate.getTime()
+                  : false;
 
                 return (
                   <button
@@ -401,6 +402,12 @@ export default function DashboardView({
                   </button>
                 );
               })
+            )}
+
+            {isLoadingMore && (
+              <div className="text-center py-2 text-[11px] text-gray-400 font-medium">
+                {t("Loading more...") || "იტვირთება..."}
+              </div>
             )}
           </div>
         </div>

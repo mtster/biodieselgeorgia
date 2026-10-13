@@ -97,6 +97,7 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::JSONB;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS vendor_id TEXT DEFAULT NULL;
+DROP TRIGGER IF EXISTS trg_sync_profile_to_auth_user ON public.profiles;
 ALTER TABLE public.profiles ALTER COLUMN role TYPE TEXT;
 ALTER TABLE public.profiles ALTER COLUMN email DROP NOT NULL;
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
@@ -487,9 +488,9 @@ BEGIN
     RETURN true;
   END IF;
 
-  -- 2. Admin & Manager in JWT token claims
+  -- 2. Admin in JWT token claims (Admin has ultimate bypass)
   jwt_role := COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', auth.jwt() -> 'user_metadata' ->> 'role', '');
-  IF jwt_role IN ('admin', 'manager') THEN
+  IF jwt_role = 'admin' THEN
     RETURN true;
   END IF;
 
@@ -534,12 +535,12 @@ BEGIN
   FROM public.profiles 
   WHERE id = auth.uid() AND is_deleted = false AND is_blocked = false;
 
-  IF u_role::text IN ('admin', 'manager') THEN
+  IF u_role::text = 'admin' THEN
     RETURN true;
   END IF;
 
-  -- Allowed role defaults for viewing suppliers
-  IF u_role::text IN ('purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager') AND module IN ('suppliers', 'vendors') AND perm = 'view' THEN
+  -- Allowed role defaults for viewing suppliers if custom permissions are not yet configured
+  IF (u_permissions IS NULL OR u_permissions = '{}'::jsonb) AND u_role::text IN ('manager', 'purchasing_head', 'purchasing_manager', 'operator', 'logistics_manager') AND module IN ('suppliers', 'vendors') AND perm = 'view' THEN
     RETURN true;
   END IF;
   

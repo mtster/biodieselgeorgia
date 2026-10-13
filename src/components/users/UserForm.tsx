@@ -152,19 +152,15 @@ export default function UserForm({
   }, [isNew, editingUser?.id, currentUser?.email, isPasswordReadOnly, setEditingUser]);
 
   useEffect(() => {
-    if (editingUser && !editingUser.permissions) {
-      if (editingUser.role === 'admin') {
-         // admin permissions are fully checked visually but we don't need to populate state unless we want to
-      } else {
-         const def = defaultPermissions[editingUser.role];
-         if (def) {
-           setEditingUser({ ...editingUser, permissions: JSON.parse(JSON.stringify(def)) });
-         } else {
-           setEditingUser({ ...editingUser, permissions: {} });
-         }
+    if (editingUser && (!editingUser.permissions || Object.keys(editingUser.permissions).length === 0)) {
+      if (editingUser.role !== 'admin') {
+        const def = defaultPermissions[editingUser.role];
+        if (def) {
+          setEditingUser({ ...editingUser, permissions: JSON.parse(JSON.stringify(def)) });
+        }
       }
     }
-  }, [editingUser, setEditingUser, isNew]);
+  }, [editingUser?.id, editingUser?.role, setEditingUser]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
@@ -501,6 +497,7 @@ export default function UserForm({
           >
             <option value="" hidden></option>
             <option value="admin">{t("Admin")}</option>
+            <option value="manager">{t("Manager") || "მენეჯერი"}</option>
             <option value="purchasing_head">{t("Purchasing Group Leader")}</option>
             <option value="purchasing_manager">{t("Purchasing Manager")}</option>
             <option value="operator">{t("Operator")}</option>

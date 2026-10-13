@@ -16,7 +16,7 @@ export interface PaginatedCommunicationsResult {
 
 const isValidUuid = (val: any) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
-async function resolveVendorsMap(vendorIds: string[]): Promise<Map<string, any>> {
+export async function resolveVendorsMap(vendorIds: string[]): Promise<Map<string, any>> {
   const vendorMap = new Map<string, any>();
   const localVendors = getLocal<any[]>(KEY_VENDORS, []);
   localVendors.forEach(v => {
@@ -480,3 +480,5 @@ export async function deleteCommunication(id: string, loggerName: string): Promi
   notifyDbChange('communications', 'DELETE', id);
   return true;
 }
+
+export { getDashboardTodayRemindersPaginated, type DashboardRemindersResult } from './dashboardRemindersService';

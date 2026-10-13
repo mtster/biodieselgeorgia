@@ -37,6 +37,8 @@ import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { FormInput, FormSelect } from '../FormInput';
+import { useVendorValidation } from './form/useVendorValidation';
+import { VendorAccountSection } from './form/VendorAccountSection';
 
 import { MessageSquare, X, Trash2, Edit3 } from 'lucide-react';
 
@@ -89,33 +91,24 @@ export default function VendorForm({
   });
   const [usernameInput, setUsernameInput] = useState(() => getCleanUsername(editingVendor.username));
   const [passwordInput, setPasswordInput] = useState('');
+  const [tempContacts, setTempContacts] = useState<VendorContact[]>([]);
 
-  // Initial snapshot to detect whether any data was modified before saving
-  const initialSnapshotRef = React.useRef<{
-    vendor: Vendor;
-    username: string;
-    contacts: VendorContact[];
-  }>({
-    vendor: JSON.parse(JSON.stringify(editingVendor)),
-    username: getCleanUsername(editingVendor.username),
-    contacts: editingVendor.contacts ? JSON.parse(JSON.stringify(editingVendor.contacts)) : []
-  });
+  const {
+    initialSnapshotRef,
+    updateSnapshot,
+    hasVendorChanges,
+    validateVendorForm
+  } = useVendorValidation(editingVendor, tempContacts, usernameInput, passwordInput, isNew);
 
   useEffect(() => {
     setUsernameInput(getCleanUsername(editingVendor.username));
     setPasswordInput('');
+    const defaultHours = editingVendor.working_hours || '10:00 - 19:00';
     if (!editingVendor.working_hours) {
-      setEditingVendor(prev => prev ? { ...prev, working_hours: '10:00 - 19:00' } : null);
+      setEditingVendor(prev => prev ? { ...prev, working_hours: defaultHours } : null);
     }
-    initialSnapshotRef.current = {
-      vendor: JSON.parse(JSON.stringify(editingVendor)),
-      username: getCleanUsername(editingVendor.username),
-      contacts: editingVendor.contacts ? JSON.parse(JSON.stringify(editingVendor.contacts)) : []
-    };
-  }, [editingVendor.id, editingVendor.username]);
-
-  // Contacts helper states
-  const [tempContacts, setTempContacts] = useState<VendorContact[]>([]);
+    updateSnapshot(editingVendor);
+  }, [editingVendor.id, editingVendor.username, updateSnapshot]);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [activeContact, setActiveContact] = useState<VendorContact | null>(null);
 
@@ -266,75 +259,6 @@ export default function VendorForm({
     }
   };
 
-  const hasVendorChanges = (): boolean => {
-    // If it's a new vendor without an ID, saving is always required
-    if (!editingVendor.id) return true;
-
-    // Check account changes
-    if (passwordInput.trim() !== '') return true;
-    if (usernameInput.trim() !== initialSnapshotRef.current.username.trim()) return true;
-
-    const initV = initialSnapshotRef.current.vendor;
-
-    // Compare scalar fields
-    const fieldsToCompare: (keyof Vendor)[] = [
-      'trade_name', 'company_name', 'id_code', 'company_code',
-      'city', 'district', 'address', 'warehouse_id', 'direction_id',
-      'manager_id', 'operator_id', 'bank_account',
-      'working_hours', 'planned_weekday'
-    ];
-
-    for (const f of fieldsToCompare) {
-      const v1 = (editingVendor[f] ?? '').toString().trim();
-      const v2 = (initV[f] ?? '').toString().trim();
-      if (v1 !== v2) return true;
-    }
-
-    // Compare numeric and boolean values
-    if ((editingVendor.status || 'Active') !== (initV.status || 'Active')) return true;
-    if (Number(editingVendor.price_per_liter || 0) !== Number(initV.price_per_liter || 0)) return true;
-    if (Number(editingVendor.overdue_threshold_days || 0) !== Number(initV.overdue_threshold_days || 0)) return true;
-    if (Boolean(editingVendor.is_planned) !== Boolean(initV.is_planned)) return true;
-    if (Number(editingVendor.frequency_weeks || 1) !== Number(initV.frequency_weeks || 1)) return true;
-    if (Number(editingVendor.tanks_to_bring || 0) !== Number(initV.tanks_to_bring || 0)) return true;
-    if (Number(editingVendor.tanks_to_leave || 0) !== Number(initV.tanks_to_leave || 0)) return true;
-
-    // Compare custom fields
-    const allKeys = Array.from(new Set([...Object.keys(editingVendor), ...Object.keys(initV)]));
-    for (const k of allKeys) {
-      if (k.startsWith('custom_')) {
-        if ((editingVendor as any)[k] !== (initV as any)[k]) return true;
-      }
-    }
-
-    // Compare comments
-    const initComments = JSON.stringify(initV.comments || []);
-    const currComments = JSON.stringify(editingVendor.comments || []);
-    if (initComments !== currComments) return true;
-
-    // Compare contacts
-    const initContacts = initialSnapshotRef.current.contacts || [];
-    if (tempContacts.length !== initContacts.length) return true;
-
-    for (let i = 0; i < tempContacts.length; i++) {
-      const tc = tempContacts[i];
-      if (tc.id.startsWith('cont-') || tc.id.startsWith('main-cont-')) return true;
-
-      const matchedInit = initContacts.find(c => c.id === tc.id);
-      if (!matchedInit) return true;
-
-      if ((tc.name || '').trim() !== (matchedInit.name || '').trim()) return true;
-      if ((tc.phone || '').trim() !== (matchedInit.phone || '').trim()) return true;
-      if ((tc.position || '').toString() !== (matchedInit.position || '').toString()) return true;
-      if ((tc.email || '').trim() !== (matchedInit.email || '').trim()) return true;
-      if ((tc.note || '').trim() !== (matchedInit.note || '').trim()) return true;
-      if (Boolean(tc.is_active ?? true) !== Boolean(matchedInit.is_active ?? true)) return true;
-      if (Boolean(tc.is_default) !== Boolean(matchedInit.is_default)) return true;
-    }
-
-    return false;
-  };
-
   const handleSaveAll = async (onSuccessCallback?: (savedVendorId: string) => void) => {
     // 1. If this is an existing supplier and no user changes were made, immediately transition or close
     if (!isNew && editingVendor.id && !hasVendorChanges()) {
@@ -349,47 +273,7 @@ export default function VendorForm({
       return;
     }
 
-    const errs: Record<string, string> = {};
-
-    if (!editingVendor.trade_name || !editingVendor.trade_name.trim()) {
-      errs.trade_name = 'სავაჭრო სახელი სავალდებულოა.';
-    }
-    if (!editingVendor.city) {
-      errs.city = 'ქალაქი სავალდებულოა.';
-    }
-    if (!editingVendor.district) {
-      errs.district = 'რაიონი სავალდებულოა.';
-    }
-    if (!editingVendor.address || !editingVendor.address.trim()) {
-      errs.address = 'ზუსტი მისამართი სავალდებულოა.';
-    }
-    if (!editingVendor.warehouse_id) {
-      errs.warehouse_id = 'მინიჭებული საწყობი სავალდებულოა.';
-    }
-    if (!editingVendor.direction_id) {
-      errs.direction_id = 'მიმართულება სავალდებულოა.';
-    }
-    
-    const effectiveContacts = tempContacts.length > 0 ? tempContacts : (editingVendor.contacts || []);
-    if (isNew && effectiveContacts.length === 0) {
-      errs.contacts = 'სულ მცირე ერთი კონტაქტი უნდა იყოს დამატებული.';
-    }
-
-    const cleanCurrentUsername = getCleanUsername(editingVendor.username || '');
-    const isUsernameChanged = usernameInput.trim() !== cleanCurrentUsername;
-    const hasExistingUser = !!editingVendor.user_id;
-
-    let needsUserCreationOrUpdate = false;
-    if (usernameInput.trim() || passwordInput.trim()) {
-      if (!usernameInput.trim()) {
-        errs.username = 'მომხმარებლის სახელი სავალდებულოა.';
-      } else if (!passwordInput.trim() && (!hasExistingUser || isUsernameChanged)) {
-        errs.password = 'პაროლი სავალდებულოა.';
-      } else {
-        needsUserCreationOrUpdate = true;
-      }
-    }
-
+    const { errs, needsUserCreationOrUpdate } = validateVendorForm();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
       return;
@@ -592,38 +476,15 @@ export default function VendorForm({
           />
 
           {/* Supplier Login Account Fields */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-4 text-left">
-            <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">
-              {t("Supplier Login Account")}
-            </span>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                label={t("Username")}
-                type="text"
-                fontClass="font-mono"
-                value={usernameInput}
-                onChange={(e) => {
-                  setUsernameInput(e.target.value);
-                  if (fieldErrors.username) setFieldErrors(prev => ({ ...prev, username: '' }));
-                }}
-                error={fieldErrors.username}
-                autoComplete="new-password"
-                name="vendor-username-field"
-              />
-              <FormInput
-                label={t("Password (min. 6 symbols)")}
-                type="password"
-                value={passwordInput}
-                onChange={(e) => {
-                  setPasswordInput(e.target.value);
-                  if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' }));
-                }}
-                error={fieldErrors.password}
-                autoComplete="new-password"
-                name="vendor-password-field"
-              />
-            </div>
-          </div>
+          <VendorAccountSection
+            usernameInput={usernameInput}
+            setUsernameInput={setUsernameInput}
+            passwordInput={passwordInput}
+            setPasswordInput={setPasswordInput}
+            usernameError={fieldErrors.username}
+            passwordError={fieldErrors.password}
+            onClearErrors={(field) => setFieldErrors(prev => ({ ...prev, [field]: '' }))}
+          />
 
           {/* Contacts & Comments Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-0">
