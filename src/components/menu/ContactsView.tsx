@@ -138,16 +138,6 @@ export default function ContactsView({
   // Filter out soft-deleted vendors
   const activeVendors = vendors.filter(v => !v.is_deleted);
 
-  // Sync selectedVendorForForm if vendors list is updated in App level
-  useEffect(() => {
-    if (selectedVendorForForm) {
-      const updated = vendors.find(v => v.id === selectedVendorForForm.id);
-      if (updated) {
-        setSelectedVendorForForm(updated);
-      }
-    }
-  }, [vendors, selectedVendorForForm]);
-
   const queryClient = useQueryClient();
 
   // Filter suppliers in modal search
@@ -440,12 +430,16 @@ export default function ContactsView({
             data={contactsList}
             columns={columns}
             onRowClick={async (row) => {
-              let matchedVendor = findSupplier(row.vendor_id) || row.vendor;
-              if (!matchedVendor && row.vendor_id) {
-                matchedVendor = await getVendorById(row.vendor_id);
+              if (row.vendor_id) {
+                const fullVendor = await getVendorById(row.vendor_id);
+                if (fullVendor) {
+                  setSelectedVendorForForm(fullVendor);
+                  return;
+                }
               }
-              if (matchedVendor) {
-                setSelectedVendorForForm(matchedVendor);
+              const fallbackVendor = findSupplier(row.vendor_id) || row.vendor;
+              if (fallbackVendor) {
+                setSelectedVendorForForm(fallbackVendor);
               }
             }}
             emptyMessage="No contacts recorded"
