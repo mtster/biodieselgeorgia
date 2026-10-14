@@ -7,7 +7,6 @@ import {
 import { User } from '../../types';
 import { t } from '../../utils/lang';
 import { hasModuleViewPermission } from '../../lib/realtime';
-import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface SidebarProps {
   currentUser: User;
@@ -194,8 +193,7 @@ export default function Sidebar({
       </div>
 
       {/* Profile and signout */}
-      <div className="p-3.5 border-t border-slate-800 select-none space-y-2">
-        <PWAInstallButton className="w-full mb-1 justify-center text-xs py-1" />
+      <div className="p-3.5 border-t border-slate-800 select-none">
         <div className="flex items-center justify-between gap-2.5 bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-full bg-emerald-800 text-white font-black flex items-center justify-center text-xs uppercase shrink-0 shadow-xs">

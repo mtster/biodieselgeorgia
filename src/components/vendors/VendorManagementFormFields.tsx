@@ -37,6 +37,16 @@ export function getGeorgianRoleName(role: string | undefined | null): string {
   return role;
 }
 
+const WEEKDAYS = [
+  { id: 1, label: 'ორშაბათი', short: 'ორშ' },
+  { id: 2, label: 'სამშაბათი', short: 'სამ' },
+  { id: 3, label: 'ოთხშაბათი', short: 'ოთხ' },
+  { id: 4, label: 'ხუთშაბათი', short: 'ხუთ' },
+  { id: 5, label: 'პარასკევი', short: 'პარ' },
+  { id: 6, label: 'შაბათი', short: 'შაბ' },
+  { id: 7, label: 'კვირა', short: 'კვ' },
+];
+
 export default function VendorManagementFormFields({
   editingVendor,
   setEditingVendor,
@@ -51,6 +61,31 @@ export default function VendorManagementFormFields({
   };
 
   const salesManagerCandidates = users.filter(isSalesManagerCandidate);
+
+  const currentDays: number[] = Array.isArray(editingVendor.planned_weekday)
+    ? editingVendor.planned_weekday
+    : (typeof (editingVendor.planned_weekday as any) === 'number'
+        ? [editingVendor.planned_weekday as any]
+        : [1]);
+
+  const toggleDay = (dayId: number) => {
+    const exists = currentDays.includes(dayId);
+    let updated: number[];
+    if (exists) {
+      updated = currentDays.filter(d => d !== dayId);
+      if (updated.length === 0) {
+        updated = [dayId]; // Keep at least one selected day
+      }
+    } else {
+      updated = [...currentDays, dayId].sort((a, b) => a - b);
+    }
+    setEditingVendor(prev => prev ? { ...prev, planned_weekday: updated } : null);
+  };
+
+  const selectedDayNames = currentDays
+    .map(id => WEEKDAYS.find(w => w.id === id)?.label)
+    .filter(Boolean);
+
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5 text-left">
       <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">
@@ -143,7 +178,7 @@ export default function VendorManagementFormFields({
 
       {/* Automated / Scheduled Order Section */}
       <div className="border-t border-gray-100 pt-5 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <div 
             className="flex items-center justify-between bg-gray-50 px-3.5 py-4 md:py-3 border border-transparent rounded-xl cursor-pointer hover:border-emerald-600 focus-within:ring-1 focus-within:ring-emerald-600 transition-all"
             onClick={() => {
@@ -151,7 +186,7 @@ export default function VendorManagementFormFields({
               setEditingVendor(prev => prev ? { 
                 ...prev, 
                 is_planned: checked,
-                planned_weekday: checked ? (prev.planned_weekday || 'monday') : null,
+                planned_weekday: checked ? (Array.isArray(prev.planned_weekday) && prev.planned_weekday.length > 0 ? prev.planned_weekday : [1]) : undefined,
                 frequency_weeks: checked ? (prev.frequency_weeks || 1) : 1,
                 tanks_to_bring: checked ? (prev.tanks_to_bring || undefined) : undefined,
                 tanks_to_leave: checked ? (prev.tanks_to_leave || undefined) : undefined
@@ -171,39 +206,53 @@ export default function VendorManagementFormFields({
           </div>
 
           {editingVendor.is_planned && (
-            <>
-              <FormSelect
-                label={t("Day of the week")}
-                value={editingVendor.planned_weekday || 'monday'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setEditingVendor(prev => prev ? { ...prev, planned_weekday: val } : null);
-                }}
-              >
-                <option value="monday">{t("monday")}</option>
-                <option value="tuesday">{t("tuesday")}</option>
-                <option value="wednesday">{t("wednesday")}</option>
-                <option value="thursday">{t("thursday")}</option>
-                <option value="friday">{t("friday")}</option>
-                <option value="saturday">{t("saturday")}</option>
-                <option value="sunday">{t("sunday")}</option>
-              </FormSelect>
-
-              <FormSelect
-                label={t("სიხშირე კვირებში")}
-                value={String(editingVendor.frequency_weeks || 1)}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10) || 1;
-                  setEditingVendor(prev => prev ? { ...prev, frequency_weeks: val } : null);
-                }}
-              >
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-              </FormSelect>
-            </>
+            <FormSelect
+              label={t("სიხშირე კვირებში")}
+              value={String(editingVendor.frequency_weeks || 1)}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10) || 1;
+                setEditingVendor(prev => prev ? { ...prev, frequency_weeks: val } : null);
+              }}
+            >
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </FormSelect>
           )}
         </div>
+
+        {editingVendor.is_planned && (
+          <div className="space-y-2 bg-gray-50/80 p-3.5 rounded-xl border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <label className="block text-xs font-bold uppercase text-gray-700 tracking-wide select-none">
+                კვირის დღე(ები)
+              </label>
+              <span className="text-[11px] text-gray-500 font-medium truncate">
+                {selectedDayNames.length > 0 ? selectedDayNames.join(', ') : 'მონიშნეთ დღე'}
+              </span>
+            </div>
+            <div className="grid grid-cols-7 gap-1.5 md:gap-2 pt-1">
+              {WEEKDAYS.map(day => {
+                const isSelected = currentDays.includes(day.id);
+                return (
+                  <button
+                    key={day.id}
+                    type="button"
+                    onClick={() => toggleDay(day.id)}
+                    title={day.label}
+                    className={`py-2 px-1 text-center rounded-lg text-xs font-bold transition-all cursor-pointer border select-none ${
+                      isSelected
+                        ? 'bg-emerald-800 text-white border-emerald-800 shadow-2xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100/80 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="block text-xs md:text-sm font-black">{day.short}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {editingVendor.is_planned && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

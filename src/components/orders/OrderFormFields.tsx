@@ -58,6 +58,10 @@ export default function OrderFormFields({
     closeCommentModal
   } = useOrderFormComments(editingOrder, setEditingOrder, currentEmployee);
 
+  const isOperator = currentEmployee?.role === 'operator';
+  const isCompleted = editingOrder.status === 'completed';
+  const isCompletedForOperator = isOperator && isCompleted;
+
   return (
     <div className="space-y-6 text-left">
       <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5">
@@ -73,6 +77,7 @@ export default function OrderFormFields({
           setVendorSearch={setVendorSearch}
           showVendorSuggestions={showVendorSuggestions}
           setShowVendorSuggestions={setShowVendorSuggestions}
+          isCompletedForOperator={isCompletedForOperator}
         />
 
         <OrderFulfillmentFields
@@ -80,6 +85,7 @@ export default function OrderFormFields({
           setEditingOrder={setEditingOrder}
           fieldErrors={fieldErrors}
           setFieldErrors={setFieldErrors}
+          isCompletedForOperator={isCompletedForOperator}
         />
 
         {/* Dynamic Custom Fields from Columns Manager */}

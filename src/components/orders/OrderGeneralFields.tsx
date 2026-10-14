@@ -16,6 +16,7 @@ interface OrderGeneralFieldsProps {
   setVendorSearch: (v: string) => void;
   showVendorSuggestions: boolean;
   setShowVendorSuggestions: React.Dispatch<React.SetStateAction<boolean>>;
+  isCompletedForOperator?: boolean;
 }
 
 export const OrderGeneralFields: React.FC<OrderGeneralFieldsProps> = ({
@@ -29,7 +30,8 @@ export const OrderGeneralFields: React.FC<OrderGeneralFieldsProps> = ({
   vendorSearch,
   setVendorSearch,
   showVendorSuggestions,
-  setShowVendorSuggestions
+  setShowVendorSuggestions,
+  isCompletedForOperator = false
 }) => {
   const cleanVendorId = String(editingOrder.vendor_id || '').trim().toLowerCase();
   const selectedSupplier = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
@@ -152,8 +154,12 @@ export const OrderGeneralFields: React.FC<OrderGeneralFieldsProps> = ({
           label={t("Planned QTY (L)")}
           type="number"
           fontClass="font-mono"
+          disabled={isCompletedForOperator}
+          readOnly={isCompletedForOperator}
+          className={isCompletedForOperator ? 'bg-gray-50 cursor-not-allowed text-gray-700' : ''}
           value={editingOrder.qty_requested === undefined || editingOrder.qty_requested === null ? '' : editingOrder.qty_requested}
           onChange={(e) => {
+            if (isCompletedForOperator) return;
             const val = e.target.value;
             setEditingOrder(prev => prev ? { ...prev, qty_requested: val === '' ? undefined as any : parseFloat(val) } : null);
           }}
@@ -163,8 +169,12 @@ export const OrderGeneralFields: React.FC<OrderGeneralFieldsProps> = ({
           label={`${t("Tanks Pickup")} *`}
           type="number"
           fontClass="font-mono"
+          disabled={isCompletedForOperator}
+          readOnly={isCompletedForOperator}
+          className={isCompletedForOperator ? 'bg-gray-50 cursor-not-allowed text-gray-700' : ''}
           value={editingOrder.tanks_to_bring === undefined || editingOrder.tanks_to_bring === null ? '' : editingOrder.tanks_to_bring}
           onChange={(e) => {
+            if (isCompletedForOperator) return;
             const val = e.target.value;
             setEditingOrder(prev => prev ? { ...prev, tanks_to_bring: val === '' ? undefined as any : parseInt(val, 10) } : null);
             if (fieldErrors.tanks_to_bring) setFieldErrors(prev => ({ ...prev, tanks_to_bring: '' }));
@@ -176,8 +186,12 @@ export const OrderGeneralFields: React.FC<OrderGeneralFieldsProps> = ({
           label={`${t("Tanks Dropoff")} *`}
           type="number"
           fontClass="font-mono"
+          disabled={isCompletedForOperator}
+          readOnly={isCompletedForOperator}
+          className={isCompletedForOperator ? 'bg-gray-50 cursor-not-allowed text-gray-700' : ''}
           value={editingOrder.tanks_to_leave === undefined || editingOrder.tanks_to_leave === null ? '' : editingOrder.tanks_to_leave}
           onChange={(e) => {
+            if (isCompletedForOperator) return;
             const val = e.target.value;
             setEditingOrder(prev => prev ? { ...prev, tanks_to_leave: val === '' ? undefined as any : parseInt(val, 10) } : null);
             if (fieldErrors.tanks_to_leave) setFieldErrors(prev => ({ ...prev, tanks_to_leave: '' }));

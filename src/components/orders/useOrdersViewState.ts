@@ -142,7 +142,7 @@ export function useOrdersViewState({
       const defaultOrder: Order = {
         id: '',
         order_date: new Date().toISOString().substring(0, 16),
-        doc_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+        doc_number: `DOC-${Math.floor(100000 + Math.random() * 900000)}`,
         vendor_id: initialOrderVendorId,
         vendor_name: sup?.trade_name || sup?.company_name || '',
         warehouse_id: sup?.warehouse_id || warehouses[0]?.id || '',
@@ -167,7 +167,7 @@ export function useOrdersViewState({
     const defaultOrder: Order = {
       id: '',
       order_date: new Date().toISOString().substring(0, 16),
-      doc_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+      doc_number: `DOC-${Math.floor(100000 + Math.random() * 900000)}`,
       vendor_id: '',
       warehouse_id: warehouses[0]?.id || '',
       qty_requested: undefined as any,

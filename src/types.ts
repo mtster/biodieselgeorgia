@@ -77,7 +77,7 @@ export interface Vendor {
   overdue_threshold_days?: number | null; // ვადა (დღეები)
   last_order_date?: string | null;        // ბოლო მიწოდების თარიღი
   is_planned?: boolean;       // გეგმიური
-  planned_weekday?: string;   // კვირის დღე
+  planned_weekday?: number[]; // კვირის დღეები: 1=ორშ, 2=სამ, 3=ოთხ, 4=ხუთ, 5=პარ, 6=შაბ, 7=კვი
   frequency_weeks?: number;   // სიხშირე კვირებში (1, 2, 3...)
   tanks_to_bring?: number;    // ავზების წამოღება
   tanks_to_leave?: number;    // ავზების დატოვება

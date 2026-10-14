@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     status TEXT DEFAULT 'Active',           -- Vendor Status ('Active', 'Under Negotiation', 'Seasonal', 'Closed', 'Unclear')
     is_deleted BOOLEAN DEFAULT FALSE,
     is_planned BOOLEAN DEFAULT FALSE,
-    planned_weekday TEXT DEFAULT NULL,
+    planned_weekday INTEGER[] DEFAULT NULL,
     frequency_weeks INT DEFAULT 1,
     tanks_to_bring NUMERIC(10, 2) DEFAULT 0,
     tanks_to_leave NUMERIC(10, 2) DEFAULT 0,
@@ -179,7 +179,7 @@ ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT F
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS overdue_threshold_days INT DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_planned BOOLEAN DEFAULT FALSE;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday TEXT DEFAULT NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday INTEGER[] DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS frequency_weeks INT DEFAULT 1;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS tanks_to_bring NUMERIC(10, 2) DEFAULT 0;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS tanks_to_leave NUMERIC(10, 2) DEFAULT 0;
@@ -1039,7 +1039,8 @@ CREATE INDEX IF NOT EXISTS idx_vendors_trade_name ON public.vendors (trade_name)
 CREATE INDEX IF NOT EXISTS idx_vendors_company_name ON public.vendors (company_name);
 CREATE INDEX IF NOT EXISTS idx_vendors_id_code ON public.vendors (id_code);
 CREATE INDEX IF NOT EXISTS idx_vendors_city_district ON public.vendors (city, district) WHERE is_deleted = false;
-CREATE INDEX IF NOT EXISTS idx_vendors_planning ON public.vendors (is_planned, planned_weekday) WHERE is_planned = true AND is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_vendors_planning ON public.vendors (is_planned) WHERE is_planned = true AND is_deleted = false;
+CREATE INDEX IF NOT EXISTS idx_vendors_planned_weekday_gin ON public.vendors USING GIN (planned_weekday) WHERE is_planned = true AND is_deleted = false;
 CREATE INDEX IF NOT EXISTS idx_orders_doc_number ON public.orders (doc_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
 CREATE INDEX IF NOT EXISTS idx_orders_vendor_date_desc ON public.orders (vendor_id, order_date DESC) WHERE is_deleted = false;

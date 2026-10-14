@@ -30,6 +30,33 @@ export const cleanUserUuid = (val: string | null | undefined): string | null => 
   return val;
 };
 
+export function normalizePlannedWeekdays(val: any): number[] | null {
+  if (!val) return null;
+  if (Array.isArray(val)) {
+    const nums = val.map(Number).filter(n => !isNaN(n) && n >= 1 && n <= 7);
+    return nums.length > 0 ? Array.from(new Set(nums)).sort((a, b) => a - b) : null;
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim().toLowerCase();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const parts = trimmed.slice(1, -1).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 7);
+      return parts.length > 0 ? Array.from(new Set(parts)).sort((a, b) => a - b) : null;
+    }
+    const legacyMap: Record<string, number> = {
+      monday: 1, tuesday: 2, wednesday: 3, thursday: 4,
+      friday: 5, saturday: 6, sunday: 7
+    };
+    if (legacyMap[trimmed]) {
+      return [legacyMap[trimmed]];
+    }
+    const parsedNum = Number(trimmed);
+    if (!isNaN(parsedNum) && parsedNum >= 1 && parsedNum <= 7) {
+      return [parsedNum];
+    }
+  }
+  return null;
+}
+
 export function decodeVendorCustomFields(vendor: any): Vendor {
   const contacts = vendor.contacts || [];
   const customContact = contacts.find((c: any) => c.name === "__DYNAMIC_CUSTOM_FIELDS__");
@@ -39,6 +66,7 @@ export function decodeVendorCustomFields(vendor: any): Vendor {
 
   const decoded: Vendor = {
     ...vendor,
+    planned_weekday: normalizePlannedWeekdays(vendor.planned_weekday) || undefined,
     status: statusVal,
     contacts: cleanContacts
   };
@@ -814,7 +842,7 @@ export function cleanVendorDbPayload(vendor: any): any {
     overdue_threshold_days: (vendor.overdue_threshold_days === undefined || vendor.overdue_threshold_days === null || vendor.overdue_threshold_days === '') ? null : Number(vendor.overdue_threshold_days),
     last_order_date: vendor.last_order_date || null,
     is_planned: vendor.is_planned !== undefined ? !!vendor.is_planned : false,
-    planned_weekday: vendor.planned_weekday || null,
+    planned_weekday: normalizePlannedWeekdays(vendor.planned_weekday),
     frequency_weeks: vendor.frequency_weeks ? Number(vendor.frequency_weeks) : 1,
     tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
     tanks_to_leave: Number(vendor.tanks_to_leave) || 0,

@@ -8,13 +8,15 @@ interface OrderFulfillmentFieldsProps {
   setEditingOrder: React.Dispatch<React.SetStateAction<Order | null>>;
   fieldErrors: Record<string, string>;
   setFieldErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  isCompletedForOperator?: boolean;
 }
 
 export const OrderFulfillmentFields: React.FC<OrderFulfillmentFieldsProps> = ({
   editingOrder,
   setEditingOrder,
   fieldErrors,
-  setFieldErrors
+  setFieldErrors,
+  isCompletedForOperator = false
 }) => {
   return (
     <div className="space-y-4 animate-in slide-in-from-top-3 duration-150">
@@ -24,8 +26,12 @@ export const OrderFulfillmentFields: React.FC<OrderFulfillmentFieldsProps> = ({
           type="number"
           step="0.01"
           fontClass="font-mono"
+          disabled={isCompletedForOperator}
+          readOnly={isCompletedForOperator}
+          className={isCompletedForOperator ? 'bg-gray-50 cursor-not-allowed text-gray-700' : ''}
           value={editingOrder.fact_qty === undefined || editingOrder.fact_qty === null ? '' : editingOrder.fact_qty}
           onChange={(e) => {
+            if (isCompletedForOperator) return;
             setEditingOrder(prev => prev ? { ...prev, fact_qty: e.target.value === '' ? undefined : parseFloat(e.target.value) } : null);
             if (fieldErrors.fact_qty) setFieldErrors(prev => ({ ...prev, fact_qty: '' }));
           }}
@@ -36,16 +42,28 @@ export const OrderFulfillmentFields: React.FC<OrderFulfillmentFieldsProps> = ({
           label={t("Fact Tank Pickup")}
           type="number"
           fontClass="font-mono"
+          disabled={isCompletedForOperator}
+          readOnly={isCompletedForOperator}
+          className={isCompletedForOperator ? 'bg-gray-50 cursor-not-allowed text-gray-700' : ''}
           value={editingOrder.fact_tank_pickup === undefined || editingOrder.fact_tank_pickup === null ? '' : editingOrder.fact_tank_pickup}
-          onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+          onChange={(e) => {
+            if (isCompletedForOperator) return;
+            setEditingOrder(prev => prev ? { ...prev, fact_tank_pickup: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null);
+          }}
         />
 
         <FormInput
           label={t("Fact Tank Dropoff")}
           type="number"
           fontClass="font-mono"
+          disabled={isCompletedForOperator}
+          readOnly={isCompletedForOperator}
+          className={isCompletedForOperator ? 'bg-gray-50 cursor-not-allowed text-gray-700' : ''}
           value={editingOrder.fact_tank_dropoff === undefined || editingOrder.fact_tank_dropoff === null ? '' : editingOrder.fact_tank_dropoff}
-          onChange={(e) => setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null)}
+          onChange={(e) => {
+            if (isCompletedForOperator) return;
+            setEditingOrder(prev => prev ? { ...prev, fact_tank_dropoff: e.target.value === '' ? undefined : parseInt(e.target.value, 10) } : null);
+          }}
         />
       </div>
 
@@ -54,8 +72,10 @@ export const OrderFulfillmentFields: React.FC<OrderFulfillmentFieldsProps> = ({
         <FormSelect
           label={`${t("Fulfillment Status")} *`}
           value={editingOrder.status || 'registered'}
-          className="bg-emerald-50 text-emerald-800 font-bold"
+          disabled={isCompletedForOperator}
+          className={`${isCompletedForOperator ? 'opacity-85 cursor-not-allowed bg-gray-50 text-emerald-900 border-gray-200' : 'bg-emerald-50 text-emerald-800 font-bold'}`}
           onChange={(e) => {
+            if (isCompletedForOperator) return;
             const statusVal = e.target.value as OrderStatus;
             setEditingOrder(prev => {
               if (!prev) return null;

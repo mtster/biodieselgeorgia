@@ -486,7 +486,7 @@ export default function VendorForm({
       <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
         <div className="space-y-6 pt-2 text-left">
           <div 
-            className={isOperator ? "pointer-events-none select-none" : ""}
+            className={`space-y-5 ${isOperator ? "pointer-events-none select-none" : ""}`}
             onFocusCapture={(e) => {
               if (isOperator) {
                 (e.target as HTMLElement).blur?.();

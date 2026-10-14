@@ -55,7 +55,7 @@ export function useVendorValidation(
       'trade_name', 'company_name', 'id_code', 'company_code',
       'city', 'district', 'address', 'warehouse_id', 'direction_id',
       'manager_id', 'operator_id', 'bank_account',
-      'working_hours', 'planned_weekday'
+      'working_hours'
     ];
 
     for (const f of fieldsToCompare) {
@@ -69,6 +69,11 @@ export function useVendorValidation(
       const v2 = (initV[f] ?? '').toString().trim();
       if (v1 !== v2) return true;
     }
+
+    // Compare planned weekdays array
+    const pwd1 = Array.isArray(editingVendor.planned_weekday) ? [...editingVendor.planned_weekday].sort((a,b)=>a-b).join(',') : '';
+    const pwd2 = Array.isArray(initV.planned_weekday) ? [...initV.planned_weekday].sort((a,b)=>a-b).join(',') : '';
+    if (pwd1 !== pwd2) return true;
 
     // Compare numeric and boolean values
     if ((editingVendor.status || 'Active') !== (initV.status || 'Active')) return true;
