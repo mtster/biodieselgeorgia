@@ -194,28 +194,29 @@ export default function Sidebar({
       </div>
 
       {/* Profile and signout */}
-      <div className="p-3 pb-[calc(0.6rem+env(safe-area-inset-bottom,0px))] border-t border-slate-800/80 bg-slate-950/40 select-none space-y-2.5">
+      <div className="p-3.5 border-t border-slate-800 select-none space-y-2">
         <PWAInstallButton className="w-full mb-1 justify-center text-xs py-1" />
-        <div className="flex items-center gap-2.5 pt-1.5 bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60">
-          <div className="w-8 h-8 rounded-full bg-emerald-950/60 border border-emerald-800/60 font-extrabold flex items-center justify-center text-[11px] text-emerald-300 uppercase shrink-0 shadow-2xs">
-            {currentUser.name.slice(0, 2)}
+        <div className="flex items-center justify-between gap-2.5 bg-slate-800/50 p-2.5 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-emerald-800 text-white font-black flex items-center justify-center text-xs uppercase shrink-0 shadow-xs">
+              {currentUser.name.slice(0, 2)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+              <span className="text-[11px] text-emerald-400 font-medium block truncate">
+                {getUserRoleLabel(currentUser.role)}
+              </span>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-extrabold text-white truncate">{currentUser.name}</p>
-            <span className="text-[11px] text-emerald-400 font-medium block truncate">
-              {getUserRoleLabel(currentUser.role)}
-            </span>
-          </div>
+          <button 
+            onClick={onLogOut}
+            title={t("Log Out")}
+            type="button"
+            className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition shrink-0 cursor-pointer"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
-
-        <button 
-          onClick={onLogOut}
-          type="button"
-          className="w-[92%] mx-auto py-1.5 px-3 bg-slate-800/80 hover:bg-rose-950/90 border border-slate-700/60 hover:border-rose-800/60 text-slate-300 hover:text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-        >
-          <LogOut size={13} className="text-rose-400" />
-          {t("Log Out")}
-        </button>
       </div>
 
     </aside>
