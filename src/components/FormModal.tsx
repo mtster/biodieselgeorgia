@@ -106,6 +106,15 @@ export default function FormModal({
                 {t(cancelLabel)}
               </button>
             )}
+            {secondaryAction && (
+              <button
+                type="button"
+                onClick={secondaryAction.onClick}
+                className={secondaryAction.className || "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none"}
+              >
+                {t(secondaryAction.label)}
+              </button>
+            )}
             {onSave && (
               <button
                 type="button"
@@ -115,15 +124,6 @@ export default function FormModal({
               >
                 {isSaving && <Loader2 size={13} className="animate-spin shrink-0" />}
                 <span>{t(saveLabel)}</span>
-              </button>
-            )}
-            {secondaryAction && (
-              <button
-                type="button"
-                onClick={secondaryAction.onClick}
-                className={secondaryAction.className || "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none"}
-              >
-                {t(secondaryAction.label)}
               </button>
             )}
           </div>

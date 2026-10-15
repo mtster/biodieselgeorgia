@@ -85,6 +85,19 @@ export function decodeVendorCustomFields(vendor: any): Vendor {
   return decoded;
 }
 
+export function sortVendorContacts<T extends { is_default?: boolean | string | null; sort_order?: number | null }>(contacts: T[]): T[] {
+  if (!contacts || contacts.length <= 1) return contacts || [];
+  return [...contacts].sort((a, b) => {
+    const aDef = a.is_default === true || (a.is_default as any) === 'true' || (a.is_default as any) === 1 || (a.is_default as any) === '1';
+    const bDef = b.is_default === true || (b.is_default as any) === 'true' || (b.is_default as any) === 1 || (b.is_default as any) === '1';
+    if (aDef && !bDef) return -1;
+    if (!aDef && bDef) return 1;
+    const aOrder = typeof a.sort_order === 'number' && !isNaN(a.sort_order) ? a.sort_order : 0;
+    const bOrder = typeof b.sort_order === 'number' && !isNaN(b.sort_order) ? b.sort_order : 0;
+    return bOrder - aOrder;
+  });
+}
+
 const inFlightContacts = new Map<string, Promise<VendorContact[]>>();
 
 // Fetch all contacts from vendor_contacts table with in-flight deduplication and memory caching
@@ -116,11 +129,7 @@ export async function getVendorContacts(vendorId?: string): Promise<VendorContac
             .order('sort_order', { ascending: false })
             .order('id', { ascending: false });
           if (!error && data) {
-            resultContacts = (data as any[]).sort((a, b) => {
-              if (a.is_default && !b.is_default) return -1;
-              if (!a.is_default && b.is_default) return 1;
-              return (b.sort_order || 0) - (a.sort_order || 0);
-            });
+            resultContacts = sortVendorContacts(data as any[]);
             appCache.set(cacheKey, resultContacts);
             return resultContacts;
           }
@@ -152,11 +161,7 @@ export async function getVendorContacts(vendorId?: string): Promise<VendorContac
             }
           }
           if (allContacts.length > 0) {
-            resultContacts = allContacts.sort((a, b) => {
-              if (a.is_default && !b.is_default) return -1;
-              if (!a.is_default && b.is_default) return 1;
-              return (b.sort_order || 0) - (a.sort_order || 0);
-            });
+            resultContacts = sortVendorContacts(allContacts);
             appCache.set(cacheKey, resultContacts);
             return resultContacts;
           }
@@ -171,11 +176,7 @@ export async function getVendorContacts(vendorId?: string): Promise<VendorContac
       ? allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted) 
       : allContacts.filter(c => !c.is_deleted);
     
-    resultContacts = filtered.sort((a, b) => {
-      if (a.is_default && !b.is_default) return -1;
-      if (!a.is_default && b.is_default) return 1;
-      return (b.sort_order || 0) - (a.sort_order || 0);
-    });
+    resultContacts = sortVendorContacts(filtered);
     appCache.set(cacheKey, resultContacts);
     return resultContacts;
   })();
@@ -243,11 +244,7 @@ export async function getVendorContactsPaginated(
             appCache.set(countCacheKey, count);
           }
 
-          const sorted = (data as any[]).sort((a, b) => {
-            if (a.is_default && !b.is_default) return -1;
-            if (!a.is_default && b.is_default) return 1;
-            return (b.sort_order || 0) - (a.sort_order || 0);
-          });
+          const sorted = sortVendorContacts(data as any[]);
 
           const result: PaginatedVendorContactsResult = {
             contacts: sorted,
@@ -265,11 +262,7 @@ export async function getVendorContactsPaginated(
     // Local fallback
     const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
     const filtered = allContacts.filter(c => c.vendor_id === vendorId && !c.is_deleted);
-    const sorted = filtered.sort((a, b) => {
-      if (a.is_default && !b.is_default) return -1;
-      if (!a.is_default && b.is_default) return 1;
-      return (b.sort_order || 0) - (a.sort_order || 0);
-    });
+    const sorted = sortVendorContacts(filtered);
 
     const sliced = sorted.slice(offset, offset + limit);
     const result: PaginatedVendorContactsResult = {
@@ -294,11 +287,15 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
   appCache.clear('contacts_');
   appCache.clear('vendor_contacts_');
   appCache.clear('count_vendor_contacts_');
+
+  // Ensure contacts are properly sorted with primary first before saving
+  const sortedContacts = sortVendorContacts(contacts);
+
   if (isSupabaseConfigured && supabase) {
     try {
       // Find contacts currently in DB to detect which ones were deleted
       const { data: currentDb } = await supabase.from('vendor_contacts').select('id').eq('vendor_id', vendorId).eq('is_deleted', false);
-      const incomingIds = contacts.map(c => c.id).filter(Boolean);
+      const incomingIds = sortedContacts.map(c => c.id).filter(Boolean);
       
       if (currentDb && currentDb.length > 0) {
         const deletedIds = currentDb.filter(c => !incomingIds.includes(c.id)).map(c => c.id);
@@ -308,8 +305,8 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
       }
 
       // Upsert current list
-      if (contacts.length > 0) {
-        const payloads = contacts.map((c, idx) => ({
+      if (sortedContacts.length > 0) {
+        const payloads = sortedContacts.map((c, idx) => ({
           id: c.id || generateUuid(),
           vendor_id: vendorId,
           name: c.name || '',
@@ -317,9 +314,9 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
           position: c.position || 'other',
           note: c.note || '',
           email: c.email || '',
-          is_default: !!c.is_default,
+          is_default: !!(c.is_default === true || (c.is_default as any) === 'true'),
           is_active: c.is_active !== false,
-          sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1),
+          sort_order: typeof c.sort_order === 'number' && !isNaN(c.sort_order) ? c.sort_order : (sortedContacts.length - idx),
           created_by: cleanUserUuid(c.created_by || currentUserId) || null,
           is_deleted: false
         }));
@@ -339,11 +336,12 @@ export async function saveVendorContacts(vendorId: string, contacts: VendorConta
   // Local fallback
   const localContacts = getLocal<VendorContact[]>('local_vendor_contacts', []);
   const otherContacts = localContacts.filter(c => c.vendor_id !== vendorId);
-  const updatedPayloads = contacts.map((c, idx) => ({
+  const updatedPayloads = sortedContacts.map((c, idx) => ({
     ...c,
     vendor_id: vendorId,
+    is_default: !!(c.is_default === true || (c.is_default as any) === 'true'),
     is_active: c.is_active !== false,
-    sort_order: c.sort_order !== undefined ? c.sort_order : (idx + 1)
+    sort_order: typeof c.sort_order === 'number' && !isNaN(c.sort_order) ? c.sort_order : (sortedContacts.length - idx)
   }));
   setLocal('local_vendor_contacts', [...otherContacts, ...updatedPayloads]);
 }
@@ -646,7 +644,7 @@ export async function getVendorsPaginated(
             .eq('is_deleted', false);
           if (contactsData) {
             decoded.forEach(v => {
-              const vContacts = contactsData.filter(c => c.vendor_id === v.id);
+              const vContacts = sortVendorContacts(contactsData.filter(c => c.vendor_id === v.id));
               v.contacts = vContacts;
               if (v.id) {
                 appCache.set(`vendor_contacts_${v.id}`, vContacts);
@@ -669,7 +667,7 @@ export async function getVendorsPaginated(
   const all = getLocal<Vendor[]>(KEY_VENDORS, []).filter(v => !v.is_deleted).map(v => decodeVendorCustomFields(v));
   const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []).filter(c => !c.is_deleted);
   all.forEach(v => {
-    v.contacts = allContacts.filter(c => c.vendor_id === v.id);
+    v.contacts = sortVendorContacts(allContacts.filter(c => c.vendor_id === v.id));
   });
 
   let filtered = all;

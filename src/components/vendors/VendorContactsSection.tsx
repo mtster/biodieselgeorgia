@@ -39,6 +39,8 @@ export default function VendorContactsSection({
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
+    // Primary contact is pinned at index 0 and cannot be replaced by dragging
+    if (index === 0) return;
     
     onReorderContacts(draggedIndex, index);
     setDraggedIndex(index);
@@ -59,6 +61,17 @@ export default function VendorContactsSection({
     if (clean === 'cook' || clean === 'მზარეული') return t('Cook');
     return t(pos) || pos;
   };
+
+  // Ensure primary contact (is_default: true) always sits at the very top of the list
+  const displayContacts = [...contacts].sort((a, b) => {
+    const aDef = a.is_default === true || (a.is_default as any) === 'true';
+    const bDef = b.is_default === true || (b.is_default as any) === 'true';
+    if (aDef && !bDef) return -1;
+    if (!aDef && bDef) return 1;
+    const aOrder = typeof a.sort_order === 'number' && !isNaN(a.sort_order) ? a.sort_order : 0;
+    const bOrder = typeof b.sort_order === 'number' && !isNaN(b.sort_order) ? b.sort_order : 0;
+    return bOrder - aOrder;
+  });
 
   return (
     <div className={`bg-white p-5 border ${error ? 'border-red-500' : 'border-gray-100'} rounded-2xl flex flex-col justify-between`} id="vendor-extra-contacts">
@@ -88,7 +101,7 @@ export default function VendorContactsSection({
           className="space-y-2 max-h-[224px] overflow-y-auto pr-1"
           onScroll={onScroll}
         >
-          {isLoading && contacts.length === 0 ? (
+          {isLoading && displayContacts.length === 0 ? (
             <div className="py-8 text-center text-xs text-gray-500 font-sans font-semibold">
               <div className="flex items-center justify-center gap-2 text-emerald-800">
                 <Loader2 className="animate-spin text-emerald-700" size={14} />
@@ -96,8 +109,9 @@ export default function VendorContactsSection({
               </div>
             </div>
           ) : (
-            contacts.map((c, index) => {
-            const isDraggable = !c.is_default;
+            displayContacts.map((c, index) => {
+            const isPrimary = c.is_default === true || (c.is_default as any) === 'true';
+            const isDraggable = !isPrimary;
             const isInactive = c.is_active === false;
             return (
               <div
@@ -141,12 +155,12 @@ export default function VendorContactsSection({
                   <button
                     type="button"
                     onClick={() => onTogglePrimaryContact(c.id)}
-                    title={c.is_default ? t("Primary Contact") : t("Mark as Primary")}
+                    title={isPrimary ? t("Primary Contact") : t("Mark as Primary")}
                     className={`p-1.5 transition cursor-pointer rounded-lg hover:bg-slate-100 ${
-                      c.is_default ? 'text-amber-500 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'
+                      isPrimary ? 'text-amber-500 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'
                     }`}
                   >
-                    <Star size={13} fill={c.is_default ? "#fbbf24" : "none"} strokeWidth={2} />
+                    <Star size={13} fill={isPrimary ? "#fbbf24" : "none"} strokeWidth={2} />
                   </button>
 
                   {/* Sleek borderless pencil edit button */}

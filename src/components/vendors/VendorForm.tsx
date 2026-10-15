@@ -5,7 +5,7 @@ import {
   Warehouse, User, City, District, Communication, Direction 
 } from '../../types';
 import { saveUser } from '../../services/userService';
-import { getVendorContacts, generateUuid } from '../../services/vendorService';
+import { getVendorContacts, generateUuid, sortVendorContacts } from '../../services/vendorService';
 
 function getCleanUsername(u: string | undefined): string {
   if (!u) return '';
@@ -126,7 +126,7 @@ export default function VendorForm({
   useEffect(() => {
     let isMounted = true;
     if (editingVendor.contacts && editingVendor.contacts.length > 0) {
-      setTempContacts(editingVendor.contacts);
+      setTempContacts(sortVendorContacts(editingVendor.contacts));
     } else {
       setTempContacts([]);
     }
@@ -134,10 +134,11 @@ export default function VendorForm({
     if (editingVendor.id) {
       getVendorContacts(editingVendor.id).then(contacts => {
         if (isMounted && contacts) {
-          setTempContacts(contacts);
-          initialSnapshotRef.current.contacts = JSON.parse(JSON.stringify(contacts));
-          if (!editingVendor.contacts || editingVendor.contacts.length !== contacts.length) {
-            setEditingVendor(prev => prev ? { ...prev, contacts } : prev);
+          const sorted = sortVendorContacts(contacts);
+          setTempContacts(sorted);
+          initialSnapshotRef.current.contacts = JSON.parse(JSON.stringify(sorted));
+          if (!editingVendor.contacts || editingVendor.contacts.length !== sorted.length) {
+            setEditingVendor(prev => prev ? { ...prev, contacts: sorted } : prev);
           }
         }
       }).catch(err => {
@@ -179,8 +180,9 @@ export default function VendorForm({
   };
 
   const handleSaveContact = (contactData: Partial<VendorContact>) => {
+    let updated: VendorContact[];
     if (activeContact) {
-      setTempContacts(tempContacts.map(c => c.id === activeContact.id ? { ...c, ...contactData } : c));
+      updated = tempContacts.map(c => c.id === activeContact.id ? { ...c, ...contactData } : c);
     } else {
       const isFirst = tempContacts.length === 0;
       const newContact: VendorContact = {
@@ -193,18 +195,29 @@ export default function VendorForm({
         is_active: contactData.is_active !== undefined ? contactData.is_active : true,
         is_default: isFirst
       };
-      setTempContacts([...tempContacts, newContact]);
+      updated = [...tempContacts, newContact];
     }
+    const sorted = sortVendorContacts(updated);
+    const reordered = sorted.map((c, idx) => ({
+      ...c,
+      sort_order: sorted.length - idx
+    }));
+    setTempContacts(reordered);
     setIsContactModalOpen(false);
   };
 
   const handleRemoveContact = (id: string) => {
     let updated = tempContacts.filter(c => c.id !== id);
     // If we removed the primary contact, make the first one primary
-    if (updated.length > 0 && !updated.some(c => c.is_default)) {
+    if (updated.length > 0 && !updated.some(c => c.is_default === true || (c.is_default as any) === 'true')) {
       updated[0].is_default = true;
     }
-    setTempContacts(updated);
+    const sorted = sortVendorContacts(updated);
+    const reordered = sorted.map((c, idx) => ({
+      ...c,
+      sort_order: sorted.length - idx
+    }));
+    setTempContacts(reordered);
     setIsContactModalOpen(false);
   };
 
@@ -536,12 +549,12 @@ export default function VendorForm({
                   ...c,
                   is_default: c.id === id
                 }));
-                // Reorder: sort by is_default desc
-                updated.sort((a,b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
+                // Reorder: sort with primary contact first
+                const sorted = sortVendorContacts(updated);
                 // Update sort_orders based on index
-                const reordered = updated.map((c, idx) => ({
+                const reordered = sorted.map((c, idx) => ({
                   ...c,
-                  sort_order: updated.length - idx
+                  sort_order: sorted.length - idx
                 }));
                 setTempContacts(reordered);
               }}
@@ -551,7 +564,7 @@ export default function VendorForm({
                 updated.splice(endIndex, 0, removed);
                 
                 // The default/primary contact must always remain at index 0 (top)
-                const defaultIdx = updated.findIndex(c => c.is_default);
+                const defaultIdx = updated.findIndex(c => c.is_default === true || (c.is_default as any) === 'true');
                 if (defaultIdx > 0) {
                   const [defaultContact] = updated.splice(defaultIdx, 1);
                   updated.unshift(defaultContact);
