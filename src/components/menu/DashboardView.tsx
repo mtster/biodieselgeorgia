@@ -387,7 +387,7 @@ export default function DashboardView({
           <div className="flex flex-wrap items-center justify-between border-b border-gray-50 pb-3 gap-2 shrink-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <h3 className="font-extrabold text-sm text-gray-800 tracking-tight shrink-0 select-none">
-                {t("Latest Completed Orders")}
+                {t("Today's Completed Orders") || "დღევანდელი შესრულებული შეკვეთები"}
               </h3>
 
               <div className="flex items-center ml-1">
@@ -461,10 +461,10 @@ export default function DashboardView({
                   <tr>
                     <th className="px-3.5 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-slate-50">{t("მომწოდებელი") || "მომწოდებელი"}</th>
                     <th className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center whitespace-nowrap bg-slate-50">{t("ტრანსპორტი") || "ტრანსპორტი"}</th>
-                    <th className="px-3 py-2 text-[10px] font-bold text-amber-900 uppercase tracking-wider text-center whitespace-nowrap bg-amber-50/70 border-x border-amber-100/60">{t("Order Pickup / Dropoff") || "შეკვ. გამოტანა/წამოღება"}</th>
+                    <th className="px-3.5 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center whitespace-nowrap bg-slate-50">{t("Completed At") || "შესრულდა"}</th>
                     <th className="px-3 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center whitespace-nowrap bg-slate-50">{t("Fact Qty") || "ფაქტ. რაოდენობა"}</th>
                     <th className="px-3 py-2 text-[10px] font-bold text-sky-900 uppercase tracking-wider text-center whitespace-nowrap bg-sky-100/70 border-x border-sky-100/60">{t("Fact Pickup / Dropoff") || "ფაქტ. გამოტანა/დატოვება"}</th>
-                    <th className="px-3.5 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center whitespace-nowrap bg-slate-50">{t("Completed At") || "შესრულდა"}</th>
+                    <th className="px-3 py-2 text-[10px] font-bold text-amber-900 uppercase tracking-wider text-center whitespace-nowrap bg-amber-50/70 border-x border-amber-100/60">{t("Order Pickup / Dropoff") || "შეკვ. გამოტანა/წამოღება"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -516,10 +516,8 @@ export default function DashboardView({
                             {vehiclePlate}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-center whitespace-nowrap bg-amber-50/70 border-x border-amber-100/60 font-semibold text-gray-950 text-xs">
-                          <span>{order.tanks_to_bring ?? 0}</span>
-                          <span className="text-gray-400 mx-1 font-normal">/</span>
-                          <span>{order.tanks_to_leave ?? 0}</span>
+                        <td className="px-3.5 py-2 text-center whitespace-nowrap font-medium text-gray-600 text-xs">
+                          {formatTimeOnly(order.completed_at)}
                         </td>
                         <td className="px-3 py-2 text-center whitespace-nowrap font-semibold text-gray-950 text-xs">
                           {order.fact_qty != null ? `${Number(order.fact_qty).toLocaleString()} ლ` : '0 ლ'}
@@ -529,8 +527,10 @@ export default function DashboardView({
                           <span className="text-sky-400/80 mx-1 font-normal">/</span>
                           <span>{order.fact_tank_dropoff ?? 0}</span>
                         </td>
-                        <td className="px-3.5 py-2 text-center whitespace-nowrap font-medium text-gray-600 text-xs">
-                          {formatTimeOnly(order.completed_at)}
+                        <td className="px-3 py-2 text-center whitespace-nowrap bg-amber-50/70 border-x border-amber-100/60 font-semibold text-gray-950 text-xs">
+                          <span>{order.tanks_to_bring ?? 0}</span>
+                          <span className="text-gray-400 mx-1 font-normal">/</span>
+                          <span>{order.tanks_to_leave ?? 0}</span>
                         </td>
                       </tr>
                     );
