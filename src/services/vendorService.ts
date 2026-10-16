@@ -887,9 +887,38 @@ export async function saveVendor(
   currentUserRole?: string
 ): Promise<Vendor> {
   const list = getLocal<Vendor[]>(KEY_VENDORS, []);
-  const isNew = !vendor.id;
+  let isNew = !vendor.id;
 
-  const vId = isNew ? generateUuid() : vendor.id;
+  // If vendor.id is provided, verify whether this vendor actually exists in DB or local store.
+  // If it does not exist, it MUST be treated as a new vendor (insert) so the vendor record
+  // is inserted into 'vendors' before child records like 'vendor_contacts' reference it.
+  if (!isNew && vendor.id) {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: existingVendor } = await supabase
+          .from('vendors')
+          .select('id')
+          .eq('id', vendor.id)
+          .maybeSingle();
+        if (!existingVendor) {
+          isNew = true;
+        }
+      } catch (err) {
+        console.warn('Failed to verify vendor existence in Supabase:', err);
+        const existsInLocal = list.some(item => item.id === vendor.id);
+        if (!existsInLocal) {
+          isNew = true;
+        }
+      }
+    } else {
+      const existsInLocal = list.some(item => item.id === vendor.id);
+      if (!existsInLocal) {
+        isNew = true;
+      }
+    }
+  }
+
+  const vId = isNew ? (vendor.id || generateUuid()) : vendor.id;
   const rawCompCode = (vendor.company_code || '').toString().trim();
   const rawIdCode = (vendor.id_code || '').toString().trim();
   const finalCompCode = rawCompCode || (rawIdCode && rawIdCode !== '204857392' ? rawIdCode : `CC-${vId.slice(-8)}`);

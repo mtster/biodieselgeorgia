@@ -319,7 +319,7 @@ export default function VendorForm({
       if (needsUserCreationOrUpdate) {
         try {
           const email = getEmailFromUsername(usernameInput);
-          const pregeneratedVendorId = editingVendor.id || ('vendor-' + Math.random().toString(36).substring(2, 9));
+          const pregeneratedVendorId = editingVendor.id || generateUuid();
 
           const userPayload: User = {
             id: editingVendor.user_id || '',
@@ -354,8 +354,10 @@ export default function VendorForm({
         finalUsername = '';
       }
 
-      const resolvedVendorId = editingVendor.id || generateUuid();
-      editingVendor.id = resolvedVendorId;
+      const resolvedVendorId = editingVendor.id ? editingVendor.id : (isNew ? '' : generateUuid());
+      if (editingVendor.id) {
+        editingVendor.id = resolvedVendorId;
+      }
 
       let payload: Vendor = {
         ...editingVendor,
