@@ -33,6 +33,8 @@ interface Props {
   onClearInitialOrderVendorId?: () => void;
   initialVendorId?: string;
   onClearInitialVendorId?: () => void;
+  initialOrderId?: string;
+  onClearInitialOrderId?: () => void;
   onNavigateToNewOrderWithVendor?: (vendorId: string) => void;
   onNavigateToCommunicationsWithVendor?: (vendorId: string) => void;
 }
@@ -42,6 +44,7 @@ export default function OrdersView({
   currentEmployee, onSave, onDelete, onSaveCommunication, onDeleteCommunication,
   initialOrderVendorId, onClearInitialOrderVendorId,
   initialVendorId, onClearInitialVendorId,
+  initialOrderId, onClearInitialOrderId,
   onNavigateToCommunicationsWithVendor
 }: Props) {
   const effectiveInitialVendorId = initialOrderVendorId || initialVendorId;
@@ -118,6 +121,8 @@ export default function OrdersView({
     onDelete,
     initialOrderVendorId: effectiveInitialVendorId,
     onClearInitialOrderVendorId: effectiveClearInitialVendorId,
+    initialOrderId,
+    onClearInitialOrderId,
     onNavigateToCommunicationsWithVendor
   });
 

@@ -13,7 +13,7 @@ export interface DashboardRemindersResult {
  * Prioritizes rows with has_time = true first, and orders from earlier to later reminder time.
  */
 export async function getDashboardTodayRemindersPaginated(
-  limit: number = 7,
+  limit: number = 10,
   offset: number = 0,
   userId?: string,
   userName?: string

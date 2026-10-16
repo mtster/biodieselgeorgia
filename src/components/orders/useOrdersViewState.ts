@@ -15,6 +15,8 @@ interface UseOrdersViewStateParams {
   onDelete: (id: string, docNum: string) => void;
   initialOrderVendorId?: string;
   onClearInitialOrderVendorId?: () => void;
+  initialOrderId?: string;
+  onClearInitialOrderId?: () => void;
   onNavigateToCommunicationsWithVendor?: (vendorId: string) => void;
 }
 
@@ -28,6 +30,8 @@ export function useOrdersViewState({
   onDelete,
   initialOrderVendorId,
   onClearInitialOrderVendorId,
+  initialOrderId,
+  onClearInitialOrderId,
   onNavigateToCommunicationsWithVendor
 }: UseOrdersViewStateParams) {
   const canAdd = currentEmployee?.role === 'admin' || (currentEmployee?.permissions?.['orders']?.includes('add') ?? false);
@@ -162,6 +166,21 @@ export function useOrdersViewState({
       onClearInitialOrderVendorId?.();
     }
   }, [initialOrderVendorId, suppliers, warehouses, currentEmployee, onClearInitialOrderVendorId]);
+
+  // Open existing order form if navigated with order ID
+  useEffect(() => {
+    if (initialOrderId) {
+      const cleanId = String(initialOrderId).trim().toLowerCase();
+      const existing = orders.find(o => o.id === initialOrderId || (o.id && String(o.id).trim().toLowerCase() === cleanId));
+      if (existing) {
+        setEditingOrder(JSON.parse(JSON.stringify(existing)));
+        setIsNew(false);
+        setIsReadOnly(!canModify);
+        scrollMainToTop();
+        onClearInitialOrderId?.();
+      }
+    }
+  }, [initialOrderId, orders, canModify, onClearInitialOrderId]);
 
   const startNew = () => {
     const defaultOrder: Order = {

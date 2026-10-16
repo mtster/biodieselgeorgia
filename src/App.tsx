@@ -86,6 +86,7 @@ export default function App() {
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
   const [selectedOrderVendorId, setSelectedOrderVendorId] = React.useState<string | undefined>(undefined);
+  const [selectedOrderId, setSelectedOrderId] = React.useState<string | undefined>(undefined);
   const [selectedCommunication, setSelectedCommunication] = React.useState<Communication | null>(null);
   const [selectedNewComm, setSelectedNewComm] = React.useState<{ vendorId?: string; vendorName?: string; type?: 'action' | 'reminder' | 'task' } | null>(null);
   const mainRef = React.useRef<HTMLElement>(null);
@@ -190,8 +191,12 @@ export default function App() {
         </header>
 
         {/* Content viewport */}
-        <main ref={mainRef} className="flex-1 overflow-y-auto px-4 md:px-6 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] pt-0 md:pt-0">
-          <div className="w-full">
+        <main ref={mainRef} className={`flex-1 ${
+          activeTab === 'dashboard'
+            ? 'overflow-y-auto lg:overflow-hidden px-4 md:px-6 pt-0 pb-3 md:pb-4 flex flex-col'
+            : 'overflow-y-auto px-4 md:px-6 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] pt-0 md:pt-0'
+        }`}>
+          <div className={`w-full ${activeTab === 'dashboard' ? 'flex-1 flex flex-col min-h-0' : ''}`}>
             {activeTab === 'dashboard' && (
               <DashboardView 
                 suppliers={vendors}
@@ -203,6 +208,10 @@ export default function App() {
                 warehouses={warehouses}
                 communications={communications}
                 currentUser={currentUser}
+                onSelectOrder={(order) => {
+                  setSelectedOrderId(order.id);
+                  setActiveTab('orders');
+                }}
                 onSelectReminder={(comm) => {
                   setSelectedCommunication(comm);
                   setActiveTab('communications');
@@ -313,6 +322,8 @@ export default function App() {
                 onDeleteCommunication={handleCommunicationDelete}
                 initialVendorId={selectedOrderVendorId}
                 onClearInitialVendorId={() => setSelectedOrderVendorId(undefined)}
+                initialOrderId={selectedOrderId}
+                onClearInitialOrderId={() => setSelectedOrderId(undefined)}
                 onNavigateToCommunicationsWithVendor={(vendorId) => {
                   const cleanVId = vendorId ? String(vendorId).trim().toLowerCase() : '';
                   const vObj = vendors.find(v => v.id === vendorId || (v.id && String(v.id).trim().toLowerCase() === cleanVId));
