@@ -658,29 +658,35 @@ export default function CommunicationsView({
 
       {/* BULK DELETE CONFIRMATION MODAL */}
       {showBulkDeleteConfirm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm border shadow-lg p-6 space-y-4 text-center">
-            <div className="w-12 h-12 bg-red-50 text-red-650 rounded-full flex items-center justify-center mx-auto animate-pulse">
-              <Trash2 size={24} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm border border-gray-100 shadow-xl p-6 space-y-4 text-center animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
+              <Trash2 size={24} className="text-red-600" />
             </div>
-            <div>
-              <h4 className="text-sm font-bold text-gray-900 uppercase tracking-widest leading-none">{t("Confirm Bulk Logs Deleted")}</h4>
-              <p className="text-[11.5px] text-gray-455 mt-2 font-sans leading-normal">
-                {t("Are you sure you want to permanently delete")} <strong>{selectedComms.length} {t("selected communication entries")}</strong>? {t("This cannot be undone.")}
+            <div className="space-y-2">
+              <h4 className="text-base font-bold text-gray-900 tracking-normal leading-snug">
+                {t("Confirm Bulk Logs Deleted")}
+              </h4>
+              <p className="text-xs text-gray-500 font-sans leading-relaxed">
+                {t("Are you sure you want to delete")}{' '}
+                <strong className="font-semibold text-gray-800">
+                  {selectedComms.length} {t("selected communication entries")}
+                </strong>
+                ? {t("This action cannot be undone.")}
               </p>
             </div>
-            <div className="flex gap-2 font-sans pt-2">
+            <div className="flex gap-2.5 font-sans pt-2 select-none">
               <button
                 type="button"
                 onClick={() => setShowBulkDeleteConfirm(false)}
-                className="flex-1 py-2 border hover:bg-slate-50 text-xs font-bold text-gray-600 rounded-xl cursor-pointer"
+                className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
               >
                 {t("No, Keep Them")}
               </button>
               <button
                 type="button"
                 onClick={handleBulkDeleteExecute}
-                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-xs font-bold text-white rounded-xl cursor-pointer"
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm"
               >
                 {t("Yes, Delete")}
               </button>

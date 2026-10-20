@@ -126,7 +126,14 @@ export function getCommunicationsColumns({
     comment: {
       header: t('Interaction Comment'),
       key: 'comment',
-      render: (comm) => comm.comment
+      render: (comm) => (
+        <div 
+          className="max-w-[180px] sm:max-w-[220px] md:max-w-[260px] truncate leading-normal" 
+          title={comm.comment || ''}
+        >
+          {comm.comment || '-'}
+        </div>
+      )
     },
     responsible_user_id: {
       header: t('Responsible User'),

@@ -36,6 +36,7 @@ interface Props {
   onSaveCommunication?: (comm: Communication) => Promise<void> | void;
   onDeleteCommunication?: (id: string) => Promise<void> | void;
   initialVendorId?: string;
+  initialVendor?: Vendor;
   onClearInitialVendorId?: () => void;
   onNavigateToOrdersWithVendor?: (vendorId: string) => void;
 }
@@ -44,7 +45,7 @@ export default function VendorsView({
   vendors, warehouses, users, cities, districts, directions,
   currentUser, onSave, onDelete,
   communications = [], onSaveCommunication, onDeleteCommunication,
-  initialVendorId, onClearInitialVendorId,
+  initialVendorId, initialVendor, onClearInitialVendorId,
   onNavigateToOrdersWithVendor
 }: Props) {
   const {
@@ -108,6 +109,7 @@ export default function VendorsView({
     onSave,
     onDelete,
     initialVendorId,
+    initialVendor,
     onClearInitialVendorId,
     onNavigateToOrdersWithVendor
   });

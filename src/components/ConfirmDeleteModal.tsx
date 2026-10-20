@@ -29,8 +29,8 @@ export default function ConfirmDeleteModal({
           <Trash2 size={24} />
         </div>
         
-        <div className="space-y-1.5 text-center">
-          <h3 className="font-extrabold text-sm text-gray-950">{t(title)}</h3>
+        <div className="space-y-2 text-center">
+          <h3 className="font-bold text-base text-gray-900 tracking-normal leading-snug">{t(title)}</h3>
           <div className="text-xs text-gray-500 leading-relaxed font-sans">
             {message ? (
               message

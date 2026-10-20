@@ -618,8 +618,14 @@ export default function VendorForm({
         isOpen={!!commentDeleteId}
         onClose={() => setCommentDeleteId(null)}
         onConfirm={() => commentDeleteId && handleRemoveComment(commentDeleteId)}
-        title={t("Discard Comment?")}
-        message={t("Are you sure you want to discard this comment?")}
+        title={t("Discard Comment")}
+        message={
+          <span>
+            {t("Are you sure you want to delete comment")}{' '}
+            <strong>"{((editingVendor.comments || []).find(c => c.id === commentDeleteId)?.comment || '')}"</strong>{' '}
+            {t("deletion text ending")}
+          </span>
+        }
       />
 
       <ConfirmDeleteModal

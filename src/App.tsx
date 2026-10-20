@@ -85,6 +85,7 @@ export default function App() {
   const { data: totalVendorsCount } = useTotalVendorsCount(currentUser);
 
   const [selectedContactVendorId, setSelectedContactVendorId] = React.useState<string | undefined>(undefined);
+  const [selectedVendorForEdit, setSelectedVendorForEdit] = React.useState<Vendor | undefined>(undefined);
   const [selectedOrderVendorId, setSelectedOrderVendorId] = React.useState<string | undefined>(undefined);
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | undefined>(undefined);
   const [selectedCommunication, setSelectedCommunication] = React.useState<Communication | null>(null);
@@ -208,6 +209,11 @@ export default function App() {
                 warehouses={warehouses}
                 communications={communications}
                 currentUser={currentUser}
+                onSelectVendor={(vendorId, vendorObj) => {
+                  setSelectedContactVendorId(vendorId);
+                  setSelectedVendorForEdit(vendorObj);
+                  setActiveTab('vendors');
+                }}
                 onSelectOrder={(order) => {
                   setSelectedOrderId(order.id);
                   setActiveTab('orders');
@@ -260,7 +266,11 @@ export default function App() {
                 onSaveCommunication={handleCommunicationSave}
                 onDeleteCommunication={handleCommunicationDelete}
                 initialVendorId={selectedContactVendorId}
-                onClearInitialVendorId={() => setSelectedContactVendorId(undefined)}
+                initialVendor={selectedVendorForEdit}
+                onClearInitialVendorId={() => {
+                  setSelectedContactVendorId(undefined);
+                  setSelectedVendorForEdit(undefined);
+                }}
                 onNavigateToOrdersWithVendor={(vendorId) => {
                   setSelectedOrderVendorId(vendorId);
                   setActiveTab('orders');

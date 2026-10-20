@@ -8,6 +8,14 @@ export interface DashboardRemindersResult {
   totalCount: number;
 }
 
+const remindersServiceCache: Record<string, { result: DashboardRemindersResult; timestamp: number }> = {};
+
+export function invalidateRemindersCache() {
+  for (const k of Object.keys(remindersServiceCache)) {
+    delete remindersServiceCache[k];
+  }
+}
+
 /**
  * High-performance paginated query for dashboard reminders.
  * Prioritizes rows with has_time = true first, and orders from earlier to later reminder time.
@@ -20,13 +28,19 @@ export async function getDashboardTodayRemindersPaginated(
 ): Promise<DashboardRemindersResult> {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
+  const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  const cacheKey = `${limit}_${offset}_${userId || 'all'}_${userName || ''}_${localDate}`;
+  const cachedEntry = remindersServiceCache[cacheKey];
+  if (cachedEntry && (Date.now() - cachedEntry.timestamp < 180000)) {
+    return cachedEntry.result;
+  }
 
   // Determine today's date in local time and Asia/Tbilisi (UTC+4)
   let tbilisiDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   try {
     tbilisiDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(now);
   } catch {}
-  const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   // Start & end boundaries covering the current date across local time, Tbilisi time (UTC+4), and UTC
   const [tYear, tMonth, tDay] = tbilisiDate.split('-').map(Number);
@@ -100,10 +114,12 @@ export async function getDashboardTodayRemindersPaginated(
           } as Communication;
         });
 
-        return {
+        const result = {
           reminders: decoded,
           totalCount
         };
+        remindersServiceCache[cacheKey] = { result, timestamp: Date.now() };
+        return result;
       }
     } catch (e) {
       console.warn('Supabase getDashboardTodayRemindersPaginated failed, falling back to local storage:', e);
@@ -175,8 +191,10 @@ export async function getDashboardTodayRemindersPaginated(
     };
   });
 
-  return {
+  const finalResult = {
     reminders: sliced,
     totalCount: filtered.length
   };
+  remindersServiceCache[cacheKey] = { result: finalResult, timestamp: Date.now() };
+  return finalResult;
 }

@@ -4,6 +4,7 @@ import { usePaginatedVendors } from '../../hooks/usePaginatedModuleQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDebouncedSearch } from '../../hooks/useDebounce';
 import { useVendorColumns } from './useVendorColumns';
+import { getVendorById } from '../../services/vendorService';
 
 interface UseVendorsViewStateParams {
   vendors: Vendor[];
@@ -11,6 +12,7 @@ interface UseVendorsViewStateParams {
   onSave: (vendor: Vendor) => void;
   onDelete: (id: string, tradeName: string) => void;
   initialVendorId?: string;
+  initialVendor?: Vendor;
   onClearInitialVendorId?: () => void;
   onNavigateToOrdersWithVendor?: (vendorId: string) => void;
 }
@@ -21,6 +23,7 @@ export function useVendorsViewState({
   onSave,
   onDelete,
   initialVendorId,
+  initialVendor,
   onClearInitialVendorId,
   onNavigateToOrdersWithVendor
 }: UseVendorsViewStateParams) {
@@ -61,7 +64,6 @@ export function useVendorsViewState({
   };
 
   const { data: paginatedData, isLoading: isVendorsLoading, refetch: refetchVendors } = usePaginatedVendors(page, filters, currentUser);
-
   const displayVendors = paginatedData?.vendors || [];
   const totalVendorsCount = paginatedData?.totalCount || 0;
 
@@ -72,8 +74,16 @@ export function useVendorsViewState({
     }
   }, [currentUser]);
 
-  // Active edit state (On-screen form)
-  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  // Active edit state (On-screen form) - initialized synchronously for instant rendering without lag
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(() => {
+    if (initialVendor) return initialVendor;
+    if (initialVendorId) {
+      const cleanId = String(initialVendorId).trim();
+      const local = (vendors || []).find(v => v.id === cleanId || String(v.id).trim().toLowerCase() === cleanId.toLowerCase());
+      if (local) return local;
+    }
+    return null;
+  });
   const [isFormSaving, setIsFormSaving] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -81,16 +91,35 @@ export function useVendorsViewState({
   const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
-  // Auto-open vendor form if initialVendorId is supplied
+  // Auto-open and enrich vendor form if initialVendor or initialVendorId is supplied
   useEffect(() => {
-    if (initialVendorId) {
-      const v = vendors.find(v => v.id === initialVendorId);
-      if (v) {
-        setEditingVendor(v);
-        setIsNew(false);
-      }
+    if (initialVendor) {
+      setEditingVendor(initialVendor);
+      setIsNew(false);
     }
-  }, [initialVendorId, vendors]);
+    if (initialVendorId) {
+      let isMounted = true;
+      const cleanId = String(initialVendorId).trim();
+      const existing = (vendors || []).find(v => v.id === cleanId || String(v.id).trim().toLowerCase() === cleanId.toLowerCase()) ||
+                       (displayVendors || []).find(v => v.id === cleanId || String(v.id).trim().toLowerCase() === cleanId.toLowerCase());
+      if (existing) {
+        setEditingVendor(existing);
+        setIsNew(false);
+      } else {
+        getVendorById(cleanId).then(v => {
+          if (isMounted && v) {
+            setEditingVendor(v);
+            setIsNew(false);
+          }
+        }).catch(err => {
+          console.warn('Could not auto-open vendor form:', err);
+        });
+      }
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [initialVendorId, initialVendor, vendors, displayVendors]);
 
   const handleCloseForm = () => {
     setEditingVendor(null);

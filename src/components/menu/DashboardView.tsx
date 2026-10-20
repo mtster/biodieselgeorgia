@@ -25,7 +25,29 @@ interface Props {
   onNavigate: (tab: string) => void;
   onSelectReminder?: (comm: Communication) => void;
   onSelectOrder?: (order: Order) => void;
+  onSelectVendor?: (vendorId: string, vendor?: Vendor) => void;
 }
+
+// Module-level in-memory cache to prevent redundant fetches and recalculation across page changes
+interface DashboardMemoryCache {
+  dateStr: string;
+  completedOrders: Order[];
+  totalCompletedCount: number;
+  todayActiveOrdersCount: number;
+  vendorLookup: Record<string, { trade_name: string; address: string }>;
+  remindersByFilter: Record<string, { reminders: Communication[]; totalCount: number; timestamp: number }>;
+  timestamp: number;
+}
+
+const dashboardCache: DashboardMemoryCache = {
+  dateStr: '',
+  completedOrders: [],
+  totalCompletedCount: 0,
+  todayActiveOrdersCount: 0,
+  vendorLookup: {},
+  remindersByFilter: {},
+  timestamp: 0
+};
 
 export default function DashboardView({ 
   suppliers, 
@@ -39,7 +61,8 @@ export default function DashboardView({
   currentUser,
   onNavigate,
   onSelectReminder,
-  onSelectOrder
+  onSelectOrder,
+  onSelectVendor
 }: Props) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,15 +74,53 @@ export default function DashboardView({
     return `${year}-${month}-${day}`;
   }, []);
 
-  const [dbCompletedOrders, setDbCompletedOrders] = useState<Order[]>([]);
-  const [vendorLookup, setVendorLookup] = useState<Record<string, { trade_name: string; address: string }>>({});
-  const [todayActiveOrdersCount, setTodayActiveOrdersCount] = useState<number>(0);
+  const isCacheValidForToday = dashboardCache.dateStr === todayDateStr && dashboardCache.timestamp > 0;
+
+  const [dbCompletedOrders, setDbCompletedOrders] = useState<Order[]>(() => 
+    isCacheValidForToday ? dashboardCache.completedOrders : []
+  );
+  const [totalCompletedOrdersCount, setTotalCompletedOrdersCount] = useState<number>(() => 
+    isCacheValidForToday ? dashboardCache.totalCompletedCount : 0
+  );
+  const [isLoadingCompletedOrders, setIsLoadingCompletedOrders] = useState<boolean>(() => 
+    !isCacheValidForToday
+  );
+  const [isLoadingMoreCompletedOrders, setIsLoadingMoreCompletedOrders] = useState<boolean>(false);
+  const [vendorLookup, setVendorLookup] = useState<Record<string, { trade_name: string; address: string }>>(() => 
+    isCacheValidForToday ? dashboardCache.vendorLookup : {}
+  );
+  const [todayActiveOrdersCount, setTodayActiveOrdersCount] = useState<number>(() => 
+    isCacheValidForToday ? (dashboardCache.todayActiveOrdersCount || 0) : 0
+  );
 
   // Fetch today's orders directly with vendor relation to guarantee trade_name and address
-  const fetchTodayOrdersData = useCallback(async () => {
+  const fetchTodayOrdersData = useCallback(async (force = false) => {
+    const isFresh = dashboardCache.dateStr === todayDateStr && (Date.now() - dashboardCache.timestamp < 180000);
+    if (!force && isFresh && dashboardCache.completedOrders.length > 0) {
+      setDbCompletedOrders(dashboardCache.completedOrders);
+      setTotalCompletedOrdersCount(dashboardCache.totalCompletedCount);
+      setVendorLookup(dashboardCache.vendorLookup);
+      setTodayActiveOrdersCount(dashboardCache.todayActiveOrdersCount);
+      setIsLoadingCompletedOrders(false);
+      return;
+    }
+
     if (isSupabaseConfigured && supabase) {
       try {
-        // 1. Fetch today's completed orders with joined vendor details
+        setIsLoadingCompletedOrders(true);
+        // Instantaneous count using head: true
+        const { count: compCount, error: countErr } = await supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_deleted', false)
+          .eq('status', 'completed')
+          .gte('order_date', todayDateStr)
+          .lte('order_date', todayDateStr + 'T23:59:59.999Z');
+
+        const resolvedCount = (!countErr && compCount !== null) ? compCount : 0;
+        setTotalCompletedOrdersCount(resolvedCount);
+
+        // 1. Initial fetch limited to 10 completed orders with joined vendor details
         const { data: compData, error: compErr } = await supabase
           .from('orders')
           .select('*, vendors(id, trade_name, company_name, address)')
@@ -67,12 +128,14 @@ export default function DashboardView({
           .eq('status', 'completed')
           .gte('order_date', todayDateStr)
           .lte('order_date', todayDateStr + 'T23:59:59.999Z')
-          .order('completed_at', { ascending: false });
+          .order('completed_at', { ascending: false })
+          .range(0, 9);
+
+        let newLookup: Record<string, { trade_name: string; address: string }> = {};
 
         if (!compErr && compData) {
           setDbCompletedOrders(compData as any[]);
 
-          // Check if any orders have vendor_id but no vendors join
           const missingVendorIds = compData
             .filter((o: any) => !o.vendors && o.vendor_id)
             .map((o: any) => o.vendor_id);
@@ -84,16 +147,15 @@ export default function DashboardView({
               .in('id', Array.from(new Set(missingVendorIds)));
 
             if (vRows) {
-              const map: Record<string, { trade_name: string; address: string }> = {};
               vRows.forEach(v => {
-                map[v.id] = { trade_name: v.trade_name || v.company_name || '', address: v.address || '' };
+                newLookup[v.id] = { trade_name: v.trade_name || v.company_name || '', address: v.address || '' };
               });
-              setVendorLookup(prev => ({ ...prev, ...map }));
+              setVendorLookup(prev => ({ ...prev, ...newLookup }));
             }
           }
         }
 
-        // 2. Fetch today's active orders count (status not in completed, cancelled, canceled)
+        // 2. Fetch today's active orders count exclusively for current date, status not completed/cancelled, is_deleted = false
         const { count: actCount, error: actErr } = await supabase
           .from('orders')
           .select('id', { count: 'exact', head: true })
@@ -102,13 +164,22 @@ export default function DashboardView({
           .lte('order_date', todayDateStr + 'T23:59:59.999Z')
           .not('status', 'in', '("completed","cancelled","canceled")');
 
-        if (!actErr && actCount !== null) {
-          setTodayActiveOrdersCount(actCount);
-        }
-        return;
+        const resolvedActCount = (!actErr && actCount !== null) ? actCount : 0;
+        setTodayActiveOrdersCount(resolvedActCount);
+
+        // Update module-level cache
+        dashboardCache.dateStr = todayDateStr;
+        dashboardCache.completedOrders = (compData as any[]) || [];
+        dashboardCache.totalCompletedCount = resolvedCount;
+        dashboardCache.todayActiveOrdersCount = resolvedActCount;
+        dashboardCache.vendorLookup = { ...dashboardCache.vendorLookup, ...newLookup };
+        dashboardCache.timestamp = Date.now();
       } catch (e) {
         console.warn('DashboardView fetchTodayOrdersData error:', e);
+      } finally {
+        setIsLoadingCompletedOrders(false);
       }
+      return;
     }
 
     // Fallback using props
@@ -126,7 +197,9 @@ export default function DashboardView({
         return timeB - timeA;
       });
 
-    setDbCompletedOrders(localComp);
+    setTotalCompletedOrdersCount(localComp.length);
+    setDbCompletedOrders(localComp.slice(0, 10));
+    setIsLoadingCompletedOrders(false);
 
     const localActCount = orders.filter(o => {
       if (o.is_deleted) return false;
@@ -135,19 +208,103 @@ export default function DashboardView({
       const s = (o.status || '').toLowerCase().trim();
       return s !== 'completed' && s !== 'cancelled' && s !== 'canceled';
     }).length;
-
     setTodayActiveOrdersCount(localActCount);
+
+    dashboardCache.dateStr = todayDateStr;
+    dashboardCache.completedOrders = localComp.slice(0, 10);
+    dashboardCache.totalCompletedCount = localComp.length;
+    dashboardCache.todayActiveOrdersCount = localActCount;
+    dashboardCache.timestamp = Date.now();
   }, [todayDateStr, orders]);
+
+  // Paginated infinite scroll: fetch 5 more rows when scrolling near bottom
+  const handleCompletedOrdersScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (isLoadingCompletedOrders || isLoadingMoreCompletedOrders) return;
+    if (dbCompletedOrders.length >= totalCompletedOrdersCount) return;
+
+    if (target.scrollHeight - target.scrollTop - target.clientHeight < 40) {
+      if (!isSupabaseConfigured || !supabase) {
+        const localComp = orders
+          .filter(o => {
+            if (o.is_deleted) return false;
+            const oDate = (o.order_date || '').substring(0, 10);
+            if (oDate !== todayDateStr) return false;
+            return (o.status || '').toLowerCase().trim() === 'completed';
+          })
+          .sort((a, b) => {
+            const timeA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+            const timeB = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+            return timeB - timeA;
+          });
+        const nextBatch = localComp.slice(dbCompletedOrders.length, dbCompletedOrders.length + 5);
+        if (nextBatch.length > 0) {
+          setDbCompletedOrders(prev => [...prev, ...nextBatch]);
+        }
+        return;
+      }
+
+      setIsLoadingMoreCompletedOrders(true);
+      try {
+        const from = dbCompletedOrders.length;
+        const to = from + 4; // Fetch next 5 rows
+        const { data: compData, error: compErr } = await supabase
+          .from('orders')
+          .select('*, vendors(id, trade_name, company_name, address)')
+          .eq('is_deleted', false)
+          .eq('status', 'completed')
+          .gte('order_date', todayDateStr)
+          .lte('order_date', todayDateStr + 'T23:59:59.999Z')
+          .order('completed_at', { ascending: false })
+          .range(from, to);
+
+        if (!compErr && compData && compData.length > 0) {
+          setDbCompletedOrders(prev => {
+            const seen = new Set(prev.map(o => o.id));
+            const fresh = (compData as any[]).filter(o => !seen.has(o.id));
+            return [...prev, ...fresh];
+          });
+
+          const missingVendorIds = (compData as any[])
+            .filter(o => !o.vendors && o.vendor_id)
+            .map(o => o.vendor_id);
+
+          if (missingVendorIds.length > 0) {
+            const { data: vRows } = await supabase
+              .from('vendors')
+              .select('id, trade_name, company_name, address')
+              .in('id', Array.from(new Set(missingVendorIds)));
+
+            if (vRows) {
+              const map: Record<string, { trade_name: string; address: string }> = {};
+              vRows.forEach(v => {
+                map[v.id] = { trade_name: v.trade_name || v.company_name || '', address: v.address || '' };
+              });
+              setVendorLookup(prev => ({ ...prev, ...map }));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching more completed orders:', err);
+      } finally {
+        setIsLoadingMoreCompletedOrders(false);
+      }
+    }
+  };
 
   useEffect(() => {
     fetchTodayOrdersData();
   }, [fetchTodayOrdersData]);
 
-  // Realtime subscription for orders table
+  // Realtime subscription for orders and vendors tables with cache invalidation
   useEffect(() => {
     const unsub = onRealtimeDbChange((table) => {
       if (table === 'orders' || table === 'vendors') {
-        fetchTodayOrdersData();
+        dashboardCache.timestamp = 0; // invalidate cache
+        fetchTodayOrdersData(true);
+      }
+      if (table === 'communications' || table === 'vendor_communications') {
+        dashboardCache.remindersByFilter = {}; // invalidate reminders cache
       }
     });
     return () => unsub();
@@ -240,16 +397,35 @@ export default function DashboardView({
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
 
-  // Paginated Reminders State
-  const [reminders, setReminders] = useState<Communication[]>([]);
-  const [totalRemindersCount, setTotalRemindersCount] = useState<number>(0);
-  const [isLoadingReminders, setIsLoadingReminders] = useState<boolean>(false);
+  // Paginated Reminders State with session cache
+  const cachedReminders = dashboardCache.remindersByFilter[selectedUserId];
+  const isRemindersCacheFresh = !!cachedReminders && (Date.now() - cachedReminders.timestamp < 180000);
+
+  const [reminders, setReminders] = useState<Communication[]>(() => 
+    isRemindersCacheFresh ? cachedReminders.reminders : []
+  );
+  const [totalRemindersCount, setTotalRemindersCount] = useState<number>(() => 
+    isRemindersCacheFresh ? cachedReminders.totalCount : 0
+  );
+  const [isLoadingReminders, setIsLoadingReminders] = useState<boolean>(() => 
+    !isRemindersCacheFresh
+  );
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Fetch initial 10 rows on filter change / initial load
+  // Fetch initial 10 rows on filter change / initial load if cache is missing or stale
   useEffect(() => {
     let isMounted = true;
+    const cached = dashboardCache.remindersByFilter[selectedUserId];
+    const isFresh = !!cached && (Date.now() - cached.timestamp < 180000);
+
+    if (isFresh) {
+      setReminders(cached.reminders);
+      setTotalRemindersCount(cached.totalCount);
+      setIsLoadingReminders(false);
+      return;
+    }
+
     setIsLoadingReminders(true);
     const selectedEmployee = eligibleUsers.find(e => e.id === selectedUserId) || employees.find(e => e.id === selectedUserId);
     const selectedEmpName = selectedEmployee?.name || '';
@@ -260,6 +436,11 @@ export default function DashboardView({
         setReminders(res.reminders);
         setTotalRemindersCount(res.totalCount);
         setIsLoadingReminders(false);
+        dashboardCache.remindersByFilter[selectedUserId] = {
+          reminders: res.reminders,
+          totalCount: res.totalCount,
+          timestamp: Date.now()
+        };
       })
       .catch(err => {
         if (!isMounted) return;
@@ -389,7 +570,9 @@ export default function DashboardView({
               <h3 className="font-extrabold text-sm text-gray-800 tracking-tight shrink-0 select-none">
                 {t("Today's Completed Orders") || "დღევანდელი შესრულებული შეკვეთები"}
               </h3>
-
+              <span className="text-[11px] font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-100/60 min-w-[20px] text-center ml-1">
+                {searchTerm.trim() ? filteredCompletedOrders.length : totalCompletedOrdersCount}
+              </span>
               <div className="flex items-center ml-1">
                 <button
                   type="button"
@@ -402,7 +585,6 @@ export default function DashboardView({
                 >
                   <Search size={14} />
                 </button>
-
                 {isSearchOpen && (
                   <div className="relative flex items-center ml-1 animate-in fade-in duration-150">
                     <input
@@ -455,7 +637,10 @@ export default function DashboardView({
               {searchTerm.trim() ? (t("No matching orders found") || "შესაბამისი შეკვეთები ვერ მოიძებნა") : (t("No completed orders today") || "დღეს შესრულებული შეკვეთები არ მოიძებნა")}
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-gray-100">
+            <div 
+              onScroll={handleCompletedOrdersScroll}
+              className="flex-1 min-h-0 overflow-auto rounded-xl border border-gray-100"
+            >
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="sticky top-0 bg-slate-50 border-b border-gray-100 z-10 shadow-2xs">
                   <tr>
@@ -484,21 +669,41 @@ export default function DashboardView({
                       vFromLookup?.company_name || 
                       vFromSuppliers?.company_name || 
                       '-';
-
                     const vendorAddress = 
                       vJoined?.address || 
                       vFromLookup?.address || 
                       vFromSuppliers?.address || 
                       order.address || 
                       '';
-
                     const truckObj = trucks.find(t => t.id === order.vehicle_id);
                     const vehiclePlate = order.truck_plate || truckObj?.plate_number || '-';
+                    const targetVendorId = order.vendor_id || vJoined?.id || vFromSuppliers?.id;
+                    const targetVendorObj: Vendor | undefined = vFromSuppliers || (vJoined ? {
+                      id: targetVendorId,
+                      trade_name: vJoined.trade_name || '',
+                      company_name: vJoined.company_name || vJoined.trade_name || '',
+                      address: vJoined.address || '',
+                      company_code: '',
+                      bank_account: '',
+                      city: '',
+                      district: '',
+                      price_per_liter: 0,
+                      comments: [],
+                      status: 'Active'
+                    } as Vendor : undefined);
 
                     return (
                       <tr 
                         key={order.id}
-                        onClick={() => onSelectOrder ? onSelectOrder(order) : onNavigate('orders')}
+                        onClick={() => {
+                          if (targetVendorId && onSelectVendor) {
+                            onSelectVendor(targetVendorId, targetVendorObj);
+                          } else if (onSelectOrder) {
+                            onSelectOrder(order);
+                          } else {
+                            onNavigate('vendors');
+                          }
+                        }}
                         className="hover:bg-emerald-50/40 cursor-pointer transition-colors group"
                       >
                         <td className="px-3.5 py-2.5">
@@ -537,6 +742,11 @@ export default function DashboardView({
                   })}
                 </tbody>
               </table>
+              {isLoadingMoreCompletedOrders && (
+                <div className="text-center py-2 text-[11px] text-gray-400 font-medium">
+                  {t("Loading more...") || "იტვირთება..."}
+                </div>
+              )}
             </div>
           )}
         </div>
