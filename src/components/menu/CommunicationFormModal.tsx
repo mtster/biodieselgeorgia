@@ -473,9 +473,11 @@ export default function CommunicationFormModal({
     const errors: Record<string, string> = {};
 
     // Validate supplier
-    const currentVendorId = localComm.vendor_id || matchedVendor?.id;
-    if (!currentVendorId && !vendorSearch.trim()) {
-      errors.vendor_id = t("Supplier is required");
+    const currentVendorId = localComm?.vendor_id || matchedVendor?.id;
+    if (!currentVendorId) {
+      errors.vendor_id = vendorSearch.trim() 
+        ? t("Please select a supplier from the list") 
+        : t("Supplier is required");
     }
 
     // Validate reminder date if type is reminder

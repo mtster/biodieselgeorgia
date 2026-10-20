@@ -409,6 +409,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "No, Keep Them": "არა, დატოვება",
   "Please enter a comment": "გთხოვთ შეიყვანოთ კომენტარი",
   "Supplier is required": "მომწოდებელი სავალდებულოა",
+  "Please select a supplier from the list": "გთხოვთ აირჩიოთ მომწოდებელი სიიდან",
   "Comment is required": "კომენტარი სავალდებულოა",
   "Date is required": "თარიღი სავალდებულოა",
   "Responsible user is required": "პასუხისმგებელი პირი სავალდებულოა",

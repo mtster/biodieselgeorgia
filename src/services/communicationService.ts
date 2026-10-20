@@ -452,16 +452,13 @@ export async function saveCommunication(comm: Communication, loggerName: string,
       delete dbComm.task_status;
       delete dbComm.user_id;
 
-      if (isNew) {
-        const { error } = await supabase.from('communications').insert([dbComm]);
-        if (error) {
-          console.error('Supabase insert communication error:', error);
-        }
-      } else {
-        const { error } = await supabase.from('communications').update(dbComm).eq('id', dbComm.id);
-        if (error) {
-          console.error('Supabase update communication error:', error);
-        }
+      if (!dbComm.vendor_id) {
+        console.error('Supabase save aborted: communication requires a valid vendor_id');
+        return finalComm;
+      }
+      const { error } = await supabase.from('communications').upsert([dbComm], { onConflict: 'id' });
+      if (error) {
+        console.error('Supabase save communication error:', error);
       }
     } catch (e) {
       console.error('Supabase saveCommunication failed', e);

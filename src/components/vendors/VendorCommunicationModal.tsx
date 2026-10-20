@@ -193,11 +193,6 @@ export default function VendorCommunicationModal({
   };
 
   const handleSave = () => {
-    if (!editingVendor.id) {
-      alert(t("Please save this supplier before logging communication records."));
-      return;
-    }
-
     const errors: Record<string, string> = {};
 
     if (newCommType === 'reminder' && !reminderDate.trim()) {
@@ -255,8 +250,8 @@ export default function VendorCommunicationModal({
       has_time: hasTimeSelected,
       user_id: respId,
       user_name: assignedUser ? assignedUser.name : currentUser.name,
-      vendor_id: editingVendor.id,
-      vendor_name: editingVendor.trade_name,
+      vendor_id: editingVendor.id || '',
+      vendor_name: editingVendor.trade_name || editingVendor.company_name || '',
       vendor_contact_id: newCommContactId,
       vendor_contact_name: assignedContact ? assignedContact.name : 'Direct Interaction',
       comment: newCommComment.trim(),

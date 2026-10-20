@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react';
-import { Vendor, VendorContact } from '../../../types';
+import { Vendor, VendorContact, Communication } from '../../../types';
 
 export function getCleanUsername(u: string | undefined): string {
   if (!u) return '';
@@ -21,7 +21,8 @@ export function useVendorValidation(
   tempContacts: VendorContact[],
   usernameInput: string,
   passwordInput: string,
-  isNew: boolean
+  isNew: boolean,
+  tempCommunications: Communication[] = []
 ) {
   const initialSnapshotRef = useRef<VendorSnapshot>({
     vendor: JSON.parse(JSON.stringify(editingVendor)),
@@ -43,6 +44,7 @@ export function useVendorValidation(
 
   const hasVendorChanges = useCallback((): boolean => {
     if (!editingVendor.id || isNew) return true;
+    if (tempCommunications && tempCommunications.length > 0) return true;
 
     // Check account changes
     if (passwordInput.trim() !== '') return true;

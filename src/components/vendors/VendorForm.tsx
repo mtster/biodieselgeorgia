@@ -6,6 +6,7 @@ import {
 } from '../../types';
 import { saveUser } from '../../services/userService';
 import { getVendorContacts, generateUuid, sortVendorContacts } from '../../services/vendorService';
+import { saveCommunication } from '../../services/communicationService';
 
 function getCleanUsername(u: string | undefined): string {
   if (!u) return '';
@@ -92,13 +93,14 @@ export default function VendorForm({
   const [usernameInput, setUsernameInput] = useState(() => getCleanUsername(editingVendor.username));
   const [passwordInput, setPasswordInput] = useState('');
   const [tempContacts, setTempContacts] = useState<VendorContact[]>([]);
+  const [tempCommunications, setTempCommunications] = useState<Communication[]>([]);
 
   const {
     initialSnapshotRef,
     updateSnapshot,
     hasVendorChanges,
     validateVendorForm
-  } = useVendorValidation(editingVendor, tempContacts, usernameInput, passwordInput, isNew);
+  } = useVendorValidation(editingVendor, tempContacts, usernameInput, passwordInput, isNew, tempCommunications);
 
   useEffect(() => {
     setUsernameInput(getCleanUsername(editingVendor.username));
@@ -109,6 +111,7 @@ export default function VendorForm({
     }
     updateSnapshot(editingVendor);
   }, [editingVendor.id, editingVendor.username, updateSnapshot]);
+
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [activeContact, setActiveContact] = useState<VendorContact | null>(null);
 
@@ -386,6 +389,23 @@ export default function VendorForm({
           return;
         }
         const finalSavedId = (savedRes && (savedRes as any).id) || payload.id || resolvedVendorId;
+
+        // Persist any buffered communications created during new supplier creation with the valid saved vendor ID
+        if (tempCommunications.length > 0 && finalSavedId) {
+          for (const comm of tempCommunications) {
+            try {
+              await saveCommunication({
+                ...comm,
+                id: comm.id && !comm.id.startsWith('temp-comm-') ? comm.id : generateUuid(),
+                vendor_id: finalSavedId,
+                vendor_name: payload.trade_name || payload.company_name || ''
+              }, currentUser.name || 'System', currentUser.id);
+            } catch (commErr) {
+              console.error('Failed to save communication for new supplier:', commErr);
+            }
+          }
+        }
+
         onSavingStateChange?.(false);
         if (onSuccessCallback) {
           onSuccessCallback(finalSavedId);
@@ -591,7 +611,7 @@ export default function VendorForm({
           </div>
 
           <VendorCommunicationsSection
-            communications={communications}
+            communications={tempCommunications}
             editingVendor={editingVendor}
             currentUser={currentUser}
             users={users}
@@ -632,8 +652,11 @@ export default function VendorForm({
         isOpen={isCommDeleteModalOpen}
         onClose={() => setIsCommDeleteModalOpen(false)}
         onConfirm={() => {
-          if (activeComm && onDeleteCommunication) {
-            onDeleteCommunication(activeComm.id);
+          if (activeComm) {
+            setTempCommunications(prev => prev.filter(c => c.id !== activeComm.id));
+            if (activeComm.id && !activeComm.id.startsWith('temp-comm-') && onDeleteCommunication) {
+              onDeleteCommunication(activeComm.id);
+            }
           }
           setIsCommDeleteModalOpen(false);
           setActiveComm(null);
@@ -667,9 +690,22 @@ export default function VendorForm({
         tempContacts={tempContacts}
         editingVendor={editingVendor}
         onSaveCommunication={(payload) => {
-          if (onSaveCommunication) {
-            onSaveCommunication(payload);
-          }
+          const commId = payload.id || 'temp-comm-' + Math.random().toString(36).substring(2, 9);
+          const formattedPayload: Communication = {
+            ...payload,
+            id: commId,
+            vendor_id: editingVendor.id || '',
+            vendor_name: editingVendor.trade_name || editingVendor.company_name || ''
+          };
+          setTempCommunications(prev => {
+            const idx = prev.findIndex(c => c.id === commId);
+            if (idx >= 0) {
+              const copy = [...prev];
+              copy[idx] = formattedPayload;
+              return copy;
+            }
+            return [formattedPayload, ...prev];
+          });
           setIsCommModalOpen(false);
           setActiveComm(null);
         }}

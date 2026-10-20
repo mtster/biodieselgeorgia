@@ -125,10 +125,21 @@ export default function VendorCommunicationsSection({
   }, [communications, editingVendor.id, cleanVendorId]);
 
   const displayComms = useMemo(() => {
-    return [...loadedComms].sort((a, b) => {
+    const map = new Map<string, Communication>();
+    loadedComms.forEach(c => {
+      if (!c.is_deleted) map.set(c.id, c);
+    });
+    (communications || []).forEach(c => {
+      if (!c.is_deleted) {
+        map.set(c.id, c);
+      } else {
+        map.delete(c.id);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => {
       return new Date(b.date_time || 0).getTime() - new Date(a.date_time || 0).getTime();
     });
-  }, [loadedComms]);
+  }, [loadedComms, communications]);
 
   const commColumns: ColumnConfig<Communication>[] = [
     {
