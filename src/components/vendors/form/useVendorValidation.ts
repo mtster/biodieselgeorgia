@@ -125,7 +125,7 @@ export function useVendorValidation(
     }
 
     return false;
-  }, [editingVendor, tempContacts, usernameInput, passwordInput, isNew]);
+  }, [editingVendor, tempContacts, usernameInput, passwordInput, isNew, tempCommunications]);
 
   const validateVendorForm = useCallback((): { errs: Record<string, string>; needsUserCreationOrUpdate: boolean } => {
     const errs: Record<string, string> = {};

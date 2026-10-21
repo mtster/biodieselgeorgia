@@ -440,7 +440,8 @@ export async function saveCommunication(comm: Communication, loggerName: string,
       dbComm.vendor_id = dbComm.vendor_id && String(dbComm.vendor_id).trim() ? String(dbComm.vendor_id).trim() : null;
       dbComm.vendor_contact_id = dbComm.vendor_contact_id && String(dbComm.vendor_contact_id).trim() ? String(dbComm.vendor_contact_id).trim() : null;
       dbComm.created_by = cleanUserUuid(createdBy) || createdBy || null;
-      dbComm.responsible_user_id = cleanUserUuid(respUserId) || respUserId || null;
+      const cleanedResp = cleanUserUuid(respUserId) || respUserId;
+      dbComm.responsible_user_id = (typeof cleanedResp === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanedResp)) ? cleanedResp : null;
       dbComm.is_completed = Boolean(isCompleted);
 
       // Clean out any non-existent columns from Supabase schema

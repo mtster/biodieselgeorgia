@@ -205,8 +205,6 @@ export function useVendorsViewState({
 
   const handleSaveFromForm = async (finalVendor: Vendor) => {
     const res = await onSave(finalVendor);
-    setEditingVendor(null);
-    onClearInitialVendorId?.();
     return res;
   };
 
