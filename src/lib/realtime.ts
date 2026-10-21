@@ -10,12 +10,12 @@ export const DB_DEPENDENCY_MAP: Record<string, string[]> = {
   vendors: ['vendors', 'contacts', 'communications', 'orders'],
   orders: ['orders'],
   vendor_contacts: ['contacts', 'vendors'],
-  communications: ['communications', 'vendors'],
-  vendor_communications: ['communications', 'vendors'],
-  warehouses: ['warehouses', 'vendors', 'orders'],
-  cities: ['cities', 'vendors'],
-  districts: ['districts', 'vendors'],
-  directions: ['directions', 'vendors'],
+  communications: ['communications'],
+  vendor_communications: ['communications'],
+  warehouses: ['warehouses'],
+  cities: ['cities'],
+  districts: ['districts'],
+  directions: ['directions'],
   vehicles: ['trucks', 'orders'],
 };
 
@@ -47,7 +47,7 @@ export function debouncedInvalidateQueries(keys: string[]) {
       const keysToRun = Array.from(pendingInvalidationKeys);
       pendingInvalidationKeys.clear();
       keysToRun.forEach(key => {
-        globalQueryClient?.invalidateQueries({ queryKey: [key] });
+        globalQueryClient?.invalidateQueries({ queryKey: [key], refetchType: 'active' });
       });
     }
   }, 100);
@@ -66,8 +66,8 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
     }
     lastTableUpdate[table] = now;
 
-    // Clear in-memory query cache so refetches get fresh data
-    appCache.clear();
+    // Targeted cache eviction: only invalidate in-memory cache entries for this specific table
+    appCache.clear(table);
 
     const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
     debouncedInvalidateQueries(dependentKeys);
@@ -111,10 +111,10 @@ export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DEL
     lastTableUpdate['vendors'] = now;
   }
 
-  // Clear in-memory query cache immediately
-  appCache.clear();
+  // Clear in-memory query cache only for the target table
+  appCache.clear(table);
 
-  // Invalidate TanStack Query cache locally for the acting client user
+  // Invalidate TanStack Query cache locally for active components of the acting user
   if (globalQueryClient) {
     const dependentKeys = DB_DEPENDENCY_MAP[table] || [table];
     debouncedInvalidateQueries(dependentKeys);

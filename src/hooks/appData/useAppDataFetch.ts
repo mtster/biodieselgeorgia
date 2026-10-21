@@ -232,7 +232,7 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
       } else if (t === 'vendors') {
         // VendorsView is paginated (12/page) and cache invalidation is handled via queryClient
       } else if (t === 'communications' || t === 'vendor_communications') {
-        const comms = await getCommunications(50);
+        const comms = await getCommunications(12);
         setCommunications(comms);
       } else if (t === 'change_history') {
         const hist = await getChangeHistory(50, 0);

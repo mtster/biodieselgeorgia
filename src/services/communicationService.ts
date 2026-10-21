@@ -320,7 +320,7 @@ export async function getCommunicationsPaginated(
   }
 }
 
-export async function getCommunications(limit = 100): Promise<Communication[]> {
+export async function getCommunications(limit = 12): Promise<Communication[]> {
   if (isSupabaseConfigured && supabase) {
     try {
       const { data: recentData } = await supabase
