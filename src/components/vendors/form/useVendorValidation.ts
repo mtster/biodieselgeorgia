@@ -145,9 +145,6 @@ export function useVendorValidation(
     if (!editingVendor.warehouse_id) {
       errs.warehouse_id = 'მინიჭებული საწყობი სავალდებულოა.';
     }
-    if (!editingVendor.direction_id) {
-      errs.direction_id = 'მიმართულება სავალდებულოა.';
-    }
 
     const effectiveContacts = tempContacts.length > 0 ? tempContacts : (editingVendor.contacts || []);
     if (isNew && effectiveContacts.length === 0) {

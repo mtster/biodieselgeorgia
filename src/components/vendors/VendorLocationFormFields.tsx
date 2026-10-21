@@ -82,7 +82,7 @@ export default function VendorLocationFormFields({
         />
 
         <FormSelect
-          label={t("mimartuleba *")}
+          label={t("mimartuleba")}
           value={editingVendor.direction_id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, direction_id: e.target.value } : null);
@@ -90,7 +90,7 @@ export default function VendorLocationFormFields({
           }}
           error={fieldErrors.direction_id}
         >
-          <option value="" hidden></option>
+          <option value="">{t("აირჩიეთ მიმართულება") || "აირჩიეთ მიმართულება"}</option>
           {directions.map(d => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
