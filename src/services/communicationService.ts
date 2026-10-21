@@ -477,7 +477,7 @@ export async function saveCommunication(comm: Communication, loggerName: string,
   }
 
   // Clear query cache and broadcast change
-  appCache.clear();
+  appCache.clear('comm');
   notifyDbChange('communications', isNew ? 'CREATE' : 'UPDATE', finalComm.id);
   return finalComm;
 }
@@ -499,7 +499,7 @@ export async function deleteCommunication(id: string, loggerName: string): Promi
   const list = getLocal<Communication[]>(KEY_COMMUNICATIONS, []);
   setLocal(KEY_COMMUNICATIONS, list.map(item => item.id === id ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Communication deleted', 'ID', id, '');
-  appCache.clear();
+  appCache.clear('comm');
   notifyDbChange('communications', 'DELETE', id);
   return true;
 }

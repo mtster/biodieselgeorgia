@@ -65,6 +65,8 @@ export default function DashboardView({
   onSelectVendor
 }: Props) {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const ordersRef = useRef(orders);
+  ordersRef.current = orders;
 
   const todayDateStr = useMemo(() => {
     const d = new Date();
@@ -95,8 +97,8 @@ export default function DashboardView({
 
   // Fetch today's orders directly with vendor relation to guarantee trade_name and address
   const fetchTodayOrdersData = useCallback(async (force = false) => {
-    const isFresh = dashboardCache.dateStr === todayDateStr && (Date.now() - dashboardCache.timestamp < 180000);
-    if (!force && isFresh && dashboardCache.completedOrders.length > 0) {
+    const isFresh = dashboardCache.dateStr === todayDateStr && dashboardCache.timestamp > 0 && (Date.now() - dashboardCache.timestamp < 180000);
+    if (!force && isFresh) {
       setDbCompletedOrders(dashboardCache.completedOrders);
       setTotalCompletedOrdersCount(dashboardCache.totalCompletedCount);
       setVendorLookup(dashboardCache.vendorLookup);
@@ -183,7 +185,7 @@ export default function DashboardView({
     }
 
     // Fallback using props
-    const localComp = orders
+    const localComp = (ordersRef.current || [])
       .filter(o => {
         if (o.is_deleted) return false;
         const oDate = (o.order_date || '').substring(0, 10);
@@ -201,7 +203,7 @@ export default function DashboardView({
     setDbCompletedOrders(localComp.slice(0, 10));
     setIsLoadingCompletedOrders(false);
 
-    const localActCount = orders.filter(o => {
+    const localActCount = (ordersRef.current || []).filter(o => {
       if (o.is_deleted) return false;
       const oDate = (o.order_date || '').substring(0, 10);
       if (oDate !== todayDateStr) return false;
@@ -215,7 +217,7 @@ export default function DashboardView({
     dashboardCache.totalCompletedCount = localComp.length;
     dashboardCache.todayActiveOrdersCount = localActCount;
     dashboardCache.timestamp = Date.now();
-  }, [todayDateStr, orders]);
+  }, [todayDateStr]);
 
   // Paginated infinite scroll: fetch 5 more rows when scrolling near bottom
   const handleCompletedOrdersScroll = async (e: React.UIEvent<HTMLDivElement>) => {
@@ -296,10 +298,10 @@ export default function DashboardView({
     fetchTodayOrdersData();
   }, [fetchTodayOrdersData]);
 
-  // Realtime subscription for orders and vendors tables with cache invalidation
+  // Realtime subscription for orders table with cache invalidation
   useEffect(() => {
     const unsub = onRealtimeDbChange((table) => {
-      if (table === 'orders' || table === 'vendors') {
+      if (table === 'orders') {
         dashboardCache.timestamp = 0; // invalidate cache
         fetchTodayOrdersData(true);
       }
