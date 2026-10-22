@@ -34,7 +34,7 @@ interface DashboardMemoryCache {
   completedOrders: Order[];
   totalCompletedCount: number;
   todayActiveOrdersCount: number;
-  vendorLookup: Record<string, { trade_name: string; address: string }>;
+  vendorLookup: Record<string, { trade_name: string; company_name?: string; address: string }>;
   remindersByFilter: Record<string, { reminders: Communication[]; totalCount: number; timestamp: number }>;
   timestamp: number;
 }
@@ -88,7 +88,7 @@ export default function DashboardView({
     !isCacheValidForToday
   );
   const [isLoadingMoreCompletedOrders, setIsLoadingMoreCompletedOrders] = useState<boolean>(false);
-  const [vendorLookup, setVendorLookup] = useState<Record<string, { trade_name: string; address: string }>>(() => 
+  const [vendorLookup, setVendorLookup] = useState<Record<string, { trade_name: string; company_name?: string; address: string }>>(() => 
     isCacheValidForToday ? dashboardCache.vendorLookup : {}
   );
   const [todayActiveOrdersCount, setTodayActiveOrdersCount] = useState<number>(() => 
@@ -133,7 +133,7 @@ export default function DashboardView({
           .order('completed_at', { ascending: false })
           .range(0, 9);
 
-        let newLookup: Record<string, { trade_name: string; address: string }> = {};
+        let newLookup: Record<string, { trade_name: string; company_name?: string; address: string }> = {};
 
         if (!compErr && compData) {
           setDbCompletedOrders(compData as any[]);
@@ -150,7 +150,7 @@ export default function DashboardView({
 
             if (vRows) {
               vRows.forEach(v => {
-                newLookup[v.id] = { trade_name: v.trade_name || v.company_name || '', address: v.address || '' };
+                newLookup[v.id] = { trade_name: v.trade_name || v.company_name || '', company_name: v.company_name || '', address: v.address || '' };
               });
               setVendorLookup(prev => ({ ...prev, ...newLookup }));
             }
@@ -278,9 +278,9 @@ export default function DashboardView({
               .in('id', Array.from(new Set(missingVendorIds)));
 
             if (vRows) {
-              const map: Record<string, { trade_name: string; address: string }> = {};
+              const map: Record<string, { trade_name: string; company_name?: string; address: string }> = {};
               vRows.forEach(v => {
-                map[v.id] = { trade_name: v.trade_name || v.company_name || '', address: v.address || '' };
+                map[v.id] = { trade_name: v.trade_name || v.company_name || '', company_name: v.company_name || '', address: v.address || '' };
               });
               setVendorLookup(prev => ({ ...prev, ...map }));
             }
@@ -414,6 +414,67 @@ export default function DashboardView({
   );
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const bottomSentinelRef = React.useRef<HTMLDivElement>(null);
+
+  const remindersRef = useRef(reminders);
+  remindersRef.current = reminders;
+  const totalRemindersCountRef = useRef(totalRemindersCount);
+  totalRemindersCountRef.current = totalRemindersCount;
+  const isLoadingRemindersRef = useRef(isLoadingReminders);
+  isLoadingRemindersRef.current = isLoadingReminders;
+  const isLoadingMoreRef = useRef(isLoadingMore);
+  isLoadingMoreRef.current = isLoadingMore;
+
+  // Load next batch of reminders
+  const loadMoreReminders = useCallback(async () => {
+    if (isLoadingRemindersRef.current || isLoadingMoreRef.current) return;
+    if (remindersRef.current.length >= totalRemindersCountRef.current) return;
+
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    const selectedEmployee = eligibleUsers.find(e => e.id === selectedUserId) || employees.find(e => e.id === selectedUserId);
+    const selectedEmpName = selectedEmployee?.name || '';
+    const currentOffset = remindersRef.current.length;
+
+    try {
+      const res = await getDashboardTodayRemindersPaginated(10, currentOffset, selectedUserId, selectedEmpName);
+      setReminders(prev => {
+        const seen = new Set(prev.map(r => r.id));
+        const fresh = res.reminders.filter(r => !seen.has(r.id));
+        const updated = [...prev, ...fresh];
+        dashboardCache.remindersByFilter[selectedUserId] = {
+          reminders: updated,
+          totalCount: res.totalCount,
+          timestamp: Date.now()
+        };
+        return updated;
+      });
+      setTotalRemindersCount(res.totalCount);
+    } catch (err) {
+      console.error('Failed to load more reminders:', err);
+    } finally {
+      isLoadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }, [selectedUserId, eligibleUsers, employees]);
+
+  // Dynamic overflow & fill check: if current items don't fill the container enough to enable scrolling,
+  // automatically load the next batch so the user isn't stuck unable to scroll.
+  const checkAndFillContainer = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    if (isLoadingRemindersRef.current || isLoadingMoreRef.current) return;
+    if (remindersRef.current.length >= totalRemindersCountRef.current) return;
+    if (remindersRef.current.length === 0) return;
+
+    // If container content fits without a scrollbar (scrollHeight <= clientHeight + 15),
+    // auto-fetch more items until it overflows or all items are fetched.
+    const hasNoScrollbar = container.scrollHeight <= container.clientHeight + 15;
+    if (hasNoScrollbar) {
+      loadMoreReminders();
+    }
+  }, [loadMoreReminders]);
 
   // Fetch initial 10 rows on filter change / initial load if cache is missing or stale
   useEffect(() => {
@@ -455,31 +516,73 @@ export default function DashboardView({
     };
   }, [selectedUserId, eligibleUsers, employees]);
 
-  // Infinite scroll gesture: fetch 5 more rows when scrolling near bottom
+  // Dynamic layout check: whenever reminders change or finish loading, check if more rows are needed to fill the viewport
+  useEffect(() => {
+    if (!isLoadingReminders && reminders.length > 0 && reminders.length < totalRemindersCount) {
+      const timer = setTimeout(() => {
+        checkAndFillContainer();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [reminders.length, isLoadingReminders, totalRemindersCount, checkAndFillContainer]);
+
+  // ResizeObserver: dynamically handles window resizing, maximizing, zooming, or orientation changes
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    const ro = new ResizeObserver(() => {
+      checkAndFillContainer();
+    });
+
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [checkAndFillContainer]);
+
+  // IntersectionObserver on bottom sentinel
+  useEffect(() => {
+    const sentinel = bottomSentinelRef.current;
+    const container = scrollContainerRef.current;
+    if (!sentinel || !container || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry && entry.isIntersecting) {
+          if (!isLoadingRemindersRef.current && !isLoadingMoreRef.current && remindersRef.current.length < totalRemindersCountRef.current) {
+            loadMoreReminders();
+          }
+        }
+      },
+      {
+        root: container,
+        rootMargin: '40px',
+        threshold: 0.05
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMoreReminders, reminders.length]);
+
+  // Wheel fallback: if user scrolls down over container when at edge or non-overflowing
+  const handleRemindersWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY > 0 && reminders.length < totalRemindersCount && !isLoadingMore && !isLoadingReminders) {
+      const container = scrollContainerRef.current;
+      if (container && container.scrollHeight <= container.clientHeight + 15) {
+        loadMoreReminders();
+      }
+    }
+  };
+
+  // Standard scroll handler
   const handleRemindersScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
-    if (isLoadingReminders || isLoadingMore) return;
+    if (isLoadingRemindersRef.current || isLoadingMoreRef.current) return;
     if (reminders.length >= totalRemindersCount) return;
 
-    if (target.scrollHeight - target.scrollTop - target.clientHeight < 40) {
-      setIsLoadingMore(true);
-      const selectedEmployee = eligibleUsers.find(e => e.id === selectedUserId) || employees.find(e => e.id === selectedUserId);
-      const selectedEmpName = selectedEmployee?.name || '';
-      const currentOffset = reminders.length;
-
-      getDashboardTodayRemindersPaginated(5, currentOffset, selectedUserId, selectedEmpName)
-        .then(res => {
-          setReminders(prev => {
-            const seen = new Set(prev.map(r => r.id));
-            const fresh = res.reminders.filter(r => !seen.has(r.id));
-            return [...prev, ...fresh];
-          });
-          setTotalRemindersCount(res.totalCount);
-          setIsLoadingMore(false);
-        })
-        .catch(() => {
-          setIsLoadingMore(false);
-        });
+    if (target.scrollHeight - target.scrollTop - target.clientHeight < 50) {
+      loadMoreReminders();
     }
   };
 
@@ -792,6 +895,7 @@ export default function DashboardView({
           <div 
             ref={scrollContainerRef}
             onScroll={handleRemindersScroll}
+            onWheel={handleRemindersWheel}
             className="space-y-3 flex-1 min-h-0 overflow-y-auto pr-1"
           >
             {isLoadingReminders && reminders.length === 0 ? (
@@ -847,11 +951,33 @@ export default function DashboardView({
               })
             )}
 
-            {isLoadingMore && (
-              <div className="text-center py-2 text-[11px] text-gray-400 font-medium">
-                {t("Loading more...") || "იტვირთება..."}
-              </div>
+            {/* Bottom sentinel for seamless IntersectionObserver */}
+            {reminders.length < totalRemindersCount && (
+              <div ref={bottomSentinelRef} className="h-1 w-full pointer-events-none" />
             )}
+
+            {isLoadingMore ? (
+              <div className="flex items-center justify-center gap-2 py-2 text-[11px] text-gray-400 font-medium animate-pulse">
+                <div className="w-2.5 h-2.5 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin" />
+                <span>{t("Loading more...") || "იტვირთება..."}</span>
+              </div>
+            ) : reminders.length < totalRemindersCount ? (
+              <div className="pt-1 pb-1 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => loadMoreReminders()}
+                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/70 rounded-full px-3 py-1 transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title={t("Load more reminders") || "მეტის ჩატვირთვა"}
+                >
+                  <span>{t("Show more") || "მეტის ნახვა"}</span>
+                  <span className="text-[10px] text-emerald-600/80 font-mono font-bold">({reminders.length}/{totalRemindersCount})</span>
+                </button>
+              </div>
+            ) : totalRemindersCount > 10 ? (
+              <div className="text-center py-2 text-[10px] text-gray-400 font-medium">
+                {t("All reminders loaded") || "ყველა შეხსენება ნაჩვენებია"} ({totalRemindersCount})
+              </div>
+            ) : null}
           </div>
         </div>
 

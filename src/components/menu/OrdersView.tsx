@@ -81,6 +81,7 @@ export default function OrdersView({
     isOrdersLoading,
     editingOrder,
     setEditingOrder,
+    isReadOnly,
     isFormSaving,
     setIsFormSaving,
     showSMSLogs,
@@ -165,6 +166,7 @@ export default function OrdersView({
           employees={employees}
           trucks={trucks}
           currentEmployee={currentEmployee}
+          isReadOnly={isReadOnly}
           onSave={handleSaveFromForm}
           onCancel={() => setEditingOrder(null)}
           formRef={formRef}

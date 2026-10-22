@@ -6,7 +6,7 @@
 import React from 'react';
 import { useAppData } from './hooks/useAppData';
 import { useTotalVendorsCount } from './hooks/usePaginatedModuleQuery';
-import { Communication } from './types';
+import { Communication, Vendor } from './types';
 import { t } from './utils/lang';
 import ErrorModal from './components/ErrorModal';
 

@@ -96,6 +96,7 @@ export function useOrdersViewState({
   // Active form management
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const [showSMSLogs, setShowSMSLogs] = useState(false);
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
   const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
@@ -201,12 +202,14 @@ export function useOrdersViewState({
     };
     setEditingOrder(defaultOrder);
     setIsNew(true);
+    setIsReadOnly(false);
     scrollMainToTop();
   };
 
   const startEdit = (ord: Order) => {
     setEditingOrder(JSON.parse(JSON.stringify(ord)));
     setIsNew(false);
+    setIsReadOnly(!canModify);
     scrollMainToTop();
   };
 
@@ -321,6 +324,8 @@ export function useOrdersViewState({
     editingOrder,
     setEditingOrder,
     isNew,
+    isReadOnly,
+    setIsReadOnly,
     isFormSaving,
     setIsFormSaving,
     showSMSLogs,
