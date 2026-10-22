@@ -67,7 +67,7 @@ export const VendorsViewFilters: React.FC<VendorsViewFiltersProps> = ({
               triggerImmediateSearch();
             }
           }}
-          className="w-full pl-9 pr-4 py-2.5 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all text-gray-900 font-sans"
+          className="w-full pl-9 pr-4 py-2 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 focus:bg-white rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all text-gray-900 font-sans"
         />
       </div>
 

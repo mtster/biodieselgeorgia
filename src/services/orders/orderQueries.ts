@@ -79,18 +79,23 @@ export async function getOrdersPaginated(
       if (safeTerm) {
         const term = `%${safeTerm}%`;
         
-        // Find matching vendor IDs by trade_name or company_name
-        let matchedVendorIds: string[] = [];
-        try {
-          const { data: matchedVendors } = await supabase
-            .from('vendors')
-            .select('id')
-            .or(`trade_name.ilike.${term},company_name.ilike.${term}`)
-            .eq('is_deleted', false);
+        // Find matching vendor IDs by trade_name, company_name, or address with memory cache
+        const vendorSearchCacheKey = `matched_vids_${safeTerm.toLowerCase()}`;
+        let matchedVendorIds: string[] = appCache.get<string[]>(vendorSearchCacheKey) || [];
+        if (!appCache.get(vendorSearchCacheKey)) {
+          try {
+            const { data: matchedVendors } = await supabase
+              .from('vendors')
+              .select('id')
+              .or(`trade_name.ilike.${term},company_name.ilike.${term},address.ilike.${term}`)
+              .eq('is_deleted', false)
+              .limit(100);
 
-          matchedVendorIds = (matchedVendors || []).map(v => v.id);
-        } catch (mErr) {
-          console.warn('Matching vendors search error:', mErr);
+            matchedVendorIds = (matchedVendors || []).map(v => v.id);
+            appCache.set(vendorSearchCacheKey, matchedVendorIds);
+          } catch (mErr) {
+            console.warn('Matching vendors search error:', mErr);
+          }
         }
 
         if (matchedVendorIds.length > 0) {
@@ -377,7 +382,8 @@ export async function getOrdersPaginated(
       const vObj = vendorMap.get(o.vendor_id);
       const tradeMatch = (vObj?.trade_name || o.vendor_name || '').toLowerCase().includes(term);
       const companyMatch = (vObj?.company_name || '').toLowerCase().includes(term);
-      return docMatch || tradeMatch || companyMatch;
+      const addressMatch = (vObj?.address || '').toLowerCase().includes(term);
+      return docMatch || tradeMatch || companyMatch || addressMatch;
     });
   }
   if (effectiveFilters?.status) {

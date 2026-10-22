@@ -68,7 +68,7 @@ export const OrdersViewFilters: React.FC<OrdersViewFiltersProps> = ({
           onSearchChange={setSearchTerm}
           onSearchSubmit={triggerImmediateSearch}
           idPrefix="orders-search"
-          searchPlaceholder={t("Search dispatches by supplier trade name, legal entity, or document coordinate...")}
+          searchPlaceholder={t("ძებნა მომწოდებლის დასახელებით, იურიდიული პირით, მისამართით ან დოკუმენტის კოდით...") || "ძებნა მომწოდებლის დასახელებით, იურიდიული პირით, მისამართით ან დოკუმენტის კოდით..."}
         />
       </div>
 
