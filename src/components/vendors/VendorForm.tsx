@@ -241,7 +241,7 @@ export default function VendorForm({
         id: 'comm-' + Math.random().toString(36).substring(2, 9),
         comment: text,
         date: new Date().toISOString(),
-        user_name: currentUser.name
+        user_id: currentUser.id
       };
       setEditingVendor(prev => prev ? {
         ...prev,
@@ -449,12 +449,12 @@ export default function VendorForm({
     const chosenHours = hours[Math.floor(Math.random() * hours.length)];
 
     const randomCityObj = cities.length > 0 ? cities[Math.floor(Math.random() * cities.length)] : null;
-    const randomCity = randomCityObj ? randomCityObj.name : 'Tbilisi';
+    const randomCity = randomCityObj ? randomCityObj.id : (cities[0]?.id || '');
     
     const matchingDistricts = districts.filter(d => !randomCityObj || d.city_id === randomCityObj.id);
     const randomDistrict = matchingDistricts.length > 0 
-      ? matchingDistricts[Math.floor(Math.random() * matchingDistricts.length)].name 
-      : (districts[0]?.name || 'Saburtalo');
+      ? matchingDistricts[Math.floor(Math.random() * matchingDistricts.length)].id 
+      : (districts[0]?.id || '');
 
     const randomWarehouse = warehouses.length > 0 
       ? warehouses[Math.floor(Math.random() * warehouses.length)].id 
@@ -492,7 +492,7 @@ export default function VendorForm({
         id: 'comm-' + Math.random().toString(36).substring(2, 9),
         comment: commentsTexts[Math.floor(Math.random() * commentsTexts.length)],
         date: new Date().toISOString(),
-        user_name: currentUser.name
+        user_id: currentUser.id
       }]
     });
 
@@ -607,6 +607,7 @@ export default function VendorForm({
               onAddComment={() => openCommentModal()}
               onModifyComment={(c) => openCommentModal(c)}
               onRemoveComment={(id) => setCommentDeleteId(id)}
+              users={users}
             />
           </div>
 

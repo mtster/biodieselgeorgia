@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Vendor, User, VendorComment, Communication, Direction } from '../../types';
+import { Vendor, User, VendorComment, Communication, Direction, City, District } from '../../types';
 import { t, formatDate, formatDateTime, formatPhone } from '../../utils/lang';
 import { Edit3, Check } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
@@ -11,6 +11,8 @@ interface Props {
   filteredVendors: Vendor[];
   users: User[];
   directions: Direction[];
+  cities?: City[];
+  districts?: District[];
   startEdit: (vendor: Vendor, readOnly?: boolean) => void;
   askDelete: (id: string, name: string) => void;
   selectedVendors: string[];
@@ -27,6 +29,8 @@ export default function VendorsList({
   filteredVendors,
   users,
   directions = [],
+  cities = [],
+  districts = [],
   startEdit,
   selectedVendors = [],
   setSelectedVendors,
@@ -109,7 +113,9 @@ export default function VendorsList({
       key: 'location',
       className: 'min-w-[220px]',
       render: (vendor) => {
-        const text = `${vendor.city} (${vendor.district}), ${vendor.address}`;
+        const cName = cities.find(c => c.id === vendor.city || c.name === vendor.city)?.name || vendor.city || '';
+        const dName = districts.find(d => d.id === vendor.district || d.name === vendor.district)?.name || vendor.district || '';
+        const text = `${cName}${dName ? ` (${dName})` : ''}, ${vendor.address}`;
         return <div className="truncate" title={text}>{text}</div>
       }
     },
@@ -230,7 +236,7 @@ export default function VendorsList({
                 setHoveredTooltip({
                   items: vendor.comments.map(c => ({
                     key: c.id,
-                    author: c.user_name || 'System',
+                    author: (c.user_id ? users.find(u => u.id === c.user_id)?.name : null) || c.user_name || 'System',
                     date: formatDate(c.date),
                     content: c.comment
                   })),

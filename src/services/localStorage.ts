@@ -8,6 +8,7 @@ export const KEY_WAREHOUSES = 'biodiesel_warehouses_v2';
 export const KEY_CITIES = 'biodiesel_cities_v2';
 export const KEY_DISTRICTS = 'biodiesel_districts_v2';
 export const KEY_DIRECTIONS = 'biodiesel_directions_v2';
+export const KEY_CONTACTS = 'local_vendor_contacts';
 
 export function getLocal<T>(key: string, preset: T): T {
   const data = localStorage.getItem(key);

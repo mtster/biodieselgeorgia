@@ -16,6 +16,7 @@ import { VendorsViewFilters } from '../vendors/VendorsViewFilters';
 import { VendorsViewHeaderActions } from '../vendors/VendorsViewHeaderActions';
 import { VendorBulkDeleteModal } from '../vendors/VendorBulkDeleteModal';
 import { useVendorsViewState } from '../vendors/useVendorsViewState';
+import { exportAllVendorsToExcel } from '../../services/vendorExportService';
 
 interface Props {
   vendors: Vendor[];
@@ -65,6 +66,8 @@ export default function VendorsView({
     setSelectedOperationManager,
     selectedDirection,
     setSelectedDirection,
+    selectedBankAccountFilter,
+    setSelectedBankAccountFilter,
     page,
     setPage,
     displayVendors,
@@ -114,6 +117,27 @@ export default function VendorsView({
     onNavigateToOrdersWithVendor
   });
 
+  const [isExporting, setIsExporting] = React.useState(false);
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      await exportAllVendorsToExcel({
+        cities,
+        districts,
+        directions,
+        warehouses,
+        users,
+        fallbackVendors: vendors
+      });
+    } catch (err) {
+      console.error('Failed to export suppliers to Excel:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
@@ -138,6 +162,8 @@ export default function VendorsView({
             setIsColModalOpen={setIsColModalOpen}
             setShowGeolocationModal={setShowGeolocationModal}
             startNew={startNew}
+            onExport={handleExport}
+            isExporting={isExporting}
           />
         }
       />
@@ -179,6 +205,8 @@ export default function VendorsView({
             setSelectedOperationManager={setSelectedOperationManager}
             selectedDirection={selectedDirection}
             setSelectedDirection={setSelectedDirection}
+            selectedBankAccountFilter={selectedBankAccountFilter}
+            setSelectedBankAccountFilter={setSelectedBankAccountFilter}
             cities={cities}
             districts={districts}
             users={users}
@@ -190,6 +218,8 @@ export default function VendorsView({
             filteredVendors={displayVendors} 
             users={users} 
             directions={directions}
+            cities={cities}
+            districts={districts}
             startEdit={startEdit} 
             askDelete={askDelete}
             selectedVendors={selectedVendors}

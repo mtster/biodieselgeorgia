@@ -31,27 +31,26 @@ export default function VendorLocationFormFields({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormSelect
           label={t("City *")}
-          value={editingVendor.city || ''}
+          value={cities.find(c => c.id === editingVendor.city || c.name === editingVendor.city)?.id || ''}
           onChange={(e) => {
-            const val = e.target.value;
-            const cObj = cities.find(x => x.name === val);
-            const filtered = districts.filter(d => !cObj || d.city_id === cObj.id);
+            const cityId = e.target.value;
+            const filtered = districts.filter(d => d.city_id === cityId);
             setEditingVendor(prev => prev ? {
               ...prev,
-              city: val,
-              district: filtered[0]?.name || ''
+              city: cityId,
+              district: filtered[0]?.id || ''
             } : null);
             if (fieldErrors.city) setFieldErrors(prev => ({ ...prev, city: '' }));
           }}
           error={fieldErrors.city}
         >
           <option value="" hidden></option>
-          {cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </FormSelect>
 
         <FormSelect
           label={t("District *")}
-          value={editingVendor.district || ''}
+          value={districts.find(d => d.id === editingVendor.district || d.name === editingVendor.district)?.id || ''}
           onChange={(e) => {
             setEditingVendor(prev => prev ? { ...prev, district: e.target.value } : null);
             if (fieldErrors.district) setFieldErrors(prev => ({ ...prev, district: '' }));
@@ -61,10 +60,10 @@ export default function VendorLocationFormFields({
           <option value="" hidden></option>
           {districts
             .filter(d => {
-              const cObj = cities.find(x => x.name === editingVendor.city);
-              return !cObj || d.city_id === cObj.id;
+              const currentCityId = cities.find(x => x.id === editingVendor.city || x.name === editingVendor.city)?.id;
+              return !currentCityId || d.city_id === currentCityId;
             })
-            .map(d => <option key={d.id} value={d.name}>{d.name}</option>)
+            .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
           }
         </FormSelect>
       </div>

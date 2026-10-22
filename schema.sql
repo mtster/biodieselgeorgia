@@ -145,8 +145,8 @@ CREATE TABLE IF NOT EXISTS public.vendors (
     trade_name TEXT NOT NULL,               -- Vendor Trade Name
     company_code TEXT UNIQUE NOT NULL,      -- Internal Code
     bank_account TEXT NOT NULL,             -- Bank Account (IBAN)
-    city TEXT NOT NULL,                     -- City ID (references public.cities(id))
-    district TEXT NOT NULL,                 -- District ID (references public.districts(id))
+    city TEXT NOT NULL REFERENCES public.cities(id) ON DELETE RESTRICT,
+    district TEXT NOT NULL REFERENCES public.districts(id) ON DELETE RESTRICT,
     address TEXT NOT NULL,                  -- Address
     price_per_liter NUMERIC(10, 2) DEFAULT 0.00,  -- Price per Liter
     warehouse_id TEXT REFERENCES public.warehouses(id) ON DELETE SET NULL, -- Warehouse Reference
@@ -176,7 +176,7 @@ ALTER TABLE public.vendors DROP COLUMN IF EXISTS barrels_amount CASCADE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
 ALTER TABLE public.vendors DROP COLUMN IF EXISTS is_active CASCADE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
-ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
+ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS direction_id TEXT REFERENCES public.directions(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS overdue_threshold_days INT DEFAULT NULL;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS is_planned BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vendors ADD COLUMN IF NOT EXISTS planned_weekday INTEGER[] DEFAULT NULL;

@@ -44,6 +44,7 @@ export function useVendorsViewState({
   const [selectedSalesManager, setSelectedSalesManager] = useState('');
   const [selectedOperationManager, setSelectedOperationManager] = useState('');
   const [selectedDirection, setSelectedDirection] = useState('');
+  const [selectedBankAccountFilter, setSelectedBankAccountFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showGeolocationModal, setShowGeolocationModal] = useState(false);
   const queryClient = useQueryClient();
@@ -51,7 +52,7 @@ export function useVendorsViewState({
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchTerm, selectedCity, selectedDistrict, selectedSalesManager, selectedOperationManager, selectedDirection]);
+  }, [debouncedSearchTerm, selectedCity, selectedDistrict, selectedSalesManager, selectedOperationManager, selectedDirection, selectedBankAccountFilter]);
 
   // Fetch suppliers per page via TanStack Query
   const filters = {
@@ -60,7 +61,8 @@ export function useVendorsViewState({
     district: selectedDistrict,
     managerId: selectedSalesManager,
     operatorId: selectedOperationManager,
-    directionId: selectedDirection
+    directionId: selectedDirection,
+    hasBankAccount: selectedBankAccountFilter
   };
 
   const { data: paginatedData, isLoading: isVendorsLoading, refetch: refetchVendors } = usePaginatedVendors(page, filters, currentUser);
@@ -256,6 +258,8 @@ export function useVendorsViewState({
     setSelectedOperationManager,
     selectedDirection,
     setSelectedDirection,
+    selectedBankAccountFilter,
+    setSelectedBankAccountFilter,
     page,
     setPage,
     displayVendors,

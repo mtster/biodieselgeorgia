@@ -796,7 +796,7 @@ export default function VendorImportModal({
             id: generateUuid(),
             comment: cm.comment || 'კომენტარი',
             date: cm.date || new Date().toISOString().split('T')[0],
-            user_name: cm.user_name || 'System Import'
+            user_id: currentUser.id
           }));
 
           const newVendorId = generateUuid();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Vendor } from '../../types';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import DeleteButton from '../DeleteButton';
 import { t } from '../../utils/lang';
 
@@ -20,6 +20,8 @@ interface VendorsViewHeaderActionsProps {
   setIsColModalOpen: (b: boolean) => void;
   setShowGeolocationModal: (b: boolean) => void;
   startNew: () => void;
+  onExport: () => void;
+  isExporting?: boolean;
 }
 
 export const VendorsViewHeaderActions: React.FC<VendorsViewHeaderActionsProps> = ({
@@ -37,7 +39,9 @@ export const VendorsViewHeaderActions: React.FC<VendorsViewHeaderActionsProps> =
   setShowBulkDeleteConfirm,
   setIsColModalOpen,
   setShowGeolocationModal,
-  startNew
+  startNew,
+  onExport,
+  isExporting = false
 }) => {
   if (editingVendor) {
     return (
@@ -85,13 +89,22 @@ export const VendorsViewHeaderActions: React.FC<VendorsViewHeaderActionsProps> =
 
   return (
     <>
+      {isExporting && (
+        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 select-none font-sans px-1">
+          <Loader2 size={15} className="animate-spin text-emerald-700 shrink-0" />
+          <span>ექსპორტი</span>
+        </div>
+      )}
       <div className="relative">
         <select
           value=""
+          disabled={isExporting}
           onChange={(e) => {
             const val = e.target.value;
             if (val === 'import') {
               setIsImporting(true);
+            } else if (val === 'export') {
+              onExport();
             } else if (val === 'delete' && selectedVendors.length > 0) {
               setShowBulkDeleteConfirm(true);
             } else if (val === 'col_manager') {
@@ -101,15 +114,18 @@ export const VendorsViewHeaderActions: React.FC<VendorsViewHeaderActionsProps> =
             }
             e.target.value = '';
           }}
-          className="px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans"
+          className={`px-3.5 py-2.5 pr-8 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition border border-gray-200 cursor-pointer select-none focus:outline-none appearance-none font-sans ${isExporting ? 'opacity-70 cursor-wait' : ''}`}
         >
           <option value="" disabled hidden>{t("Actions")}</option>
-          <option value="import" disabled={!canAdd}>{t("Import")}</option>
-          <option value="delete" disabled={!canDelete || selectedVendors.length === 0}>
+          <option value="import" disabled={!canAdd || isExporting}>{t("Import")}</option>
+          <option value="export" disabled={isExporting}>
+            {isExporting ? 'ექსპორტი (იტვირთება...)' : 'ექსპორტი'}
+          </option>
+          <option value="delete" disabled={!canDelete || selectedVendors.length === 0 || isExporting}>
             {t("Delete")} {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
           </option>
-          <option value="col_manager">{t("Columns Manager")}</option>
-          <option value="geolocation">გეოკოდინგი</option>
+          <option value="col_manager" disabled={isExporting}>{t("Columns Manager")}</option>
+          <option value="geolocation" disabled={isExporting}>გეოკოდინგი</option>
         </select>
         <span className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[9px] select-none">
           ▼

@@ -17,6 +17,8 @@ interface VendorsViewFiltersProps {
   setSelectedOperationManager: (o: string) => void;
   selectedDirection: string;
   setSelectedDirection: (d: string) => void;
+  selectedBankAccountFilter: string;
+  setSelectedBankAccountFilter: (b: string) => void;
   cities: City[];
   districts: District[];
   users: User[];
@@ -38,6 +40,8 @@ export const VendorsViewFilters: React.FC<VendorsViewFiltersProps> = ({
   setSelectedOperationManager,
   selectedDirection,
   setSelectedDirection,
+  selectedBankAccountFilter,
+  setSelectedBankAccountFilter,
   cities,
   districts,
   users,
@@ -88,7 +92,7 @@ export const VendorsViewFilters: React.FC<VendorsViewFiltersProps> = ({
           >
             <option value="">{t("All Cities")}</option>
             {cities.map(c => (
-              <option key={c.id} value={c.name}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
@@ -111,11 +115,12 @@ export const VendorsViewFilters: React.FC<VendorsViewFiltersProps> = ({
             <option value="">{t("All Districts")}</option>
             {districts
               .filter(d => {
-                const cObj = cities.find(x => x.name === selectedCity);
+                if (!selectedCity) return true;
+                const cObj = cities.find(x => x.id === selectedCity || x.name === selectedCity);
                 return !cObj || d.city_id === cObj.id;
               })
               .map(d => (
-                <option key={d.id} value={d.name}>{d.name}</option>
+                <option key={d.id} value={d.id}>{d.name}</option>
               ))}
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
@@ -185,6 +190,27 @@ export const VendorsViewFilters: React.FC<VendorsViewFiltersProps> = ({
             {directions.map(d => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
+          </select>
+          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+            ▼
+          </div>
+        </div>
+
+        <div className="relative w-full md:w-auto min-w-[140px]">
+          <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
+            ანგარიში
+          </span>
+          <select
+            value={selectedBankAccountFilter}
+            onChange={(e) => {
+              setSelectedBankAccountFilter(e.target.value);
+              setPage(1);
+            }}
+            className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+          >
+            <option value="">ყველა</option>
+            <option value="has">აქვს</option>
+            <option value="has_not">არ აქვს</option>
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
             ▼

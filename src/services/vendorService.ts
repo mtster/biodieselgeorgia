@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Vendor, VendorContact } from '../types';
+import { Vendor, VendorContact, City, District } from '../types';
 import { trackChange } from './historyService';
-import { KEY_VENDORS, getLocal, setLocal } from './localStorage';
+import { KEY_VENDORS, KEY_CITIES, KEY_DISTRICTS, getLocal, setLocal } from './localStorage';
 import { appCache } from '../utils/cache';
 import { notifyDbChange } from '../lib/realtime';
 import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
@@ -539,6 +539,7 @@ export async function getVendorsPaginated(
     managerId?: string;
     operatorId?: string;
     directionId?: string;
+    hasBankAccount?: string;
   },
   options?: {
     includeContacts?: boolean;
@@ -601,10 +602,22 @@ export async function getVendorsPaginated(
         }
       }
       if (filters?.city) {
-        query = query.eq('city', filters.city);
+        const localCities = getLocal<City[]>(KEY_CITIES, []);
+        const cObj = localCities.find(c => c.id === filters.city || c.name === filters.city);
+        if (cObj && cObj.id !== cObj.name) {
+          query = query.or(`city.eq.${cObj.id},city.eq.${cObj.name}`);
+        } else {
+          query = query.eq('city', filters.city);
+        }
       }
       if (filters?.district) {
-        query = query.eq('district', filters.district);
+        const localDistricts = getLocal<District[]>(KEY_DISTRICTS, []);
+        const dObj = localDistricts.find(d => d.id === filters.district || d.name === filters.district);
+        if (dObj && dObj.id !== dObj.name) {
+          query = query.or(`district.eq.${dObj.id},district.eq.${dObj.name}`);
+        } else {
+          query = query.eq('district', filters.district);
+        }
       }
       if (filters?.managerId) {
         query = query.eq('manager_id', filters.managerId);
@@ -614,6 +627,11 @@ export async function getVendorsPaginated(
       }
       if (filters?.directionId) {
         query = query.eq('direction_id', filters.directionId);
+      }
+      if (filters?.hasBankAccount === 'has') {
+        query = query.not('bank_account', 'is', null).neq('bank_account', '');
+      } else if (filters?.hasBankAccount === 'has_not') {
+        query = query.or('bank_account.is.null,bank_account.eq.');
       }
 
       query = query.order('trade_name', { ascending: true }).range(offset, offset + limit - 1);
@@ -694,6 +712,11 @@ export async function getVendorsPaginated(
   }
   if (filters?.managerId) {
     filtered = filtered.filter(v => v.manager_id === filters.managerId);
+  }
+  if (filters?.hasBankAccount === 'has') {
+    filtered = filtered.filter(v => typeof v.bank_account === 'string' && v.bank_account.trim().length > 0);
+  } else if (filters?.hasBankAccount === 'has_not') {
+    filtered = filtered.filter(v => !v.bank_account || !v.bank_account.trim());
   }
   return {
     vendors: filtered.slice(offset, offset + limit),
