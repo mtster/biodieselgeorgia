@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Vendor, Order, User, City, District, Warehouse as WarehouseType, Truck as TruckType } from '../../types';
 import PageHeader from '../PageHeader';
 import { t } from '../../utils/lang';
-import { getOrders } from '../../services/orderService';
 
 import OrdersByPeriod from '../reports/OrdersByPeriod';
 import OrdersByWarehouse from '../reports/OrdersByWarehouse';
@@ -53,24 +52,6 @@ export default function ReportsView({
       setReportOrders(orders);
     }
   }, [orders]);
-
-  useEffect(() => {
-    let isMounted = true;
-    async function loadFullOrders() {
-      try {
-        const full = await getOrders(1000);
-        if (isMounted && full && full.length > 0) {
-          setReportOrders(full);
-        }
-      } catch (err) {
-        console.warn('ReportsView loadFullOrders error:', err);
-      }
-    }
-    loadFullOrders();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Render the matching report screen
   if (selectedReport === 'period') {

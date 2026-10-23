@@ -591,8 +591,10 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Assign": "მინიჭება",
 
   // Reports
-  "Orders by Period": "შეკვეთები პერიოდის მიხედვით",
-  "Review orders by custom period with factual pickup quantities, city, and manager breakdown.": "იხილეთ შეკვეთები პერიოდის მიხედვით ფაქტიური რაოდენობებით, ქალაქისა და მენეჯერების ჭრილში.",
+  "Orders by Period": "გამოტანები პერიოდის მიხედვით",
+  "გამოტანები პერიოდის მიხედვით": "გამოტანები პერიოდის მიხედვით",
+  "შეკვეთები პერიოდის მიხედვით": "გამოტანები პერიოდის მიხედვით",
+  "Review orders by custom period with factual pickup quantities, city, and manager breakdown.": "იხილეთ გამოტანები პერიოდის მიხედვით ფაქტიური რაოდენობებით, ქალაქისა და მენეჯერების ჭრილში.",
   "Period Analysis": "პერიოდის ანალიზი",
   "Orders by Warehouses": "შეკვეთები საწყობების მიხედვით",
   "Review orders and factual collected volumes segregated by storage warehouses and locations.": "იხილეთ შეკვეთები და ფაქტიური რაოდენობები საწყობებისა და ლოკაციების მიხედვით.",

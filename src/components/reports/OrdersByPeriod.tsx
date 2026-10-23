@@ -41,42 +41,100 @@ export default function OrdersByPeriod({
     clearSearch
   } = useDebouncedSearch('', 300);
 
-  // Extra vendors map to ensure vendors missing from initial supplier batch are seamlessly resolved
-  const [extraVendors, setExtraVendors] = useState<Map<string, Vendor>>(new Map());
   const [dbOrders, setDbOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Fast city ID to city name lookup dictionary
+  const cityMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (cities || []).forEach(c => {
+      if (c.id) {
+        map.set(c.id, c.name);
+        map.set(c.id.toLowerCase().trim(), c.name);
+      }
+      if (c.name) {
+        map.set(c.name, c.name);
+        map.set(c.name.toLowerCase().trim(), c.name);
+      }
+    });
+    return map;
+  }, [cities]);
+
+  const getCityDisplayName = (val?: string | null): string => {
+    if (!val) return '-';
+    const clean = String(val).trim();
+    return cityMap.get(clean) || cityMap.get(clean.toLowerCase()) || clean;
+  };
 
   // Manager options
   const filterManagers = users.filter(
     u => !u.is_deleted && (u.role === 'manager' || u.role === 'purchasing_head' || u.role === 'admin' || u.role === 'operator')
   );
 
-  // Fetch completed orders directly with vendor pre-joined to eliminate missing vendor names or cities
+  // Suppliers map from props for instant offline lookup fallback
+  const supplierLookup = useMemo(() => {
+    const map = new Map<string, Vendor>();
+    (suppliers || []).forEach(s => {
+      if (s.id) {
+        map.set(s.id, s);
+        map.set(s.id.toLowerCase().trim(), s);
+      }
+    });
+    return map;
+  }, [suppliers]);
+
+  // Scalable, server-side scoped query: fetch ONLY completed orders within the chosen date range
+  // Selects only the essential columns and pre-joins vendor in a single minimal query
   useEffect(() => {
     let isCancelled = false;
     async function loadCompletedOrders() {
       if (!isSupabaseConfigured || !supabase) return;
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('orders')
-          .select('*, vendor:vendors(id, trade_name, company_name, city, district, address, manager_id, operator_id)')
+          .select(`
+            id,
+            doc_number,
+            order_date,
+            pickup_date_time,
+            created_at,
+            status,
+            fact_qty,
+            qty_requested,
+            operator_id,
+            created_by,
+            operator_name,
+            vendor_id,
+            city,
+            address,
+            vendor:vendors(
+              id,
+              trade_name,
+              company_name,
+              city,
+              district,
+              address,
+              manager_id,
+              operator_id
+            )
+          `)
           .eq('is_deleted', false)
-          .eq('status', 'completed')
-          .order('order_date', { ascending: false });
+          .eq('status', 'completed');
+
+        if (startDate) {
+          query = query.gte('order_date', startDate);
+        }
+        if (endDate) {
+          query = query.lte('order_date', endDate + 'T23:59:59');
+        }
+
+        query = query.order('order_date', { ascending: false });
+
+        const { data, error } = await query;
 
         if (!error && data && !isCancelled) {
           setDbOrders(data as Order[]);
-          setExtraVendors(prev => {
-            const nextMap = new Map(prev);
-            data.forEach((o: any) => {
-              if (o.vendor && o.vendor.id) {
-                nextMap.set(o.vendor.id, o.vendor);
-                nextMap.set(String(o.vendor.id).toLowerCase().trim(), o.vendor);
-              }
-            });
-            return nextMap;
-          });
         }
       } catch (err) {
         console.warn('OrdersByPeriod loadCompletedOrders error:', err);
@@ -89,78 +147,35 @@ export default function OrdersByPeriod({
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [startDate, endDate]);
 
-  // Also prefetch any missing vendor IDs if there are local orders not yet synced
-  useEffect(() => {
-    const knownIds = new Set(suppliers.map(s => s.id));
-    const missingIds = Array.from(new Set(
-      orders
-        .map(o => o.vendor_id)
-        .filter(id => Boolean(id && !knownIds.has(id) && !extraVendors.has(id)))
-    )) as string[];
-
-    if (missingIds.length > 0 && isSupabaseConfigured && supabase) {
-      // Chunk in batches of 50 to avoid URI length limits
-      const chunks: string[][] = [];
-      for (let i = 0; i < missingIds.length; i += 50) {
-        chunks.push(missingIds.slice(i, i + 50));
-      }
-
-      Promise.all(
-        chunks.map(chunk =>
-          supabase
-            .from('vendors')
-            .select('id, trade_name, company_name, city, district, address, manager_id, operator_id')
-            .in('id', chunk)
-        )
-      ).then(results => {
-        setExtraVendors(prev => {
-          const updated = new Map(prev);
-          results.forEach(({ data, error }) => {
-            if (!error && data) {
-              data.forEach((v: any) => {
-                updated.set(v.id, v);
-                if (v.id) updated.set(String(v.id).toLowerCase().trim(), v);
-              });
-            }
-          });
-          return updated;
-        });
-      });
-    }
-  }, [orders, suppliers]);
-
-  // Combine DB orders with any in-memory completed orders
+  // Combine DB orders with local fallback if running offline
   const allCompletedOrders = useMemo(() => {
-    if (dbOrders.length > 0) {
-      const dbIds = new Set(dbOrders.map(o => o.id));
-      const unsaved = orders.filter(o => 
-        !o.is_deleted && 
-        (o.status === 'completed' || String(o.status).toLowerCase() === 'completed') &&
-        !dbIds.has(o.id)
-      );
-      return [...dbOrders, ...unsaved];
+    if (dbOrders.length > 0 || (isSupabaseConfigured && !isLoading)) {
+      return dbOrders;
     }
-    return orders.filter(o => 
-      !o.is_deleted && 
-      (o.status === 'completed' || String(o.status).toLowerCase() === 'completed')
-    );
-  }, [dbOrders, orders]);
+    // Fallback for local storage environment
+    return orders.filter(o => {
+      if (o.is_deleted) return false;
+      if (o.status !== 'completed' && String(o.status).toLowerCase() !== 'completed') return false;
+      const oDateStr = o.order_date || o.pickup_date_time || o.created_at;
+      if (oDateStr) {
+        const datePart = oDateStr.includes('T') ? oDateStr.split('T')[0] : oDateStr.slice(0, 10);
+        if (startDate && datePart < startDate) return false;
+        if (endDate && datePart > endDate) return false;
+      }
+      return true;
+    });
+  }, [dbOrders, orders, isLoading, startDate, endDate]);
 
-  // Robust helper to find vendor (checks attached order.vendor, extraVendors cache, and suppliers list)
+  // Robust helper to resolve vendor details
   const findVendor = (vendorId?: string, order?: Order): Vendor | null => {
     if (order && (order as any).vendor) {
       return (order as any).vendor as Vendor;
     }
     if (!vendorId) return null;
     const cleanId = String(vendorId).trim().toLowerCase();
-    return (
-      extraVendors.get(vendorId) ||
-      extraVendors.get(cleanId) ||
-      suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) ||
-      null
-    );
+    return supplierLookup.get(vendorId) || supplierLookup.get(cleanId) || null;
   };
 
   // Helper to find manager name
@@ -178,28 +193,19 @@ export default function OrdersByPeriod({
   const filteredOrders = useMemo(() => {
     return allCompletedOrders
       .filter(o => {
-        // 1. Period filter (checked against effective order date)
-        if (startDate || endDate) {
-          const oDateStr = o.order_date || o.pickup_date_time || o.created_at;
-          if (oDateStr) {
-            const datePart = oDateStr.includes('T') ? oDateStr.split('T')[0] : oDateStr.slice(0, 10);
-            if (startDate && datePart < startDate) return false;
-            if (endDate && datePart > endDate) return false;
+        const vendor = findVendor(o.vendor_id, o);
+        const tradeName = vendor?.trade_name || vendor?.company_name || o.vendor_name || (o as any).trade_name || (o as any).company_name || '';
+        const rawCity = vendor?.city || o.city || (vendor as any)?.city_id;
+        const cityName = getCityDisplayName(rawCity);
+
+        // 1. City filter
+        if (selectedCity) {
+          if (cityName.toLowerCase() !== selectedCity.toLowerCase() && String(rawCity || '').toLowerCase() !== selectedCity.toLowerCase()) {
+            return false;
           }
         }
 
-        const vendor = findVendor(o.vendor_id, o);
-        const tradeName = vendor?.trade_name || vendor?.company_name || o.vendor_name || (o as any).trade_name || (o as any).company_name || '';
-        const compName = vendor?.company_name || '';
-        const address = vendor?.address || o.address || [vendor?.city, vendor?.district].filter(Boolean).join(', ') || '';
-        const cityVal = vendor?.city || o.city || (cities.find(c => c.id === (vendor as any)?.city_id)?.name) || '';
-
-        // 2. City filter
-        if (selectedCity) {
-          if (cityVal.toLowerCase() !== selectedCity.toLowerCase()) return false;
-        }
-
-        // 3. Manager filter
+        // 2. Manager filter
         if (selectedManager) {
           const managerId = vendor?.manager_id || o.operator_id || o.created_by || (o as any).manager_id;
           const cleanSelected = String(selectedManager).trim().toLowerCase();
@@ -207,20 +213,20 @@ export default function OrdersByPeriod({
           if (cleanMid !== cleanSelected) return false;
         }
 
-        // 4. Search Bar filter: separate purely numeric from words/letters search
+        // 3. Search Bar filter: separate purely numeric from words/letters search
         if (debouncedSearchTerm.trim()) {
           const rawTerm = debouncedSearchTerm.trim();
           const isPureNumber = /^\d+(\.\d+)?$/.test(rawTerm);
 
           if (isPureNumber) {
-            // Numeric input: query ONLY by შემოტანილი რაოდენობა with EXACT number match
+            // Numeric input: query ONLY by გამოტანილი რაოდენობა with EXACT number match
             const searchNum = Number(rawTerm);
             const factQty = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : Number(o.qty_requested ?? 0);
             if (isNaN(factQty) || factQty !== searchNum) {
               return false;
             }
           } else {
-            // Words or mixed (letters + numbers): query ONLY by trade_name
+            // Words or mixed: query ONLY by trade_name
             const lowerTerm = rawTerm.toLowerCase();
             const tradeMatch = tradeName.toLowerCase().includes(lowerTerm);
             if (!tradeMatch) {
@@ -236,7 +242,7 @@ export default function OrdersByPeriod({
         const dateB = b.order_date || b.pickup_date_time || b.created_at || '';
         return dateB.localeCompare(dateA);
       });
-  }, [allCompletedOrders, startDate, endDate, selectedCity, selectedManager, debouncedSearchTerm, extraVendors, suppliers, cities]);
+  }, [allCompletedOrders, selectedCity, selectedManager, debouncedSearchTerm, supplierLookup, cityMap]);
 
   // Totals
   const totalFactQty = useMemo(() => {
@@ -310,7 +316,7 @@ export default function OrdersByPeriod({
             <input
               id="reports-period-search-input"
               type="text"
-              placeholder="ძიება კომპანიით და რაოდენობით"
+              placeholder="ძიება კომპანიით და გამოტანილი რაოდენობით"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-transparent border-none outline-none focus:outline-none p-0 text-xs text-gray-900 font-sans"
@@ -331,7 +337,7 @@ export default function OrdersByPeriod({
 
       {/* TABLE DATA */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col relative text-left">
-        {isLoading && dbOrders.length === 0 && (
+        {isLoading && (
           <div className="py-12 flex flex-col items-center justify-center text-slate-500 gap-2">
             <Loader2 size={24} className="animate-spin text-emerald-700" />
             <span className="text-xs font-medium">მონაცემები იტვირთება...</span>
@@ -346,7 +352,7 @@ export default function OrdersByPeriod({
                   {t("Company Name")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  შემოტანილი რაოდენობა (ლ)
+                  გამოტანილი რაოდენობა (ლ)
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
                   {t("Date")}
@@ -379,7 +385,8 @@ export default function OrdersByPeriod({
                 const vendor = findVendor(ord.vendor_id, ord);
                 const tradeName = vendor?.trade_name || vendor?.company_name || ord.vendor_name || (ord as any).trade_name || (ord as any).company_name || '-';
                 const address = vendor?.address || ord.address || [vendor?.city, vendor?.district].filter(Boolean).join(', ') || '';
-                const city = vendor?.city || ord.city || (cities.find(c => c.id === (vendor as any)?.city_id)?.name) || '-';
+                const rawCity = vendor?.city || ord.city || (vendor as any)?.city_id;
+                const cityName = getCityDisplayName(rawCity);
                 const manager = getManagerName(vendor, ord);
                 const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
                 const factVal = `${factQty} ლ`;
@@ -404,7 +411,7 @@ export default function OrdersByPeriod({
                       {dateStr}
                     </td>
                     <td className="py-3.5 px-4 text-gray-700">
-                      {city}
+                      {cityName}
                     </td>
                     <td className="py-3.5 px-4 text-gray-700">
                       {manager}

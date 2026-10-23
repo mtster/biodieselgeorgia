@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { Vendor, Order, User, City, District, Warehouse, Truck, VendorContact } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar, { SearchSuggestionItem } from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
 import { t, formatDate, formatPhone } from '../../utils/lang';
 import { useDebounce } from '../../hooks/useDebounce';
-import { getVendorsPaginated, getVendorContacts } from '../../services/vendorService';
+import { getVendorsPaginated } from '../../services/vendorService';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 interface Props {
   suppliers: Vendor[];
@@ -29,15 +30,13 @@ export default function OrdersReport({
   trucks = [],
   onBack,
 }: Props) {
-  // Default period filter to current date
-  const getTodayStr = () => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  };
+  // Preset period filter for current day in Asia/Tbilisi timezone
+  const todayTbilisi = useMemo(() => {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
+  }, []);
 
-  const [startDate, setStartDate] = useState(getTodayStr);
-  const [endDate, setEndDate] = useState(getTodayStr);
+  const [startDate, setStartDate] = useState(todayTbilisi);
+  const [endDate, setEndDate] = useState(todayTbilisi);
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -52,6 +51,10 @@ export default function OrdersReport({
   const [displayLimit, setDisplayLimit] = useState(5);
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [selectedVendorObj, setSelectedVendorObj] = useState<Vendor | null>(null);
+
+  // Scalable server-queried orders for the selected period
+  const [dbOrders, setDbOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Synchronized scroll references
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -76,19 +79,7 @@ export default function OrdersReport({
     isSyncingScroll.current = false;
   };
 
-  const scrollLeftBy = (amount: number = 380) => {
-    if (tableContainerRef.current) {
-      tableContainerRef.current.scrollBy({ left: -amount, behavior: 'smooth' });
-    }
-  };
-
-  const scrollRightBy = (amount: number = 380) => {
-    if (tableContainerRef.current) {
-      tableContainerRef.current.scrollBy({ left: amount, behavior: 'smooth' });
-    }
-  };
-
-  // Contacts lookup cache
+  // Contacts lookup cache (populated strictly for records on this report)
   const [contactsMap, setContactsMap] = useState<Map<string, VendorContact>>(() => {
     const map = new Map<string, VendorContact>();
     suppliers.forEach((s) => {
@@ -97,32 +88,205 @@ export default function OrdersReport({
     return map;
   });
 
+  // Fast city and district name resolution
+  const cityMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (cities || []).forEach(c => {
+      if (c.id) {
+        map.set(c.id, c.name);
+        map.set(c.id.toLowerCase().trim(), c.name);
+      }
+      if (c.name) {
+        map.set(c.name, c.name);
+        map.set(c.name.toLowerCase().trim(), c.name);
+      }
+    });
+    return map;
+  }, [cities]);
+
+  const districtMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (districts || []).forEach(d => {
+      if (d.id) {
+        map.set(d.id, d.name);
+        map.set(d.id.toLowerCase().trim(), d.name);
+      }
+      if (d.name) {
+        map.set(d.name, d.name);
+        map.set(d.name.toLowerCase().trim(), d.name);
+      }
+    });
+    return map;
+  }, [districts]);
+
+  const resolveCityName = (val?: string | null): string => {
+    if (!val) return '';
+    const clean = String(val).trim();
+    return cityMap.get(clean) || cityMap.get(clean.toLowerCase()) || clean;
+  };
+
+  const resolveDistrictName = (val?: string | null): string => {
+    if (!val) return '';
+    const clean = String(val).trim();
+    return districtMap.get(clean) || districtMap.get(clean.toLowerCase()) || clean;
+  };
+
+  // Query orders scoped strictly to the chosen date range with vendor pre-joined
   useEffect(() => {
-    let isMounted = true;
-    getVendorContacts()
-      .then((contacts) => {
-        if (isMounted && contacts && contacts.length > 0) {
-          setContactsMap((prev) => {
-            const next = new Map(prev);
-            contacts.forEach((c) => next.set(c.id, c));
-            return next;
-          });
+    let isCancelled = false;
+    async function loadOrders() {
+      if (!isSupabaseConfigured || !supabase) return;
+      setIsLoading(true);
+      try {
+        let query = supabase
+          .from('orders')
+          .select(`
+            id,
+            doc_number,
+            order_date,
+            pickup_date_time,
+            created_at,
+            status,
+            qty_requested,
+            fact_qty,
+            fact_tank_pickup,
+            fact_tank_dropoff,
+            tanks_to_bring,
+            tanks_to_leave,
+            order_dropoff_tanks,
+            order_pickup_tanks,
+            operator_id,
+            created_by,
+            operator_name,
+            vendor_id,
+            vendor_name,
+            contact_id,
+            warehouse_id,
+            warehouse_name,
+            vehicle_id,
+            truck_plate,
+            driver_id,
+            driver_name,
+            companion_id,
+            companion_name,
+            notes,
+            note,
+            city,
+            district,
+            address,
+            vendor:vendors(
+              id,
+              trade_name,
+              company_name,
+              address,
+              city,
+              district,
+              warehouse_id,
+              manager_id
+            )
+          `)
+          .eq('is_deleted', false);
+
+        if (startDate) {
+          query = query.gte('order_date', startDate);
         }
-      })
-      .catch((err) => {
-        console.warn('OrdersReport getVendorContacts catch:', err);
-      });
+        if (endDate) {
+          query = query.lte('order_date', endDate + 'T23:59:59');
+        }
+
+        query = query.order('order_date', { ascending: false });
+
+        const { data, error } = await query;
+        if (!error && data && !isCancelled) {
+          const ordersList = data as Order[];
+          setDbOrders(ordersList);
+
+          // Fetch contacts ONLY for the contact IDs and vendor IDs in this period
+          const contactIds = Array.from(new Set(ordersList.map(o => o.contact_id).filter(Boolean))) as string[];
+          const vendorIds = Array.from(new Set(ordersList.map(o => o.vendor_id).filter(Boolean))) as string[];
+
+          const fetchedContactsMap = new Map<string, VendorContact>();
+
+          if (contactIds.length > 0) {
+            const { data: cData } = await supabase
+              .from('vendor_contacts')
+              .select('id, vendor_id, name, phone, is_default')
+              .in('id', contactIds);
+            if (cData) {
+              cData.forEach(c => fetchedContactsMap.set(c.id, c as VendorContact));
+            }
+          }
+
+          if (vendorIds.length > 0) {
+            const { data: vcData } = await supabase
+              .from('vendor_contacts')
+              .select('id, vendor_id, name, phone, is_default')
+              .in('vendor_id', vendorIds)
+              .eq('is_deleted', false);
+            if (vcData) {
+              vcData.forEach(c => {
+                if (c.id) fetchedContactsMap.set(c.id, c as VendorContact);
+              });
+            }
+          }
+
+          if (!isCancelled) {
+            setContactsMap(prev => {
+              const next = new Map(prev);
+              fetchedContactsMap.forEach((val, key) => next.set(key, val));
+              return next;
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('OrdersReport loadOrders error:', err);
+      } finally {
+        if (!isCancelled) setIsLoading(false);
+      }
+    }
+
+    loadOrders();
     return () => {
-      isMounted = false;
+      isCancelled = true;
     };
-  }, []);
+  }, [startDate, endDate]);
 
   const activeSuppliers = suppliers.filter((s) => !s.is_deleted);
   const activeWarehouses = (warehouses || []).filter((w) => !w.is_deleted);
-  const activeOrders = orders.filter((o) => !o.is_deleted);
+  
+  const activeOrders = useMemo(() => {
+    if (dbOrders.length > 0 || (isSupabaseConfigured && !isLoading)) {
+      return dbOrders.filter((o) => !o.is_deleted);
+    }
+    return orders.filter((o) => {
+      if (o.is_deleted) return false;
+      const oDateStr = o.pickup_date_time || o.order_date || o.created_at;
+      if (oDateStr) {
+        const datePart = oDateStr.split('T')[0];
+        if (startDate && datePart < startDate) return false;
+        if (endDate && datePart > endDate) return false;
+      }
+      return true;
+    });
+  }, [dbOrders, orders, isLoading, startDate, endDate]);
+
+  // Lookup map built from orders with attached vendor data
+  const dbVendorLookup = useMemo(() => {
+    const map = new Map<string, Vendor>();
+    dbOrders.forEach((o: any) => {
+      if (o.vendor && o.vendor.id) {
+        map.set(o.vendor.id, o.vendor);
+        map.set(String(o.vendor.id).trim().toLowerCase(), o.vendor);
+      }
+    });
+    return map;
+  }, [dbOrders]);
 
   // Helper to find vendor
   const findVendor = (vendorId?: string, order?: Order): Vendor | null => {
+    if (order && (order as any).vendor) {
+      return (order as any).vendor as Vendor;
+    }
     if (!vendorId) return null;
     const cleanId = String(vendorId).trim().toLowerCase();
     if (
@@ -132,14 +296,12 @@ export default function OrdersReport({
     ) {
       return selectedVendorObj;
     }
-    const fromSuppliers = suppliers.find(
-      (s) => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)
-    );
-    if (fromSuppliers) return fromSuppliers;
     return (
-      remoteSuppliers.find(
-        (s) => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)
-      ) || null
+      dbVendorLookup.get(vendorId) ||
+      dbVendorLookup.get(cleanId) ||
+      suppliers.find((s) => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) ||
+      remoteSuppliers.find((s) => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) ||
+      null
     );
   };
 
@@ -392,17 +554,7 @@ export default function OrdersReport({
   const filteredOrders = useMemo(() => {
     return activeOrders
       .filter((o) => {
-        // Period filter (compares pickup_date_time, order_date, or created_at)
-        if (startDate || endDate) {
-          const oDateStr = o.pickup_date_time || o.order_date || o.created_at;
-          if (oDateStr) {
-            const datePart = oDateStr.split('T')[0];
-            if (startDate && datePart < startDate) return false;
-            if (endDate && datePart > endDate) return false;
-          }
-        }
-
-        const vendor = findVendor(o.vendor_id, o);
+        const vendor = (o as any).vendor || findVendor(o.vendor_id, o);
 
         // Warehouse filter
         if (selectedWarehouse) {
@@ -411,12 +563,28 @@ export default function OrdersReport({
         }
 
         // City filter
-        const cityVal = vendor?.city || o.city || '';
-        if (selectedCity && cityVal !== selectedCity) return false;
+        if (selectedCity) {
+          const rawCity = vendor?.city || o.city || '';
+          const resolvedCity = resolveCityName(rawCity);
+          if (
+            resolvedCity.toLowerCase() !== selectedCity.toLowerCase() &&
+            rawCity.toLowerCase() !== selectedCity.toLowerCase()
+          ) {
+            return false;
+          }
+        }
 
         // Region filter
-        const districtVal = vendor?.district || o.district || '';
-        if (selectedDistrict && districtVal !== selectedDistrict) return false;
+        if (selectedDistrict) {
+          const rawDistrict = vendor?.district || o.district || '';
+          const resolvedDistrict = resolveDistrictName(rawDistrict);
+          if (
+            resolvedDistrict.toLowerCase() !== selectedDistrict.toLowerCase() &&
+            rawDistrict.toLowerCase() !== selectedDistrict.toLowerCase()
+          ) {
+            return false;
+          }
+        }
 
         // Manager filter
         const managerId = vendor?.manager_id || o.operator_id || o.created_by;
@@ -462,8 +630,6 @@ export default function OrdersReport({
       });
   }, [
     activeOrders,
-    startDate,
-    endDate,
     selectedWarehouse,
     selectedCity,
     selectedDistrict,
@@ -471,27 +637,35 @@ export default function OrdersReport({
     selectedVendorId,
     searchTerm,
     remoteSuppliers,
-    suppliers,
-    selectedVendorObj,
+    dbVendorLookup,
   ]);
 
-  // Aggregate summary totals
+  // Totals calculations
   const totalPlannedQty = useMemo(() => {
-    return filteredOrders.reduce((sum, o) => sum + (o.qty_requested || 0), 0);
-  }, [filteredOrders]);
-
-  const totalPlannedPickup = useMemo(() => {
-    return filteredOrders.reduce((sum, o) => sum + (o.tanks_to_bring || 0), 0);
-  }, [filteredOrders]);
-
-  const totalPlannedDropoff = useMemo(() => {
-    return filteredOrders.reduce((sum, o) => sum + (o.tanks_to_leave || 0), 0);
+    return filteredOrders.reduce((sum, o) => {
+      const q = o.qty_requested !== undefined && o.qty_requested !== null ? Number(o.qty_requested) : 0;
+      return sum + (isNaN(q) ? 0 : q);
+    }, 0);
   }, [filteredOrders]);
 
   const totalFactQty = useMemo(() => {
     return filteredOrders.reduce((sum, o) => {
-      const q = o.fact_qty !== undefined && o.fact_qty !== null ? o.fact_qty : 0;
-      return sum + q;
+      const q = o.fact_qty !== undefined && o.fact_qty !== null ? Number(o.fact_qty) : 0;
+      return sum + (isNaN(q) ? 0 : q);
+    }, 0);
+  }, [filteredOrders]);
+
+  const totalPlannedPickup = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => {
+      const p = o.tanks_to_bring !== undefined && o.tanks_to_bring !== null ? o.tanks_to_bring : 0;
+      return sum + p;
+    }, 0);
+  }, [filteredOrders]);
+
+  const totalPlannedDropoff = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => {
+      const d = o.tanks_to_leave !== undefined && o.tanks_to_leave !== null ? o.tanks_to_leave : 0;
+      return sum + d;
     }, 0);
   }, [filteredOrders]);
 
@@ -569,28 +743,28 @@ export default function OrdersReport({
                     }
                   }
                 }}
-                suggestions={searchSuggestions}
-                isSearching={isSearching}
-                isLoadingMore={isLoadingMore}
-                onLoadMore={handleLoadMore}
-                selectedAddress={selectedAddress}
-                onSelectSuggestion={(item) => {
-                  setSearchTerm(item.title);
-                  setSelectedVendorId(item.id);
-                  const found = remoteSuppliers.find((s) => s.id === item.id) || suppliers.find((s) => s.id === item.id);
-                  if (found) {
-                    setSelectedVendorObj(found);
-                  } else if (item.address) {
-                    setSelectedVendorObj({
-                      id: item.id,
-                      trade_name: item.title,
-                      address: item.address,
-                      is_deleted: false,
-                    } as Vendor);
-                  }
+                onSelectSuggestion={(s) => {
+                  setSelectedVendorId(s.id);
+                  setSearchTerm(s.title);
+                  const found =
+                    activeSuppliers.find((v) => v.id === s.id) ||
+                    remoteSuppliers.find((v) => v.id === s.id) ||
+                    null;
+                  setSelectedVendorObj(found);
                 }}
-                searchPlaceholder={t("Search suppliers by name, legal entity or taxation credentials...")}
-                filters={[
+                onClear={() => {
+                  setSearchTerm('');
+                  setSelectedVendorId(null);
+                  setSelectedVendorObj(null);
+                }}
+                suggestions={searchSuggestions}
+                placeholder={t("ძებნა კომპანიით, მისამართით ან დოკუმენტის კოდით...")}
+                showSuggestionsCount={true}
+                isLoadingMore={isLoadingMore}
+                isSearching={isSearching}
+                hasMore={hasMore || displayLimit < allSearchSuggestions.length}
+                onLoadMore={handleLoadMore}
+                filterDropdowns={[
                   {
                     label: t('Warehouse'),
                     value: selectedWarehouse,
@@ -633,34 +807,14 @@ export default function OrdersReport({
 
       {/* TABLE DATA SPREADSHEET CANVAS */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden flex flex-col relative text-left">
-        {/* Table Header Action Bar with Quick Scroll Buttons */}
-        <div className="px-4 py-2.5 bg-slate-50 border-b border-gray-200 flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-gray-700">15 სვეტი (15 Columns)</span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-500">გადაახვიეთ ჰორიზონტალურად ყველა მონაცემის სანახავად</span>
+        {isLoading && (
+          <div className="py-12 flex flex-col items-center justify-center text-slate-500 gap-2">
+            <Loader2 size={24} className="animate-spin text-emerald-700" />
+            <span className="text-xs font-medium">მონაცემები იტვირთება...</span>
           </div>
-          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg p-0.5 shadow-xs">
-            <button
-              type="button"
-              onClick={() => scrollLeftBy(380)}
-              className="p-1 rounded hover:bg-slate-100 text-gray-600 hover:text-gray-900 transition-colors"
-              title="გადახვევა მარცხნივ (Scroll Left)"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollRightBy(380)}
-              className="p-1 rounded hover:bg-slate-100 text-gray-600 hover:text-gray-900 transition-colors"
-              title="გადახვევა მარჯვნივ (Scroll Right)"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+        )}
 
-        {/* 1. Main Table Container (Header + Data Rows) with permanent scrollbar */}
+        {/* 1. Main Table Container with permanent scrollbar */}
         <div
           ref={tableContainerRef}
           onScroll={handleTableScroll}
@@ -740,8 +894,8 @@ export default function OrdersReport({
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {filteredOrders.map((ord) => {
-                const vendor = findVendor(ord.vendor_id, ord);
-                const tradeName = vendor?.trade_name || vendor?.company_name || ord.vendor_name || '-';
+                const vendor = (ord as any).vendor || findVendor(ord.vendor_id, ord);
+                const tradeName = vendor?.trade_name || vendor?.company_name || ord.vendor_name || (ord as any).trade_name || '-';
                 const address = vendor?.address || ord.address || '';
                 const warehouseName = getWarehouseName(ord, vendor);
                 const contact = getOrderContact(ord, vendor);
@@ -769,7 +923,7 @@ export default function OrdersReport({
                         {tradeName}
                       </div>
                       {address && (
-                        <div className="text-[11px] text-gray-400 font-normal truncate mt-0.5" title={address}>
+                        <div className="text-[11px] text-gray-400 font-normal truncate mt-0.5 max-w-[240px]" title={address}>
                           {address}
                         </div>
                       )}
@@ -861,7 +1015,7 @@ export default function OrdersReport({
                 );
               })}
 
-              {filteredOrders.length === 0 && (
+              {!isLoading && filteredOrders.length === 0 && (
                 <tr>
                   <td colSpan={15} className="text-center py-20 text-xs text-gray-400 italic">
                     {t("No records found.")}
