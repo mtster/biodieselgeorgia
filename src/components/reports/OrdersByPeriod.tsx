@@ -357,7 +357,7 @@ export default function OrdersByPeriod({
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, 'გამოტანები');
-      const fileName = `gamotanebi_${startDate || 'all'}_${endDate || 'all'}.xlsx`;
+      const fileName = `რეპორტი-გამოტანები_პერიოდის_მიხედვით_${startDate || 'ყველა'}_${endDate || 'ყველა'}.xlsx`;
       XLSX.writeFile(wb, fileName);
       setShowExportModal(false);
     } catch (exportErr) {
@@ -390,7 +390,7 @@ export default function OrdersByPeriod({
             type="button"
             onClick={handleInitiateExport}
             disabled={isCheckingJwt}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none disabled:opacity-60"
           >
             {isCheckingJwt ? (
               <Loader2 size={15} className="animate-spin" />
@@ -606,20 +606,17 @@ export default function OrdersByPeriod({
       {/* SECURITY ACCESS DENIED MODAL */}
       {jwtError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 space-y-4 text-left">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-200 space-y-4 text-left">
             <div className="flex items-center gap-3 text-rose-600">
               <div className="p-2.5 bg-rose-50 rounded-xl">
-                <ShieldAlert size={24} />
+                <ShieldAlert size={22} />
               </div>
-              <div>
-                <h3 className="font-bold text-base text-gray-900">წვდომა შეზღუდულია</h3>
-                <p className="text-xs text-gray-500">JWT ტოკენის უსაფრთხოების შემოწმება</p>
-              </div>
+              <h3 className="font-bold text-base text-gray-900">წვდომა შეზღუდულია</h3>
             </div>
-            <p className="text-xs text-gray-600 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-gray-100">
-              {jwtError}
+            <p className="text-xs text-gray-600 leading-relaxed">
+              თქვენ შეზღუდული გაქვთ წვდომა ექსპორტზე.
             </p>
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-1">
               <button
                 type="button"
                 onClick={() => setJwtError(null)}
@@ -654,14 +651,6 @@ export default function OrdersByPeriod({
               >
                 <X size={18} />
               </button>
-            </div>
-
-            {/* Role Verification Badge */}
-            <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50/80 px-3 py-2 rounded-xl border border-emerald-100">
-              <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
-              <span>
-                ტოკენით დამოწმებული როლი: <strong className="font-bold uppercase tracking-wider">{verifiedRole}</strong>
-              </span>
             </div>
 
             {/* Filter Criteria Summary */}
@@ -717,7 +706,7 @@ export default function OrdersByPeriod({
                 type="button"
                 onClick={executeExcelDownload}
                 disabled={isExporting || filteredOrders.length === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none disabled:opacity-50"
               >
                 {isExporting ? (
                   <Loader2 size={15} className="animate-spin" />

@@ -303,20 +303,17 @@ export default function VendorsView({
       {/* SECURITY ACCESS DENIED MODAL */}
       {jwtError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 space-y-4 text-left">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-200 space-y-4 text-left">
             <div className="flex items-center gap-3 text-rose-600">
               <div className="p-2.5 bg-rose-50 rounded-xl">
-                <ShieldAlert size={24} />
+                <ShieldAlert size={22} />
               </div>
-              <div>
-                <h3 className="font-bold text-base text-gray-900">წვდომა შეზღუდულია</h3>
-                <p className="text-xs text-gray-500">JWT ტოკენის უსაფრთხოების შემოწმება</p>
-              </div>
+              <h3 className="font-bold text-base text-gray-900">წვდომა შეზღუდულია</h3>
             </div>
-            <p className="text-xs text-gray-600 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-gray-100">
-              {jwtError}
+            <p className="text-xs text-gray-600 leading-relaxed">
+              თქვენ შეზღუდული გაქვთ წვდომა ექსპორტზე.
             </p>
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-1">
               <button
                 type="button"
                 onClick={() => setJwtError(null)}
