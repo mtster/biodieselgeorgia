@@ -15,6 +15,7 @@ interface Props {
   users: User[];
   cities: City[];
   warehouses?: Warehouse[];
+  currentUser?: User | null;
   onBack: () => void;
 }
 
@@ -27,6 +28,7 @@ export default function OrdersByPeriod({
   users,
   cities,
   warehouses = [],
+  currentUser,
   onBack,
 }: Props) {
   // Preset period filter for current day in Asia/Tbilisi timezone
@@ -40,6 +42,12 @@ export default function OrdersByPeriod({
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedManager, setSelectedManager] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState('');
+
+  // Check if current user has permission to see the export button
+  const canExport = useMemo(() => {
+    if (!currentUser) return false;
+    return ['admin', 'purchasing_head', 'manager'].includes(currentUser.role);
+  }, [currentUser]);
 
   // JWT validation & export modal states
   const [isCheckingJwt, setIsCheckingJwt] = useState(false);
@@ -386,19 +394,21 @@ export default function OrdersByPeriod({
         onBack={onBack}
         backButtonId="reports-orders-by-period-back"
         actions={
-          <button
-            type="button"
-            onClick={handleInitiateExport}
-            disabled={isCheckingJwt}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none disabled:opacity-60"
-          >
-            {isCheckingJwt ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <FileSpreadsheet size={15} />
-            )}
-            <span>ექსპორტი</span>
-          </button>
+          canExport ? (
+            <button
+              type="button"
+              onClick={handleInitiateExport}
+              disabled={isCheckingJwt}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer select-none disabled:opacity-60"
+            >
+              {isCheckingJwt ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <FileSpreadsheet size={15} />
+              )}
+              <span>ექსპორტი</span>
+            </button>
+          ) : undefined
         }
       />
 

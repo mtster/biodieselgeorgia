@@ -150,6 +150,8 @@ export default function VendorsView({
     }
   };
 
+  const canExport = currentUser ? (currentUser.role === 'admin' || currentUser.role === 'purchasing_head') : false;
+
   return (
     <div className="space-y-6">
       {/* 1. STANDARDIZED PAGE HEADER WITH INTEGRATED ACTION CONTROLS */}
@@ -176,6 +178,7 @@ export default function VendorsView({
             startNew={startNew}
             onExport={handleExport}
             isExporting={isExporting}
+            canExport={canExport}
           />
         }
       />

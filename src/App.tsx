@@ -369,6 +369,7 @@ export default function App() {
                 districts={districts}
                 warehouses={warehouses}
                 trucks={trucks}
+                currentUser={currentUser}
               />
             )}
 

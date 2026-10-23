@@ -31,6 +31,7 @@ interface Props {
   districts?: District[];
   warehouses?: WarehouseType[];
   trucks?: TruckType[];
+  currentUser?: User | null;
 }
 
 type ReportType = 'period' | 'warehouses' | 'suppliers' | 'regions' | 'managers' | 'turnover' | 'last_deliveries' | 'orders' | null;
@@ -43,6 +44,7 @@ export default function ReportsView({
   districts = [],
   warehouses = [],
   trucks = [],
+  currentUser = null,
 }: Props) {
   const [selectedReport, setSelectedReport] = useState<ReportType>(null);
 
@@ -54,6 +56,7 @@ export default function ReportsView({
         users={users}
         cities={cities}
         warehouses={warehouses}
+        currentUser={currentUser}
         onBack={() => setSelectedReport(null)}
       />
     );

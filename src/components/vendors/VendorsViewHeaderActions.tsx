@@ -22,6 +22,7 @@ interface VendorsViewHeaderActionsProps {
   startNew: () => void;
   onExport: () => void;
   isExporting?: boolean;
+  canExport?: boolean;
 }
 
 export const VendorsViewHeaderActions: React.FC<VendorsViewHeaderActionsProps> = ({
@@ -41,7 +42,8 @@ export const VendorsViewHeaderActions: React.FC<VendorsViewHeaderActionsProps> =
   setShowGeolocationModal,
   startNew,
   onExport,
-  isExporting = false
+  isExporting = false,
+  canExport = false
 }) => {
   if (editingVendor) {
     return (
@@ -118,9 +120,11 @@ export const VendorsViewHeaderActions: React.FC<VendorsViewHeaderActionsProps> =
         >
           <option value="" disabled hidden>{t("Actions")}</option>
           <option value="import" disabled={!canAdd || isExporting}>{t("Import")}</option>
-          <option value="export" disabled={isExporting}>
-            {isExporting ? 'ექსპორტი (იტვირთება...)' : 'ექსპორტი'}
-          </option>
+          {canExport && (
+            <option value="export" disabled={isExporting}>
+              {isExporting ? 'ექსპორტი (იტვირთება...)' : 'ექსპორტი'}
+            </option>
+          )}
           <option value="delete" disabled={!canDelete || selectedVendors.length === 0 || isExporting}>
             {t("Delete")} {selectedVendors.length > 0 ? `(${selectedVendors.length})` : ''}
           </option>
