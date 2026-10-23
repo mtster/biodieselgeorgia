@@ -15,6 +15,9 @@ interface Props {
   onBack: () => void;
 }
 
+// In-flight promise cache to deduplicate concurrent/StrictMode mount queries
+let inFlightOrdersByPeriodPromise: { key: string; promise: Promise<any> } | null = null;
+
 export default function OrdersByPeriod({
   suppliers,
   orders,
@@ -90,24 +93,13 @@ export default function OrdersByPeriod({
     async function loadCompletedOrders() {
       if (!isSupabaseConfigured || !supabase) return;
       setIsLoading(true);
-      try {
+
+      const cacheKey = `${startDate}_${endDate}`;
+      if (!inFlightOrdersByPeriodPromise || inFlightOrdersByPeriodPromise.key !== cacheKey) {
         let query = supabase
           .from('orders')
           .select(`
-            id,
-            doc_number,
-            order_date,
-            pickup_date_time,
-            created_at,
-            status,
-            fact_qty,
-            qty_requested,
-            operator_id,
-            created_by,
-            operator_name,
-            vendor_id,
-            city,
-            address,
+            *,
             vendor:vendors(
               id,
               trade_name,
@@ -115,8 +107,7 @@ export default function OrdersByPeriod({
               city,
               district,
               address,
-              manager_id,
-              operator_id
+              manager_id
             )
           `)
           .eq('is_deleted', false)
@@ -131,7 +122,21 @@ export default function OrdersByPeriod({
 
         query = query.order('order_date', { ascending: false });
 
-        const { data, error } = await query;
+        inFlightOrdersByPeriodPromise = {
+          key: cacheKey,
+          promise: query.then(res => {
+            setTimeout(() => {
+              if (inFlightOrdersByPeriodPromise?.key === cacheKey) {
+                inFlightOrdersByPeriodPromise = null;
+              }
+            }, 1000);
+            return res;
+          })
+        };
+      }
+
+      try {
+        const { data, error } = await inFlightOrdersByPeriodPromise.promise;
 
         if (!error && data && !isCancelled) {
           setDbOrders(data as Order[]);

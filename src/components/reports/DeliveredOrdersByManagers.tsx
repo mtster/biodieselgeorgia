@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
-import { Vendor, Order, User } from '../../types';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { ChevronRight, CalendarRange, Loader2 } from 'lucide-react';
+import { Vendor, Order, User, City } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
 import { t, formatDate } from '../../utils/lang';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+
+// Module-level in-flight cache to deduplicate concurrent requests
+let inFlightManagersPromise: { key: string; promise: Promise<any> } | null = null;
 
 interface Props {
   suppliers: Vendor[];
   orders: Order[];
   users: User[];
+  cities?: City[];
   onBack: () => void;
 }
 
@@ -17,6 +22,7 @@ export default function DeliveredOrdersByManagers({
   suppliers,
   orders,
   users,
+  cities = [],
   onBack,
 }: Props) {
   const [startDate, setStartDate] = useState('');
@@ -24,14 +30,99 @@ export default function DeliveredOrdersByManagers({
   const [selectedManager, setSelectedManager] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Fetch completed orders (not deleted)
-  const completedOrders = orders.filter(o => 
-    !o.is_deleted && 
-    (o.status === 'completed' || String(o.status).toLowerCase() === 'completed')
-  );
+  const [periodOrders, setPeriodOrders] = useState<Order[]>([]);
+  const [isPeriodLoading, setIsPeriodLoading] = useState(false);
+
+  // Scalable period-based fetch: only triggered when user selects a date filter
+  useEffect(() => {
+    let isCancelled = false;
+    if (!startDate && !endDate) {
+      setPeriodOrders([]);
+      setIsPeriodLoading(false);
+      return;
+    }
+
+    setIsPeriodLoading(true);
+
+    async function fetchOrdersForPeriod() {
+      if (!isSupabaseConfigured || !supabase) {
+        setIsPeriodLoading(false);
+        return;
+      }
+
+      const cacheKey = `${startDate}_${endDate}`;
+      if (!inFlightManagersPromise || inFlightManagersPromise.key !== cacheKey) {
+        let q = supabase
+          .from('orders')
+          .select(`
+            *,
+            vendor:vendors(id, trade_name, company_name, id_code, city, district, address, manager_id, warehouse_id)
+          `)
+          .eq('is_deleted', false)
+          .eq('status', 'completed');
+
+        if (startDate) q = q.gte('order_date', startDate);
+        if (endDate) q = q.lte('order_date', endDate + 'T23:59:59');
+        q = q.order('order_date', { ascending: false });
+
+        inFlightManagersPromise = {
+          key: cacheKey,
+          promise: q.then(res => {
+            setTimeout(() => {
+              if (inFlightManagersPromise?.key === cacheKey) {
+                inFlightManagersPromise = null;
+              }
+            }, 1000);
+            return res;
+          })
+        };
+      }
+
+      try {
+        const { data, error } = await inFlightManagersPromise.promise;
+        if (!error && data && !isCancelled) {
+          setPeriodOrders(data as Order[]);
+        }
+      } catch (err) {
+        console.warn('DeliveredOrdersByManagers fetch error:', err);
+      } finally {
+        if (!isCancelled) setIsPeriodLoading(false);
+      }
+    }
+
+    fetchOrdersForPeriod();
+    return () => {
+      isCancelled = true;
+    };
+  }, [startDate, endDate]);
+
+  // Fast city ID to city name lookup
+  const cityMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (cities || []).forEach(c => {
+      if (c.id) {
+        map.set(c.id, c.name);
+        map.set(c.id.toLowerCase().trim(), c.name);
+      }
+      if (c.name) {
+        map.set(c.name, c.name);
+        map.set(c.name.toLowerCase().trim(), c.name);
+      }
+    });
+    return map;
+  }, [cities]);
+
+  const resolveCityName = (val?: string | null): string => {
+    if (!val) return '-';
+    const clean = String(val).trim();
+    return cityMap.get(clean) || cityMap.get(clean.toLowerCase()) || clean;
+  };
 
   // Helper to find vendor
   const findVendor = (vendorId?: string, order?: Order) => {
+    if (order && (order as any).vendor) {
+      return (order as any).vendor as Vendor;
+    }
     if (!vendorId) return null;
     const cleanId = String(vendorId).trim().toLowerCase();
     return suppliers.find(s => s.id === vendorId || (s.id && String(s.id).trim().toLowerCase() === cleanId)) || null;
@@ -54,7 +145,7 @@ export default function DeliveredOrdersByManagers({
   );
 
   // Filter completed orders
-  const filteredOrders = completedOrders
+  const filteredOrders = periodOrders
     .filter(o => {
       // Period filter
       if (startDate || endDate) {
@@ -176,45 +267,54 @@ export default function DeliveredOrdersByManagers({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {filteredOrders.map((ord) => {
-                const vendor = findVendor(ord.vendor_id, ord);
-                const tradeName = vendor?.trade_name || vendor?.company_name || ord.vendor_name || '-';
-                const address = vendor?.address || ord.address || '';
-                const city = vendor?.city || ord.city || '-';
-                const manager = getManagerName(vendor, ord);
-                const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
-                const factVal = `${factQty} L`;
-                const dateStr = formatDate(ord.order_date || ord.pickup_date_time || ord.created_at);
+              {isPeriodLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-16 text-center text-xs text-gray-500">
+                    <Loader2 className="h-6 w-6 text-emerald-700 animate-spin mx-auto mb-2" />
+                    <span>{t("Loading data...")}</span>
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((ord) => {
+                  const vendor = findVendor(ord.vendor_id, ord);
+                  const tradeName = vendor?.trade_name || vendor?.company_name || ord.vendor_name || '-';
+                  const address = vendor?.address || ord.address || '';
+                  const city = resolveCityName(vendor?.city || ord.city);
+                  const manager = getManagerName(vendor, ord);
+                  const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
+                  const factVal = `${factQty} L`;
+                  const dateStr = formatDate(ord.order_date || ord.pickup_date_time || ord.created_at);
 
-                return (
-                  <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
-                    <td className="py-3.5 px-4">
-                      <div className="font-semibold text-gray-900 text-xs">
-                        {tradeName}
-                      </div>
-                      {address && (
-                        <div className="text-[11px] text-gray-400 font-normal truncate max-w-[280px] mt-0.5" title={address}>
-                          {address}
+                  return (
+                    <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-gray-900 text-xs">
+                          {tradeName}
                         </div>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-850">
-                      {factVal}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-gray-600">
-                      {dateStr}
-                    </td>
-                    <td className="py-3.5 px-4 text-gray-700">
-                      {city}
-                    </td>
-                    <td className="py-3.5 px-4 text-gray-700">
-                      {manager}
-                    </td>
-                  </tr>
-                );
-              })}
+                        {address && (
+                          <div className="text-[11px] text-gray-400 font-normal truncate max-w-[280px] mt-0.5" title={address}>
+                            {address}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-850">
+                        {factVal}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-gray-600">
+                        {dateStr}
+                      </td>
+                      <td className="py-3.5 px-4 text-gray-700">
+                        {city}
+                      </td>
+                      <td className="py-3.5 px-4 text-gray-700">
+                        {manager}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
 
-              {filteredOrders.length === 0 && (
+              {!isPeriodLoading && filteredOrders.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-20 text-xs text-gray-400 italic">
                     {t("No matching manager record aggregates found.")}
@@ -223,7 +323,7 @@ export default function DeliveredOrdersByManagers({
               )}
 
               {/* SUMMARY ROW */}
-              {filteredOrders.length > 0 && (
+              {!isPeriodLoading && filteredOrders.length > 0 && (
                 <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
                   <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
                     {t("TOTAL SUMMARY")}

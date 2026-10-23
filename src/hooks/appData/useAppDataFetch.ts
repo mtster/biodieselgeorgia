@@ -201,33 +201,7 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
         const usrs = await getUsers();
         setUsers(usrs);
       } else if (t === 'orders') {
-        const [ords, activeOrdCount] = await Promise.all([
-          getOrders(300, currentUser),
-          getActiveOrdersCount(currentUser)
-        ]);
-        const vMap = new Map<string, Vendor>();
-        vendorsRef.current.forEach(v => {
-          if (v?.id) {
-            vMap.set(v.id, v);
-            vMap.set(String(v.id).trim().toLowerCase(), v);
-          }
-        });
-        const tMap = new Map<string, string>();
-        trucksRef.current.forEach(t => {
-          if (t?.id) tMap.set(t.id, t.plate_number);
-        });
-
-        const enriched = ords.map(o => {
-          const v = o.vendor_id ? (vMap.get(o.vendor_id) || vMap.get(String(o.vendor_id).trim().toLowerCase())) : null;
-          const plate = o.truck_plate || (o.vehicle_id ? tMap.get(o.vehicle_id) : '') || '';
-          return {
-            ...o,
-            vendor: v || o.vendor || null,
-            vendor_name: o.vendor_name || v?.trade_name || v?.company_name || '',
-            truck_plate: plate
-          };
-        });
-        setOrders(enriched);
+        const activeOrdCount = await getActiveOrdersCount(currentUser);
         setActiveOrdersCount(activeOrdCount);
       } else if (t === 'vendors') {
         // VendorsView is paginated (12/page) and cache invalidation is handled via queryClient

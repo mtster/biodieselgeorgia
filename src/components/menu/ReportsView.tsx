@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Vendor, Order, User, City, District, Warehouse as WarehouseType, Truck as TruckType } from '../../types';
 import PageHeader from '../PageHeader';
 import { t } from '../../utils/lang';
@@ -45,20 +45,12 @@ export default function ReportsView({
   trucks = [],
 }: Props) {
   const [selectedReport, setSelectedReport] = useState<ReportType>(null);
-  const [reportOrders, setReportOrders] = useState<Order[]>(orders);
 
-  useEffect(() => {
-    if (orders && orders.length > 0) {
-      setReportOrders(orders);
-    }
-  }, [orders]);
-
-  // Render the matching report screen
   if (selectedReport === 'period') {
     return (
       <OrdersByPeriod
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         users={users}
         cities={cities}
         onBack={() => setSelectedReport(null)}
@@ -70,7 +62,7 @@ export default function ReportsView({
     return (
       <OrdersByWarehouse
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         users={users}
         cities={cities}
         warehouses={warehouses}
@@ -83,7 +75,7 @@ export default function ReportsView({
     return (
       <DeliveredOrdersBySuppliers
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         users={users}
         cities={cities}
         districts={districts}
@@ -97,7 +89,7 @@ export default function ReportsView({
     return (
       <DeliveredOrdersByRegions
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         cities={cities}
         districts={districts}
         onBack={() => setSelectedReport(null)}
@@ -109,8 +101,9 @@ export default function ReportsView({
     return (
       <DeliveredOrdersByManagers
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         users={users}
+        cities={cities}
         onBack={() => setSelectedReport(null)}
       />
     );
@@ -120,7 +113,7 @@ export default function ReportsView({
     return (
       <TanksTurnoverBySuppliers
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         users={users}
         cities={cities}
         districts={districts}
@@ -134,7 +127,7 @@ export default function ReportsView({
     return (
       <OrdersReport
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         users={users}
         cities={cities}
         districts={districts}
@@ -149,7 +142,7 @@ export default function ReportsView({
     return (
       <LastDeliveries
         suppliers={suppliers}
-        orders={reportOrders}
+        orders={orders}
         users={users}
         onBack={() => setSelectedReport(null)}
       />

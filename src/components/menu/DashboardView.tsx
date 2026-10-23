@@ -49,6 +49,8 @@ const dashboardCache: DashboardMemoryCache = {
   timestamp: 0
 };
 
+let inFlightDashboardPromise: Promise<void> | null = null;
+
 export default function DashboardView({ 
   suppliers, 
   totalSuppliersCount, 
@@ -107,80 +109,95 @@ export default function DashboardView({
       return;
     }
 
+    if (inFlightDashboardPromise) {
+      await inFlightDashboardPromise;
+      setDbCompletedOrders(dashboardCache.completedOrders);
+      setTotalCompletedOrdersCount(dashboardCache.totalCompletedCount);
+      setVendorLookup(dashboardCache.vendorLookup);
+      setTodayActiveOrdersCount(dashboardCache.todayActiveOrdersCount);
+      setIsLoadingCompletedOrders(false);
+      return;
+    }
+
     if (isSupabaseConfigured && supabase) {
-      try {
-        setIsLoadingCompletedOrders(true);
-        // Instantaneous count using head: true
-        const { count: compCount, error: countErr } = await supabase
-          .from('orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_deleted', false)
-          .eq('status', 'completed')
-          .gte('order_date', todayDateStr)
-          .lte('order_date', todayDateStr + 'T23:59:59.999Z');
+      inFlightDashboardPromise = (async () => {
+        try {
+          setIsLoadingCompletedOrders(true);
+          // Instantaneous count using head: true
+          const { count: compCount, error: countErr } = await supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_deleted', false)
+            .eq('status', 'completed')
+            .gte('order_date', todayDateStr)
+            .lte('order_date', todayDateStr + 'T23:59:59.999Z');
 
-        const resolvedCount = (!countErr && compCount !== null) ? compCount : 0;
-        setTotalCompletedOrdersCount(resolvedCount);
+          const resolvedCount = (!countErr && compCount !== null) ? compCount : 0;
+          setTotalCompletedOrdersCount(resolvedCount);
 
-        // 1. Initial fetch limited to 10 completed orders with joined vendor details
-        const { data: compData, error: compErr } = await supabase
-          .from('orders')
-          .select('*, vendors(id, trade_name, company_name, address)')
-          .eq('is_deleted', false)
-          .eq('status', 'completed')
-          .gte('order_date', todayDateStr)
-          .lte('order_date', todayDateStr + 'T23:59:59.999Z')
-          .order('completed_at', { ascending: false })
-          .range(0, 9);
+          // 1. Initial fetch limited to 10 completed orders with joined vendor details
+          const { data: compData, error: compErr } = await supabase
+            .from('orders')
+            .select('*, vendors(id, trade_name, company_name, address)')
+            .eq('is_deleted', false)
+            .eq('status', 'completed')
+            .gte('order_date', todayDateStr)
+            .lte('order_date', todayDateStr + 'T23:59:59.999Z')
+            .order('completed_at', { ascending: false })
+            .range(0, 9);
 
-        let newLookup: Record<string, { trade_name: string; company_name?: string; address: string }> = {};
+          let newLookup: Record<string, { trade_name: string; company_name?: string; address: string }> = {};
 
-        if (!compErr && compData) {
-          setDbCompletedOrders(compData as any[]);
+          if (!compErr && compData) {
+            setDbCompletedOrders(compData as any[]);
 
-          const missingVendorIds = compData
-            .filter((o: any) => !o.vendors && o.vendor_id)
-            .map((o: any) => o.vendor_id);
+            const missingVendorIds = compData
+              .filter((o: any) => !o.vendors && o.vendor_id)
+              .map((o: any) => o.vendor_id);
 
-          if (missingVendorIds.length > 0) {
-            const { data: vRows } = await supabase
-              .from('vendors')
-              .select('id, trade_name, company_name, address')
-              .in('id', Array.from(new Set(missingVendorIds)));
+            if (missingVendorIds.length > 0) {
+              const { data: vRows } = await supabase
+                .from('vendors')
+                .select('id, trade_name, company_name, address')
+                .in('id', Array.from(new Set(missingVendorIds)));
 
-            if (vRows) {
-              vRows.forEach(v => {
-                newLookup[v.id] = { trade_name: v.trade_name || v.company_name || '', company_name: v.company_name || '', address: v.address || '' };
-              });
-              setVendorLookup(prev => ({ ...prev, ...newLookup }));
+              if (vRows) {
+                vRows.forEach(v => {
+                  newLookup[v.id] = { trade_name: v.trade_name || v.company_name || '', company_name: v.company_name || '', address: v.address || '' };
+                });
+                setVendorLookup(prev => ({ ...prev, ...newLookup }));
+              }
             }
           }
+
+          // 2. Fetch today's active orders count exclusively for current date, status not completed/cancelled, is_deleted = false
+          const { count: actCount, error: actErr } = await supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_deleted', false)
+            .gte('order_date', todayDateStr)
+            .lte('order_date', todayDateStr + 'T23:59:59.999Z')
+            .not('status', 'in', '("completed","cancelled","canceled")');
+
+          const resolvedActCount = (!actErr && actCount !== null) ? actCount : 0;
+          setTodayActiveOrdersCount(resolvedActCount);
+
+          // Update module-level cache
+          dashboardCache.dateStr = todayDateStr;
+          dashboardCache.completedOrders = (compData as any[]) || [];
+          dashboardCache.totalCompletedCount = resolvedCount;
+          dashboardCache.todayActiveOrdersCount = resolvedActCount;
+          dashboardCache.vendorLookup = { ...dashboardCache.vendorLookup, ...newLookup };
+          dashboardCache.timestamp = Date.now();
+        } catch (e) {
+          console.warn('DashboardView fetchTodayOrdersData error:', e);
+        } finally {
+          setIsLoadingCompletedOrders(false);
         }
+      })();
 
-        // 2. Fetch today's active orders count exclusively for current date, status not completed/cancelled, is_deleted = false
-        const { count: actCount, error: actErr } = await supabase
-          .from('orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_deleted', false)
-          .gte('order_date', todayDateStr)
-          .lte('order_date', todayDateStr + 'T23:59:59.999Z')
-          .not('status', 'in', '("completed","cancelled","canceled")');
-
-        const resolvedActCount = (!actErr && actCount !== null) ? actCount : 0;
-        setTodayActiveOrdersCount(resolvedActCount);
-
-        // Update module-level cache
-        dashboardCache.dateStr = todayDateStr;
-        dashboardCache.completedOrders = (compData as any[]) || [];
-        dashboardCache.totalCompletedCount = resolvedCount;
-        dashboardCache.todayActiveOrdersCount = resolvedActCount;
-        dashboardCache.vendorLookup = { ...dashboardCache.vendorLookup, ...newLookup };
-        dashboardCache.timestamp = Date.now();
-      } catch (e) {
-        console.warn('DashboardView fetchTodayOrdersData error:', e);
-      } finally {
-        setIsLoadingCompletedOrders(false);
-      }
+      await inFlightDashboardPromise;
+      inFlightDashboardPromise = null;
       return;
     }
 

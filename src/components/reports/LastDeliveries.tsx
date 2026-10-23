@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { Vendor, Order, User } from '../../types';
 import PageHeader from '../PageHeader';
@@ -65,53 +65,64 @@ export default function LastDeliveries({
   const [searchTerm, setSearchTerm] = useState('');
   const [overdueRecords, setOverdueRecords] = useState<OverdueVendorRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const isFetchingRef = useRef(false);
 
   useEffect(() => {
     let isCancelled = false;
 
     async function calculateOverdueVendors() {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       setLoading(true);
       try {
-        const latestMap: Record<string, string> = {};
+        let activeSuppliers = (suppliers || []).filter(s => s && !s.is_deleted && s.status !== 'Closed' && s.status !== 'Cancelled');
+        let completedOrders = (orders || []).filter(o => o && (o.status === 'completed' || String(o.status).toLowerCase() === 'completed') && !o.is_deleted && o.order_date);
 
-        // 1. Gather latest completed order dates from Supabase if configured
-        if (isSupabaseConfigured && supabase) {
+        // If either suppliers or orders are not provided in props, load once from Supabase
+        if ((activeSuppliers.length === 0 || completedOrders.length === 0) && isSupabaseConfigured && supabase) {
           try {
-            const { data: ords } = await supabase
-              .from('orders')
-              .select('vendor_id, order_date')
-              .eq('is_deleted', false)
-              .eq('status', 'completed')
-              .order('order_date', { ascending: false });
+            const [vRes, oRes] = await Promise.all([
+              activeSuppliers.length === 0
+                ? supabase
+                    .from('vendors')
+                    .select('id, id_code, company_name, trade_name, city, district, manager_id, status, overdue_threshold_days, last_order_date, created_at')
+                    .eq('is_deleted', false)
+                    .neq('status', 'Closed')
+                    .neq('status', 'Cancelled')
+                : Promise.resolve({ data: activeSuppliers }),
+              completedOrders.length === 0
+                ? supabase
+                    .from('orders')
+                    .select('vendor_id, order_date')
+                    .eq('is_deleted', false)
+                    .eq('status', 'completed')
+                    .order('order_date', { ascending: false })
+                : Promise.resolve({ data: completedOrders })
+            ]);
 
-            if (ords && ords.length > 0) {
-              for (const ord of ords) {
-                if (ord.vendor_id && !latestMap[ord.vendor_id] && ord.order_date) {
-                  latestMap[ord.vendor_id] = ord.order_date;
-                }
-              }
+            if (vRes.data && activeSuppliers.length === 0) {
+              activeSuppliers = vRes.data as Vendor[];
+            }
+            if (oRes.data && completedOrders.length === 0) {
+              completedOrders = oRes.data as Order[];
             }
           } catch (fetchErr) {
-            console.warn('Direct Supabase orders fetch fallback to props:', fetchErr);
+            console.warn('Direct Supabase fetch error in LastDeliveries:', fetchErr);
           }
         }
 
-        // 2. Fallback / supplement with completed orders from props
-        const completedOrders = (orders || []).filter(o => o && o.status === 'completed' && !o.is_deleted && o.order_date);
+        const latestMap: Record<string, string> = {};
         for (const ord of completedOrders) {
-          if (!latestMap[ord.vendor_id] || new Date(ord.order_date) > new Date(latestMap[ord.vendor_id])) {
+          if (ord.vendor_id && (!latestMap[ord.vendor_id] || new Date(ord.order_date) > new Date(latestMap[ord.vendor_id]))) {
             latestMap[ord.vendor_id] = ord.order_date;
           }
         }
 
         if (isCancelled) return;
 
-        // 3. Strictly active suppliers only (not closed/cancelled and not deleted)
-        const activeSuppliers = (suppliers || []).filter(s => s && !s.is_deleted && s.status !== 'Closed' && s.status !== 'Cancelled');
         const calculated: OverdueVendorRow[] = [];
 
         for (const s of activeSuppliers) {
-          // Resolve last order date: prioritize whichever is newest between vendor's last_order_date and completed orders
           let lastDateStr: string | null = null;
           const orderDateFromList = latestMap[s.id];
           const vendorLastOrderDate = s.last_order_date;
@@ -126,7 +137,6 @@ export default function LastDeliveries({
           const managerName = managerObj ? managerObj.name : t('Unassigned');
 
           if (lastDateStr) {
-            // Vendor had deliveries: evaluate against overdue_threshold_days
             const threshold = s.overdue_threshold_days;
             if (threshold !== null && threshold !== undefined && threshold > 0) {
               const daysAgo = getDaysDiff(lastDateStr);
@@ -149,7 +159,6 @@ export default function LastDeliveries({
               }
             }
           } else {
-            // Newly added vendor with NO deliveries: check if 30 days have passed since created_at
             const daysSinceCreation = getDaysDiff(s.created_at || new Date().toISOString());
             if (daysSinceCreation > 30) {
               const overdueDays = daysSinceCreation - 30;
@@ -171,12 +180,15 @@ export default function LastDeliveries({
           }
         }
 
+        calculated.sort((a, b) => b.overdueDays - a.overdueDays);
+
         if (!isCancelled) {
           setOverdueRecords(calculated);
         }
       } catch (err) {
         console.error('Error calculating overdue vendors:', err);
       } finally {
+        isFetchingRef.current = false;
         if (!isCancelled) {
           setLoading(false);
         }

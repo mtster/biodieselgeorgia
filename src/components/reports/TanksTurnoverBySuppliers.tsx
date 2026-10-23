@@ -67,6 +67,9 @@ export default function TanksTurnoverBySuppliers({
 
   // Helper to find vendor across local cached suppliers, remote fetched suppliers, or currently selected vendor
   const findVendor = (vendorId?: string, order?: Order): Vendor | null => {
+    if (order && (order as any).vendor) {
+      return (order as any).vendor as Vendor;
+    }
     if (!vendorId) return null;
     const cleanId = String(vendorId).trim().toLowerCase();
     if (selectedVendorObj && (selectedVendorObj.id === vendorId || (selectedVendorObj.id && String(selectedVendorObj.id).trim().toLowerCase() === cleanId))) {

@@ -55,6 +55,7 @@ export default function OrdersReport({
   // Scalable server-queried orders for the selected period
   const [dbOrders, setDbOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const isFetchingRef = useRef(false);
 
   // Synchronized scroll references
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -136,44 +137,14 @@ export default function OrdersReport({
     let isCancelled = false;
     async function loadOrders() {
       if (!isSupabaseConfigured || !supabase) return;
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       setIsLoading(true);
       try {
         let query = supabase
           .from('orders')
           .select(`
-            id,
-            doc_number,
-            order_date,
-            pickup_date_time,
-            created_at,
-            status,
-            qty_requested,
-            fact_qty,
-            fact_tank_pickup,
-            fact_tank_dropoff,
-            tanks_to_bring,
-            tanks_to_leave,
-            order_dropoff_tanks,
-            order_pickup_tanks,
-            operator_id,
-            created_by,
-            operator_name,
-            vendor_id,
-            vendor_name,
-            contact_id,
-            warehouse_id,
-            warehouse_name,
-            vehicle_id,
-            truck_plate,
-            driver_id,
-            driver_name,
-            companion_id,
-            companion_name,
-            notes,
-            note,
-            city,
-            district,
-            address,
+            *,
             vendor:vendors(
               id,
               trade_name,
@@ -201,21 +172,8 @@ export default function OrdersReport({
           const ordersList = data as Order[];
           setDbOrders(ordersList);
 
-          // Fetch contacts ONLY for the contact IDs and vendor IDs in this period
-          const contactIds = Array.from(new Set(ordersList.map(o => o.contact_id).filter(Boolean))) as string[];
+          // Fetch contacts once for the vendors present in this period
           const vendorIds = Array.from(new Set(ordersList.map(o => o.vendor_id).filter(Boolean))) as string[];
-
-          const fetchedContactsMap = new Map<string, VendorContact>();
-
-          if (contactIds.length > 0) {
-            const { data: cData } = await supabase
-              .from('vendor_contacts')
-              .select('id, vendor_id, name, phone, is_default')
-              .in('id', contactIds);
-            if (cData) {
-              cData.forEach(c => fetchedContactsMap.set(c.id, c as VendorContact));
-            }
-          }
 
           if (vendorIds.length > 0) {
             const { data: vcData } = await supabase
@@ -223,24 +181,22 @@ export default function OrdersReport({
               .select('id, vendor_id, name, phone, is_default')
               .in('vendor_id', vendorIds)
               .eq('is_deleted', false);
-            if (vcData) {
-              vcData.forEach(c => {
-                if (c.id) fetchedContactsMap.set(c.id, c as VendorContact);
+
+            if (vcData && !isCancelled) {
+              setContactsMap(prev => {
+                const next = new Map(prev);
+                vcData.forEach(c => {
+                  if (c.id) next.set(c.id, c as VendorContact);
+                });
+                return next;
               });
             }
-          }
-
-          if (!isCancelled) {
-            setContactsMap(prev => {
-              const next = new Map(prev);
-              fetchedContactsMap.forEach((val, key) => next.set(key, val));
-              return next;
-            });
           }
         }
       } catch (err) {
         console.warn('OrdersReport loadOrders error:', err);
       } finally {
+        isFetchingRef.current = false;
         if (!isCancelled) setIsLoading(false);
       }
     }
