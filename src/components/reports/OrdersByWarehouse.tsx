@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ChevronRight, CalendarRange, Loader2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ChevronRight, Loader2, Search, X } from 'lucide-react';
 import { Vendor, Order, User, City, Warehouse } from '../../types';
 import PageHeader from '../PageHeader';
 import PeriodFilter from '../PeriodFilter';
 import { t, formatDate } from '../../utils/lang';
+import { useDebouncedSearch } from '../../hooks/useDebounce';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 // Module-level in-flight cache to deduplicate concurrent requests
@@ -29,9 +30,17 @@ export default function OrdersByWarehouse({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedManager, setSelectedManager] = useState('');
+  const [selectedWarehouse, setSelectedWarehouse] = useState('');
+
+  // Debounced search for company and details
+  const {
+    searchTerm,
+    setSearchTerm,
+    debouncedSearchTerm,
+    clearSearch
+  } = useDebouncedSearch('', 300);
 
   const [periodOrders, setPeriodOrders] = useState<Order[]>([]);
   const [isPeriodLoading, setIsPeriodLoading] = useState(false);
@@ -161,9 +170,8 @@ export default function OrdersByWarehouse({
     return order.operator_name || '-';
   };
 
-  // Filter completed orders from the period query
+  // Filter completed orders
   const completedOrders = periodOrders;
-
   const filteredOrders = completedOrders
     .filter(o => {
       // Period filter
@@ -178,18 +186,13 @@ export default function OrdersByWarehouse({
 
       const vendor = findVendor(o.vendor_id, o);
 
-      // Warehouse filter
-      if (selectedWarehouse) {
-        const whId = o.warehouse_id || vendor?.warehouse_id || '';
-        const cleanSelected = String(selectedWarehouse).trim().toLowerCase();
-        const cleanWhId = whId ? String(whId).trim().toLowerCase() : '';
-        if (cleanWhId !== cleanSelected) return false;
-      }
-
       // City filter
       if (selectedCity) {
         const cityVal = vendor?.city || o.city || '';
-        if (cityVal.toLowerCase() !== selectedCity.toLowerCase()) return false;
+        const resolved = resolveCityName(cityVal);
+        if (resolved.toLowerCase() !== selectedCity.toLowerCase() && cityVal.toLowerCase() !== selectedCity.toLowerCase()) {
+          return false;
+        }
       }
 
       // Manager filter
@@ -198,6 +201,30 @@ export default function OrdersByWarehouse({
         const cleanSelected = String(selectedManager).trim().toLowerCase();
         const cleanMid = managerId ? String(managerId).trim().toLowerCase() : '';
         if (cleanMid !== cleanSelected) return false;
+      }
+
+      // Warehouse filter
+      if (selectedWarehouse) {
+        const whId = o.warehouse_id || vendor?.warehouse_id || '';
+        const cleanSelected = String(selectedWarehouse).trim().toLowerCase();
+        const cleanWhId = whId ? String(whId).trim().toLowerCase() : '';
+        if (cleanWhId !== cleanSelected) return false;
+      }
+
+      // Search bar filter
+      if (debouncedSearchTerm) {
+        const term = debouncedSearchTerm.toLowerCase().trim();
+        const tradeName = (vendor?.trade_name || vendor?.company_name || o.vendor_name || '').toLowerCase();
+        const compCode = (vendor?.id_code || '').toLowerCase();
+        const address = (vendor?.address || o.address || '').toLowerCase();
+        const factQty = String(o.fact_qty !== undefined && o.fact_qty !== null ? o.fact_qty : (o.qty_requested ?? ''));
+
+        const matches = tradeName.includes(term) ||
+          compCode.includes(term) ||
+          address.includes(term) ||
+          factQty.includes(term);
+
+        if (!matches) return false;
       }
 
       return true;
@@ -231,26 +258,6 @@ export default function OrdersByWarehouse({
             endDate={endDate}
             setEndDate={setEndDate}
           />
-
-          {/* Warehouse Filter */}
-          <div className="relative min-w-[160px]">
-            <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 font-sans uppercase tracking-wider">
-              {t("Warehouse")}
-            </span>
-            <select
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
-              className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
-            >
-              <option value="">{t("All Warehouses")}</option>
-              {activeWarehouses.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
-              ▼
-            </div>
-          </div>
 
           {/* City Filter */}
           <div className="relative min-w-[150px]">
@@ -291,6 +298,50 @@ export default function OrdersByWarehouse({
               ▼
             </div>
           </div>
+
+          {/* Warehouse Filter (Seated between Manager and Search bar) */}
+          <div className="relative min-w-[160px]">
+            <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-gray-400 bg-[#f8fafc] select-none z-10 font-sans uppercase tracking-wider">
+              {t("Warehouse") || "საწყობი"}
+            </span>
+            <select
+              value={selectedWarehouse}
+              onChange={(e) => setSelectedWarehouse(e.target.value)}
+              className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
+            >
+              <option value="">{t("All Warehouses") || "ყველა საწყობი"}</option>
+              {activeWarehouses.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
+              ▼
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative flex-1 min-w-[220px]">
+            <div className="flex items-center w-full px-3 py-2 bg-slate-100/70 hover:bg-slate-100 border border-gray-200 focus-within:bg-white rounded-xl focus-within:ring-1 focus-within:ring-emerald-500 focus-within:border-emerald-500 transition-all">
+              <Search size={15} className="text-gray-400 shrink-0 mr-2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="ძიება კომპანიით და რაოდენობით"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-transparent border-none outline-none focus:outline-none p-0 text-xs text-gray-900 font-sans"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer shrink-0"
+                  title={t("Clear")}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -304,9 +355,6 @@ export default function OrdersByWarehouse({
                   {t("Company Name")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Warehouse")}
-                </th>
-                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
                   გამოტანილი რაოდენობა (ლ)
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
@@ -314,6 +362,9 @@ export default function OrdersByWarehouse({
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
                   {t("City")}
+                </th>
+                <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
+                  {t("Warehouse") || "საწყობი"}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
                   {t("Manager")}
@@ -329,47 +380,63 @@ export default function OrdersByWarehouse({
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((ord) => {
-                  const vendor = findVendor(ord.vendor_id, ord);
-                  const tradeName = vendor?.trade_name || vendor?.company_name || ord.vendor_name || '-';
-                  const address = vendor?.address || ord.address || '';
-                  const warehouseName = getWarehouseName(vendor, ord);
-                  const city = resolveCityName(vendor?.city || ord.city);
-                  const manager = getManagerName(vendor, ord);
-                  const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
-                  const factVal = `${factQty} ლ`;
-                  const dateStr = formatDate(ord.order_date || ord.pickup_date_time || ord.created_at);
-
-                  return (
-                    <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-gray-900 text-xs">
-                          {tradeName}
-                        </div>
-                        {address && (
-                          <div className="text-[11px] text-gray-400 font-normal truncate max-w-[280px] mt-0.5" title={address}>
-                            {address}
-                          </div>
-                        )}
+                <>
+                  {filteredOrders.length > 0 && (
+                    <tr className="bg-emerald-50/80 text-emerald-950 font-bold border-b-2 border-emerald-500/80 select-none shadow-2xs">
+                      <td className="py-3.5 px-4 font-black uppercase tracking-wide text-[10px] text-emerald-900">
+                        {t("TOTAL SUMMARY") || "სულ ჯამი"}
                       </td>
-                      <td className="py-3.5 px-4 font-medium text-gray-800">
-                        {warehouseName}
+                      <td className="py-3.5 px-4 font-mono text-sm text-emerald-950 font-black">
+                        {totalFactQty.toLocaleString()} ლ
                       </td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-850">
-                        {factVal}
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-gray-600">
-                        {dateStr}
-                      </td>
-                      <td className="py-3.5 px-4 text-gray-700">
-                        {city}
-                      </td>
-                      <td className="py-3.5 px-4 text-gray-700">
-                        {manager}
+                      <td className="py-3.5 px-4 text-xs text-emerald-800 font-semibold" colSpan={4}>
+                        {filteredOrders.length} {t("records") || "ჩანაწერი"}
                       </td>
                     </tr>
-                  );
-                })
+                  )}
+
+                  {filteredOrders.map((ord) => {
+                    const vendor = findVendor(ord.vendor_id, ord);
+                    const tradeName = vendor?.trade_name || vendor?.company_name || ord.vendor_name || '-';
+                    const address = vendor?.address || ord.address || '';
+                    const warehouseName = getWarehouseName(vendor, ord);
+                    const city = resolveCityName(vendor?.city || ord.city);
+                    const manager = getManagerName(vendor, ord);
+                    const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
+                    const factVal = `${factQty} ლ`;
+                    const dateStr = formatDate(ord.order_date || ord.pickup_date_time || ord.created_at);
+
+                    return (
+                      <tr key={ord.id} className="hover:bg-slate-50/80 transition-colors text-xs font-sans text-gray-700">
+                        <td className="py-3.5 px-4">
+                          <div className="font-semibold text-gray-900 text-xs">
+                            {tradeName}
+                          </div>
+                          {address && (
+                            <div className="text-[11px] text-gray-400 font-normal truncate max-w-[280px] mt-0.5" title={address}>
+                              {address}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-emerald-850">
+                          {factVal}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-gray-600">
+                          {dateStr}
+                        </td>
+                        <td className="py-3.5 px-4 text-gray-700">
+                          {city}
+                        </td>
+                        <td className="py-3.5 px-4 text-gray-700">
+                          {warehouseName}
+                        </td>
+                        <td className="py-3.5 px-4 text-gray-700">
+                          {manager}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </>
               )}
 
               {!isPeriodLoading && filteredOrders.length === 0 && (
@@ -377,24 +444,6 @@ export default function OrdersByWarehouse({
                   <td colSpan={6} className="text-center py-20 text-xs text-gray-400 italic">
                     {t("No records found.")}
                   </td>
-                </tr>
-              )}
-
-              {/* SUMMARY ROW */}
-              {!isPeriodLoading && filteredOrders.length > 0 && (
-                <tr className="bg-emerald-50/40 text-emerald-900 font-bold border-t-2 border-emerald-500 select-none">
-                  <td className="py-4 px-4 font-bold uppercase tracking-wide text-[10px]">
-                    {t("TOTAL SUMMARY")}
-                  </td>
-                  <td className="py-4 px-4"></td>
-                  <td className="py-4 px-4 font-mono text-sm text-emerald-950 font-bold">
-                    {totalFactQty.toLocaleString()} ლ
-                  </td>
-                  <td className="py-4 px-4 text-xs text-gray-600 font-normal">
-                    {filteredOrders.length} {t("records")}
-                  </td>
-                  <td className="py-4 px-4"></td>
-                  <td className="py-4 px-4"></td>
                 </tr>
               )}
             </tbody>

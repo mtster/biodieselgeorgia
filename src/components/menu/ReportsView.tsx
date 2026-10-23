@@ -53,6 +53,7 @@ export default function ReportsView({
         orders={orders}
         users={users}
         cities={cities}
+        warehouses={warehouses}
         onBack={() => setSelectedReport(null)}
       />
     );

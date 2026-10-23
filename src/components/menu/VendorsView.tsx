@@ -17,6 +17,8 @@ import { VendorsViewHeaderActions } from '../vendors/VendorsViewHeaderActions';
 import { VendorBulkDeleteModal } from '../vendors/VendorBulkDeleteModal';
 import { useVendorsViewState } from '../vendors/useVendorsViewState';
 import { exportAllVendorsToExcel } from '../../services/vendorExportService';
+import { verifyUserRoleAllowed } from '../../utils/jwtAuth';
+import { ShieldAlert } from 'lucide-react';
 
 interface Props {
   vendors: Vendor[];
@@ -118,11 +120,20 @@ export default function VendorsView({
   });
 
   const [isExporting, setIsExporting] = React.useState(false);
+  const [jwtError, setJwtError] = React.useState<string | null>(null);
 
   const handleExport = async () => {
     if (isExporting) return;
     setIsExporting(true);
+    setJwtError(null);
     try {
+      // Evaluate logged-in user's cryptographic JWT token and server claims
+      const authCheck = await verifyUserRoleAllowed(['admin', 'purchasing_head']);
+      if (!authCheck.allowed) {
+        setJwtError(authCheck.error || 'წვდომა შეზღუდულია: მომწოდებლების სიის ექსპორტის უფლება აქვთ მხოლოდ ადმინისტრატორსა (admin) და შესყიდვების უფროსს (purchasing_head).');
+        return;
+      }
+
       await exportAllVendorsToExcel({
         cities,
         districts,
@@ -131,8 +142,9 @@ export default function VendorsView({
         users,
         fallbackVendors: vendors
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to export suppliers to Excel:', err);
+      setJwtError('ექსპორტის შეცდომა: ' + (err?.message || 'უცნობი შეცდომა'));
     } finally {
       setIsExporting(false);
     }
@@ -287,6 +299,35 @@ export default function VendorsView({
         onSuccess={refreshVendorsQuery}
         vendors={vendors}
       />
+
+      {/* SECURITY ACCESS DENIED MODAL */}
+      {jwtError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 space-y-4 text-left">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-2.5 bg-rose-50 rounded-xl">
+                <ShieldAlert size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-gray-900">წვდომა შეზღუდულია</h3>
+                <p className="text-xs text-gray-500">JWT ტოკენის უსაფრთხოების შემოწმება</p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-gray-100">
+              {jwtError}
+            </p>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setJwtError(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                დახურვა
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
