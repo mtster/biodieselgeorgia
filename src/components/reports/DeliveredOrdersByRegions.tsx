@@ -256,7 +256,7 @@ export default function DeliveredOrdersByRegions({
                   {t("Visits Amount")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
-                  {t("Oil Amount (Liters)")}
+                  გამოტანილი რაოდენობა (ლ)
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider text-right">
                   {t("Cost (₾)")}
@@ -284,7 +284,7 @@ export default function DeliveredOrdersByRegions({
                       {row.visitsAmount}
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-800">
-                      {row.oilAmount.toLocaleString()} L
+                      {row.oilAmount.toLocaleString()} ლ
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-gray-800">
                       {row.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₾
@@ -314,7 +314,7 @@ export default function DeliveredOrdersByRegions({
                     {totalVisits}
                   </td>
                   <td className="py-4 px-4 text-right font-mono text-sm text-emerald-950">
-                    {totalOil.toLocaleString()} L
+                    {totalOil.toLocaleString()} ლ
                   </td>
                   <td className="py-4 px-4 text-right font-mono text-sm text-emerald-950">
                     {totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₾

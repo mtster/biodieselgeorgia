@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
-import { Vendor, Order, User } from '../../types';
+import { Vendor, Order, User, City, District } from '../../types';
 import PageHeader from '../PageHeader';
 import CentralSearchBar from '../CentralSearchBar';
 import { t } from '../../utils/lang';
@@ -10,6 +10,8 @@ interface Props {
   suppliers: Vendor[];
   orders: Order[];
   users: User[];
+  cities?: City[];
+  districts?: District[];
   onBack: () => void;
 }
 
@@ -56,55 +58,103 @@ export interface OverdueVendorRow {
   threshold: number;
 }
 
+// Module-level in-flight promise & result cache to prevent duplicate fetches across mounts
+let inFlightFetchPromise: Promise<{ vendors: Vendor[]; orders: Order[] }> | null = null;
+let cachedData: { vendors: Vendor[]; orders: Order[] } | null = null;
+let cachedOverdueRecords: OverdueVendorRow[] | null = null;
+
 export default function LastDeliveries({
   suppliers,
   orders,
   users,
+  cities = [],
+  districts = [],
   onBack,
 }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [overdueRecords, setOverdueRecords] = useState<OverdueVendorRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const isFetchingRef = useRef(false);
+  const [overdueRecords, setOverdueRecords] = useState<OverdueVendorRow[]>(cachedOverdueRecords || []);
+  const [loading, setLoading] = useState(cachedOverdueRecords ? false : true);
+
+  // Helper maps to resolve city and district UUIDs to actual Georgian names
+  const cityMap = useMemo(() => {
+    const map = new Map<string, string>();
+    cities.forEach(c => {
+      const name = (c as any).name_ka || c.name || '';
+      if (c.id) map.set(c.id, name);
+      if ((c as any).code) map.set((c as any).code, name);
+    });
+    return map;
+  }, [cities]);
+
+  const districtMap = useMemo(() => {
+    const map = new Map<string, string>();
+    districts.forEach(d => {
+      const name = (d as any).name_ka || d.name || '';
+      if (d.id) map.set(d.id, name);
+      if ((d as any).code) map.set((d as any).code, name);
+    });
+    return map;
+  }, [districts]);
+
+  const resolveCityName = (val?: string) => {
+    if (!val) return '—';
+    return cityMap.get(val) || val;
+  };
+
+  const resolveDistrictName = (val?: string) => {
+    if (!val) return '';
+    return districtMap.get(val) || val;
+  };
 
   useEffect(() => {
     let isCancelled = false;
 
     async function calculateOverdueVendors() {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
+      if (cachedOverdueRecords && cachedOverdueRecords.length > 0) {
+        setOverdueRecords(cachedOverdueRecords);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         let activeSuppliers = (suppliers || []).filter(s => s && !s.is_deleted && s.status !== 'Closed' && s.status !== 'Cancelled');
         let completedOrders = (orders || []).filter(o => o && (o.status === 'completed' || String(o.status).toLowerCase() === 'completed') && !o.is_deleted && o.order_date);
 
-        // If either suppliers or orders are not provided in props, load once from Supabase
+        // If either suppliers or orders are not provided in props, load ONCE using shared in-flight promise
         if ((activeSuppliers.length === 0 || completedOrders.length === 0) && isSupabaseConfigured && supabase) {
           try {
-            const [vRes, oRes] = await Promise.all([
-              activeSuppliers.length === 0
-                ? supabase
-                    .from('vendors')
-                    .select('id, id_code, company_name, trade_name, city, district, manager_id, status, overdue_threshold_days, last_order_date, created_at')
-                    .eq('is_deleted', false)
-                    .neq('status', 'Closed')
-                    .neq('status', 'Cancelled')
-                : Promise.resolve({ data: activeSuppliers }),
-              completedOrders.length === 0
-                ? supabase
-                    .from('orders')
-                    .select('vendor_id, order_date')
-                    .eq('is_deleted', false)
-                    .eq('status', 'completed')
-                    .order('order_date', { ascending: false })
-                : Promise.resolve({ data: completedOrders })
-            ]);
+            if (cachedData) {
+              if (activeSuppliers.length === 0) activeSuppliers = cachedData.vendors;
+              if (completedOrders.length === 0) completedOrders = cachedData.orders;
+            } else {
+              if (!inFlightFetchPromise) {
+                inFlightFetchPromise = (async () => {
+                  const [vRes, oRes] = await Promise.all([
+                    supabase
+                      .from('vendors')
+                      .select('id, id_code, company_name, trade_name, city, district, manager_id, status, overdue_threshold_days, last_order_date, created_at')
+                      .eq('is_deleted', false)
+                      .neq('status', 'Closed')
+                      .neq('status', 'Cancelled'),
+                    supabase
+                      .from('orders')
+                      .select('vendor_id, order_date')
+                      .eq('is_deleted', false)
+                      .eq('status', 'completed')
+                      .order('order_date', { ascending: false })
+                  ]);
+                  const loadedVendors = (vRes.data || []) as Vendor[];
+                  const loadedOrders = (oRes.data || []) as Order[];
+                  cachedData = { vendors: loadedVendors, orders: loadedOrders };
+                  return cachedData;
+                })().finally(() => {
+                  inFlightFetchPromise = null;
+                });
+              }
 
-            if (vRes.data && activeSuppliers.length === 0) {
-              activeSuppliers = vRes.data as Vendor[];
-            }
-            if (oRes.data && completedOrders.length === 0) {
-              completedOrders = oRes.data as Order[];
+              const result = await inFlightFetchPromise;
+              if (activeSuppliers.length === 0) activeSuppliers = result.vendors;
+              if (completedOrders.length === 0) completedOrders = result.orders;
             }
           } catch (fetchErr) {
             console.warn('Direct Supabase fetch error in LastDeliveries:', fetchErr);
@@ -136,6 +186,9 @@ export default function LastDeliveries({
           const managerObj = users.find(u => u.id === s.manager_id);
           const managerName = managerObj ? managerObj.name : t('Unassigned');
 
+          const resolvedCity = resolveCityName(s.city);
+          const resolvedDistrict = resolveDistrictName(s.district);
+
           if (lastDateStr) {
             const threshold = s.overdue_threshold_days;
             if (threshold !== null && threshold !== undefined && threshold > 0) {
@@ -147,8 +200,8 @@ export default function LastDeliveries({
                   id_code: s.id_code || 'N/A',
                   company_name: s.company_name || '',
                   trade_name: s.trade_name || '',
-                  city: s.city || '',
-                  region: s.district || '',
+                  city: resolvedCity,
+                  region: resolvedDistrict,
                   managerName,
                   status: 'Active',
                   finalDeliveryDate: lastDateStr.split('T')[0],
@@ -167,8 +220,8 @@ export default function LastDeliveries({
                 id_code: s.id_code || 'N/A',
                 company_name: s.company_name || '',
                 trade_name: s.trade_name || '',
-                city: s.city || '',
-                region: s.district || '',
+                city: resolvedCity,
+                region: resolvedDistrict,
                 managerName,
                 status: 'Active',
                 finalDeliveryDate: t('No deliveries'),
@@ -181,6 +234,7 @@ export default function LastDeliveries({
         }
 
         calculated.sort((a, b) => b.overdueDays - a.overdueDays);
+        cachedOverdueRecords = calculated;
 
         if (!isCancelled) {
           setOverdueRecords(calculated);
@@ -188,10 +242,7 @@ export default function LastDeliveries({
       } catch (err) {
         console.error('Error calculating overdue vendors:', err);
       } finally {
-        isFetchingRef.current = false;
-        if (!isCancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
@@ -200,7 +251,7 @@ export default function LastDeliveries({
     return () => {
       isCancelled = true;
     };
-  }, [suppliers, orders, users]);
+  }, [suppliers, orders, users, cityMap, districtMap]);
 
   // Apply search filter
   const deliveryRows = overdueRecords.filter(row => {

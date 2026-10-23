@@ -144,6 +144,8 @@ export default function ReportsView({
         suppliers={suppliers}
         orders={orders}
         users={users}
+        cities={cities}
+        districts={districts}
         onBack={() => setSelectedReport(null)}
       />
     );

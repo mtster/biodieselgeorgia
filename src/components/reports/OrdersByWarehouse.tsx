@@ -307,7 +307,7 @@ export default function OrdersByWarehouse({
                   {t("Warehouse")}
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
-                  {t("Delivered Quantity (L)")}
+                  გამოტანილი რაოდენობა (ლ)
                 </th>
                 <th className="py-3 px-4 text-[10px] text-gray-400 uppercase font-mono font-bold tracking-wider">
                   {t("Date")}
@@ -337,7 +337,7 @@ export default function OrdersByWarehouse({
                   const city = resolveCityName(vendor?.city || ord.city);
                   const manager = getManagerName(vendor, ord);
                   const factQty = ord.fact_qty !== undefined && ord.fact_qty !== null ? ord.fact_qty : (ord.qty_requested ?? 0);
-                  const factVal = `${factQty} L`;
+                  const factVal = `${factQty} ლ`;
                   const dateStr = formatDate(ord.order_date || ord.pickup_date_time || ord.created_at);
 
                   return (
@@ -388,7 +388,7 @@ export default function OrdersByWarehouse({
                   </td>
                   <td className="py-4 px-4"></td>
                   <td className="py-4 px-4 font-mono text-sm text-emerald-950 font-bold">
-                    {totalFactQty.toLocaleString()} L
+                    {totalFactQty.toLocaleString()} ლ
                   </td>
                   <td className="py-4 px-4 text-xs text-gray-600 font-normal">
                     {filteredOrders.length} {t("records")}
