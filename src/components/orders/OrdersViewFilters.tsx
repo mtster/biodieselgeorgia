@@ -1,8 +1,9 @@
 import React from 'react';
-import { Truck, Direction, Vendor, User } from '../../types';
+import { Truck, Direction, Vendor, User, City, District } from '../../types';
 import CentralSearchBar from '../CentralSearchBar';
 import PeriodFilter from '../PeriodFilter';
 import { t } from '../../utils/lang';
+import { KEY_CITIES, KEY_DISTRICTS, getLocal } from '../../services/localStorage';
 
 interface OrdersViewFiltersProps {
   searchTerm: string;
@@ -29,6 +30,8 @@ interface OrdersViewFiltersProps {
   directions: Direction[];
   trucks: Truck[];
   employees: User[];
+  cities?: City[];
+  districts?: District[];
   setPage: (p: number) => void;
 }
 
@@ -57,8 +60,12 @@ export const OrdersViewFilters: React.FC<OrdersViewFiltersProps> = ({
   directions,
   trucks,
   employees,
+  cities = [],
+  districts = [],
   setPage
 }) => {
+  const effectiveCities = (cities && cities.length > 0) ? cities : getLocal<City[]>(KEY_CITIES, []);
+  const effectiveDistricts = (districts && districts.length > 0) ? districts : getLocal<District[]>(KEY_DISTRICTS, []);
   return (
     <div className="space-y-4 w-full">
       {/* Search Bar - Full Width on Top */}
@@ -126,8 +133,8 @@ export const OrdersViewFilters: React.FC<OrdersViewFiltersProps> = ({
             className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
           >
             <option value="">{t("All Cities")}</option>
-            {Array.from(new Set(suppliers.map(s => s.city).filter(Boolean))).sort().map(city => (
-              <option key={city} value={city}>{city}</option>
+            {effectiveCities.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
@@ -149,16 +156,11 @@ export const OrdersViewFilters: React.FC<OrdersViewFiltersProps> = ({
             className="block w-full py-2.5 pl-3 pr-8 bg-slate-100/60 hover:bg-slate-100 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer text-gray-900 appearance-none font-sans"
           >
             <option value="">{t("All Districts")}</option>
-            {Array.from(
-              new Set(
-                suppliers
-                  .filter(s => !selectedCity || s.city === selectedCity)
-                  .map(s => s.district)
-                  .filter(Boolean)
-              )
-            ).sort().map(dist => (
-              <option key={dist} value={dist}>{dist}</option>
-            ))}
+            {effectiveDistricts
+              .filter(d => !selectedCity || d.city_id === selectedCity || (effectiveCities.find(c => c.id === selectedCity || c.name === selectedCity)?.id === d.city_id))
+              .map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
           </select>
           <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[9px]">
             ▼

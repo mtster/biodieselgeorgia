@@ -106,7 +106,7 @@ export function usePaginatedOrders(
   filters: any,
   currentUser: User | null
 ) {
-  const isAllowed = hasModuleViewPermission(currentUser, 'orders') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant' && currentUser?.role !== 'vendor';
+  const isAllowed = hasModuleViewPermission(currentUser, 'orders') && currentUser?.role !== 'driver' && currentUser?.role !== 'driver_assistant';
   
   const effectiveFilters = { ...filters };
   if (currentUser?.role === 'logistics_manager') {

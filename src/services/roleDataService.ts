@@ -504,15 +504,28 @@ export async function getSupplierAppData(currentUser: User): Promise<{
   let vendorObj: Vendor | null = null;
   let vendorOrders: Order[] = [];
 
-  const vendorId = currentUser.vendor_id;
+  let vendorId = currentUser.vendor_id;
 
-  if (vendorId && isSupabaseConfigured && supabase) {
+  if (isSupabaseConfigured && supabase) {
     try {
-      const [vRes, cRes, oRes] = await Promise.all([
-        supabase.from('vendors').select('*').eq('id', vendorId).maybeSingle(),
-        supabase.from('vendor_contacts').select('*').eq('vendor_id', vendorId).eq('is_deleted', false),
-        supabase.from('orders').select('*').eq('vendor_id', vendorId).eq('is_deleted', false).order('order_date', { ascending: false })
-      ]);
+      if (!vendorId && currentUser.id) {
+        const { data: vRow } = await supabase
+          .from('vendors')
+          .select('id')
+          .eq('user_id', currentUser.id)
+          .eq('is_deleted', false)
+          .maybeSingle();
+        if (vRow?.id) {
+          vendorId = vRow.id;
+        }
+      }
+
+      if (vendorId) {
+        const [vRes, cRes, oRes] = await Promise.all([
+          supabase.from('vendors').select('*').eq('id', vendorId).maybeSingle(),
+          supabase.from('vendor_contacts').select('*').eq('vendor_id', vendorId).eq('is_deleted', false),
+          supabase.from('orders').select('*').eq('vendor_id', vendorId).eq('is_deleted', false).order('order_date', { ascending: false })
+        ]);
 
       if (vRes.data) {
         vendorObj = decodeVendorCustomFields(vRes.data);
@@ -530,10 +543,11 @@ export async function getSupplierAppData(currentUser: User): Promise<{
           notes: Array.isArray(o.notes) ? o.notes : (o.note ? [{ id: 'note-1', comment: o.note, date: o.order_date || new Date().toISOString(), user_name: 'System' }] : [])
         }));
       }
-    } catch (e) {
-      console.warn('Error fetching supplier data:', e);
     }
+  } catch (e) {
+    console.warn('Error fetching supplier data:', e);
   }
+}
 
   const whs = await whsPromise;
 

@@ -325,6 +325,8 @@ export default function App() {
                 employees={users}
                 trucks={trucks}
                 directions={directions}
+                cities={cities}
+                districts={districts}
                 currentEmployee={currentUser}
                 onSave={handleOrderSave}
                 onDelete={handleOrderDelete}

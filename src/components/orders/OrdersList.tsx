@@ -1,10 +1,11 @@
 import React from 'react';
-import { Order, Vendor, User, Warehouse, Direction, Truck } from '../../types';
+import { Order, Vendor, User, Warehouse, Direction, Truck, City, District } from '../../types';
 import { Edit2, Trash2, Check, CalendarClock } from 'lucide-react';
 import { StandardTable, ColumnConfig } from '../StandardTable';
 import { ManagedColumn } from '../ColumnsManagerModal';
 import { t, formatDate, formatDateTime, formatPhone, formatOrderCompletionTime } from '../../utils/lang';
 import { SelectAllHeaderCheckbox } from '../common/SelectAllHeaderCheckbox';
+import { KEY_CITIES, KEY_DISTRICTS, getLocal } from '../../services/localStorage';
 
 interface Props {
   currentEmployee: User;
@@ -14,6 +15,8 @@ interface Props {
   employees: User[];
   directions: Direction[];
   trucks?: Truck[];
+  cities?: City[];
+  districts?: District[];
   startEdit: (ord: Order, readOnly?: boolean) => void;
   askDelete: (id: string, docNum: string) => void;
   selectedOrders?: string[];
@@ -33,6 +36,8 @@ export default function OrdersList({
   employees,
   directions,
   trucks = [],
+  cities = [],
+  districts = [],
   startEdit,
   askDelete,
   selectedOrders = [],
@@ -43,6 +48,23 @@ export default function OrdersList({
   onPageChange,
   isLoading
 }: Props) {
+  const cityMap = new Map<string, string>();
+  (cities || []).forEach(c => {
+    if (c.id) cityMap.set(c.id, c.name);
+    if (c.name) cityMap.set(c.name, c.name);
+  });
+  getLocal<City[]>(KEY_CITIES, []).forEach(c => {
+    if (c.id && !cityMap.has(c.id)) cityMap.set(c.id, c.name);
+  });
+
+  const districtMap = new Map<string, string>();
+  (districts || []).forEach(d => {
+    if (d.id) districtMap.set(d.id, d.name);
+    if (d.name) districtMap.set(d.name, d.name);
+  });
+  getLocal<District[]>(KEY_DISTRICTS, []).forEach(d => {
+    if (d.id && !districtMap.has(d.id)) districtMap.set(d.id, d.name);
+  });
 
   const handleRowClick = (ord: Order) => {
     startEdit(ord, false);
@@ -128,8 +150,9 @@ export default function OrdersList({
       key: 'city',
       render: (ord) => {
         const vendor = findSupplier(ord.vendor_id, ord);
-        const val = vendor?.city || ord.city || '-';
-        return <div className="max-w-[140px] truncate" title={val}>{val}</div>;
+        const raw = vendor?.city || ord.city || '';
+        const name = cityMap.get(raw) || raw || '-';
+        return <div className="max-w-[140px] truncate" title={name}>{name}</div>;
       }
     },
     address: {
@@ -274,7 +297,9 @@ export default function OrdersList({
       key: 'district',
       render: (ord) => {
         const vendor = findSupplier(ord.vendor_id, ord);
-        return vendor?.district || ord.district || '-';
+        const raw = vendor?.district || ord.district || '';
+        const name = districtMap.get(raw) || raw || '-';
+        return <div className="max-w-[140px] truncate" title={name}>{name}</div>;
       }
     },
     direction: {

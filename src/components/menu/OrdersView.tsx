@@ -1,7 +1,7 @@
 import React from 'react';
 import { t } from '../../utils/lang';
 import { 
-  Order, Vendor, Warehouse, User, Truck, Direction, Communication 
+  Order, Vendor, Warehouse, User, Truck, Direction, Communication, City, District 
 } from '../../types';
 
 // Modular child components
@@ -24,6 +24,8 @@ interface Props {
   employees: User[];
   trucks: Truck[];
   directions: Direction[];
+  cities?: City[];
+  districts?: District[];
   currentEmployee: User;
   onSave: (order: Order) => Promise<any> | void;
   onDelete: (id: string, docNum: string) => void;
@@ -40,7 +42,7 @@ interface Props {
 }
 
 export default function OrdersView({
-  orders, suppliers, warehouses, employees, trucks, directions,
+  orders, suppliers, warehouses, employees, trucks, directions, cities = [], districts = [],
   currentEmployee, onSave, onDelete, onSaveCommunication, onDeleteCommunication,
   initialOrderVendorId, onClearInitialOrderVendorId,
   initialVendorId, onClearInitialVendorId,
@@ -201,6 +203,8 @@ export default function OrdersView({
             directions={directions}
             trucks={trucks}
             employees={employees}
+            cities={cities}
+            districts={districts}
             setPage={setPage}
           />
 
@@ -212,6 +216,8 @@ export default function OrdersView({
             employees={employees}
             directions={directions}
             trucks={trucks}
+            cities={cities}
+            districts={districts}
             startEdit={startEdit} 
             askDelete={askDelete}
             selectedOrders={selectedOrders}

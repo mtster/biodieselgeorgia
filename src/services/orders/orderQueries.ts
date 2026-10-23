@@ -177,6 +177,32 @@ export async function getOrdersPaginated(
         query = query.eq('vendor_id', filters.vendorId);
       }
 
+      // Enforce scoping if current user is a supplier (vendor)
+      if (currentUser?.role === 'vendor') {
+        let supplierVendorId = currentUser.vendor_id;
+        if (!supplierVendorId && currentUser.id && isSupabaseConfigured && supabase) {
+          try {
+            const { data: vRow } = await supabase
+              .from('vendors')
+              .select('id')
+              .eq('user_id', currentUser.id)
+              .eq('is_deleted', false)
+              .maybeSingle();
+            if (vRow?.id) {
+              supplierVendorId = vRow.id;
+            }
+          } catch (vErr) {
+            console.warn('Failed to resolve vendor_id for supplier user:', vErr);
+          }
+        }
+
+        if (supplierVendorId && isValidUuid(supplierVendorId)) {
+          query = query.eq('vendor_id', supplierVendorId);
+        } else {
+          return { orders: [], totalCount: 0 };
+        }
+      }
+
       query = query
         .order('created_at', { ascending: false })
         .order('order_date', { ascending: false })
@@ -394,6 +420,14 @@ export async function getOrdersPaginated(
   }
   if (effectiveFilters?.vendorId) {
     filtered = filtered.filter(o => o.vendor_id === effectiveFilters.vendorId);
+  }
+  if (currentUser?.role === 'vendor') {
+    const sVendorId = currentUser.vendor_id || localVendors.find(v => v.user_id === currentUser.id)?.id;
+    if (sVendorId) {
+      filtered = filtered.filter(o => o.vendor_id === sVendorId);
+    } else {
+      filtered = [];
+    }
   }
   const vehicleVal = effectiveFilters?.vehicle || effectiveFilters?.vehicleId;
   if (vehicleVal) {
