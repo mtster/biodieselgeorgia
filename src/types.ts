@@ -86,6 +86,7 @@ export interface Vendor {
   user_id?: string;           // მომხმარებლის ID
   username?: string;          // მომხმარებლის სახელი
   email?: string;             // ელ ფოსტა
+  communications?: Communication[]; // მიბმული კომუნიკაციები
 }
 
 export type OrderStatus = 'registered' | 'driver_assigned' | 'picked_up' | 'completed' | 'cancelled' | 'uncompleted'; // რეგისტრირებული, მძღოლი მიმაგრებული, აყვანილი, დასრულებული, გაუქმებული

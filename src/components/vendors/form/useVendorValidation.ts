@@ -161,6 +161,8 @@ export function useVendorValidation(
         errs.username = 'მომხმარებლის სახელი სავალდებულოა.';
       } else if (!passwordInput.trim() && (!hasExistingUser || isUsernameChanged)) {
         errs.password = 'პაროლი სავალდებულოა.';
+      } else if (passwordInput.trim() && passwordInput.trim().length < 6) {
+        errs.password = 'პაროლი უნდა შედგებოდეს მინიმუმ 6 სიმბოლოსგან.';
       } else {
         needsUserCreationOrUpdate = true;
       }

@@ -5,6 +5,7 @@ import {
   Warehouse, User, City, District, Communication, Direction 
 } from '../../types';
 import { saveUser } from '../../services/userService';
+import { saveSupplierAccount } from '../../services/supplierAccountService';
 import { getVendorContacts, generateUuid, sortVendorContacts } from '../../services/vendorService';
 import { saveCommunication } from '../../services/communicationService';
 
@@ -321,25 +322,19 @@ export default function VendorForm({
 
       if (needsUserCreationOrUpdate) {
         try {
-          const email = getEmailFromUsername(usernameInput);
           const pregeneratedVendorId = editingVendor.id || generateUuid();
 
-          const userPayload: User = {
-            id: editingVendor.user_id || '',
-            name: editingVendor.trade_name || editingVendor.company_name,
-            personal_id: editingVendor.id_code || '11111111111',
-            email: email,
-            password: passwordInput.trim() ? passwordInput.trim() : undefined,
-            phone: tempContacts.find(c => c.is_default)?.phone || editingVendor.id_code || '599000000',
-            role: 'vendor',
-            permissions: {},
-            vendor_id: pregeneratedVendorId
-          };
+          const accountResult = await saveSupplierAccount({
+            vendorId: pregeneratedVendorId,
+            username: usernameInput.trim(),
+            password: passwordInput.trim() || undefined,
+            authUserId: editingVendor.user_id || undefined,
+            tradeName: editingVendor.trade_name,
+            companyName: editingVendor.company_name
+          });
 
-          const savedUserResult = await saveUser(userPayload, currentUser.name || 'System');
-          finalUserId = savedUserResult.id;
-          finalUsername = usernameInput.trim();
-          
+          finalUserId = accountResult.userId;
+          finalUsername = accountResult.username;
           editingVendor.id = pregeneratedVendorId;
         } catch (e: any) {
           onSavingStateChange?.(false);

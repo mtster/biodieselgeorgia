@@ -3,6 +3,7 @@ import { handleCreateUser } from "./users/userCreate";
 import { handleUpdateUser } from "./users/userUpdate";
 import { handleDeleteUser } from "./users/userDelete";
 import { handleUserList } from "./users/userList";
+import { handleSupplierUser } from "./users/supplierUser";
 
 const router = express.Router();
 
@@ -11,6 +12,7 @@ router.post("/api/create-user", handleCreateUser);
 router.post("/api/update-user", handleUpdateUser);
 router.delete("/api/delete-user", handleDeleteUser);
 router.post("/api/delete-user", handleDeleteUser);
+router.post("/api/supplier-user", handleSupplierUser);
 
 // Profiles listing proxy
 router.get("/api/profiles", handleUserList);

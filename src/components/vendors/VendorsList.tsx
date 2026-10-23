@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Vendor, User, VendorComment, Communication, Direction, City, District } from '../../types';
 import { t, formatDate, formatDateTime, formatPhone } from '../../utils/lang';
 import { Edit3, Check } from 'lucide-react';
@@ -45,6 +45,43 @@ export default function VendorsList({
     items: { key: string; author: string; date: string; content: string }[];
     rect: { top: number; left: number; width: number; height: number } | null;
   } | null>(null);
+
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleOpenTooltip = (data: {
+    items: { key: string; author: string; date: string; content: string }[];
+    rect: { top: number; left: number; width: number; height: number } | null;
+  }) => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setHoveredTooltip(data);
+  };
+
+  const handleCloseTooltip = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = setTimeout(() => {
+      setHoveredTooltip(null);
+    }, 250);
+  };
+
+  const handleTooltipMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
 
   const toggleSelect = (vendorId: string) => {
     if (selectedVendors.includes(vendorId)) {
@@ -181,9 +218,11 @@ export default function VendorsList({
       key: 'communications',
       className: 'min-w-[150px] max-w-[200px]',
       render: (vendor) => {
-        const vendorComms = (communications || [])
-          .filter(c => c.vendor_id === vendor.id && !c.is_deleted)
-          .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime());
+        const vendorComms = (
+          (vendor.communications && vendor.communications.length > 0)
+            ? vendor.communications
+            : (communications || []).filter(c => c.vendor_id === vendor.id && !c.is_deleted)
+        ).slice().sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime());
 
         const latestComm = vendorComms[0];
         return (
@@ -192,11 +231,12 @@ export default function VendorsList({
             onMouseEnter={(e) => {
               if (vendorComms.length > 0) {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setHoveredTooltip({
+                handleOpenTooltip({
                   items: vendorComms.map(c => {
                     const matchedUser = users.find(u => 
                       (c.created_by && (u.id === c.created_by || u.id?.toLowerCase() === c.created_by?.toLowerCase() || u.email?.toLowerCase() === c.created_by?.toLowerCase() || u.name?.toLowerCase() === c.created_by?.toLowerCase())) ||
-                      (c.user_id && (u.id === c.user_id || u.id?.toLowerCase() === c.user_id?.toLowerCase()))
+                      (c.user_id && (u.id === c.user_id || u.id?.toLowerCase() === c.user_id?.toLowerCase())) ||
+                      (c.responsible_user_id && (u.id === c.responsible_user_id || u.id?.toLowerCase() === c.responsible_user_id?.toLowerCase()))
                     );
                     return {
                       key: c.id,
@@ -214,7 +254,7 @@ export default function VendorsList({
                 });
               }
             }}
-            onMouseLeave={() => setHoveredTooltip(null)}
+            onMouseLeave={handleCloseTooltip}
           >
             {latestComm ? latestComm.comment : '-'}
           </div>
@@ -233,7 +273,7 @@ export default function VendorsList({
             onMouseEnter={(e) => {
               if (vendor.comments && vendor.comments.length > 0) {
                 const rect = e.currentTarget.getBoundingClientRect();
-                setHoveredTooltip({
+                handleOpenTooltip({
                   items: vendor.comments.map(c => ({
                     key: c.id,
                     author: (c.user_id ? users.find(u => u.id === c.user_id)?.name : null) || c.user_name || 'System',
@@ -249,7 +289,7 @@ export default function VendorsList({
                 });
               }
             }}
-            onMouseLeave={() => setHoveredTooltip(null)}
+            onMouseLeave={handleCloseTooltip}
           >
             {latestComment ? latestComment.comment : '-'}
           </div>
@@ -346,6 +386,8 @@ export default function VendorsList({
         <VendorsTooltip
           items={hoveredTooltip.items}
           rect={hoveredTooltip.rect}
+          onMouseEnter={handleTooltipMouseEnter}
+          onMouseLeave={handleCloseTooltip}
         />
       )}
     </>

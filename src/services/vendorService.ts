@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Vendor, VendorContact, City, District } from '../types';
+import { Vendor, VendorContact, City, District, Communication } from '../types';
 import { trackChange } from './historyService';
-import { KEY_VENDORS, KEY_CITIES, KEY_DISTRICTS, getLocal, setLocal } from './localStorage';
+import { KEY_VENDORS, KEY_CITIES, KEY_DISTRICTS, KEY_COMMUNICATIONS, getLocal, setLocal } from './localStorage';
 import { appCache } from '../utils/cache';
 import { notifyDbChange } from '../lib/realtime';
 import { sanitizePostgrestSearchTerm } from '../utils/sanitize';
@@ -653,20 +653,40 @@ export async function getVendorsPaginated(
 
         const decoded = data.map(v => decodeVendorCustomFields(v));
         const vendorIds = decoded.map(v => v.id);
-        // Only fetch contacts if includeContacts is not explicitly false (e.g. autocomplete doesn't need all contacts)
-        if (vendorIds.length > 0 && options?.includeContacts !== false) {
-          const { data: contactsData } = await supabase
-            .from('vendor_contacts')
-            .select('id, vendor_id, name, phone, position, note, email, is_default, is_active, sort_order')
+        if (vendorIds.length > 0) {
+          let contactsData: VendorContact[] | null = null;
+          let commsData: Communication[] | null = null;
+
+          if (options?.includeContacts !== false) {
+            const { data: cData } = await supabase
+              .from('vendor_contacts')
+              .select('id, vendor_id, name, phone, position, note, email, is_default, is_active, sort_order')
+              .in('vendor_id', vendorIds)
+              .eq('is_deleted', false);
+            contactsData = (cData as VendorContact[]) || null;
+          }
+
+          const { data: cmData } = await supabase
+            .from('communications')
+            .select('*')
             .in('vendor_id', vendorIds)
-            .eq('is_deleted', false);
+            .eq('is_deleted', false)
+            .order('date_time', { ascending: false });
+          commsData = (cmData as Communication[]) || null;
+
           if (contactsData) {
             decoded.forEach(v => {
-              const vContacts = sortVendorContacts(contactsData.filter(c => c.vendor_id === v.id));
+              const vContacts = sortVendorContacts<VendorContact>(contactsData!.filter(c => c.vendor_id === v.id));
               v.contacts = vContacts;
               if (v.id) {
                 appCache.set(`vendor_contacts_${v.id}`, vContacts);
               }
+            });
+          }
+
+          if (commsData) {
+            decoded.forEach(v => {
+              v.communications = commsData!.filter(c => c.vendor_id === v.id);
             });
           }
         }
@@ -684,8 +704,10 @@ export async function getVendorsPaginated(
 
   const all = getLocal<Vendor[]>(KEY_VENDORS, []).filter(v => !v.is_deleted).map(v => decodeVendorCustomFields(v));
   const allContacts = getLocal<VendorContact[]>('local_vendor_contacts', []).filter(c => !c.is_deleted);
+  const allComms = getLocal<Communication[]>(KEY_COMMUNICATIONS, []).filter(c => !c.is_deleted);
   all.forEach(v => {
     v.contacts = sortVendorContacts(allContacts.filter(c => c.vendor_id === v.id));
+    v.communications = allComms.filter(c => c.vendor_id === v.id).sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime());
   });
 
   let filtered = all;
