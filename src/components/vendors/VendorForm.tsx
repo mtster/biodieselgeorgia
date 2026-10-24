@@ -6,7 +6,7 @@ import {
 } from '../../types';
 import { saveUser } from '../../services/userService';
 import { saveSupplierAccount } from '../../services/supplierAccountService';
-import { getVendorContacts, generateUuid, sortVendorContacts } from '../../services/vendorService';
+import { getVendorContacts, generateUuid, sortVendorContacts, computeNextFreeCompanyCode, checkCompanyCodeDuplicate } from '../../services/vendorService';
 import { saveCommunication } from '../../services/communicationService';
 
 function getCleanUsername(u: string | undefined): string {
@@ -47,6 +47,7 @@ import { MessageSquare, X, Trash2, Edit3 } from 'lucide-react';
 interface Props {
   editingVendor: Vendor;
   setEditingVendor: React.Dispatch<React.SetStateAction<Vendor | null>>;
+  existingVendors?: Vendor[];
   warehouses: Warehouse[];
   users: User[];
   cities: City[];
@@ -68,6 +69,7 @@ interface Props {
 export default function VendorForm({
   editingVendor,
   setEditingVendor,
+  existingVendors = [],
   warehouses,
   users,
   cities,
@@ -296,10 +298,46 @@ export default function VendorForm({
     let needsUserCreationOrUpdate = false;
     if (!isOperator) {
       const valRes = validateVendorForm();
-      if (Object.keys(valRes.errs).length > 0) {
-        setFieldErrors(valRes.errs);
+      const codeInput = (editingVendor.company_code || '').trim();
+
+      // Check if there are missing/invalid mandatory fields OTHER than company_code
+      const otherErrors: Record<string, string> = {};
+      for (const [key, msg] of Object.entries(valRes.errs)) {
+        if (key !== 'company_code') {
+          otherErrors[key] = msg;
+        }
+      }
+
+      // Gatekeeping: If ANY other mandatory field is not filled in, stop immediately
+      // Do NOT trigger any company_code network queries or next code calculations!
+      if (Object.keys(otherErrors).length > 0) {
+        if (!codeInput) {
+          otherErrors.company_code = 'კოდი სავალდებულო და უნიკალურია.';
+        }
+        setFieldErrors(otherErrors);
         return;
       }
+
+      // ONLY when all other mandatory fields are completely filled in:
+      // If company_code is missing, compute next free code from memory/cache
+      if (!codeInput) {
+        const nextCode = await computeNextFreeCompanyCode(editingVendor.id, existingVendors);
+        setFieldErrors({
+          company_code: `კოდი სავალდებულო და უნიკალურია. შემდეგი თავისუფალი კოდი: ${nextCode}`
+        });
+        return;
+      }
+
+      // Check for duplicate company_code (in-memory first, fast indexed Supabase query if needed)
+      const isDuplicate = await checkCompanyCodeDuplicate(codeInput, editingVendor.id, existingVendors);
+      if (isDuplicate) {
+        const nextCode = await computeNextFreeCompanyCode(editingVendor.id, existingVendors);
+        setFieldErrors({
+          company_code: `აღნიშნული კოდი უკვე დაკავებულია. შემდეგი თავისუფალი კოდი: ${nextCode}`
+        });
+        return;
+      }
+
       needsUserCreationOrUpdate = valRes.needsUserCreationOrUpdate;
     }
     setFieldErrors({});
@@ -323,14 +361,13 @@ export default function VendorForm({
       if (needsUserCreationOrUpdate) {
         try {
           const pregeneratedVendorId = editingVendor.id || generateUuid();
-
           const accountResult = await saveSupplierAccount({
             vendorId: pregeneratedVendorId,
             username: usernameInput.trim(),
             password: passwordInput.trim() || undefined,
             authUserId: editingVendor.user_id || undefined,
-            tradeName: editingVendor.trade_name,
-            companyName: editingVendor.company_name
+            tradeName: (editingVendor.trade_name || '').trim(),
+            companyName: (editingVendor.company_name || '').trim()
           });
 
           finalUserId = accountResult.userId;
@@ -357,11 +394,29 @@ export default function VendorForm({
         editingVendor.id = resolvedVendorId;
       }
 
+      // Strip leading and trailing spaces from all string fields in editingVendor
+      const trimmedVendor: any = { ...editingVendor };
+      for (const [key, val] of Object.entries(trimmedVendor)) {
+        if (typeof val === 'string') {
+          trimmedVendor[key] = val.trim();
+        }
+      }
+
+      const cleanCode = (trimmedVendor.company_code || '').trim();
+      const rawContacts = tempContacts.length > 0 ? tempContacts : (editingVendor.contacts || []);
+      const trimmedContacts = rawContacts.map(c => ({
+        ...c,
+        name: typeof c.name === 'string' ? c.name.trim() : (c.name || ''),
+        phone: typeof c.phone === 'string' ? c.phone.trim() : (c.phone || ''),
+        email: typeof c.email === 'string' ? c.email.trim() : (c.email || ''),
+        note: typeof c.note === 'string' ? c.note.trim() : (c.note || '')
+      }));
+
       let payload: Vendor = {
-        ...editingVendor,
+        ...trimmedVendor,
         id: resolvedVendorId,
-        company_code: editingVendor.company_code || editingVendor.id_code || 'N/A',
-        contacts: tempContacts.length > 0 ? tempContacts : (editingVendor.contacts || []),
+        company_code: cleanCode,
+        contacts: trimmedContacts,
         user_id: finalUserId || undefined,
         username: finalUsername || undefined
       };
@@ -373,7 +428,7 @@ export default function VendorForm({
           ...init,
           id: resolvedVendorId,
           comments: editingVendor.comments || [],
-          contacts: tempContacts.length > 0 ? tempContacts : (init.contacts || [])
+          contacts: trimmedContacts.length > 0 ? trimmedContacts : (init.contacts || [])
         };
       }
 

@@ -4,14 +4,16 @@ import { t } from '../../utils/lang';
 
 interface OrderBulkDeleteModalProps {
   isOpen: boolean;
-  selectedCount: number;
+  selectedCount?: number;
+  vendorName?: string;
   onClose: () => void;
   onConfirm: () => void;
 }
 
 export function OrderBulkDeleteModal({
   isOpen,
-  selectedCount,
+  selectedCount = 0,
+  vendorName,
   onClose,
   onConfirm
 }: OrderBulkDeleteModalProps) {
@@ -25,14 +27,24 @@ export function OrderBulkDeleteModal({
         </div>
         <div className="space-y-2">
           <h4 className="text-base font-bold text-gray-900 tracking-normal leading-snug">
-            {t("Confirm Bulk Orders Deleted")}
+            {vendorName ? t("Delete Order") : t("Confirm Bulk Orders Deleted")}
           </h4>
           <p className="text-xs text-gray-500 font-sans leading-relaxed">
-            {t("Are you sure you want to delete")}{' '}
-            <strong className="font-semibold text-gray-800">
-              {selectedCount} {t("selected orders")}
-            </strong>
-            ? {t("This action cannot be undone.")}
+            {vendorName ? (
+              <span>
+                {t("Are you sure you want to delete")}{' '}
+                <strong className="font-semibold text-gray-800">"{vendorName}"</strong>
+                -ს შეკვეთა? {t("This action cannot be undone.")}
+              </span>
+            ) : (
+              <span>
+                {t("Are you sure you want to delete")}{' '}
+                <strong className="font-semibold text-gray-800">
+                  {selectedCount} {t("selected orders")}
+                </strong>
+                ? {t("This action cannot be undone.")}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-2.5 font-sans pt-2 select-none">

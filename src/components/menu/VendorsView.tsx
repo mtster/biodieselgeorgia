@@ -188,6 +188,7 @@ export default function VendorsView({
         <VendorForm
           editingVendor={editingVendor}
           setEditingVendor={setEditingVendor}
+          existingVendors={vendors}
           warehouses={warehouses}
           users={users}
           cities={cities}

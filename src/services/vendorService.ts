@@ -832,6 +832,136 @@ export async function getVendors(limit = 250): Promise<Vendor[]> {
   return vendors;
 }
 
+/**
+ * Computes the next free numeric company_code that is not in use by any active vendor.
+ * Finds the lowest missing positive integer starting from 1 (continuous 1..1500 sequence, ignoring outliers like 10001).
+ */
+export async function computeNextFreeCompanyCode(excludeVendorId?: string, cachedVendors?: Vendor[]): Promise<string> {
+  let existingCodes: string[] = [];
+
+  // 1. Check provided in-memory list (0 ms, 0 network payload)
+  if (cachedVendors && cachedVendors.length > 0) {
+    existingCodes = cachedVendors
+      .filter(v => !v.is_deleted && v.id !== excludeVendorId)
+      .map(v => (v.company_code || '').toString().trim())
+      .filter(Boolean);
+  }
+
+  // 2. Check appCache in-memory vendors
+  if (existingCodes.length === 0) {
+    const memVendors = appCache.get<Vendor[]>('vendors_list');
+    if (memVendors && memVendors.length > 0) {
+      existingCodes = memVendors
+        .filter(v => !v.is_deleted && v.id !== excludeVendorId)
+        .map(v => (v.company_code || '').toString().trim())
+        .filter(Boolean);
+    }
+  }
+
+  // 3. Check local storage cache
+  if (existingCodes.length === 0) {
+    const localVendors = getLocal<Vendor[]>(KEY_VENDORS, []);
+    if (localVendors && localVendors.length > 0) {
+      existingCodes = localVendors
+        .filter(v => !v.is_deleted && v.id !== excludeVendorId)
+        .map(v => (v.company_code || '').toString().trim())
+        .filter(Boolean);
+    }
+  }
+
+  // 4. Fallback to Supabase if local state is completely empty: select ONLY company_code column
+  if (existingCodes.length === 0 && isSupabaseConfigured && supabase) {
+    try {
+      let q = supabase
+        .from('vendors')
+        .select('company_code')
+        .eq('is_deleted', false);
+      if (excludeVendorId) {
+        q = q.neq('id', excludeVendorId);
+      }
+      const { data } = await q;
+      if (data) {
+        existingCodes = data
+          .map(v => (v.company_code || '').toString().trim())
+          .filter(Boolean);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch existing codes for next code calculation:', e);
+    }
+  }
+
+  // Extract all pure positive integer numbers into a Set
+  const numSet = new Set<number>();
+  for (const c of existingCodes) {
+    const match = c.match(/^(\d+)$/);
+    if (match) {
+      const parsed = parseInt(match[1], 10);
+      if (parsed > 0) {
+        numSet.add(parsed);
+      }
+    }
+  }
+
+  // Find the lowest available positive integer starting from 1 (MEX algorithm)
+  // e.g. for continuous sequence 1..1500, candidate will reach 1501 and return 1501 even if 10001 exists
+  let candidate = 1;
+  while (numSet.has(candidate)) {
+    candidate++;
+  }
+
+  return String(candidate);
+}
+
+/**
+ * Verifies if a given company_code is already assigned to another vendor in Supabase or local storage.
+ * Prioritizes local in-memory checks and uses indexed exact queries instead of expensive ilike table scans.
+ */
+export async function checkCompanyCodeDuplicate(code: string, currentVendorId?: string, cachedVendors?: Vendor[]): Promise<boolean> {
+  const cleanCode = (code || '').trim().toLowerCase();
+  if (!cleanCode) return false;
+
+  // 1. Fast in-memory check (0 ms, 0 network overhead)
+  const candidateVendors = (cachedVendors && cachedVendors.length > 0)
+    ? cachedVendors
+    : (appCache.get<Vendor[]>('vendors_list') || getLocal<Vendor[]>(KEY_VENDORS, []));
+
+  if (candidateVendors && candidateVendors.length > 0) {
+    const match = candidateVendors.find(v => 
+      !v.is_deleted &&
+      v.id !== currentVendorId &&
+      (v.company_code || '').toString().trim().toLowerCase() === cleanCode
+    );
+    if (match) {
+      return true;
+    }
+  }
+
+  // 2. Fast indexed query in Supabase (exact equality with limit 1, uses B-tree index)
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let q = supabase
+        .from('vendors')
+        .select('id')
+        .eq('is_deleted', false)
+        .eq('company_code', (code || '').trim())
+        .limit(1);
+
+      if (currentVendorId) {
+        q = q.neq('id', currentVendorId);
+      }
+
+      const { data, error } = await q;
+      if (!error && data && data.length > 0) {
+        return true;
+      }
+    } catch (e) {
+      console.warn('Supabase checkCompanyCodeDuplicate error:', e);
+    }
+  }
+
+  return false;
+}
+
 export function cleanVendorDbPayload(vendor: any): any {
   const isValidUuid = (val: string | null | undefined): boolean => {
     if (!val) return false;
@@ -852,29 +982,30 @@ export function cleanVendorDbPayload(vendor: any): any {
   const operatorId = cleanUserUuid(vendor.operator_id);
   const createdByRaw = vendor.created_by;
   const createdBy = createdByRaw === 'import' ? 'import' : (isValidUuid(cleanUserUuid(createdByRaw)) ? cleanUserUuid(createdByRaw) : (createdByRaw || null));
-
   const vId = vendor.id || generateUuid();
   const rawCompCode = (vendor.company_code || '').toString().trim();
   const rawIdCode = (vendor.id_code || '').toString().trim();
   const finalCompCode = rawCompCode || (rawIdCode && rawIdCode !== '204857392' ? rawIdCode : `CC-${vId.slice(-8)}`);
 
+  const str = (val: any): string => typeof val === 'string' ? val.trim() : (val || '');
+
   const payload: any = {
     id: vId,
-    id_code: vendor.id_code || '',
-    company_name: vendor.company_name || vendor.trade_name || '',
-    trade_name: vendor.trade_name || '',
-    company_code: finalCompCode,
-    bank_account: vendor.bank_account || '',
-    email: vendor.email || '',
-    city: vendor.city || '',
-    district: vendor.district || '',
-    address: vendor.address || '',
+    id_code: str(vendor.id_code),
+    company_name: str(vendor.company_name),
+    trade_name: str(vendor.trade_name),
+    company_code: str(finalCompCode),
+    bank_account: str(vendor.bank_account),
+    email: str(vendor.email),
+    city: str(vendor.city),
+    district: str(vendor.district),
+    address: str(vendor.address),
     price_per_liter: Number(vendor.price_per_liter) || 0,
     warehouse_id: vendor.warehouse_id || null,
     manager_id: isValidUuid(managerId) ? managerId : null,
     operator_id: isValidUuid(operatorId) ? operatorId : null,
     direction_id: vendor.direction_id || null,
-    working_hours: vendor.working_hours || '',
+    working_hours: str(vendor.working_hours),
     comments: Array.isArray(vendor.comments) ? vendor.comments : [],
     status: vendor.status || 'Active',
     is_deleted: !!vendor.is_deleted,
@@ -1005,20 +1136,6 @@ export async function saveVendor(
       }
 
       if (isNew) {
-        // Check if a vendor with the same company_code already exists in DB to reuse its ID
-        if (finalCompCode) {
-          const { data: existingComp } = await supabase
-            .from('vendors')
-            .select('id')
-            .eq('is_deleted', false)
-            .ilike('company_code', finalCompCode)
-            .maybeSingle();
-
-          if (existingComp?.id) {
-            finalVendor.id = existingComp.id;
-          }
-        }
-
         const dbPayload = cleanVendorDbPayload(finalVendor);
         const { error } = await supabase.from('vendors').insert([dbPayload]);
         if (error) {

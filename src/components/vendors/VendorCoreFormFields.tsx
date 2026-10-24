@@ -62,11 +62,16 @@ export default function VendorCoreFormFields({
         />
 
         <FormInput
-          label={t("Code")}
+          label="კოდი * (უნიკალური)"
           type="text"
           fontClass="font-mono"
           value={editingVendor.company_code || ''}
-          onChange={(e) => setEditingVendor(prev => prev ? { ...prev, company_code: e.target.value } : null)}
+          onChange={(e) => {
+            setEditingVendor(prev => prev ? { ...prev, company_code: e.target.value } : null);
+            if (fieldErrors.company_code) setFieldErrors(prev => ({ ...prev, company_code: '' }));
+          }}
+          error={fieldErrors.company_code}
+          required
         />
       </div>
 

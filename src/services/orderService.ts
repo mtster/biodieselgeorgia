@@ -24,6 +24,10 @@ export {
 export {
   saveOrder,
   deleteOrder,
+  batchAssignCrewToOrders,
+  batchUnassignCrewFromOrders,
+  batchDeleteOrders,
   updateOrdersRouteRanks,
-  createDatabaseOrderColumn
+  createDatabaseOrderColumn,
+  type BatchAssignCrewParams
 } from './orders/orderMutations';

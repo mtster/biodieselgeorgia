@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Order, Vendor, Warehouse, User, Truck } from '../../types';
-import { getSMSLogs } from '../../services/orderService';
+import { getSMSLogs, batchAssignCrewToOrders, batchUnassignCrewFromOrders, batchDeleteOrders } from '../../services/orderService';
 import { usePaginatedOrders } from '../../hooks/usePaginatedModuleQuery';
 import { useDebouncedSearch } from '../../hooks/useDebounce';
 import { useOrderColumns } from './useOrderColumns';
@@ -38,6 +39,8 @@ export function useOrdersViewState({
   const canModify = currentEmployee?.role === 'admin' || (currentEmployee?.permissions?.['orders']?.includes('modify') ?? false);
   const canDelete = currentEmployee?.role === 'admin' || (currentEmployee?.permissions?.['orders']?.includes('delete') ?? false);
   const canAddComm = currentEmployee?.role === 'admin' || (currentEmployee?.permissions?.['communications']?.includes('add') ?? false);
+
+  const queryClient = useQueryClient();
 
   const {
     searchTerm,
@@ -118,6 +121,7 @@ export function useOrdersViewState({
   // Single delete modal states
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmDocNum, setDeleteConfirmDocNum] = useState<string | null>(null);
+  const [deleteConfirmVendorName, setDeleteConfirmVendorName] = useState<string | null>(null);
 
   const formRef = useRef<{ save: (onSuccess?: (vendorId: string) => void) => void; fillDummy: () => void; saveAndReminder?: (onSuccess?: (vendorId: string) => void) => void }>(null);
 
@@ -213,14 +217,23 @@ export function useOrdersViewState({
     scrollMainToTop();
   };
 
-  const handleBulkDeleteExecute = () => {
-    if (!canDelete) return;
-    selectedOrders.forEach(id => {
+  const handleBulkDeleteExecute = async () => {
+    if (!canDelete || selectedOrders.length === 0) return;
+    const docNums = selectedOrders.map(id => {
       const ord = (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id);
-      onDelete(id, ord?.doc_number || '');
+      return ord?.doc_number || id;
     });
-    setSelectedOrders([]);
-    setShowBulkDeleteConfirm(false);
+
+    try {
+      await batchDeleteOrders(selectedOrders, docNums, currentEmployee?.name || 'User');
+      queryClient.invalidateQueries({ queryKey: ['paginated_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['active_orders_count'] });
+    } catch (err) {
+      console.error('Failed to batch delete orders:', err);
+    } finally {
+      setSelectedOrders([]);
+      setShowBulkDeleteConfirm(false);
+    }
   };
 
   const handleSaveFromForm = async (finalOrder: Order) => {
@@ -247,10 +260,16 @@ export function useOrdersViewState({
     }
   };
 
-  const askDelete = (id: string, docNum: string) => {
+  const askDelete = (id: string, docNum: string, vendorName?: string) => {
     if (!canDelete) return;
+    let resolvedName = vendorName;
+    if (!resolvedName) {
+      const ord = (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id);
+      resolvedName = ord?.vendor_name || suppliers.find(s => s.id === ord?.vendor_id)?.trade_name;
+    }
     setDeleteConfirmId(id);
     setDeleteConfirmDocNum(docNum);
+    setDeleteConfirmVendorName(resolvedName || '');
   };
 
   const confirmDelete = () => {
@@ -258,6 +277,7 @@ export function useOrdersViewState({
       console.warn('Unauthorized delete attempt blocked');
       setDeleteConfirmId(null);
       setDeleteConfirmDocNum(null);
+      setDeleteConfirmVendorName(null);
       return;
     }
     if (deleteConfirmId) {
@@ -268,27 +288,32 @@ export function useOrdersViewState({
     }
     setDeleteConfirmId(null);
     setDeleteConfirmDocNum(null);
+    setDeleteConfirmVendorName(null);
   };
 
   const handleAssignDriverSave = async (driverId: string, companionId: string, truckPlate: string) => {
+    if (!selectedOrders || selectedOrders.length === 0) return;
+
     const matchingTruck = trucks.find(t => t.plate_number === truckPlate || t.id === truckPlate);
     const finalPlate = matchingTruck?.plate_number || truckPlate;
     const finalVehicleId = matchingTruck?.id;
 
-    for (const id of selectedOrders) {
-      const ord = (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id);
-      if (ord) {
-        await onSave({
-          ...ord,
-          driver_id: driverId || undefined,
-          companion_id: companionId || undefined,
-          truck_plate: finalPlate || undefined,
-          vehicle_id: finalVehicleId || ord.vehicle_id,
-          status: 'driver_assigned'
-        });
-      }
+    try {
+      await batchAssignCrewToOrders({
+        orderIds: selectedOrders,
+        driverId: driverId || undefined,
+        companionId: companionId || undefined,
+        truckPlate: finalPlate || undefined,
+        vehicleId: finalVehicleId || undefined,
+        loggerName: currentEmployee?.name || 'User'
+      });
+      queryClient.invalidateQueries({ queryKey: ['paginated_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['active_orders_count'] });
+    } catch (err) {
+      console.error('Failed to batch assign crew:', err);
+    } finally {
+      setSelectedOrders([]);
     }
-    setSelectedOrders([]);
   };
 
   return {
@@ -347,6 +372,8 @@ export function useOrdersViewState({
     setDeleteConfirmId,
     deleteConfirmDocNum,
     setDeleteConfirmDocNum,
+    deleteConfirmVendorName,
+    setDeleteConfirmVendorName,
     formRef,
     startNew,
     startEdit,
@@ -355,6 +382,7 @@ export function useOrdersViewState({
     handleSaveAndReminder,
     askDelete,
     confirmDelete,
-    handleAssignDriverSave
+    handleAssignDriverSave,
+    handleUnassignDriverSave
   };
 }

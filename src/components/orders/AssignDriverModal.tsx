@@ -8,6 +8,7 @@ interface AssignDriverModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (driverId: string, companionId: string, truckPlate: string) => void;
+  onUnassign?: () => void;
   orders: Order[];
   employees: User[];
   trucks: Truck[];
@@ -19,6 +20,7 @@ export default function AssignDriverModal({
   isOpen,
   onClose,
   onSave,
+  onUnassign,
   orders,
   employees,
   trucks,
@@ -95,6 +97,11 @@ export default function AssignDriverModal({
     onClose();
   };
 
+  const handleUnassign = () => {
+    onUnassign?.();
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   const countText = orders.length === 1 ? '1 შეკვეთა' : `${orders.length} შეკვეთა`;
@@ -106,8 +113,12 @@ export default function AssignDriverModal({
       onClose={onClose}
       title={modalTitle}
       maxWidthClass="max-w-md"
-      onCancel={onClose}
-      cancelLabel="Cancel"
+      hideCancel={true}
+      leftAction={{
+        label: 'მოხსნა',
+        onClick: handleUnassign,
+        className: 'px-4 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 active:bg-rose-100 font-bold rounded-xl text-xs transition cursor-pointer select-none'
+      }}
       onSave={handleSave}
       saveLabel="Assign"
     >

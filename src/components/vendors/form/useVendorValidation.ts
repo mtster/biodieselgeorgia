@@ -133,6 +133,9 @@ export function useVendorValidation(
     if (!editingVendor.trade_name?.trim()) {
       errs.trade_name = 'სავაჭრო სახელი სავალდებულოა.';
     }
+    if (!editingVendor.company_code?.trim()) {
+      errs.company_code = 'კოდი სავალდებულო და უნიკალურია.';
+    }
     if (!editingVendor.city) {
       errs.city = 'ქალაქი სავალდებულოა.';
     }

@@ -105,6 +105,8 @@ export default function OrdersView({
     setDeleteConfirmId,
     deleteConfirmDocNum,
     setDeleteConfirmDocNum,
+    deleteConfirmVendorName,
+    setDeleteConfirmVendorName,
     formRef,
     startNew,
     startEdit,
@@ -113,7 +115,8 @@ export default function OrdersView({
     handleSaveAndReminder,
     askDelete,
     confirmDelete,
-    handleAssignDriverSave
+    handleAssignDriverSave,
+    handleUnassignDriverSave
   } = useOrdersViewState({
     orders,
     suppliers,
@@ -251,6 +254,7 @@ export default function OrdersView({
         isOpen={showAssignDriverModal}
         onClose={() => setShowAssignDriverModal(false)}
         onSave={handleAssignDriverSave}
+        onUnassign={handleUnassignDriverSave}
         orders={selectedOrders.map(id => (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id)!).filter(Boolean)}
         employees={employees}
         trucks={trucks}
@@ -258,20 +262,16 @@ export default function OrdersView({
         warehouses={warehouses}
       />
 
-      {/* SYSTEM CONFIRMATION DELETE MODAL */}
-      <ConfirmDeleteModal
+      {/* SINGLE ORDER DELETE MODAL (NEW DESIGN) */}
+      <OrderBulkDeleteModal
         isOpen={!!deleteConfirmId}
         onClose={() => {
           setDeleteConfirmId(null);
           setDeleteConfirmDocNum(null);
+          setDeleteConfirmVendorName(null);
         }}
         onConfirm={confirmDelete}
-        title={t("Order Dispatch Soft Deletion")}
-        message={
-          <span>
-            {t("Are you sure you want to completely cancel and soft delete high-priority order dispatch")} <strong>"{deleteConfirmDocNum}"</strong>? {t("They will hide from the UI immediately.")}
-          </span>
-        }
+        vendorName={deleteConfirmVendorName || deleteConfirmDocNum || ''}
       />
 
       {/* BULK DELETE CONFIRMATION MODAL */}

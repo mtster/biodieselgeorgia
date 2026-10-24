@@ -243,6 +243,273 @@ export async function deleteOrder(id: string, docNum: string, loggerName: string
   return true;
 }
 
+export interface BatchAssignCrewParams {
+  orderIds: string[];
+  driverId?: string;
+  companionId?: string;
+  truckPlate?: string;
+  vehicleId?: string;
+  loggerName: string;
+}
+
+/**
+ * Batches crew & vehicle assignment into a single database update query.
+ * Eliminates sequential N-round-trip writes, repeated vehicle updates, and refetch cascades.
+ */
+export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Promise<void> {
+  const { orderIds, driverId, companionId, truckPlate, vehicleId, loggerName } = params;
+  if (!orderIds || orderIds.length === 0) return;
+
+  const cleanDriverId = isValidUuid(driverId) ? cleanUserUuid(driverId) : null;
+  const cleanCompanionId = isValidUuid(companionId) ? cleanUserUuid(companionId) : null;
+  let resolvedVehicleId = isValidUuid(vehicleId) ? vehicleId : null;
+  const cleanPlate = (truckPlate || '').trim().toUpperCase();
+
+  // If vehicleId not provided or not valid UUID, attempt resolution from local cache or Supabase
+  if (!resolvedVehicleId && (cleanPlate || vehicleId)) {
+    const vList = getLocal<any[]>(KEY_VEHICLES, []);
+    const matched = vList.find(v => (v.plate_number && v.plate_number.toUpperCase() === cleanPlate) || v.id === vehicleId);
+    if (matched && isValidUuid(matched.id)) {
+      resolvedVehicleId = matched.id;
+    } else if (isSupabaseConfigured && supabase && cleanPlate) {
+      try {
+        const { data: vRow } = await supabase
+          .from('vehicles')
+          .select('id, plate_number')
+          .eq('plate_number', cleanPlate)
+          .maybeSingle();
+        if (vRow && isValidUuid(vRow.id)) {
+          resolvedVehicleId = vRow.id;
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 1. Single batch update to Supabase for all selected orders
+  // Note: 'orders' table has 'vehicle_id', not 'truck_plate'
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error: batchErr } = await supabase
+        .from('orders')
+        .update({
+          driver_id: cleanDriverId,
+          companion_id: cleanCompanionId,
+          vehicle_id: resolvedVehicleId,
+          status: 'driver_assigned'
+        })
+        .in('id', orderIds);
+
+      if (batchErr) {
+        console.error('Supabase batchAssignCrewToOrders error:', batchErr);
+        throw batchErr;
+      }
+
+      // 2. Synchronize vehicle record once (not N times)
+      if (resolvedVehicleId) {
+        await supabase
+          .from('vehicles')
+          .update({
+            driver_id: cleanDriverId,
+            companion_id: cleanCompanionId
+          })
+          .eq('id', resolvedVehicleId);
+      } else if (cleanPlate) {
+        await supabase
+          .from('vehicles')
+          .update({
+            driver_id: cleanDriverId,
+            companion_id: cleanCompanionId
+          })
+          .eq('plate_number', cleanPlate);
+      }
+    } catch (e) {
+      console.error('Batch assign crew failed in Supabase:', e);
+      throw e;
+    }
+  }
+
+  // 3. Atomically update local storage orders
+  const idSet = new Set(orderIds);
+  const localOrders = getLocal<Order[]>(KEY_ORDERS, []);
+  const updatedOrders = localOrders.map(o => {
+    if (idSet.has(o.id)) {
+      return {
+        ...o,
+        driver_id: driverId || undefined,
+        companion_id: companionId || undefined,
+        vehicle_id: resolvedVehicleId || o.vehicle_id,
+        truck_plate: cleanPlate || undefined,
+        status: 'driver_assigned' as const
+      };
+    }
+    return o;
+  });
+  setLocal(KEY_ORDERS, updatedOrders);
+
+  // 4. Update local storage vehicle
+  if (resolvedVehicleId || cleanPlate) {
+    const vList = getLocal<any[]>(KEY_VEHICLES, []);
+    const vIdx = vList.findIndex(t => 
+      (resolvedVehicleId && t.id === resolvedVehicleId) || 
+      (cleanPlate && (t.plate_number === cleanPlate || t.id === cleanPlate))
+    );
+    if (vIdx >= 0) {
+      vList[vIdx] = {
+        ...vList[vIdx],
+        driver_id: driverId || null,
+        companion_id: companionId || null
+      };
+      setLocal(KEY_VEHICLES, vList);
+    }
+  }
+
+  // 5. Track single change history record for the entire batch
+  await trackChange(
+    loggerName,
+    'Batch crew assignment',
+    'Assigned vehicle/driver',
+    '',
+    `${orderIds.length} orders -> ${cleanPlate || 'vehicle'}`
+  );
+
+  // 6. Clear cache and send exactly ONE notifyDbChange
+  appCache.clear();
+  notifyDbChange('orders', 'UPDATE');
+}
+
+/**
+ * Batches order deletions into a single database update query.
+ */
+export async function batchDeleteOrders(orderIds: string[], docNums: string[], loggerName: string): Promise<boolean> {
+  if (!orderIds || orderIds.length === 0) return true;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ is_deleted: true })
+        .in('id', orderIds);
+      if (error) {
+        console.error('Supabase batchDeleteOrders error:', error);
+        throw error;
+      }
+    } catch (e) {
+      console.error('Supabase batchDeleteOrders failed', e);
+      throw e;
+    }
+  }
+
+  const idSet = new Set(orderIds);
+  const list = getLocal<Order[]>(KEY_ORDERS, []);
+  setLocal(KEY_ORDERS, list.map(item => idSet.has(item.id) ? { ...item, is_deleted: true } : item));
+
+  await trackChange(
+    loggerName,
+    'Batch orders deleted',
+    'Document #',
+    docNums.join(', '),
+    ''
+  );
+
+  appCache.clear();
+  notifyDbChange('orders', 'DELETE');
+  return true;
+}
+
+/**
+ * Unassigns driver, assistant, and vehicle from selected orders.
+ * If an order's status was 'driver_assigned', resets it to 'registered'.
+ * Otherwise preserves its current status.
+ */
+export async function batchUnassignCrewFromOrders(params: {
+  orderIds: string[];
+  orders?: Order[];
+  loggerName: string;
+}): Promise<void> {
+  const { orderIds, orders: providedOrders, loggerName } = params;
+  if (!orderIds || orderIds.length === 0) return;
+
+  const localOrders = getLocal<Order[]>(KEY_ORDERS, []);
+  const allOrders = providedOrders && providedOrders.length > 0 ? providedOrders : localOrders;
+  const idSet = new Set(orderIds);
+
+  const targetOrders = allOrders.filter(o => idSet.has(o.id));
+  const driverAssignedIds = targetOrders.filter(o => o.status === 'driver_assigned').map(o => o.id);
+  const otherStatusIds = targetOrders.filter(o => o.status !== 'driver_assigned').map(o => o.id);
+
+  orderIds.forEach(id => {
+    if (!driverAssignedIds.includes(id) && !otherStatusIds.includes(id)) {
+      const match = localOrders.find(o => o.id === id);
+      if (match?.status === 'driver_assigned') {
+        driverAssignedIds.push(id);
+      } else {
+        otherStatusIds.push(id);
+      }
+    }
+  });
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      if (driverAssignedIds.length > 0) {
+        const { error: err1 } = await supabase
+          .from('orders')
+          .update({
+            driver_id: null,
+            companion_id: null,
+            vehicle_id: null,
+            status: 'registered'
+          })
+          .in('id', driverAssignedIds);
+        if (err1) throw err1;
+      }
+
+      if (otherStatusIds.length > 0) {
+        const { error: err2 } = await supabase
+          .from('orders')
+          .update({
+            driver_id: null,
+            companion_id: null,
+            vehicle_id: null
+          })
+          .in('id', otherStatusIds);
+        if (err2) throw err2;
+      }
+    } catch (e) {
+      console.error('Supabase batchUnassignCrewFromOrders error:', e);
+      throw e;
+    }
+  }
+
+  // Atomically update local storage
+  const driverAssignedSet = new Set(driverAssignedIds);
+  const updatedOrders = localOrders.map(o => {
+    if (idSet.has(o.id)) {
+      const newStatus = driverAssignedSet.has(o.id) ? ('registered' as const) : o.status;
+      return {
+        ...o,
+        driver_id: undefined,
+        companion_id: undefined,
+        vehicle_id: undefined,
+        truck_plate: undefined,
+        status: newStatus
+      };
+    }
+    return o;
+  });
+  setLocal(KEY_ORDERS, updatedOrders);
+
+  await trackChange(
+    loggerName,
+    'Crew unassigned',
+    'Crew removed',
+    '',
+    `${orderIds.length} orders unassigned`
+  );
+
+  appCache.clear();
+  notifyDbChange('orders', 'UPDATE');
+}
+
 export async function updateOrdersRouteRanks(updates: { id: string; route_rank: string }[]): Promise<void> {
   if (!updates || updates.length === 0) return;
 

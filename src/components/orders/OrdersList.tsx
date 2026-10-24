@@ -18,7 +18,7 @@ interface Props {
   cities?: City[];
   districts?: District[];
   startEdit: (ord: Order, readOnly?: boolean) => void;
-  askDelete: (id: string, docNum: string) => void;
+  askDelete: (id: string, docNum: string, vendorName?: string) => void;
   selectedOrders?: string[];
   setSelectedOrders?: React.Dispatch<React.SetStateAction<string[]>>;
   managedCols: ManagedColumn[];

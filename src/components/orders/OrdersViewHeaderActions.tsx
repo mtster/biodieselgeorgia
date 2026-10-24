@@ -14,7 +14,7 @@ interface OrdersViewHeaderActionsProps {
   smsLogsCount: number;
   handleSaveAndReminder: () => void;
   formRef: React.RefObject<any>;
-  askDelete: (id: string, docNum: string) => void;
+  askDelete: (id: string, docNum: string, vendorName?: string) => void;
   loadSMSLogs: () => void;
   setShowSMSLogs: (b: boolean) => void;
   setShowBulkDeleteConfirm: (b: boolean) => void;
@@ -47,7 +47,7 @@ export const OrdersViewHeaderActions: React.FC<OrdersViewHeaderActionsProps> = (
         {canDelete && editingOrder.id && (
           <DeleteButton
             onClick={() => {
-              askDelete(editingOrder.id, editingOrder.doc_number);
+              askDelete(editingOrder.id, editingOrder.doc_number, editingOrder.vendor_name);
             }}
           />
         )}

@@ -37,7 +37,7 @@ export function useVendorsViewState({
     setSearchTerm,
     debouncedSearchTerm,
     triggerImmediateSearch
-  } = useDebouncedSearch('', 350);
+  } = useDebouncedSearch('', 850);
 
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
