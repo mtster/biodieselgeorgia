@@ -75,21 +75,21 @@ export default function FormModal({
 
         {/* Modal Bottom row without border-t */}
         <div className="pt-4 mt-4 flex items-center justify-between w-full gap-3 shrink-0 select-none">
-          <div className="flex items-center">
-            {onDelete && (
+          {onDelete && (
+            <div className="flex items-center">
               <DeleteButton
                 onClick={onDelete}
                 label={t(deleteLabel)}
               />
-            )}
-          </div>
+            </div>
+          )}
 
           {leftAction && (
             <div className={`flex items-center ${!onDelete ? 'mr-auto' : ''}`}>
               <button
                 type="button"
                 onClick={leftAction.onClick}
-                className={leftAction.className || "px-4 py-2 border border-emerald-700 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 font-bold rounded-lg text-xs transition cursor-pointer select-none"}
+                className={leftAction.className || "px-4 py-2 border border-emerald-700 text-emerald-800 hover:bg-emerald-50 active:bg-emerald-100 font-bold rounded-xl text-xs transition cursor-pointer select-none"}
               >
                 {t(leftAction.label)}
               </button>
@@ -101,7 +101,7 @@ export default function FormModal({
               <button
                 type="button"
                 onClick={onCancel || onClose}
-                className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-lg text-xs text-gray-700 transition cursor-pointer select-none"
+                className="px-4 py-2 border border-gray-200 hover:bg-slate-50 font-bold rounded-xl text-xs text-gray-700 transition cursor-pointer select-none"
               >
                 {t(cancelLabel)}
               </button>
@@ -110,7 +110,7 @@ export default function FormModal({
               <button
                 type="button"
                 onClick={secondaryAction.onClick}
-                className={secondaryAction.className || "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition cursor-pointer select-none"}
+                className={secondaryAction.className || "px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition cursor-pointer select-none"}
               >
                 {t(secondaryAction.label)}
               </button>
@@ -120,7 +120,7 @@ export default function FormModal({
                 type="button"
                 onClick={onSave}
                 disabled={isSaving || saveDisabled}
-                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-lg text-xs transition cursor-pointer select-none flex items-center gap-1.5"
+                className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-xl text-xs transition cursor-pointer select-none flex items-center gap-1.5"
               >
                 {isSaving && <Loader2 size={13} className="animate-spin shrink-0" />}
                 <span>{t(saveLabel)}</span>

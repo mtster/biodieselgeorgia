@@ -316,6 +316,29 @@ export function useOrdersViewState({
     }
   };
 
+  const handleUnassignDriverSave = async () => {
+    if (!selectedOrders || selectedOrders.length === 0) return;
+
+    try {
+      const selectedOrderObjs = selectedOrders.map(id =>
+        (displayOrders || []).find(o => o.id === id) || orders.find(o => o.id === id)!
+      ).filter(Boolean);
+
+      await batchUnassignCrewFromOrders({
+        orderIds: selectedOrders,
+        orders: selectedOrderObjs,
+        loggerName: currentEmployee?.name || 'User'
+      });
+      queryClient.invalidateQueries({ queryKey: ['paginated_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['active_orders_count'] });
+    } catch (err) {
+      console.error('Failed to unassign crew from orders:', err);
+    } finally {
+      setSelectedOrders([]);
+      setShowAssignDriverModal(false);
+    }
+  };
+
   return {
     canAdd,
     canModify,

@@ -406,6 +406,8 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Confirm Bulk Communications Deleted": "კომუნიკაციების ჯგუფური წაშლის დადასტურება",
   "Confirm Bulk Suppliers Deleted": "მომწოდებლების ჯგუფური წაშლის დადასტურება",
   "Confirm Bulk Deletion": "მომწოდებლების ჯგუფური წაშლის დადასტურება",
+  "Confirm Bulk Orders Deleted": "შერჩეული შეკვეთების წაშლა",
+  "Delete Order": "შეკვეთის წაშლა",
   "No, Keep Them": "არა, დატოვება",
   "Please enter a comment": "გთხოვთ შეიყვანოთ კომენტარი",
   "Supplier is required": "მომწოდებელი სავალდებულოა",

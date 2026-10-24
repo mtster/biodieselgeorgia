@@ -32,9 +32,9 @@ export function OrderBulkDeleteModal({
           <p className="text-xs text-gray-500 font-sans leading-relaxed">
             {vendorName ? (
               <span>
-                {t("Are you sure you want to delete")}{' '}
+                დარწმუნებული ხართ, რომ გსურთ{' '}
                 <strong className="font-semibold text-gray-800">"{vendorName}"</strong>
-                -ს შეკვეთა? {t("This action cannot be undone.")}
+                -ს შეკვეთის წაშლა? {t("This action cannot be undone.")}
               </span>
             ) : (
               <span>
