@@ -206,7 +206,9 @@ export function useAuth() {
             setCurrentUser(null);
           }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          await syncUserFromSession(session);
+          if (!currentUserRef.current) {
+            await syncUserFromSession(session);
+          }
         }
       });
       return () => {

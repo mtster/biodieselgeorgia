@@ -97,33 +97,11 @@ export default function MobileLogisticsView({
       }
     });
 
-    // Auto-refresh when driver unlocks device or switches back to tab
-    const handleVisibility = async () => {
-      if (document.visibilityState === 'visible' && Date.now() > suppressRealtimeUntilRef.current) {
-        try {
-          const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
-            currentUser,
-            trucks,
-            employees,
-            localSuppliers.length > 0 ? localSuppliers : suppliers
-          );
-          if (freshOrders && freshOrders.length > 0) {
-            setLocalOrders(freshOrders);
-          }
-          if (freshSuppliers && freshSuppliers.length > 0) {
-            setLocalSuppliers(freshSuppliers);
-          }
-        } catch {}
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
     return () => {
       unsub();
       if (realtimeDebounceTimerRef.current) {
         clearTimeout(realtimeDebounceTimerRef.current);
       }
-      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [currentUser, trucks, employees, suppliers]);
 
@@ -225,7 +203,6 @@ export default function MobileLogisticsView({
     const currentActiveIds = new Set(activeOrders.map(o => o.id));
 
     // 1. Prune known IDs that are no longer active for this vehicle.
-    // This allows re-notifying if an order is unassigned and then re-assigned!
     for (const id of Array.from(knownOrderIdsRef.current)) {
       if (!currentActiveIds.has(id)) {
         knownOrderIdsRef.current.delete(id);
@@ -305,7 +282,7 @@ export default function MobileLogisticsView({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative" id="mobile-logistics-portal">
-      {/* Sleek Modern Whitish Incoming Order Notification Banner (Persists until swiped up or tapped, no extra text) */}
+      {/* Sleek Modern Whitish Incoming Order Notification Banner */}
       <AnimatePresence>
         {activeBanner && (
           <motion.div
@@ -466,7 +443,6 @@ export default function MobileLogisticsView({
             isOpen={showSequenceModal}
             onClose={() => {
               setShowSequenceModal(false);
-              // Leaving the reordering modal confirms driver has acknowledged and ordered the new stops
               setUnacknowledgedOrders([]);
               setActiveBanner(null);
             }}
@@ -478,7 +454,6 @@ export default function MobileLogisticsView({
             dateStr={todayStr}
             newOrderIds={unacknowledgedOrders.map(o => o.id)}
             onOrdersReordered={(reorderedItems) => {
-              // Suppress realtime query echoes for 3.5 seconds
               suppressRealtimeUntilRef.current = Date.now() + 3500;
               const reorderedMap = new Map(reorderedItems.map(i => [i.id, i]));
               setLocalOrders(prev => {

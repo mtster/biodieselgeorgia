@@ -145,11 +145,6 @@ export const OrderSequenceItem: React.FC<OrderSequenceItemProps> = ({
                 ახალი
               </span>
             )}
-            {(isTouchActive || isDragging) && (
-              <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded font-extrabold flex-shrink-0">
-                არჩეულია
-              </span>
-            )}
           </div>
           <div className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
             <MapPin size={11} className="text-slate-400 flex-shrink-0" />
