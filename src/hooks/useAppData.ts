@@ -132,6 +132,7 @@ export function useAppData() {
     handleDeleteWarehouse,
     handleRevertChange,
     handleLogOut,
+    isLoadingAuth,
     errorModal,
     setErrorModal
   };

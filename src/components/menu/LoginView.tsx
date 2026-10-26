@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/db';
 import { t } from '../../utils/lang';
 import { FormInput } from '../FormInput';
 import { decodeProfile } from '../../services/userService';
+import { saveAuthCredentials } from '../../lib/persistentAuth';
 
 interface Props {
   users: User[];
@@ -73,18 +74,25 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
     try {
       if (isSupabaseConfigured && supabase) {
         let authRes: any = null;
+        let successfulEmail = '';
         for (const candidateEmail of candidates) {
           authRes = await supabase.auth.signInWithPassword({
             email: candidateEmail,
             password: password,
           });
-          if (!authRes.error) break;
+          if (!authRes.error) {
+            successfulEmail = candidateEmail;
+            break;
+          }
           if (password.trim() !== password) {
             authRes = await supabase.auth.signInWithPassword({
               email: candidateEmail,
               password: password.trim(),
             });
-            if (!authRes.error) break;
+            if (!authRes.error) {
+              successfulEmail = candidateEmail;
+              break;
+            }
           }
         }
 
@@ -97,6 +105,11 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
         }
 
         if (data?.user) {
+          // Persist login credentials in vault for durable background refresh
+          if (successfulEmail) {
+            await saveAuthCredentials(successfulEmail, password);
+          }
+
           const { data: directUser } = await supabase
             .from('profiles')
             .select('*')
@@ -150,6 +163,7 @@ export default function LoginView({ users, onLoginSuccess }: Props) {
           if (matched.is_blocked || matched.is_deleted) {
             setErrorMsg('სისტემაზე წვდომა არ გაქვთ.');
           } else {
+            await saveAuthCredentials(matched.email, password);
             onLoginSuccess(matched);
           }
         } else {

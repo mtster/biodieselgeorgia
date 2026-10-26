@@ -183,9 +183,9 @@ BEGIN
     ORDER BY is_default DESC, sort_order DESC
     LIMIT 1;
 
-    -- 4. Generate random document number and unique order ID
+    -- 4. Generate random document number and standard UUID
     v_new_doc := 'DOC-' || (FLOOR(100000 + random() * 900000)::INT)::TEXT;
-    v_new_order_id := 'ord_' || SUBSTR(MD5(random()::TEXT), 1, 10) || '_' || EXTRACT(EPOCH FROM NOW())::BIGINT::TEXT;
+    v_new_order_id := gen_random_uuid()::TEXT;
 
     -- 5. Insert scheduled order (created_by = NULL and operator_id = NULL)
     INSERT INTO public.orders (

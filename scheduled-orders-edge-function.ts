@@ -214,7 +214,7 @@ serve(async (req) => {
     for (let i = 0; i < eligibleVendors.length; i += BATCH_SIZE) {
       const batchVendors = eligibleVendors.slice(i, i + BATCH_SIZE)
       const batchOrders = batchVendors.map(vendor => {
-        const orderId = 'ord_' + crypto.randomUUID().replace(/-/g, '').substring(0, 12)
+        const orderId = crypto.randomUUID()
         const randomSuffix = Math.floor(100000 + Math.random() * 900000)
         const docNumber = `AUTO-${tomorrowDate.toISOString().split('T')[0].replace(/-/g, '')}-${randomSuffix}`
         

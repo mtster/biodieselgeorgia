@@ -29,5 +29,6 @@ export {
   batchDeleteOrders,
   updateOrdersRouteRanks,
   createDatabaseOrderColumn,
+  checkDuplicateOrder,
   type BatchAssignCrewParams
 } from './orders/orderMutations';

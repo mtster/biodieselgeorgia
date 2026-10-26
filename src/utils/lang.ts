@@ -288,6 +288,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Director": "დირექტორი",
   "director": "დირექტორი",
   "manager": "მენეჯერი",
+  "Manage": "მართვა",
   "purchasing_head": "შესყიდვების ჯგუფის ხელმძღვანელი",
   "Object Number": "ობიექტის ნომერი",
   "object_number": "ობიექტის ნომერი",

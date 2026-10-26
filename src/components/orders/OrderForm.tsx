@@ -5,6 +5,8 @@ import SupplierCommentsSidePanel from './SupplierCommentsSidePanel';
 import OrderCommunicationsSection from './OrderCommunicationsSection';
 import { t } from '../../utils/lang';
 import { getVendorById } from '../../lib/db';
+import { checkDuplicateOrder } from '../../services/orderService';
+import ErrorModal from '../ErrorModal';
 
 interface Props {
   editingOrder: Order;
@@ -44,6 +46,11 @@ export default function OrderForm({
   onDeleteCommunication
 }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title: string; errorMsg: string }>({
+    isOpen: false,
+    title: '',
+    errorMsg: ''
+  });
 
   // Search state for autocomplete select
   const [vendorSearch, setVendorSearch] = useState('');
@@ -175,6 +182,23 @@ export default function OrderForm({
 
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
+      return;
+    }
+
+    // Check if an active (non-deleted) order for this vendor for this date already exists
+    const isDuplicate = await checkDuplicateOrder(
+      editingOrder.vendor_id,
+      editingOrder.order_date,
+      editingOrder.id || undefined
+    );
+
+    if (isDuplicate) {
+      onSavingStateChange?.(false);
+      setErrorModal({
+        isOpen: true,
+        title: 'შეკვეთა უკვე არსებობს',
+        errorMsg: 'აღნიშნული მომწოდებლისთვის ამ თარიღში შეკვეთა უკვე არსებობს.'
+      });
       return;
     }
 
@@ -333,6 +357,13 @@ export default function OrderForm({
           />
         </div>
       )}
+
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
+        title={errorModal.title}
+        errorMsg={errorModal.errorMsg}
+      />
     </div>
   );
 }

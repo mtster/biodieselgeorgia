@@ -557,3 +557,58 @@ export async function updateOrdersRouteRanks(updates: { id: string; route_rank: 
 
   notifyDbChange('orders', 'UPDATE');
 }
+
+/**
+ * Checks whether an active (non-deleted) order already exists for a vendor on the specified calendar date.
+ */
+export async function checkDuplicateOrder(
+  vendorId: string,
+  orderDate: string,
+  excludeOrderId?: string
+): Promise<boolean> {
+  if (!vendorId || !orderDate) return false;
+
+  const targetDateStr = orderDate.includes('T') ? orderDate.split('T')[0] : orderDate.substring(0, 10);
+
+  // 1. Check Supabase
+  if (isSupabaseConfigured && supabase) {
+    try {
+      let q = supabase
+        .from('orders')
+        .select('id, order_date, is_deleted')
+        .eq('vendor_id', vendorId)
+        .eq('is_deleted', false);
+
+      if (excludeOrderId) {
+        q = q.neq('id', excludeOrderId);
+      }
+
+      const { data, error } = await q;
+      if (!error && data && data.length > 0) {
+        const hasDuplicate = data.some(row => {
+          const rowDateStr = row.order_date
+            ? (row.order_date.includes('T') ? row.order_date.split('T')[0] : row.order_date.substring(0, 10))
+            : '';
+          return rowDateStr === targetDateStr;
+        });
+        if (hasDuplicate) return true;
+      }
+    } catch (e) {
+      console.warn('Supabase checkDuplicateOrder warning:', e);
+    }
+  }
+
+  // 2. Local storage cache check
+  const localOrders = getLocal<Order[]>(KEY_ORDERS, []);
+  const localMatch = localOrders.some(o => {
+    if (o.is_deleted === true) return false;
+    if (excludeOrderId && o.id === excludeOrderId) return false;
+    if (o.vendor_id !== vendorId) return false;
+    const oDateStr = o.order_date
+      ? (o.order_date.includes('T') ? o.order_date.split('T')[0] : o.order_date.substring(0, 10))
+      : '';
+    return oDateStr === targetDateStr;
+  });
+
+  return localMatch;
+}

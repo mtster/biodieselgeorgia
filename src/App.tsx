@@ -78,6 +78,7 @@ export default function App() {
     handleSaveWarehouse,
     handleDeleteWarehouse,
     handleLogOut,
+    isLoadingAuth,
     errorModal,
     setErrorModal
   } = useAppData();
@@ -107,7 +108,7 @@ export default function App() {
     }
   }, [currentUser, activeTab, setActiveTab]);
 
-  if (isLoading) {
+  if (isLoading || (isLoadingAuth && !currentUser)) {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center space-y-3.5">
         <div className="w-10 h-10 border-4 border-emerald-800 border-t-transparent rounded-full animate-spin"></div>

@@ -30,7 +30,8 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
   const [cities, setCities] = useState<City[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [directions, setDirections] = useState<Direction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !!currentUser);
+
 
   const isRefreshingRef = useRef(false);
   const lastLoadedUserIdRef = useRef<string | null>(null);
@@ -242,14 +243,21 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
       };
     } else {
       lastLoadedUserIdRef.current = null;
+      setIsLoading(false);
     }
   }, [currentUser?.id]);
 
   useEffect(() => {
-    if (!isLoadingAuth && !currentUser) {
+    if (!currentUser) {
       setIsLoading(false);
     }
-  }, [isLoadingAuth, currentUser]);
+    // Failsafe timeout to prevent infinite data loading spinner
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [currentUser]);
+
 
   return {
     users,

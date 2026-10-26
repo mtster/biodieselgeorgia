@@ -4,12 +4,29 @@ import { t } from '../utils/lang';
 import { isSupabaseConfigured, supabase } from '../lib/db';
 import { defaultPermissions } from '../components/users/UserForm';
 import { decodeProfile } from '../services/userService';
+import {
+  getCachedUser,
+  saveCachedUser,
+  isExplicitlyLoggedOut,
+  getAuthCredentials,
+  clearPersistentAuth,
+  requestPersistentStorage,
+} from '../lib/persistentAuth';
 
 export function useAuth() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const currentUserRef = useRef<User | null>(null);
+  // Initialize with cached user so Home Screen PWA loads instantly without login screen flash
+  const [currentUser, setCurrentUserState] = useState<User | null>(() => getCachedUser());
+  const [isLoadingAuth, setIsLoadingAuth] = useState(() => !getCachedUser());
+  const currentUserRef = useRef<User | null>(currentUser);
   const syncPromiseRef = useRef<Promise<void> | null>(null);
+
+  const setCurrentUser = (user: User | null) => {
+    currentUserRef.current = user;
+    setCurrentUserState(user);
+    if (user) {
+      saveCachedUser(user);
+    }
+  };
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -17,7 +34,6 @@ export function useAuth() {
 
   const syncUserFromSession = async (session: any) => {
     if (!session?.user || !isSupabaseConfigured || !supabase) return;
-    if (currentUserRef.current?.id === session.user.id && currentUserRef.current?.email === session.user.email) return;
 
     if (syncPromiseRef.current) {
       return syncPromiseRef.current;
@@ -34,6 +50,7 @@ export function useAuth() {
         if (dbUser) {
           if (dbUser.is_deleted || dbUser.is_blocked) {
             console.warn('Access denied: User is blocked or deleted.');
+            await clearPersistentAuth();
             await supabase.auth.signOut();
             setCurrentUser(null);
           } else {
@@ -81,26 +98,101 @@ export function useAuth() {
     return syncPromiseRef.current;
   };
 
-  // Read Supabase auth session on boot
+  // Read and verify auth session on boot with persistent fallback & silent renewal
   useEffect(() => {
+    let isMounted = true;
+
     const initAuth = async () => {
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            await syncUserFromSession(session);
-          } else {
-            setIsLoadingAuth(false);
-          }
-        } catch (e) {
-          console.error('Initial load of active session failed:', e);
+      // Failsafe timeout: guarantee authentication loading completes within 2.5s even if network is slow
+      const failsafeTimer = setTimeout(() => {
+        if (isMounted) {
           setIsLoadingAuth(false);
         }
-      } else {
-        setIsLoadingAuth(false);
+      }, 2500);
+
+      try {
+        // 1. Request persistent browser storage to prevent iOS/Android storage eviction
+        requestPersistentStorage().catch(() => {});
+
+        if (!isSupabaseConfigured || !supabase) {
+          if (isMounted) setIsLoadingAuth(false);
+          return;
+        }
+
+        // If user explicitly signed out, do not auto-login
+        if (isExplicitlyLoggedOut()) {
+          if (isMounted) {
+            setCurrentUser(null);
+            setIsLoadingAuth(false);
+          }
+          return;
+        }
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          await syncUserFromSession(session);
+        } else {
+          // If no session found or refresh token expired, check if we are offline
+          const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+          if (isOffline) {
+            // Keep existing cached user session while offline
+            console.info('App opened offline - retaining persistent user session');
+            if (isMounted) setIsLoadingAuth(false);
+            return;
+          }
+
+          // If online and session is missing/expired, attempt silent background renewal via vault
+          const creds = await getAuthCredentials();
+          if (creds && creds.email && creds.pass) {
+            try {
+              const { data: reauthData, error: reauthErr } = await supabase.auth.signInWithPassword({
+                email: creds.email,
+                password: creds.pass,
+              });
+              if (reauthData?.session && !reauthErr) {
+                await syncUserFromSession(reauthData.session);
+                return;
+              }
+            } catch (reErr) {
+              console.warn('Silent credential renewal attempt failed:', reErr);
+            }
+          }
+
+          // If no credentials and no valid session, reset if no cached user exists
+          const cached = getCachedUser();
+          if (!cached && isMounted) {
+            setCurrentUser(null);
+          }
+          if (isMounted) setIsLoadingAuth(false);
+        }
+      } catch (e) {
+        console.error('Initial load of active session failed:', e);
+        // On network error or wake lag, preserve cached session
+        const cached = getCachedUser();
+        if (cached && isMounted) {
+          setCurrentUser(cached);
+        }
+        if (isMounted) setIsLoadingAuth(false);
+      } finally {
+        clearTimeout(failsafeTimer);
       }
     };
+
     initAuth();
+
+    // Re-verify session when device comes back online (e.g., returning from sleep/tunnel)
+    const handleOnline = () => {
+      if (!isExplicitlyLoggedOut()) {
+        initAuth();
+      }
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('online', handleOnline);
+    };
   }, []);
 
   // Sync session changes from Supabase Live Subscriptions
@@ -110,7 +202,11 @@ export function useAuth() {
         if (event === 'SIGNED_IN' && session?.user) {
           await syncUserFromSession(session);
         } else if (event === 'SIGNED_OUT') {
-          setCurrentUser(null);
+          if (isExplicitlyLoggedOut()) {
+            setCurrentUser(null);
+          }
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          await syncUserFromSession(session);
         }
       });
       return () => {
@@ -134,11 +230,13 @@ export function useAuth() {
         if (dbProfile) {
           if (dbProfile.is_blocked || dbProfile.is_deleted) {
             console.warn('User access revoked in real-time. Signing out.');
+            await clearPersistentAuth();
             await supabase.auth.signOut();
             setCurrentUser(null);
           } else {
             await supabase.auth.refreshSession();
-            setCurrentUser(decodeProfile(dbProfile));
+            const updated = decodeProfile(dbProfile);
+            setCurrentUser(updated);
           }
         }
       } catch (err) {
@@ -185,6 +283,8 @@ export function useAuth() {
   }, [currentUser?.id]);
 
   const handleLogOut = async () => {
+    // Explicit user sign-out: clear all durable storage and credentials
+    await clearPersistentAuth();
     if (isSupabaseConfigured && supabase) {
       try {
         await supabase.auth.signOut();
@@ -202,3 +302,4 @@ export function useAuth() {
     handleLogOut
   };
 }
+
