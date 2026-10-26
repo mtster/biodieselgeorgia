@@ -317,7 +317,8 @@ export async function getDriverOrdersAndVendors(
       let query = supabase
         .from('orders')
         .select('*')
-        .eq('is_deleted', false);
+        .eq('is_deleted', false)
+        .eq('order_date', todayStr);
 
       const orParts: string[] = [];
       userTrucks.forEach(t => {
@@ -343,7 +344,7 @@ export async function getDriverOrdersAndVendors(
 
       const { data: rawOrders, error } = await query
         .order('order_date', { ascending: false })
-        .limit(500);
+        .limit(60);
 
       if (!error && rawOrders) {
         driverOrders = (rawOrders as any[])

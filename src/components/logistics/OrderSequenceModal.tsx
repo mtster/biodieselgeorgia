@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../../lib/supabase';
-import { rebalanceRanks, sortOrdersByRouteRank } from '../../utils/lexorank';
+import { suppressRealtimeForTable } from '../../lib/realtime';
+import { rebalanceRanks, sortOrdersByRouteRank, getRankBetween } from '../../utils/lexorank';
 import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
 import { Order, Vendor } from '../../types';
 import { OrderSequenceModalProps, VendorDisplayInfo } from './types';
@@ -30,10 +31,22 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [isOptimized, setIsOptimized] = useState<boolean>(false);
 
+  // Map of original route_rank per order id when opening the modal
+  const originalRanksRef = useRef<Map<string, string>>(new Map());
+
   // Initialize items ONLY when modal opens to prevent resetting state on outside re-renders
   useEffect(() => {
     if (isOpen) {
-      setItems(sortOrdersByRouteRank(orders || []));
+      const sorted = sortOrdersByRouteRank(orders || []);
+      const hasMissingRanks = sorted.some(o => !o.route_rank || !o.route_rank.trim());
+      let initialList = sorted;
+      if (hasMissingRanks) {
+        initialList = rebalanceRanks(sorted);
+      }
+
+      // Record baseline ranks so we can isolate and update ONLY the rows that actually change
+      originalRanksRef.current = new Map(initialList.map(o => [o.id, o.route_rank || '']));
+      setItems(initialList);
       setIsDirty(false);
       setIsOptimized(false);
     }
@@ -54,32 +67,44 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   };
 
   /**
-   * Local swap of adjacent items - triggers immediately in state
+   * Local move from drag & drop or arrows - assigns LexoRank ONLY to the moved item (O(1))
    */
-  const handleSwap = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= items.length || fromIndex === toIndex) return;
+  const handleMove = (fromIndex: number, toInsertionIndex: number) => {
+    if (fromIndex === toInsertionIndex || fromIndex + 1 === toInsertionIndex) return;
+
     setItems(prevItems => {
       const updated = [...prevItems];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(toIndex, 0, moved);
+      const [movedItem] = updated.splice(fromIndex, 1);
+      const targetIdx = fromIndex < toInsertionIndex ? toInsertionIndex - 1 : toInsertionIndex;
+
+      // Find immediate neighbors in the list without the moved item
+      const prevOrder = targetIdx > 0 ? updated[targetIdx - 1] : null;
+      const nextOrder = targetIdx < updated.length ? updated[targetIdx] : null;
+
+      // Calculate LexoRank strictly between neighbors for the single moved item
+      let newRank = getRankBetween(prevOrder?.route_rank, nextOrder?.route_rank);
+
+      // In case of rank space collision or identical rank, rebalance list
+      if (!newRank || newRank === prevOrder?.route_rank || newRank === nextOrder?.route_rank) {
+        updated.splice(targetIdx, 0, movedItem);
+        return rebalanceRanks(updated);
+      }
+
+      const itemWithNewRank = { ...movedItem, route_rank: newRank };
+      updated.splice(targetIdx, 0, itemWithNewRank);
       return updated;
     });
+
     setIsDirty(true);
   };
 
   /**
-   * Local move from drag & drop - triggers immediately in state
+   * Local swap of adjacent items - delegates to handleMove to ensure single-row LexoRank assignment
    */
-  const handleMove = (fromIndex: number, toInsertionIndex: number) => {
-    if (fromIndex === toInsertionIndex || fromIndex + 1 === toInsertionIndex) return;
-    setItems(prevItems => {
-      const updated = [...prevItems];
-      const [moved] = updated.splice(fromIndex, 1);
-      const targetIdx = fromIndex < toInsertionIndex ? toInsertionIndex - 1 : toInsertionIndex;
-      updated.splice(targetIdx, 0, moved);
-      return updated;
-    });
-    setIsDirty(true);
+  const handleSwap = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= items.length || fromIndex === toIndex) return;
+    const targetInsertionIndex = fromIndex > toIndex ? toIndex : toIndex + 1;
+    handleMove(fromIndex, targetInsertionIndex);
   };
 
   // Modern touch & pointer drag system for mobile devices
@@ -111,9 +136,8 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
           .map(id => idMap.get(id))
           .filter(Boolean) as Order[];
 
-        // Include any order that wasn't in the returned list
         const missing = items.filter(i => !optimizedIds.includes(i.id));
-        const finalOrdered = [...reordered, ...missing];
+        const finalOrdered = rebalanceRanks([...reordered, ...missing]);
 
         setItems(finalOrdered);
         setIsDirty(true);
@@ -127,31 +151,39 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   };
 
   /**
-   * ONLY when user clicks the bottom submission button do we persist LexoRanks to the database
+   * Confirms and persists sequence.
+   * If unchanged: sends ZERO database requests.
+   * If changed: updates ONLY the modified rows (1 row update for 1 order move).
    */
   const handleSaveAndConfirm = async () => {
-    if (items.length === 0) {
+    // If user opened modal and did not change anything, DO NOT SEND ANY DATABASE REQUESTS!
+    if (!isDirty || items.length === 0) {
       onClose();
       return;
     }
 
     setIsSaving(true);
     try {
-      // Rebalance and compute fresh LexoRanks for all items in the list
-      const rebalanced = rebalanceRanks(items);
+      // Suppress realtime table echoes for orders so client does not perform redundant refetches
+      suppressRealtimeForTable('orders', 8000);
 
-      // Perform updates to Supabase orders table
-      const updates = rebalanced.map(order =>
-        supabase
-          .from('orders')
-          .update({ route_rank: order.route_rank })
-          .eq('id', order.id)
+      // Find strictly changed orders to maximize LexoRank benefits (O(1) update for single moves)
+      const changedOrders = items.filter(
+        item => item.route_rank !== originalRanksRef.current.get(item.id)
       );
 
-      await Promise.allSettled(updates);
+      if (changedOrders.length > 0) {
+        const updates = changedOrders.map(order =>
+          supabase
+            .from('orders')
+            .update({ route_rank: order.route_rank })
+            .eq('id', order.id)
+        );
+        await Promise.allSettled(updates);
+      }
 
       if (onOrdersReordered) {
-        onOrdersReordered(rebalanced);
+        onOrdersReordered(items);
       }
       setIsDirty(false);
       onClose();

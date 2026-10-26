@@ -78,12 +78,28 @@ if (typeof window !== 'undefined') {
   });
 }
 
+const realtimeSuppressionUntil: Record<string, number> = {};
+
+export function suppressRealtimeForTable(table: string, durationMs = 6000) {
+  realtimeSuppressionUntil[table.toLowerCase()] = Date.now() + durationMs;
+}
+
+export function isRealtimeSuppressed(table: string): boolean {
+  const until = realtimeSuppressionUntil[table.toLowerCase()];
+  return Boolean(until && Date.now() < until);
+}
+
 export function initRealtimeBroadcast(queryClient: QueryClient) {
   globalQueryClient = queryClient;
   if (!isSupabaseConfigured || !supabase) return;
 
   const handleTableUpdate = (table: string, action?: string, recordId?: string, sourceClientId?: string) => {
     if (!table) return;
+
+    // Check if table updates are temporarily suppressed for local batch/reordering operations
+    if (isRealtimeSuppressed(table)) {
+      return;
+    }
 
     // Ignore self-echoes from our own local notifications
     if (sourceClientId && sourceClientId === localClientId) {

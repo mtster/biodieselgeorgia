@@ -10,10 +10,9 @@ import { OrderSequenceModal } from '../logistics/OrderSequenceModal';
 import { sortOrdersByRouteRank } from '../../utils/lexorank';
 import { 
   cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser, 
-  checkOrderPickupDateIsToday, isOrderAssignedToVehicle, getDriverOrdersAndVendors 
+  checkOrderPickupDateIsToday, isOrderAssignedToVehicle 
 } from '../../services/roleDataService';
 import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
-import { onRealtimeDbChange } from '../../lib/realtime';
 
 interface Props {
   currentUser: User;
@@ -48,10 +47,9 @@ export default function MobileLogisticsView({
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef<boolean>(false);
   const suppressRealtimeUntilRef = useRef<number>(0);
-  const realtimeDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Only update if not currently suppressed by local sequence submission
+    // Only update from parent props if not currently in a local sequence change suppression window
     if (Date.now() > suppressRealtimeUntilRef.current) {
       setLocalOrders(orders);
     }
@@ -60,49 +58,6 @@ export default function MobileLogisticsView({
   useEffect(() => {
     setLocalSuppliers(suppliers);
   }, [suppliers]);
-
-  // Scaleproof debounced realtime sync with suppression for local changes
-  useEffect(() => {
-    const unsub = onRealtimeDbChange(async (table) => {
-      // If we recently committed local sequence reorders, suppress echo fetches
-      if (Date.now() < suppressRealtimeUntilRef.current) return;
-
-      const t = (table || '').toLowerCase();
-      if (t === 'orders' || t === 'vehicles' || t === 'trucks' || t === 'vendors' || t === 'profiles' || t === 'users') {
-        if (realtimeDebounceTimerRef.current) {
-          clearTimeout(realtimeDebounceTimerRef.current);
-        }
-
-        // Debounce to collapse rapid successive changes into one single optimized query
-        realtimeDebounceTimerRef.current = setTimeout(async () => {
-          if (Date.now() < suppressRealtimeUntilRef.current) return;
-          try {
-            const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
-              currentUser,
-              trucks,
-              employees,
-              localSuppliers.length > 0 ? localSuppliers : suppliers
-            );
-            if (freshOrders && freshOrders.length > 0) {
-              setLocalOrders(freshOrders);
-            }
-            if (freshSuppliers && freshSuppliers.length > 0) {
-              setLocalSuppliers(freshSuppliers);
-            }
-          } catch (err) {
-            console.warn('Realtime refresh throttled in MobileLogisticsView:', err);
-          }
-        }, 1200);
-      }
-    });
-
-    return () => {
-      unsub();
-      if (realtimeDebounceTimerRef.current) {
-        clearTimeout(realtimeDebounceTimerRef.current);
-      }
-    };
-  }, [currentUser, trucks, employees, suppliers]);
 
   const uEmail = currentUser.email || '';
   const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
@@ -209,7 +164,6 @@ export default function MobileLogisticsView({
   const sequenceOrders = sortedActiveOrders;
 
   // Detect incoming orders dynamically for notification banner & unacknowledged count
-  // Optimized without infinite re-render loop
   useEffect(() => {
     const currentActiveIds = new Set(activeOrders.map(o => o.id));
 
@@ -466,7 +420,8 @@ export default function MobileLogisticsView({
             dateStr={todayStr}
             newOrderIds={unacknowledgedOrders.map(o => o.id)}
             onOrdersReordered={(reorderedItems) => {
-              suppressRealtimeUntilRef.current = Date.now() + 3500;
+              // Suppress realtime query echoes so device retains updated order list seamlessly
+              suppressRealtimeUntilRef.current = Date.now() + 8000;
               const reorderedMap = new Map(reorderedItems.map(i => [i.id, i]));
               setLocalOrders(prev => {
                 const rest = prev.filter(o => !reorderedMap.has(o.id));
