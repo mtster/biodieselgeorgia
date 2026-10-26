@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Order, Vendor, Warehouse, Truck } from '../../types';
 import { ClipboardList, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -47,40 +47,59 @@ export default function MobileLogisticsView({
 
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef<boolean>(false);
+  const suppressRealtimeUntilRef = useRef<number>(0);
+  const realtimeDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    setLocalOrders(orders);
+    // Only update if not currently suppressed by local sequence submission
+    if (Date.now() > suppressRealtimeUntilRef.current) {
+      setLocalOrders(orders);
+    }
   }, [orders]);
 
   useEffect(() => {
     setLocalSuppliers(suppliers);
   }, [suppliers]);
 
-  // Comprehensive realtime sync plugged directly into MobileLogisticsView
+  // Scaleproof debounced realtime sync with suppression for local changes
   useEffect(() => {
     const unsub = onRealtimeDbChange(async (table) => {
+      // If we recently committed local sequence reorders, suppress echo fetches
+      if (Date.now() < suppressRealtimeUntilRef.current) return;
+
       const t = (table || '').toLowerCase();
-      if (t === 'orders' || t === 'vehicles' || t === 'trucks' || t === 'vendors' || t === 'vendor_contacts' || t === 'profiles' || t === 'users') {
-        try {
-          const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
-            currentUser,
-            trucks,
-            employees,
-            localSuppliers.length > 0 ? localSuppliers : suppliers
-          );
-          setLocalOrders(freshOrders);
-          if (freshSuppliers && freshSuppliers.length > 0) {
-            setLocalSuppliers(freshSuppliers);
-          }
-        } catch (err) {
-          console.warn('Realtime refresh failed in MobileLogisticsView:', err);
+      if (t === 'orders' || t === 'vehicles' || t === 'trucks' || t === 'vendors' || t === 'profiles' || t === 'users') {
+        if (realtimeDebounceTimerRef.current) {
+          clearTimeout(realtimeDebounceTimerRef.current);
         }
+
+        // Debounce to collapse rapid successive changes into one single optimized query
+        realtimeDebounceTimerRef.current = setTimeout(async () => {
+          if (Date.now() < suppressRealtimeUntilRef.current) return;
+          try {
+            const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
+              currentUser,
+              trucks,
+              employees,
+              localSuppliers.length > 0 ? localSuppliers : suppliers
+            );
+            // Protect against intermittent network glitch: do not wipe existing orders
+            if (freshOrders && freshOrders.length > 0) {
+              setLocalOrders(freshOrders);
+            }
+            if (freshSuppliers && freshSuppliers.length > 0) {
+              setLocalSuppliers(freshSuppliers);
+            }
+          } catch (err) {
+            console.warn('Realtime refresh throttled in MobileLogisticsView:', err);
+          }
+        }, 1200);
       }
     });
 
     // Auto-refresh when driver unlocks device or switches back to tab
     const handleVisibility = async () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && Date.now() > suppressRealtimeUntilRef.current) {
         try {
           const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
             currentUser,
@@ -88,7 +107,9 @@ export default function MobileLogisticsView({
             employees,
             localSuppliers.length > 0 ? localSuppliers : suppliers
           );
-          setLocalOrders(freshOrders);
+          if (freshOrders && freshOrders.length > 0) {
+            setLocalOrders(freshOrders);
+          }
           if (freshSuppliers && freshSuppliers.length > 0) {
             setLocalSuppliers(freshSuppliers);
           }
@@ -99,6 +120,9 @@ export default function MobileLogisticsView({
 
     return () => {
       unsub();
+      if (realtimeDebounceTimerRef.current) {
+        clearTimeout(realtimeDebounceTimerRef.current);
+      }
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [currentUser, trucks, employees, suppliers]);
@@ -281,7 +305,7 @@ export default function MobileLogisticsView({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative" id="mobile-logistics-portal">
-      {/* Sleek Modern Whitish Incoming Order Notification Banner (Persists until swiped up or tapped) */}
+      {/* Sleek Modern Whitish Incoming Order Notification Banner (Persists until swiped up or tapped, no extra text) */}
       <AnimatePresence>
         {activeBanner && (
           <motion.div
@@ -306,9 +330,9 @@ export default function MobileLogisticsView({
                 setShowSequenceModal(true);
                 setActiveBanner(null);
               }}
-              className="bg-white text-slate-800 px-4 py-3 rounded-2xl shadow-2xl border border-slate-200/90 cursor-pointer flex items-center justify-between gap-3 select-none active:scale-[0.99] transition-transform"
+              className="bg-white text-slate-800 px-4 py-3.5 rounded-2xl shadow-2xl border border-slate-200/90 cursor-pointer flex items-center justify-between gap-3 select-none active:scale-[0.99] transition-transform"
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center flex-shrink-0 self-center shadow-xs">
                   <ClipboardList size={18} className="text-emerald-700" />
                 </div>
@@ -326,9 +350,6 @@ export default function MobileLogisticsView({
                     {activeBanner.address}
                   </p>
                 </div>
-              </div>
-              <div className="flex flex-col items-center justify-center pl-1 text-slate-400 flex-shrink-0">
-                <span className="text-[10px] font-semibold text-slate-400">↑ აწიეთ</span>
               </div>
             </div>
           </motion.div>
@@ -457,6 +478,8 @@ export default function MobileLogisticsView({
             dateStr={todayStr}
             newOrderIds={unacknowledgedOrders.map(o => o.id)}
             onOrdersReordered={(reorderedItems) => {
+              // Suppress realtime query echoes for 3.5 seconds
+              suppressRealtimeUntilRef.current = Date.now() + 3500;
               const reorderedMap = new Map(reorderedItems.map(i => [i.id, i]));
               setLocalOrders(prev => {
                 const rest = prev.filter(o => !reorderedMap.has(o.id));

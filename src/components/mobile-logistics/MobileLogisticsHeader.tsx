@@ -3,7 +3,7 @@ import { User } from '../../types';
 import { Leaf, LogOut, Truck, User as UserIcon, Users } from 'lucide-react';
 
 export interface MobileLogisticsHeaderProps {
-  currentUser: User;
+  currentUser?: User;
   vehiclePlateText: string;
   assignedDriverName: string;
   assignedCompanionName: string;
@@ -17,9 +17,9 @@ export function MobileLogisticsHeader({
   onLogOut
 }: MobileLogisticsHeaderProps) {
   return (
-    <header className="bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-800 text-white pt-[max(0.75rem,env(safe-area-inset-top,0px))] px-4 pb-4 shadow-lg border-b border-emerald-700/50">
+    <header className="bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-800 text-white pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] px-4 pb-4 shadow-lg border-b border-emerald-700/50">
       <div className="max-w-md mx-auto space-y-3">
-        {/* Brand & Action Bar - Seamless at top */}
+        {/* Brand & Action Bar - Offset safely below device status bar icons */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xs">

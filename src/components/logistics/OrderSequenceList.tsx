@@ -9,6 +9,7 @@ interface OrderSequenceListProps {
   draggedIndex: number | null;
   touchActiveIndex: number | null;
   insertionIndex: number | null;
+  newOrderIds?: string[] | Set<string>;
   listContainerRef: React.RefObject<HTMLDivElement | null>;
   getVendorInfo: (order: Order) => VendorDisplayInfo;
   handleSwap: (fromIndex: number, toIndex: number) => void;
@@ -31,6 +32,7 @@ export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
   draggedIndex,
   touchActiveIndex,
   insertionIndex,
+  newOrderIds,
   listContainerRef,
   getVendorInfo,
   handleSwap,
@@ -48,6 +50,12 @@ export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
   handleTouchCancel
 }) => {
   const activeDragIdx = touchActiveIndex !== null ? touchActiveIndex : draggedIndex;
+
+  const isOrderNew = (orderId: string): boolean => {
+    if (!newOrderIds) return false;
+    if (newOrderIds instanceof Set) return newOrderIds.has(orderId);
+    return Array.isArray(newOrderIds) && newOrderIds.includes(orderId);
+  };
 
   return (
     <div
@@ -67,6 +75,7 @@ export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
             const info = getVendorInfo(order);
             const isDragging = draggedIndex === idx;
             const isTouchActive = touchActiveIndex === idx;
+            const isNew = isOrderNew(order.id);
 
             return (
               <React.Fragment key={order.id}>
@@ -77,6 +86,7 @@ export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
                   isLast={idx === items.length - 1}
                   isDragging={isDragging}
                   isTouchActive={isTouchActive}
+                  isNew={isNew}
                   info={info}
                   onSwap={handleSwap}
                   onDragStart={handleDragStart}
@@ -92,7 +102,6 @@ export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
                   onTouchEnd={handleTouchEnd}
                   onTouchCancel={handleTouchCancel}
                 />
-
                 {/* Insertion line indicator below this order (gap idx + 1) */}
                 <DropIndicatorLine active={activeDragIdx !== null && insertionIndex === idx + 1} />
               </React.Fragment>

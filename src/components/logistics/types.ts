@@ -9,6 +9,7 @@ export interface OrderSequenceModalProps {
   vehicleId?: string;
   driverId?: string;
   dateStr?: string;
+  newOrderIds?: string[] | Set<string>;
   onOrdersReordered: (newOrders: Order[]) => void;
 }
 
