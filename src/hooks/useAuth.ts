@@ -35,6 +35,11 @@ export function useAuth() {
   const syncUserFromSession = async (session: any) => {
     if (!session?.user || !isSupabaseConfigured || !supabase) return;
 
+    if (currentUserRef.current && (currentUserRef.current.id === session.user.id || currentUserRef.current.email === session.user.email)) {
+      setIsLoadingAuth(false);
+      return;
+    }
+
     if (syncPromiseRef.current) {
       return syncPromiseRef.current;
     }

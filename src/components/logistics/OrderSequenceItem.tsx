@@ -58,13 +58,6 @@ interface OrderSequenceItemProps {
   onDrop: (e: React.DragEvent) => void;
   onDragEnd: () => void;
   onPointerDown: (e: React.PointerEvent, index: number) => void;
-  onPointerMove: (e: React.PointerEvent) => void;
-  onPointerUp: (e: React.PointerEvent) => void;
-  onPointerCancel: (e: React.PointerEvent) => void;
-  onTouchStart: (e: React.TouchEvent, index: number) => void;
-  onTouchMove: (e: React.TouchEvent) => void;
-  onTouchEnd: (e: React.TouchEvent) => void;
-  onTouchCancel: () => void;
 }
 
 export const OrderSequenceItem: React.FC<OrderSequenceItemProps> = ({
@@ -81,18 +74,11 @@ export const OrderSequenceItem: React.FC<OrderSequenceItemProps> = ({
   onDragOver,
   onDrop,
   onDragEnd,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onTouchStart,
-  onTouchMove,
-  onTouchEnd,
-  onTouchCancel
+  onPointerDown
 }) => {
   const beforeBase = isBeforeLeavingBase(order);
 
-  // Background and badge colors according to hierarchy:
+  // Background and badge colors:
   // 1. before_leaving_base: slight red background
   // 2. isNew: slight green background
   // 3. standard: clean white card
@@ -161,23 +147,23 @@ export const OrderSequenceItem: React.FC<OrderSequenceItemProps> = ({
             type="button"
             disabled={isFirst}
             onClick={() => onSwap(index, index - 1)}
-            className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
+            className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition cursor-pointer ${
               isFirst ? 'opacity-20 cursor-not-allowed' : ''
             }`}
             title="ზემოთ აწევა"
           >
-            <ChevronUp size={14} />
+            <ChevronUp size={15} />
           </button>
           <button
             type="button"
             disabled={isLast}
             onClick={() => onSwap(index, index + 1)}
-            className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
+            className={`p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition cursor-pointer ${
               isLast ? 'opacity-20 cursor-not-allowed' : ''
             }`}
             title="ქვემოთ ჩამოწევა"
           >
-            <ChevronDown size={14} />
+            <ChevronDown size={15} />
           </button>
         </div>
 
@@ -191,13 +177,6 @@ export const OrderSequenceItem: React.FC<OrderSequenceItemProps> = ({
           style={{ touchAction: 'none' }}
           title="გადაადგილება"
           onPointerDown={(e) => onPointerDown(e, index)}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerCancel}
-          onTouchStart={(e) => onTouchStart(e, index)}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onTouchCancel={onTouchCancel}
         >
           <GripVertical size={20} className="stroke-[2.4]" />
         </div>

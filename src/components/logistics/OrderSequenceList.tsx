@@ -18,13 +18,6 @@ interface OrderSequenceListProps {
   handleDrop: (e: React.DragEvent, index: number) => void;
   handleDragEnd: () => void;
   handleGripPointerDown: (e: React.PointerEvent, index: number) => void;
-  handleGripPointerMove: (e: React.PointerEvent) => void;
-  handleGripPointerUp: (e: React.PointerEvent) => void;
-  handleGripPointerCancel: (e: React.PointerEvent) => void;
-  handleTouchStart: (e: React.TouchEvent, index: number) => void;
-  handleTouchMove: (e: React.TouchEvent) => void;
-  handleTouchEnd: (e: React.TouchEvent) => void;
-  handleTouchCancel: () => void;
 }
 
 export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
@@ -40,14 +33,7 @@ export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
   handleDragOver,
   handleDrop,
   handleDragEnd,
-  handleGripPointerDown,
-  handleGripPointerMove,
-  handleGripPointerUp,
-  handleGripPointerCancel,
-  handleTouchStart,
-  handleTouchMove,
-  handleTouchEnd,
-  handleTouchCancel
+  handleGripPointerDown
 }) => {
   const activeDragIdx = touchActiveIndex !== null ? touchActiveIndex : draggedIndex;
 
@@ -94,13 +80,6 @@ export const OrderSequenceList: React.FC<OrderSequenceListProps> = ({
                   onDrop={(e) => handleDrop(e, idx)}
                   onDragEnd={handleDragEnd}
                   onPointerDown={handleGripPointerDown}
-                  onPointerMove={handleGripPointerMove}
-                  onPointerUp={handleGripPointerUp}
-                  onPointerCancel={handleGripPointerCancel}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchCancel={handleTouchCancel}
                 />
                 {/* Insertion line indicator below this order (gap idx + 1) */}
                 <DropIndicatorLine active={activeDragIdx !== null && insertionIndex === idx + 1} />

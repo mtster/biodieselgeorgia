@@ -30,16 +30,14 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
   const [isOptimized, setIsOptimized] = useState<boolean>(false);
 
-  // Synchronize incoming orders sorted by route_rank
+  // Initialize items ONLY when modal opens to prevent resetting state on outside re-renders
   useEffect(() => {
-    if (orders && orders.length > 0) {
-      setItems(sortOrdersByRouteRank(orders));
-    } else {
-      setItems([]);
+    if (isOpen) {
+      setItems(sortOrdersByRouteRank(orders || []));
+      setIsDirty(false);
+      setIsOptimized(false);
     }
-    setIsDirty(false);
-    setIsOptimized(false);
-  }, [orders, isOpen]);
+  }, [isOpen]);
 
   // Vendor display info resolution helper
   const getVendorInfo = (order: Order): VendorDisplayInfo => {
@@ -56,27 +54,31 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
   };
 
   /**
-   * Local swap of adjacent items without firing database requests
+   * Local swap of adjacent items - triggers immediately in state
    */
   const handleSwap = (fromIndex: number, toIndex: number) => {
     if (toIndex < 0 || toIndex >= items.length || fromIndex === toIndex) return;
-    const updated = [...items];
-    const [moved] = updated.splice(fromIndex, 1);
-    updated.splice(toIndex, 0, moved);
-    setItems(updated);
+    setItems(prevItems => {
+      const updated = [...prevItems];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
     setIsDirty(true);
   };
 
   /**
-   * Local move from drag & drop without firing database requests
+   * Local move from drag & drop - triggers immediately in state
    */
   const handleMove = (fromIndex: number, toInsertionIndex: number) => {
     if (fromIndex === toInsertionIndex || fromIndex + 1 === toInsertionIndex) return;
-    const updated = [...items];
-    const [moved] = updated.splice(fromIndex, 1);
-    const targetIdx = fromIndex < toInsertionIndex ? toInsertionIndex - 1 : toInsertionIndex;
-    updated.splice(targetIdx, 0, moved);
-    setItems(updated);
+    setItems(prevItems => {
+      const updated = [...prevItems];
+      const [moved] = updated.splice(fromIndex, 1);
+      const targetIdx = fromIndex < toInsertionIndex ? toInsertionIndex - 1 : toInsertionIndex;
+      updated.splice(targetIdx, 0, moved);
+      return updated;
+    });
     setIsDirty(true);
   };
 
@@ -201,9 +203,9 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
         {/* Touch & Mouse Drag Reorder List */}
         <OrderSequenceList
           items={items}
-          draggedIndex={draghookWrapper(dragHook).draggedIndex}
-          touchActiveIndex={draghookWrapper(dragHook).touchActiveIndex}
-          insertionIndex={draghookWrapper(dragHook).insertionIndex}
+          draggedIndex={dragHook.draggedIndex}
+          touchActiveIndex={dragHook.touchActiveIndex}
+          insertionIndex={dragHook.insertionIndex}
           newOrderIds={newOrderIds}
           listContainerRef={dragHook.listContainerRef}
           getVendorInfo={getVendorInfo}
@@ -213,13 +215,6 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
           handleDrop={dragHook.handleDrop}
           handleDragEnd={dragHook.handleDragEnd}
           handleGripPointerDown={dragHook.handleGripPointerDown}
-          handleGripPointerMove={dragHook.handleGripPointerMove}
-          handleGripPointerUp={dragHook.handleGripPointerUp}
-          handleGripPointerCancel={dragHook.handleGripPointerCancel}
-          handleTouchStart={dragHook.handleTouchStart}
-          handleTouchMove={dragHook.handleTouchMove}
-          handleTouchEnd={dragHook.handleTouchEnd}
-          handleTouchCancel={dragHook.handleTouchCancel}
         />
 
         {/* Floating preview for mobile touch drag */}
@@ -255,12 +250,3 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     </div>
   );
 };
-
-// Helper for type-safe destructuring
-function draghookWrapper(hook: any) {
-  return {
-    draggedIndex: hook.draggedIndex,
-    touchActiveIndex: hook.touchActiveIndex,
-    insertionIndex: hook.insertionIndex
-  };
-}

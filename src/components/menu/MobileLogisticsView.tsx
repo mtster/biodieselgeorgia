@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { User, Order, Vendor, Warehouse, Truck } from '../../types';
 import { ClipboardList, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -83,7 +83,6 @@ export default function MobileLogisticsView({
               employees,
               localSuppliers.length > 0 ? localSuppliers : suppliers
             );
-            // Protect against intermittent network glitch: do not wipe existing orders
             if (freshOrders && freshOrders.length > 0) {
               setLocalOrders(freshOrders);
             }
@@ -109,18 +108,20 @@ export default function MobileLogisticsView({
   const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
 
   // Match user's assigned vehicle (truck)
-  const myTruck = findUserAssignedTruck(currentUser, trucks);
-  const userTrucks = trucks.filter(t => isVehicleMatchingUser(t, currentUser));
-  if (myTruck && !userTrucks.some(ut => ut.id === myTruck.id)) {
-    userTrucks.push(myTruck);
-  }
+  const myTruck = useMemo(() => findUserAssignedTruck(currentUser, trucks), [currentUser, trucks]);
+  const userTrucks = useMemo(() => {
+    const list = trucks.filter(t => isVehicleMatchingUser(t, currentUser));
+    if (myTruck && !list.some(ut => ut.id === myTruck.id)) {
+      list.push(myTruck);
+    }
+    return list;
+  }, [trucks, currentUser, myTruck]);
 
   // Helper to match an employee from employees list
-  const findEmp = (idOrName?: string) => {
+  const findEmp = useCallback((idOrName?: string) => {
     if (!idOrName || !idOrName.trim()) return undefined;
     const trimmed = idOrName.trim();
     
-    // 1. Exact ID match
     const exactMatch = employees.find(e => 
       e && (
         (e.id && e.id.toLowerCase() === trimmed.toLowerCase()) || 
@@ -129,11 +130,9 @@ export default function MobileLogisticsView({
     );
     if (exactMatch) return exactMatch;
 
-    // 2. Exact name match
     const nameMatch = employees.find(e => e && e.name && normalizeText(e.name) === normalizeText(trimmed));
     if (nameMatch) return nameMatch;
 
-    // 3. Name or email match if not a UUID
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
     if (!isUuid) {
       const targetClean = cleanStr(trimmed);
@@ -147,10 +146,10 @@ export default function MobileLogisticsView({
       }
     }
     return undefined;
-  };
+  }, [employees]);
 
-  const driverObj = findEmp(myTruck?.driver_id) || findEmp(myTruck?.driver_name);
-  const companionObj = findEmp(myTruck?.companion_id) || findEmp(myTruck?.companion_name);
+  const driverObj = useMemo(() => findEmp(myTruck?.driver_id) || findEmp(myTruck?.driver_name), [findEmp, myTruck]);
+  const companionObj = useMemo(() => findEmp(myTruck?.companion_id) || findEmp(myTruck?.companion_name), [findEmp, myTruck]);
 
   let assignedDriverName = driverObj?.name || myTruck?.driver_name;
   if (!assignedDriverName && myTruck?.driver_id) {
@@ -178,52 +177,65 @@ export default function MobileLogisticsView({
   const vehicleId = myTruck?.id || '';
 
   // Strict current date helper for Asia/Tbilisi timezone
-  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
-
-  const isTodayOrder = (o: Order): boolean => {
-    return checkOrderPickupDateIsToday(o, todayStr);
-  };
+  const todayStr = useMemo(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date()), []);
 
   // Filter orders assigned specifically to this vehicle (or driver) and with pickup date set as current date
-  const myOrders = localOrders.filter(o => {
-    if (!o || o.is_deleted) return false;
-    if (!isTodayOrder(o)) return false;
-    return isOrderAssignedToVehicle(o, currentUser, trucks);
-  });
+  const myOrders = useMemo(() => {
+    return localOrders.filter(o => {
+      if (!o || o.is_deleted) return false;
+      if (!checkOrderPickupDateIsToday(o, todayStr)) return false;
+      return isOrderAssignedToVehicle(o, currentUser, trucks);
+    });
+  }, [localOrders, todayStr, currentUser, trucks]);
 
-  const activeOrders = myOrders.filter(o => o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up' || o.status === 'uncompleted');
-  const sortedActiveOrders = sortOrdersByRouteRank(activeOrders);
-  const completedOrders = myOrders.filter(o => o.status === 'completed');
+  const activeOrders = useMemo(() => {
+    return myOrders.filter(o => 
+      o.status === 'registered' || 
+      o.status === 'driver_assigned' || 
+      o.status === 'picked_up' || 
+      o.status === 'uncompleted'
+    );
+  }, [myOrders]);
+
+  const sortedActiveOrders = useMemo(() => {
+    return sortOrdersByRouteRank(activeOrders);
+  }, [activeOrders]);
+
+  const completedOrders = useMemo(() => {
+    return myOrders.filter(o => o.status === 'completed');
+  }, [myOrders]);
 
   // Rearrangement page: shows exactly the same orders as active orders page
   const sequenceOrders = sortedActiveOrders;
 
   // Detect incoming orders dynamically for notification banner & unacknowledged count
+  // Optimized without infinite re-render loop
   useEffect(() => {
     const currentActiveIds = new Set(activeOrders.map(o => o.id));
 
-    // 1. Prune known IDs that are no longer active for this vehicle.
+    // 1. Prune known IDs that are no longer active for this vehicle
     for (const id of Array.from(knownOrderIdsRef.current)) {
       if (!currentActiveIds.has(id)) {
         knownOrderIdsRef.current.delete(id);
       }
     }
 
-    // 2. Prune unacknowledged orders: remove any order that was unassigned from this vehicle
-    setUnacknowledgedOrders(prev => {
-      const filtered = prev.filter(o => currentActiveIds.has(o.id));
-      if (filtered.length === 0 && prev.length > 0) {
-        setActiveBanner(null);
-      }
-      return filtered;
-    });
-
-    // 3. Initial load: memorize existing orders so we don't spam banner on first open
+    // 2. Initial load: memorize existing orders so we don't spam banner on first open
     if (!initialLoadDoneRef.current) {
       activeOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
       initialLoadDoneRef.current = true;
       return;
     }
+
+    // 3. Prune unacknowledged orders only if something actually changed
+    setUnacknowledgedOrders(prev => {
+      const filtered = prev.filter(o => currentActiveIds.has(o.id));
+      if (filtered.length !== prev.length) {
+        if (filtered.length === 0) setActiveBanner(null);
+        return filtered;
+      }
+      return prev;
+    });
 
     // 4. Identify genuine incoming newly assigned orders
     const incoming = activeOrders.filter(o => !knownOrderIdsRef.current.has(o.id));
