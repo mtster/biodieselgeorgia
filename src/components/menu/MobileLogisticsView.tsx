@@ -8,7 +8,11 @@ import { CompletedOrderCard } from '../mobile-logistics/CompletedOrderCard';
 import { OrderCompletionModal } from '../mobile-logistics/OrderCompletionModal';
 import { OrderSequenceModal } from '../logistics/OrderSequenceModal';
 import { sortOrdersByRouteRank } from '../../utils/lexorank';
-import { cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser, checkOrderPickupDateIsToday, isOrderAssignedToVehicle } from '../../services/roleDataService';
+import { 
+  cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser, 
+  checkOrderPickupDateIsToday, isOrderAssignedToVehicle, getDriverOrdersAndVendors 
+} from '../../services/roleDataService';
+import { onRealtimeDbChange } from '../../lib/realtime';
 
 interface Props {
   currentUser: User;
@@ -28,10 +32,63 @@ export default function MobileLogisticsView({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showSequenceModal, setShowSequenceModal] = useState<boolean>(false);
   const [localOrders, setLocalOrders] = useState<Order[]>(orders);
+  const [localSuppliers, setLocalSuppliers] = useState<Vendor[]>(suppliers);
 
   useEffect(() => {
     setLocalOrders(orders);
   }, [orders]);
+
+  useEffect(() => {
+    setLocalSuppliers(suppliers);
+  }, [suppliers]);
+
+  // Comprehensive realtime sync plugged directly into MobileLogisticsView
+  useEffect(() => {
+    const unsub = onRealtimeDbChange(async (table) => {
+      const t = (table || '').toLowerCase();
+      if (t === 'orders' || t === 'vehicles' || t === 'trucks' || t === 'vendors' || t === 'vendor_contacts' || t === 'profiles' || t === 'users') {
+        try {
+          const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
+            currentUser,
+            trucks,
+            employees,
+            localSuppliers.length > 0 ? localSuppliers : suppliers
+          );
+          setLocalOrders(freshOrders);
+          if (freshSuppliers && freshSuppliers.length > 0) {
+            setLocalSuppliers(freshSuppliers);
+          }
+        } catch (err) {
+          console.warn('Realtime refresh failed in MobileLogisticsView:', err);
+        }
+      }
+    });
+
+    // Auto-refresh when driver unlocks device or switches back to tab
+    const handleVisibility = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
+            currentUser,
+            trucks,
+            employees,
+            localSuppliers.length > 0 ? localSuppliers : suppliers
+          );
+          setLocalOrders(freshOrders);
+          if (freshSuppliers && freshSuppliers.length > 0) {
+            setLocalSuppliers(freshSuppliers);
+          }
+        } catch {}
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      unsub();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [currentUser, trucks, employees, suppliers]);
+
 
   const uEmail = currentUser.email || '';
   const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
@@ -192,52 +249,55 @@ export default function MobileLogisticsView({
         </div>
 
         {/* Current task form if an order is selected */}
-        {selectedOrder ? (
-          <OrderCompletionModal
-            selectedOrder={selectedOrder}
-            supplier={suppliers.find(s => s.id === selectedOrder.vendor_id)}
-            currentUser={currentUser}
-            vehiclePlateText={vehiclePlateText}
-            onClose={() => setSelectedOrder(null)}
-            onSaveOrder={onSaveOrder}
-          />
-        ) : (
-          <div className="space-y-3">
-            {activeTab === 'active' ? (
-              activeOrders.length === 0 ? (
-                <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
-                  <ClipboardList size={30} className="mx-auto text-gray-300" />
-                  <p className="text-xs font-medium">თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
-                </div>
+        {(() => {
+          const activeSuppliers = localSuppliers.length > 0 ? localSuppliers : suppliers;
+          return selectedOrder ? (
+            <OrderCompletionModal
+              selectedOrder={selectedOrder}
+              supplier={activeSuppliers.find(s => s.id === selectedOrder.vendor_id)}
+              currentUser={currentUser}
+              vehiclePlateText={vehiclePlateText}
+              onClose={() => setSelectedOrder(null)}
+              onSaveOrder={onSaveOrder}
+            />
+          ) : (
+            <div className="space-y-3">
+              {activeTab === 'active' ? (
+                activeOrders.length === 0 ? (
+                  <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
+                    <ClipboardList size={30} className="mx-auto text-gray-300" />
+                    <p className="text-xs font-medium">თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
+                  </div>
+                ) : (
+                  sortedActiveOrders.map(order => (
+                    <ActiveOrderCard
+                      key={order.id}
+                      order={order}
+                      supplier={activeSuppliers.find(s => s.id === order.vendor_id)}
+                      getStatusLabel={getStatusLabel}
+                      onSelectOrder={setSelectedOrder}
+                    />
+                  ))
+                )
               ) : (
-                sortedActiveOrders.map(order => (
-                  <ActiveOrderCard
-                    key={order.id}
-                    order={order}
-                    supplier={suppliers.find(s => s.id === order.vendor_id)}
-                    getStatusLabel={getStatusLabel}
-                    onSelectOrder={setSelectedOrder}
-                  />
-                ))
-              )
-            ) : (
-              completedOrders.length === 0 ? (
-                <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
-                  <ClipboardList size={30} className="mx-auto text-gray-300" />
-                  <p className="text-xs font-medium">თქვენს ანგარიშზე დასრულებული შეკვეთები ჯერ არ არის.</p>
-                </div>
-              ) : (
-                completedOrders.map(order => (
-                  <CompletedOrderCard
-                    key={order.id}
-                    order={order}
-                    supplier={suppliers.find(s => s.id === order.vendor_id)}
-                  />
-                ))
-              )
-            )}
-          </div>
-        )}
+                completedOrders.length === 0 ? (
+                  <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
+                    <ClipboardList size={30} className="mx-auto text-gray-300" />
+                    <p className="text-xs font-medium">თქვენს ანგარიშზე დასრულებული შეკვეთები ჯერ არ არის.</p>
+                  </div>
+                ) : (
+                  completedOrders.map(order => (
+                    <CompletedOrderCard
+                      key={order.id}
+                      order={order}
+                      supplier={activeSuppliers.find(s => s.id === order.vendor_id)}
+                    />
+                  ))
+                )
+              )}
+            </div>
+          );
+        })()}
       </main>
 
       {/* Reordering Modal (slides in from left) */}
@@ -247,7 +307,7 @@ export default function MobileLogisticsView({
             isOpen={showSequenceModal}
             onClose={() => setShowSequenceModal(false)}
             orders={sequenceOrders}
-            suppliers={suppliers}
+            suppliers={localSuppliers.length > 0 ? localSuppliers : suppliers}
             vehiclePlateText={vehiclePlateText}
             vehicleId={vehicleId}
             driverId={currentUser.id}

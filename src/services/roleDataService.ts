@@ -218,18 +218,19 @@ export function isOrderAssignedToVehicle(o: Order, currentUser: User, trucks: Tr
     if (myVehicleIds.has(o.truck_plate || '')) return true;
   }
 
-  // For vehicle accounts (where a vehicle is associated with this account),
-  // orders MUST have this vehicle assigned specifically to them.
-  const hasVehicle = myVehicleIds.size > 0 && (myTruck || userTrucks.length > 0 || myVehiclePlates.size > 0);
-  if (hasVehicle) {
-    return false;
-  }
-
-  // Only for standalone individual drivers without an assigned vehicle:
+  // Driver or assistant assignment check (always valid whether vehicle is linked or not)
   if (o.driver_id && (o.driver_id === currentUser.id || (currentUser.personal_id && o.driver_id === currentUser.personal_id))) {
     return true;
   }
   if (o.companion_id && (o.companion_id === currentUser.id || (currentUser.personal_id && o.companion_id === currentUser.personal_id))) {
+    return true;
+  }
+
+  // Match by driver or companion name
+  if (o.driver_name && currentUser.name && normalizeText(o.driver_name) === normalizeText(currentUser.name)) {
+    return true;
+  }
+  if (o.companion_name && currentUser.name && normalizeText(o.companion_name) === normalizeText(currentUser.name)) {
     return true;
   }
 
@@ -325,19 +326,15 @@ export async function getDriverOrdersAndVendors(
 
       if (isValidUuid(currentUser?.id)) {
         orParts.push(`vehicle_id.eq.${currentUser.id}`);
+        orParts.push(`driver_id.eq.${currentUser.id}`);
+        orParts.push(`companion_id.eq.${currentUser.id}`);
       }
 
-      if (!isVehicleAccount) {
-        if (isValidUuid(currentUser?.id)) {
-          orParts.push(`driver_id.eq.${currentUser.id}`);
-          orParts.push(`companion_id.eq.${currentUser.id}`);
-        }
-        if (isValidUuid(driverObj?.id)) {
-          orParts.push(`driver_id.eq.${driverObj.id}`);
-        }
-        if (isValidUuid(companionObj?.id)) {
-          orParts.push(`companion_id.eq.${companionObj.id}`);
-        }
+      if (isValidUuid(driverObj?.id)) {
+        orParts.push(`driver_id.eq.${driverObj.id}`);
+      }
+      if (isValidUuid(companionObj?.id)) {
+        orParts.push(`companion_id.eq.${companionObj.id}`);
       }
 
       if (orParts.length > 0) {

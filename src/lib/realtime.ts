@@ -53,18 +53,42 @@ export function debouncedInvalidateQueries(keys: string[]) {
   }, 100);
 }
 
+const localClientId = typeof window !== 'undefined' 
+  ? (window as any).__biodiesel_client_id || ((window as any).__biodiesel_client_id = Math.random().toString(36).substring(2) + Date.now().toString(36))
+  : 'server';
+
+export function ensureRealtimeConnected() {
+  if (!isSupabaseConfigured || !supabase) return;
+  if (!realtimeChannel || realtimeChannel.state === 'closed' || realtimeChannel.state === 'errored') {
+    if (globalQueryClient) {
+      initRealtimeBroadcast(globalQueryClient);
+    }
+  }
+}
+
+// Auto-reconnect realtime when mobile device wakes up, unlocks, or restores internet
+if (typeof window !== 'undefined') {
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      ensureRealtimeConnected();
+    }
+  });
+  window.addEventListener('online', () => {
+    ensureRealtimeConnected();
+  });
+}
+
 export function initRealtimeBroadcast(queryClient: QueryClient) {
   globalQueryClient = queryClient;
   if (!isSupabaseConfigured || !supabase) return;
 
-  const handleTableUpdate = (table: string, action?: string, recordId?: string) => {
+  const handleTableUpdate = (table: string, action?: string, recordId?: string, sourceClientId?: string) => {
     if (!table) return;
-    const now = Date.now();
-    const last = lastTableUpdate[table] || 0;
-    if (now - last < 2000) {
-      return; // Deduplicate rapid multiple events / self-echoes for the same table
+
+    // Ignore self-echoes from our own local notifications
+    if (sourceClientId && sourceClientId === localClientId) {
+      return;
     }
-    lastTableUpdate[table] = now;
 
     // Targeted cache eviction: only invalidate in-memory cache entries for this specific table
     appCache.clear(table);
@@ -82,6 +106,12 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
   };
 
   try {
+    if (realtimeChannel) {
+      try {
+        supabase.removeChannel(realtimeChannel);
+      } catch {}
+    }
+
     realtimeChannel = supabase.channel(CHANNEL_NAME, {
       config: {
         broadcast: { self: false },
@@ -89,28 +119,37 @@ export function initRealtimeBroadcast(queryClient: QueryClient) {
     });
 
     realtimeChannel
-      .on('broadcast', { event: 'db_change' }, (payload: { payload?: { table: string; action?: string; recordId?: string } }) => {
-        handleTableUpdate(payload?.payload?.table, payload?.payload?.action, payload?.payload?.recordId);
+      .on('broadcast', { event: 'db_change' }, (payload: { payload?: { table: string; action?: string; recordId?: string; clientId?: string } }) => {
+        handleTableUpdate(payload?.payload?.table, payload?.payload?.action, payload?.payload?.recordId, payload?.payload?.clientId);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload: any) => {
+        handleTableUpdate('orders', payload?.eventType, payload?.new?.id || payload?.old?.id);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, (payload: any) => {
+        handleTableUpdate('vehicles', payload?.eventType, payload?.new?.id || payload?.old?.id);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload: any) => {
+        handleTableUpdate('profiles', payload?.eventType, payload?.new?.id || payload?.old?.id);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, (payload: any) => {
+        handleTableUpdate('vendors', payload?.eventType, payload?.new?.id || payload?.old?.id);
       })
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload: any) => {
         handleTableUpdate(payload?.table, payload?.eventType, payload?.new?.id || payload?.old?.id);
       })
-      .subscribe();
+      .subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          console.debug('Realtime sync connected successfully');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.warn('Realtime sync channel disconnected. Status:', status);
+        }
+      });
   } catch (err) {
     console.warn('Realtime channel initialization warning:', err);
   }
 }
 
 export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DELETE' = 'UPDATE', recordId?: string) {
-  const now = Date.now();
-  // Mark local update timestamp to ignore subsequent echo from realtime websocket
-  lastTableUpdate[table] = now;
-  if (table === 'vendors') {
-    lastTableUpdate['vendor_contacts'] = now;
-  } else if (table === 'vendor_contacts') {
-    lastTableUpdate['vendors'] = now;
-  }
-
   // Clear in-memory query cache only for the target table
   appCache.clear(table);
 
@@ -133,7 +172,7 @@ export function notifyDbChange(table: string, action: 'CREATE' | 'UPDATE' | 'DEL
       realtimeChannel.send({
         type: 'broadcast',
         event: 'db_change',
-        payload: { table, action, recordId, timestamp: Date.now() },
+        payload: { table, action, recordId, clientId: localClientId, timestamp: Date.now() },
       });
     } catch (err) {
       console.warn('Failed to broadcast DB change:', err);

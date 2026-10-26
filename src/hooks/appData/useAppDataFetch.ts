@@ -147,10 +147,14 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
       // Role-specific targeted refreshes
       if (currentUser?.role === 'driver' || currentUser?.role === 'driver_assistant') {
         const t = table.toLowerCase();
-        if (t === 'orders' || t === 'vendors' || t === 'vendor_contacts') {
+        if (t === 'orders' || t === 'vendors' || t === 'vendor_contacts' || t === 'vehicles' || t === 'trucks' || t === 'profiles' || t === 'users') {
+          const trks = (t === 'vehicles' || t === 'trucks') ? await getTrucks() : (trucksRef.current.length > 0 ? trucksRef.current : await getTrucks());
+          if (t === 'vehicles' || t === 'trucks') {
+            setTrucks(trks);
+          }
           const { orders: dOrders, suppliers: dSuppliers } = await getDriverOrdersAndVendors(
             currentUser,
-            trucksRef.current.length > 0 ? trucksRef.current : await getTrucks(),
+            trks,
             usersRef.current.length > 0 ? usersRef.current : await getUsers(),
             vendorsRef.current
           );
@@ -158,15 +162,7 @@ export function useAppDataFetch(currentUser: User | null, isLoadingAuth: boolean
           if (dSuppliers.length > 0) {
             setVendors(dSuppliers);
           }
-        } else if (t === 'vehicles' || t === 'trucks') {
-          const trks = await getTrucks();
-          setTrucks(trks);
-        } else if (t === 'warehouses') {
-          const whs = await getWarehouses();
-          setWarehouses(whs);
-        } else if (t === 'profiles' || t === 'users') {
-          const usrs = await getUsers();
-          setUsers(usrs);
+          return;
         }
         return;
       }
