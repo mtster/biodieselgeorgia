@@ -43,6 +43,8 @@ export default function MobileLogisticsView({
     address: string;
   } | null>(null);
 
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef<boolean>(false);
 
@@ -101,15 +103,8 @@ export default function MobileLogisticsView({
     };
   }, [currentUser, trucks, employees, suppliers]);
 
-
-
   const uEmail = currentUser.email || '';
   const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
-  const uEmailClean = cleanStr(uEmailPart);
-  const uNameClean = cleanStr(currentUser.name);
-  const uNameNorm = normalizeText(currentUser.name);
-  const uPidClean = cleanStr(currentUser.personal_id);
-  const uPlateClean = cleanStr((currentUser as any).plate_number);
 
   // Match user's assigned vehicle (truck)
   const myTruck = findUserAssignedTruck(currentUser, trucks);
@@ -203,19 +198,38 @@ export default function MobileLogisticsView({
 
   // Detect incoming orders dynamically for notification banner & unacknowledged count
   useEffect(() => {
-    if (!initialLoadDoneRef.current) {
-      if (activeOrders.length > 0) {
-        activeOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
-        initialLoadDoneRef.current = true;
+    const currentActiveIds = new Set(activeOrders.map(o => o.id));
+
+    // 1. Prune known IDs that are no longer active for this vehicle.
+    // This allows re-notifying if an order is unassigned and then re-assigned!
+    for (const id of Array.from(knownOrderIdsRef.current)) {
+      if (!currentActiveIds.has(id)) {
+        knownOrderIdsRef.current.delete(id);
       }
+    }
+
+    // 2. Prune unacknowledged orders: remove any order that was unassigned from this vehicle
+    setUnacknowledgedOrders(prev => {
+      const filtered = prev.filter(o => currentActiveIds.has(o.id));
+      if (filtered.length === 0 && prev.length > 0) {
+        setActiveBanner(null);
+      }
+      return filtered;
+    });
+
+    // 3. Initial load: memorize existing orders so we don't spam banner on first open
+    if (!initialLoadDoneRef.current) {
+      activeOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
+      initialLoadDoneRef.current = true;
       return;
     }
 
+    // 4. Identify genuine incoming newly assigned orders
     const incoming = activeOrders.filter(o => !knownOrderIdsRef.current.has(o.id));
     if (incoming.length > 0) {
       incoming.forEach(o => knownOrderIdsRef.current.add(o.id));
       setUnacknowledgedOrders(prev => {
-        const combined = [...incoming, ...prev];
+        const combined = [...incoming, ...prev].filter(o => currentActiveIds.has(o.id));
         const unique = Array.from(new Map(combined.map(o => [o.id, o])).values());
 
         const latest = incoming[0];
@@ -238,15 +252,20 @@ export default function MobileLogisticsView({
     }
   }, [activeOrders, localSuppliers, suppliers]);
 
-  // Auto-dismiss notification banner after 7 seconds
-  useEffect(() => {
-    if (activeBanner) {
-      const timer = setTimeout(() => {
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY !== null) {
+      const deltaY = e.changedTouches[0].clientY - touchStartY;
+      if (deltaY < -25) {
+        // Swiped up: dismiss banner
         setActiveBanner(null);
-      }, 7000);
-      return () => clearTimeout(timer);
+      }
+      setTouchStartY(null);
     }
-  }, [activeBanner]);
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -262,51 +281,55 @@ export default function MobileLogisticsView({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative" id="mobile-logistics-portal">
-      {/* Sleek Modern Minimalist Incoming Order Notification Banner */}
+      {/* Sleek Modern Whitish Incoming Order Notification Banner (Persists until swiped up or tapped) */}
       <AnimatePresence>
         {activeBanner && (
           <motion.div
             initial={{ opacity: 0, y: -40, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.96 }}
+            exit={{ opacity: 0, y: -40, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 450, damping: 30 }}
-            className="fixed top-3 left-4 right-4 z-[80] max-w-md mx-auto"
+            drag="y"
+            dragConstraints={{ top: -100, bottom: 0 }}
+            dragElastic={{ top: 0.5, bottom: 0.05 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y < -25 || info.velocity.y < -150) {
+                setActiveBanner(null);
+              }
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className="fixed top-3 left-4 right-4 z-[90] max-w-md mx-auto touch-pan-y"
           >
             <div 
               onClick={() => {
                 setShowSequenceModal(true);
                 setActiveBanner(null);
               }}
-              className="bg-emerald-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-emerald-700/60 backdrop-blur-md cursor-pointer flex items-start justify-between gap-3 select-none"
+              className="bg-white text-slate-800 px-4 py-3 rounded-2xl shadow-2xl border border-slate-200/90 cursor-pointer flex items-center justify-between gap-3 select-none active:scale-[0.99] transition-transform"
             >
-              <div className="flex items-start gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-emerald-800/90 border border-emerald-600/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <ClipboardList size={16} className="text-emerald-300" />
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-center flex-shrink-0 self-center shadow-xs">
+                  <ClipboardList size={18} className="text-emerald-700" />
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black tracking-wide text-emerald-200 uppercase">
+                    <span className="text-xs font-black tracking-wide text-emerald-800 uppercase">
                       {activeBanner.count > 1 ? `${activeBanner.count} ახალი შეკვეთა` : 'ახალი შეკვეთა'}
                     </span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                   </div>
-                  <p className="text-sm font-bold text-white truncate leading-tight">
+                  <p className="text-sm font-bold text-slate-900 truncate leading-snug">
                     {activeBanner.vendorName}
                   </p>
-                  <p className="text-[11px] text-emerald-200/80 truncate leading-tight">
+                  <p className="text-[11px] text-slate-500 truncate leading-snug">
                     {activeBanner.address}
                   </p>
                 </div>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveBanner(null);
-                }}
-                className="text-emerald-300/70 hover:text-white p-1 rounded-lg transition"
-              >
-                &times;
-              </button>
+              <div className="flex flex-col items-center justify-center pl-1 text-slate-400 flex-shrink-0">
+                <span className="text-[10px] font-semibold text-slate-400">↑ აწიეთ</span>
+              </div>
             </div>
           </motion.div>
         )}
@@ -422,7 +445,7 @@ export default function MobileLogisticsView({
             isOpen={showSequenceModal}
             onClose={() => {
               setShowSequenceModal(false);
-              // Indicator: leaving the reordering modal confirms user has acknowledged and ordered the new stops
+              // Leaving the reordering modal confirms driver has acknowledged and ordered the new stops
               setUnacknowledgedOrders([]);
               setActiveBanner(null);
             }}
@@ -432,6 +455,7 @@ export default function MobileLogisticsView({
             vehicleId={vehicleId}
             driverId={currentUser.id}
             dateStr={todayStr}
+            newOrderIds={unacknowledgedOrders.map(o => o.id)}
             onOrdersReordered={(reorderedItems) => {
               const reorderedMap = new Map(reorderedItems.map(i => [i.id, i]));
               setLocalOrders(prev => {
