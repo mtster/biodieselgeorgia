@@ -10,9 +10,10 @@ import { OrderSequenceModal } from '../logistics/OrderSequenceModal';
 import { sortOrdersByRouteRank } from '../../utils/lexorank';
 import { 
   cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser, 
-  checkOrderPickupDateIsToday, isOrderAssignedToVehicle 
+  checkOrderPickupDateIsToday, isOrderAssignedToVehicle, getDriverOrdersAndVendors 
 } from '../../services/roleDataService';
 import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
+import { onRealtimeDbChange } from '../../lib/realtime';
 
 interface Props {
   currentUser: User;
@@ -47,17 +48,95 @@ export default function MobileLogisticsView({
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadDoneRef = useRef<boolean>(false);
   const suppressRealtimeUntilRef = useRef<number>(0);
+  const realtimeDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Only update from parent props if not currently in a local sequence change suppression window
     if (Date.now() > suppressRealtimeUntilRef.current) {
-      setLocalOrders(orders);
+      if (orders && orders.length > 0) {
+        setLocalOrders(orders);
+      }
     }
   }, [orders]);
 
   useEffect(() => {
-    setLocalSuppliers(suppliers);
+    if (suppliers && suppliers.length > 0) {
+      setLocalSuppliers(suppliers);
+    }
   }, [suppliers]);
+
+  // Initial fetch on mount to guarantee orders appear immediately on load
+  useEffect(() => {
+    let isMounted = true;
+    const fetchInitial = async () => {
+      try {
+        const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
+          currentUser,
+          trucks,
+          employees,
+          localSuppliers.length > 0 ? localSuppliers : suppliers
+        );
+        if (isMounted) {
+          if (freshOrders && freshOrders.length > 0) {
+            setLocalOrders(freshOrders);
+          }
+          if (freshSuppliers && freshSuppliers.length > 0) {
+            setLocalSuppliers(freshSuppliers);
+          }
+        }
+      } catch (err) {
+        console.warn('Initial fetch in MobileLogisticsView error:', err);
+      }
+    };
+
+    fetchInitial();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser, trucks, employees]);
+
+  // Scaleproof realtime sync for changes triggered by other users
+  useEffect(() => {
+    const unsub = onRealtimeDbChange(async (table) => {
+      // Suppress when local sequence reordering in progress
+      if (Date.now() < suppressRealtimeUntilRef.current) return;
+
+      const t = (table || '').toLowerCase();
+      if (t === 'orders' || t === 'vehicles' || t === 'trucks' || t === 'vendors') {
+        if (realtimeDebounceTimerRef.current) {
+          clearTimeout(realtimeDebounceTimerRef.current);
+        }
+
+        realtimeDebounceTimerRef.current = setTimeout(async () => {
+          if (Date.now() < suppressRealtimeUntilRef.current) return;
+          try {
+            const { orders: freshOrders, suppliers: freshSuppliers } = await getDriverOrdersAndVendors(
+              currentUser,
+              trucks,
+              employees,
+              localSuppliers.length > 0 ? localSuppliers : suppliers
+            );
+            if (freshOrders && freshOrders.length > 0) {
+              setLocalOrders(freshOrders);
+            }
+            if (freshSuppliers && freshSuppliers.length > 0) {
+              setLocalSuppliers(freshSuppliers);
+            }
+          } catch (err) {
+            console.warn('Realtime fetch in MobileLogisticsView error:', err);
+          }
+        }, 1200);
+      }
+    });
+
+    return () => {
+      unsub();
+      if (realtimeDebounceTimerRef.current) {
+        clearTimeout(realtimeDebounceTimerRef.current);
+      }
+    };
+  }, [currentUser, trucks, employees, suppliers]);
 
   const uEmail = currentUser.email || '';
   const uEmailPart = uEmail.includes('@') ? uEmail.split('@')[0] : uEmail;
@@ -134,12 +213,16 @@ export default function MobileLogisticsView({
   // Strict current date helper for Asia/Tbilisi timezone
   const todayStr = useMemo(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date()), []);
 
-  // Filter orders assigned specifically to this vehicle (or driver) and with pickup date set as current date
+  // Filter orders assigned specifically to this vehicle (or driver)
+  // Active orders (registered, driver_assigned, picked_up, uncompleted) ALWAYS display!
   const myOrders = useMemo(() => {
     return localOrders.filter(o => {
       if (!o || o.is_deleted) return false;
-      if (!checkOrderPickupDateIsToday(o, todayStr)) return false;
-      return isOrderAssignedToVehicle(o, currentUser, trucks);
+      if (!isOrderAssignedToVehicle(o, currentUser, trucks)) return false;
+      if (o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up' || o.status === 'uncompleted') {
+        return true;
+      }
+      return checkOrderPickupDateIsToday(o, todayStr);
     });
   }, [localOrders, todayStr, currentUser, trucks]);
 
@@ -420,7 +503,6 @@ export default function MobileLogisticsView({
             dateStr={todayStr}
             newOrderIds={unacknowledgedOrders.map(o => o.id)}
             onOrdersReordered={(reorderedItems) => {
-              // Suppress realtime query echoes so device retains updated order list seamlessly
               suppressRealtimeUntilRef.current = Date.now() + 8000;
               const reorderedMap = new Map(reorderedItems.map(i => [i.id, i]));
               setLocalOrders(prev => {

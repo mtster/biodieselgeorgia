@@ -305,8 +305,11 @@ export async function getDriverOrdersAndVendors(
   // Determines if a candidate order belongs to this vehicle / driver with pickup date set as current date
   const orderBelongsToUser = (o: Order): boolean => {
     if (!o || o.is_deleted) return false;
-    if (!checkOrderPickupDateIsToday(o, todayStr)) return false;
-    return isOrderAssignedToVehicle(o, currentUser, trucks);
+    if (!isOrderAssignedToVehicle(o, currentUser, trucks)) return false;
+    if (o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up' || o.status === 'uncompleted') {
+      return true;
+    }
+    return checkOrderPickupDateIsToday(o, todayStr);
   };
 
   let driverOrders: Order[] = [];
@@ -317,8 +320,7 @@ export async function getDriverOrdersAndVendors(
       let query = supabase
         .from('orders')
         .select('*')
-        .eq('is_deleted', false)
-        .eq('order_date', todayStr);
+        .eq('is_deleted', false);
 
       const orParts: string[] = [];
       userTrucks.forEach(t => {
@@ -344,7 +346,7 @@ export async function getDriverOrdersAndVendors(
 
       const { data: rawOrders, error } = await query
         .order('order_date', { ascending: false })
-        .limit(60);
+        .limit(500);
 
       if (!error && rawOrders) {
         driverOrders = (rawOrders as any[])
