@@ -15,6 +15,36 @@ export const DEFAULT_CITIES: City[] = [];
 export const DEFAULT_DISTRICTS: District[] = [];
 export const DEFAULT_DIRECTIONS: Direction[] = [];
 
+const isRawId = (val: string) => {
+  if (!val) return false;
+  if (val.startsWith('city-') || val.startsWith('dist-') || val.startsWith('dir-')) return true;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+};
+
+export function resolveCityName(cityIdOrName?: string, citiesList?: City[]): string {
+  if (!cityIdOrName || !cityIdOrName.trim()) return '';
+  const val = cityIdOrName.trim();
+  let list = citiesList;
+  if (!list || list.length === 0) {
+    list = appCache.get<City[]>('cities_cache') || getLocal<City[]>(KEY_CITIES, DEFAULT_CITIES);
+  }
+  const matched = list.find(c => c && (c.id === val || String(c.id).toLowerCase() === val.toLowerCase()));
+  if (matched && matched.name) return matched.name;
+  return isRawId(val) ? '' : val;
+}
+
+export function resolveDistrictName(districtIdOrName?: string, districtsList?: District[]): string {
+  if (!districtIdOrName || !districtIdOrName.trim()) return '';
+  const val = districtIdOrName.trim();
+  let list = districtsList;
+  if (!list || list.length === 0) {
+    list = appCache.get<District[]>('districts_cache') || getLocal<District[]>(KEY_DISTRICTS, DEFAULT_DISTRICTS);
+  }
+  const matched = list.find(d => d && (d.id === val || String(d.id).toLowerCase() === val.toLowerCase()));
+  if (matched && matched.name) return matched.name;
+  return isRawId(val) ? '' : val;
+}
+
 const cleanUserUuid = (val: string | null | undefined): string | null => {
   if (!val) return null;
   if (val === 'import') return 'import';

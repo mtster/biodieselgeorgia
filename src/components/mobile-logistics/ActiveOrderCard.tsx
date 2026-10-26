@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Order, Vendor, VendorContact } from '../../types';
 import { MapPin, Phone, Navigation } from 'lucide-react';
 import { getVendorContacts, getVendorById } from '../../services/vendorService';
+import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
 
 interface Props {
   order: Order;
@@ -87,9 +88,12 @@ export function ActiveOrderCard({ order, supplier, getStatusLabel, onSelectOrder
 
   const selectedContact = asyncContact;
 
+  const resolvedCity = resolveCityName(currentSupplier?.city || order.city);
+  const resolvedDistrict = resolveDistrictName(currentSupplier?.district || order.district);
+
   const displayAddress = [
-    currentSupplier?.city || order.city,
-    currentSupplier?.district || order.district,
+    resolvedCity,
+    resolvedDistrict,
     currentSupplier?.address || order.address
   ].filter(Boolean).join(', ') || order.address || (currentSupplier?.address || '');
 

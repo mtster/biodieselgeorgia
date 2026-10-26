@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Order, Vendor } from '../../types';
 import { sortOrdersByRouteRank, rebalanceRanks } from '../../utils/lexorank';
 import { updateOrdersRouteRanks } from '../../services/orderService';
+import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
 import { OrderSequenceModalProps, VendorDisplayInfo } from './types';
 import { OrderSequenceHeader } from './OrderSequenceHeader';
 import { OrderSequenceList } from './OrderSequenceList';
@@ -77,7 +78,10 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
       supplier = (order as any).vendor;
     }
     const tradeName = supplier?.trade_name || supplier?.company_name || order.vendor_name || 'მომწოდებელი';
-    const address = supplier?.address || order.address || [supplier?.city, supplier?.district].filter(Boolean).join(', ') || 'მისამართი მითითებული არ არის';
+    const resolvedCity = resolveCityName(supplier?.city || (order as any).city);
+    const resolvedDistrict = resolveDistrictName(supplier?.district || (order as any).district);
+    const addressParts = [resolvedCity, resolvedDistrict, supplier?.address || order.address].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(', ') : 'მისამართი მითითებული არ არის';
 
     const parseCoord = (val: any): number | null => {
       if (val === null || val === undefined || val === '') return null;

@@ -12,6 +12,7 @@ import {
   cleanStr, normalizeText, findUserAssignedTruck, isVehicleMatchingUser, 
   checkOrderPickupDateIsToday, isOrderAssignedToVehicle, getDriverOrdersAndVendors 
 } from '../../services/roleDataService';
+import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
 import { onRealtimeDbChange } from '../../lib/realtime';
 
 interface Props {
@@ -221,7 +222,10 @@ export default function MobileLogisticsView({
         const activeSuppliers = localSuppliers.length > 0 ? localSuppliers : suppliers;
         const supplierObj = activeSuppliers.find(s => s.id === latest.vendor_id);
         const vendorName = supplierObj?.trade_name || supplierObj?.company_name || latest.vendor_name || 'მომწოდებელი';
-        const address = supplierObj?.address || latest.address || [supplierObj?.city, supplierObj?.district].filter(Boolean).join(', ') || 'მისამართი მითითებული არ არის';
+        const resolvedCity = resolveCityName(supplierObj?.city || latest.city);
+        const resolvedDistrict = resolveDistrictName(supplierObj?.district || latest.district);
+        const addressParts = [resolvedCity, resolvedDistrict, supplierObj?.address || latest.address].filter(Boolean);
+        const address = addressParts.length > 0 ? addressParts.join(', ') : 'მისამართი მითითებული არ არის';
 
         setActiveBanner({
           count: unique.length,
