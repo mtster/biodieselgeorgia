@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Order, Vendor } from '../../types';
-import { sortOrdersByRouteRank } from '../../utils/lexorank';
+import { sortOrdersByRouteRank, rebalanceRanks } from '../../utils/lexorank';
 import { updateOrdersRouteRanks } from '../../services/orderService';
 import { OrderSequenceModalProps, VendorDisplayInfo } from './types';
 import { OrderSequenceHeader } from './OrderSequenceHeader';
@@ -103,10 +103,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     const destinationIndex = targetInsertionIndex > fromIndex ? targetInsertionIndex - 1 : targetInsertionIndex;
     updated.splice(destinationIndex, 0, movedItem);
 
-    const rankedOrders = updated.map((item, idx) => ({
-      ...item,
-      route_rank: `r_${String(idx + 1).padStart(4, '0')}`
-    }));
+    const rankedOrders = rebalanceRanks(updated);
 
     setItems(rankedOrders);
     setIsDirty(true);
@@ -128,10 +125,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     const [moved] = updated.splice(fromIndex, 1);
     updated.splice(toIndex, 0, moved);
 
-    const rankedOrders = updated.map((item, idx) => ({
-      ...item,
-      route_rank: `r_${String(idx + 1).padStart(4, '0')}`
-    }));
+    const rankedOrders = rebalanceRanks(updated);
 
     setItems(rankedOrders);
     setIsDirty(true);
@@ -198,10 +192,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
 
         itemMap.forEach(item => reordered.push(item));
 
-        const rankedOrders = reordered.map((o, idx) => ({
-          ...o,
-          route_rank: `r_${String(idx + 1).padStart(4, '0')}`
-        }));
+        const rankedOrders = rebalanceRanks(reordered);
 
         setItems(rankedOrders);
         setIsDirty(true);
@@ -222,16 +213,13 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     if (isDirty) {
       setIsSaving(true);
       try {
-        const finalRanked = items.map((o, idx) => ({
-          ...o,
-          route_rank: o.route_rank || `r_${String(idx + 1).padStart(4, '0')}`
-        }));
+        const finalRanked = rebalanceRanks(items);
 
         onOrdersReordered(finalRanked);
 
         const updates = finalRanked.map(o => ({
           id: o.id,
-          route_rank: o.route_rank
+          route_rank: o.route_rank!
         }));
         await updateOrdersRouteRanks(updates);
       } catch (err) {

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Order, Vendor, Warehouse, Truck } from '../../types';
 import { ClipboardList, List } from 'lucide-react';
-import { AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { MobileLogisticsHeader } from '../mobile-logistics/MobileLogisticsHeader';
 import { ActiveOrderCard } from '../mobile-logistics/ActiveOrderCard';
 import { CompletedOrderCard } from '../mobile-logistics/CompletedOrderCard';
@@ -33,6 +33,17 @@ export default function MobileLogisticsView({
   const [showSequenceModal, setShowSequenceModal] = useState<boolean>(false);
   const [localOrders, setLocalOrders] = useState<Order[]>(orders);
   const [localSuppliers, setLocalSuppliers] = useState<Vendor[]>(suppliers);
+
+  // Tracking unacknowledged incoming orders for this vehicle
+  const [unacknowledgedOrders, setUnacknowledgedOrders] = useState<Order[]>([]);
+  const [activeBanner, setActiveBanner] = useState<{
+    count: number;
+    vendorName: string;
+    address: string;
+  } | null>(null);
+
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadDoneRef = useRef<boolean>(false);
 
   useEffect(() => {
     setLocalOrders(orders);
@@ -88,6 +99,7 @@ export default function MobileLogisticsView({
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [currentUser, trucks, employees, suppliers]);
+
 
 
   const uEmail = currentUser.email || '';
@@ -188,6 +200,50 @@ export default function MobileLogisticsView({
   // Rearrangement page: shows exactly the same orders as active orders page
   const sequenceOrders = sortedActiveOrders;
 
+  // Detect incoming orders dynamically for notification banner & unacknowledged count
+  useEffect(() => {
+    if (!initialLoadDoneRef.current) {
+      if (activeOrders.length > 0) {
+        activeOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
+        initialLoadDoneRef.current = true;
+      }
+      return;
+    }
+
+    const incoming = activeOrders.filter(o => !knownOrderIdsRef.current.has(o.id));
+    if (incoming.length > 0) {
+      incoming.forEach(o => knownOrderIdsRef.current.add(o.id));
+      setUnacknowledgedOrders(prev => {
+        const combined = [...incoming, ...prev];
+        const unique = Array.from(new Map(combined.map(o => [o.id, o])).values());
+
+        const latest = incoming[0];
+        const activeSuppliers = localSuppliers.length > 0 ? localSuppliers : suppliers;
+        const supplierObj = activeSuppliers.find(s => s.id === latest.vendor_id);
+        const vendorName = supplierObj?.trade_name || supplierObj?.company_name || latest.vendor_name || 'მომწოდებელი';
+        const address = supplierObj?.address || latest.address || [supplierObj?.city, supplierObj?.district].filter(Boolean).join(', ') || 'მისამართი მითითებული არ არის';
+
+        setActiveBanner({
+          count: unique.length,
+          vendorName,
+          address
+        });
+
+        return unique;
+      });
+    }
+  }, [activeOrders, localSuppliers, suppliers]);
+
+  // Auto-dismiss notification banner after 7 seconds
+  useEffect(() => {
+    if (activeBanner) {
+      const timer = setTimeout(() => {
+        setActiveBanner(null);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeBanner]);
+
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'registered': return 'რეგისტრირებული';
@@ -201,7 +257,57 @@ export default function MobileLogisticsView({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="mobile-logistics-portal">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative" id="mobile-logistics-portal">
+      {/* Sleek Modern Minimalist Incoming Order Notification Banner */}
+      <AnimatePresence>
+        {activeBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+            className="fixed top-3 left-4 right-4 z-[80] max-w-md mx-auto"
+          >
+            <div 
+              onClick={() => {
+                setShowSequenceModal(true);
+                setActiveBanner(null);
+              }}
+              className="bg-emerald-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-emerald-700/60 backdrop-blur-md cursor-pointer flex items-start justify-between gap-3 select-none"
+            >
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-800/90 border border-emerald-600/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <ClipboardList size={16} className="text-emerald-300" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black tracking-wide text-emerald-200 uppercase">
+                      {activeBanner.count > 1 ? `${activeBanner.count} ახალი შეკვეთა` : 'ახალი შეკვეთა'}
+                    </span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  </div>
+                  <p className="text-sm font-bold text-white truncate leading-tight">
+                    {activeBanner.vendorName}
+                  </p>
+                  <p className="text-[11px] text-emerald-200/80 truncate leading-tight">
+                    {activeBanner.address}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveBanner(null);
+                }}
+                className="text-emerald-300/70 hover:text-white p-1 rounded-lg transition"
+              >
+                &times;
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <MobileLogisticsHeader
         currentUser={currentUser}
@@ -227,13 +333,18 @@ export default function MobileLogisticsView({
           <div className="flex-1 flex bg-gray-200/70 p-1 rounded-xl shadow-inner">
             <button
               onClick={() => { setActiveTab('active'); setSelectedOrder(null); }}
-              className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition tracking-tight cursor-pointer ${
+              className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition tracking-tight cursor-pointer relative flex items-center justify-center gap-1.5 ${
                 activeTab === 'active' 
                   ? 'bg-white text-emerald-900 shadow-sm border border-gray-100' 
                   : 'text-gray-500 hover:text-gray-800'
               }`}
             >
-              აქტიური შეკვეთები ({activeOrders.length})
+              <span>აქტიური შეკვეთები ({activeOrders.length})</span>
+              {unacknowledgedOrders.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black leading-none bg-emerald-600 text-white rounded-full shadow-xs animate-pulse">
+                  {unacknowledgedOrders.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => { setActiveTab('completed'); setSelectedOrder(null); }}
@@ -305,7 +416,12 @@ export default function MobileLogisticsView({
         {showSequenceModal && (
           <OrderSequenceModal
             isOpen={showSequenceModal}
-            onClose={() => setShowSequenceModal(false)}
+            onClose={() => {
+              setShowSequenceModal(false);
+              // Indicator: leaving the reordering modal confirms user has acknowledged and ordered the new stops
+              setUnacknowledgedOrders([]);
+              setActiveBanner(null);
+            }}
             orders={sequenceOrders}
             suppliers={localSuppliers.length > 0 ? localSuppliers : suppliers}
             vehiclePlateText={vehiclePlateText}

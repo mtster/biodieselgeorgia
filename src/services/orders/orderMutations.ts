@@ -6,21 +6,45 @@ import { notifyDbChange } from '../../lib/realtime';
 import { appCache } from '../../utils/cache';
 import { generateUuid, cleanUserUuid } from '../vendorService';
 import { isValidUuid } from './orderUtils';
+import { getRankBetween, sortOrdersByRouteRank } from '../../utils/lexorank';
 
 export async function saveOrder(order: Order, loggerName: string, currentUserId?: string): Promise<Order> {
   const isNew = !order.id;
 
   const createdByUuid = cleanUserUuid(isNew ? (currentUserId || order.created_by) : order.created_by);
 
+  // When order is new and assigned to a vehicle/driver, position on TOP of vehicle's active orders via LexoRank
+  let calculatedRank = order.route_rank;
+  if (isNew && !calculatedRank && (order.vehicle_id || order.truck_plate || order.driver_id)) {
+    try {
+      const allOrders = getLocal<Order[]>(KEY_ORDERS, []);
+      const vMatch = (order.truck_plate || order.vehicle_id || '').trim().toLowerCase();
+      const vOrders = allOrders.filter(o => 
+        !o.is_deleted && 
+        o.status !== 'completed' && o.status !== 'cancelled' &&
+        ((vMatch && (
+          (o.vehicle_id && o.vehicle_id.toLowerCase() === vMatch) || 
+          (o.truck_plate && o.truck_plate.toLowerCase() === vMatch)
+        )) || (order.driver_id && o.driver_id === order.driver_id))
+      );
+      const sorted = sortOrdersByRouteRank(vOrders);
+      const firstRank = sorted.length > 0 ? sorted[0].route_rank : null;
+      calculatedRank = getRankBetween(null, firstRank);
+    } catch {}
+  }
+
   const finalOrder = {
     ...order,
     id: isNew ? (order.id || generateUuid()) : order.id,
+    route_rank: calculatedRank,
     operator_id: cleanUserUuid(order.operator_id),
+    createdByUuid,
     created_by: createdByUuid,
     driver_id: cleanUserUuid(order.driver_id),
     companion_id: cleanUserUuid(order.companion_id),
     notes: Array.isArray(order.notes) ? order.notes : (order.note ? [{ id: 'c-1', comment: order.note, date: new Date().toISOString(), user_name: 'System' }] : [])
   };
+
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -285,26 +309,45 @@ export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Pr
     }
   }
 
-  // 1. Single batch update to Supabase for all selected orders
-  // Note: 'orders' table has 'vehicle_id', not 'truck_plate'
+  const idSet = new Set(orderIds);
+  const localOrders = getLocal<Order[]>(KEY_ORDERS, []);
+
+  // Compute LexoRank on top of vehicle's active orders
+  const vOrders = localOrders.filter(o => 
+    !o.is_deleted && 
+    o.status !== 'completed' && o.status !== 'cancelled' &&
+    ((resolvedVehicleId && o.vehicle_id === resolvedVehicleId) ||
+     (cleanPlate && o.truck_plate === cleanPlate)) &&
+    !idSet.has(o.id)
+  );
+  const sorted = sortOrdersByRouteRank(vOrders);
+  let currentTopRank = sorted.length > 0 ? sorted[0].route_rank : null;
+
+  const orderRankMap = new Map<string, string>();
+  for (let i = orderIds.length - 1; i >= 0; i--) {
+    const rank = getRankBetween(null, currentTopRank);
+    orderRankMap.set(orderIds[i], rank);
+    currentTopRank = rank;
+  }
+
+  // 1. Update Supabase for all selected orders with top LexoRanks
   if (isSupabaseConfigured && supabase) {
     try {
-      const { error: batchErr } = await supabase
-        .from('orders')
-        .update({
-          driver_id: cleanDriverId,
-          companion_id: cleanCompanionId,
-          vehicle_id: resolvedVehicleId,
-          status: 'driver_assigned'
-        })
-        .in('id', orderIds);
+      const updatePromises = orderIds.map(oid => 
+        supabase
+          .from('orders')
+          .update({
+            driver_id: cleanDriverId,
+            companion_id: cleanCompanionId,
+            vehicle_id: resolvedVehicleId,
+            status: 'driver_assigned',
+            route_rank: orderRankMap.get(oid) || null
+          })
+          .eq('id', oid)
+      );
+      await Promise.all(updatePromises);
 
-      if (batchErr) {
-        console.error('Supabase batchAssignCrewToOrders error:', batchErr);
-        throw batchErr;
-      }
-
-      // 2. Synchronize vehicle record once (not N times)
+      // 2. Synchronize vehicle record once
       if (resolvedVehicleId) {
         await supabase
           .from('vehicles')
@@ -329,8 +372,6 @@ export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Pr
   }
 
   // 3. Atomically update local storage orders
-  const idSet = new Set(orderIds);
-  const localOrders = getLocal<Order[]>(KEY_ORDERS, []);
   const updatedOrders = localOrders.map(o => {
     if (idSet.has(o.id)) {
       return {
@@ -339,6 +380,7 @@ export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Pr
         companion_id: companionId || undefined,
         vehicle_id: resolvedVehicleId || o.vehicle_id,
         truck_plate: cleanPlate || undefined,
+        route_rank: orderRankMap.get(o.id) || o.route_rank,
         status: 'driver_assigned' as const
       };
     }

@@ -502,7 +502,6 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Picked Up": "გატანილია",
   "Cancel & Delete Order?": "გაუქმება და შეკვეთის წაშლა?",
   "Are you sure you want to completely cancel and soft delete high-priority order dispatch": "დარწმუნებული ხართ, რომ გსურთ მთლიანად გააუქმოთ და წაშალოთ მაღალი პრიორიტეტის შეკვეთა",
-  "Confirm Bulk Orders Deleted": "შეკვეთების ჯგუფური წაშლის დადასტურება",
   "Are you sure you want to soft delete": "გსურთ წაშალოთ",
   "selected orders": "არჩეული შეკვეთა",
   "They will hide from the UI immediately.": "ისინი დაუყოვნებლივ გაქრება ინტერფეისიდან.",
