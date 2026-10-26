@@ -213,16 +213,16 @@ export default function MobileLogisticsView({
   // Strict current date helper for Asia/Tbilisi timezone
   const todayStr = useMemo(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date()), []);
 
-  // Filter orders assigned specifically to this vehicle (or driver)
-  // Active orders (registered, driver_assigned, picked_up, uncompleted) ALWAYS display!
+  const isTodayOrder = (o: Order): boolean => {
+    return checkOrderPickupDateIsToday(o, todayStr);
+  };
+
+  // Filter orders assigned specifically to this vehicle (or driver) and with pickup date set as current date
   const myOrders = useMemo(() => {
     return localOrders.filter(o => {
       if (!o || o.is_deleted) return false;
-      if (!isOrderAssignedToVehicle(o, currentUser, trucks)) return false;
-      if (o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up' || o.status === 'uncompleted') {
-        return true;
-      }
-      return checkOrderPickupDateIsToday(o, todayStr);
+      if (!isTodayOrder(o)) return false;
+      return isOrderAssignedToVehicle(o, currentUser, trucks);
     });
   }, [localOrders, todayStr, currentUser, trucks]);
 

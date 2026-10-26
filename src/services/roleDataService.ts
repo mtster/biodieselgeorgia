@@ -305,11 +305,8 @@ export async function getDriverOrdersAndVendors(
   // Determines if a candidate order belongs to this vehicle / driver with pickup date set as current date
   const orderBelongsToUser = (o: Order): boolean => {
     if (!o || o.is_deleted) return false;
-    if (!isOrderAssignedToVehicle(o, currentUser, trucks)) return false;
-    if (o.status === 'registered' || o.status === 'driver_assigned' || o.status === 'picked_up' || o.status === 'uncompleted') {
-      return true;
-    }
-    return checkOrderPickupDateIsToday(o, todayStr);
+    if (!checkOrderPickupDateIsToday(o, todayStr)) return false;
+    return isOrderAssignedToVehicle(o, currentUser, trucks);
   };
 
   let driverOrders: Order[] = [];
