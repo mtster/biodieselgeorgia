@@ -1017,7 +1017,10 @@ export function cleanVendorDbPayload(vendor: any): any {
     last_order_date: vendor.last_order_date || null,
     is_planned: vendor.is_planned !== undefined ? !!vendor.is_planned : false,
     planned_weekday: normalizePlannedWeekdays(vendor.planned_weekday),
-    frequency_weeks: vendor.frequency_weeks ? Number(vendor.frequency_weeks) : 1,
+    frequency_weeks: (() => {
+      const parsed = parseInt(vendor.frequency_weeks as any, 10);
+      return !isNaN(parsed) && parsed >= 1 ? parsed : 1;
+    })(),
     tanks_to_bring: Number(vendor.tanks_to_bring) || 0,
     tanks_to_leave: Number(vendor.tanks_to_leave) || 0,
     latitude: (vendor.latitude !== undefined && vendor.latitude !== null && vendor.latitude !== '') ? Number(vendor.latitude) : null,
@@ -1147,36 +1150,24 @@ export async function saveVendor(
           throw error;
         }
       } else {
-        // Updating existing vendor - NEVER use upsert!
-        if (isOperator) {
-          // Compare whether comments actually changed before issuing update to vendors table
-          // If operator only modified contacts, skip updating vendors table to avoid unnecessary triggers
-          const existingVendor = list.find(item => item.id === finalVendor.id);
-          const existingCommentsJson = JSON.stringify(existingVendor?.comments || []);
-          const newCommentsJson = JSON.stringify(finalVendor.comments || []);
-          const commentsChanged = existingCommentsJson !== newCommentsJson;
+        // Updating existing vendor in Supabase (ensuring frequency_weeks, is_planned, etc. are persisted)
+        const dbPayload = cleanVendorDbPayload(finalVendor);
+        delete dbPayload.id; // Do not alter primary key
 
-          if (commentsChanged && finalVendor.comments !== undefined) {
+        const { error } = await supabase
+          .from('vendors')
+          .update(dbPayload)
+          .eq('id', finalVendor.id);
+
+        if (error) {
+          // If RLS blocked full update due to restricted operator role, fallback to comments-only update
+          if (isOperator && (error.code === '42501' || error.message?.toLowerCase().includes('permission') || error.message?.toLowerCase().includes('authorized'))) {
             const { error: commentsErr } = await supabase
               .from('vendors')
               .update({ comments: Array.isArray(finalVendor.comments) ? finalVendor.comments : [] })
               .eq('id', finalVendor.id);
-
-            if (commentsErr) {
-              console.error('Supabase operator comments update error:', commentsErr);
-              throw commentsErr;
-            }
-          }
-        } else {
-          // Full update for authorized users (admin, manager, or users with suppliers.modify)
-          const dbPayload = cleanVendorDbPayload(finalVendor);
-          delete dbPayload.id; // Do not alter primary key
-          const { error } = await supabase
-            .from('vendors')
-            .update(dbPayload)
-            .eq('id', finalVendor.id);
-
-          if (error) {
+            if (commentsErr) throw commentsErr;
+          } else {
             console.error('Supabase update vendor error details:', error);
             if ((error as any).code === '23505') {
               console.warn('Skipping duplicate company_code conflict in Supabase:', finalCompCode);

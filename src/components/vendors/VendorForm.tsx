@@ -421,8 +421,12 @@ export default function VendorForm({
         username: finalUsername || undefined
       };
 
-      if (isOperator && (initialSnapshotRef.current?.vendor?.id || editingVendor.id)) {
-        // Enforce that operator payload strictly preserves all core vendor parameters from initial snapshot
+      const canModifySupplier = currentUser?.role === 'admin' || 
+        (currentUser?.permissions?.['suppliers']?.includes('modify') ?? false) ||
+        (currentUser?.permissions?.['vendors']?.includes('modify') ?? false);
+
+      if (isOperator && !canModifySupplier && (initialSnapshotRef.current?.vendor?.id || editingVendor.id)) {
+        // Enforce that unprivileged operator payload strictly preserves all core vendor parameters from initial snapshot
         const init = initialSnapshotRef.current?.vendor || editingVendor;
         payload = {
           ...init,

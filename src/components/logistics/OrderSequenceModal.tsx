@@ -60,8 +60,8 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     const district = resolveDistrictName(s?.district || order.district);
     const addressParts = [city, district, s?.address || order.address].filter(Boolean);
     const address = addressParts.length > 0 ? addressParts.join(', ') : 'მისამართი მითითებული არ არის';
-    const lat = s?.latitude ?? order.latitude ?? null;
-    const lon = s?.longitude ?? order.longitude ?? null;
+    const lat = s?.latitude ?? (order as any)?.latitude ?? null;
+    const lon = s?.longitude ?? (order as any)?.longitude ?? null;
 
     return { tradeName, address, lat, lon };
   };

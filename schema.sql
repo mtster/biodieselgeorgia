@@ -791,7 +791,6 @@ BEGIN
        OR NEW.tanks_to_bring IS DISTINCT FROM OLD.tanks_to_bring
        OR NEW.tanks_to_leave IS DISTINCT FROM OLD.tanks_to_leave
        OR NEW.overdue_threshold_days IS DISTINCT FROM OLD.overdue_threshold_days
-       OR NEW.custom_fields IS DISTINCT FROM OLD.custom_fields
     THEN
       RAISE EXCEPTION 'Operators are only authorized to modify vendor comments and contacts.';
     END IF;
