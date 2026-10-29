@@ -6,11 +6,13 @@ import { defaultPermissions } from '../components/users/UserForm';
 import { decodeProfile } from '../services/userService';
 import {
   getCachedUser,
+  getCachedUserAsync,
   saveCachedUser,
   isExplicitlyLoggedOut,
   getAuthCredentials,
   clearPersistentAuth,
   requestPersistentStorage,
+  rehydrateFromIndexedDB,
 } from '../lib/persistentAuth';
 
 export function useAuth() {
@@ -108,16 +110,27 @@ export function useAuth() {
     let isMounted = true;
 
     const initAuth = async () => {
-      // Failsafe timeout: guarantee authentication loading completes within 2.5s even if network is slow
+      // Failsafe timeout: guarantee authentication loading completes within 3s even if network is slow
       const failsafeTimer = setTimeout(() => {
         if (isMounted) {
           setIsLoadingAuth(false);
         }
-      }, 2500);
+      }, 3000);
 
       try {
         // 1. Request persistent browser storage to prevent iOS/Android storage eviction
         requestPersistentStorage().catch(() => {});
+
+        // 2. Await IndexedDB rehydration before checking session or credentials
+        await rehydrateFromIndexedDB().catch(() => {});
+
+        // If currentUser is not yet set in state, check durable IndexedDB store
+        if (!currentUserRef.current) {
+          const asyncCached = await getCachedUserAsync();
+          if (asyncCached && isMounted) {
+            setCurrentUser(asyncCached);
+          }
+        }
 
         if (!isSupabaseConfigured || !supabase) {
           if (isMounted) setIsLoadingAuth(false);
@@ -141,7 +154,6 @@ export function useAuth() {
           // If no session found or refresh token expired, check if we are offline
           const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
           if (isOffline) {
-            // Keep existing cached user session while offline
             console.info('App opened offline - retaining persistent user session');
             if (isMounted) setIsLoadingAuth(false);
             return;
@@ -164,10 +176,12 @@ export function useAuth() {
             }
           }
 
-          // If no credentials and no valid session, reset if no cached user exists
-          const cached = getCachedUser();
+          // If no credentials and no valid session, check if a cached user exists
+          const cached = await getCachedUserAsync();
           if (!cached && isMounted) {
             setCurrentUser(null);
+          } else if (cached && isMounted && !currentUserRef.current) {
+            setCurrentUser(cached);
           }
           if (isMounted) setIsLoadingAuth(false);
         }

@@ -43,7 +43,7 @@ serve(async (req) => {
         const orderIds = orders.map(o => o.id).filter(Boolean)
         let query = supabase
           .from('orders')
-          .select('id, vendor_id, order_date, created_at, status, vehicle_id, truck_plate, driver_id, is_deleted')
+          .select('id, vendor_id, order_date, created_at, status, vehicle_id, driver_id, is_deleted')
           .in('id', orderIds)
           .eq('is_deleted', false)
           .neq('status', 'cancelled')
@@ -51,24 +51,11 @@ serve(async (req) => {
 
         if (body.vehicle_id) {
           query = query.eq('vehicle_id', body.vehicle_id)
-        } else if (body.truck_plate) {
-          query = query.eq('truck_plate', body.truck_plate)
         }
 
         const { data: dbOrders, error: dbErr } = await query
-        if (!dbErr && dbOrders) {
-          const allowedIdSet = new Set(
-            dbOrders.filter((o: any) => {
-              const rawDate = o.order_date || o.created_at
-              if (!rawDate) return false
-              try {
-                const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date(rawDate))
-                return dStr === todayStr
-              } catch {
-                return String(rawDate).slice(0, 10) === todayStr
-              }
-            }).map((o: any) => o.id)
-          )
+        if (!dbErr && dbOrders && dbOrders.length > 0) {
+          const allowedIdSet = new Set(dbOrders.map((o: any) => o.id))
           orders = orders.filter(o => allowedIdSet.has(o.id))
         }
       } catch (dbFilterErr) {
@@ -78,17 +65,6 @@ serve(async (req) => {
       orders = orders.filter((o: any) => {
         if (o.is_deleted) return false
         if (o.status && (o.status === 'cancelled' || o.status === 'completed')) return false
-        if (o.order_date || o.created_at) {
-          const raw = o.order_date || o.created_at
-          try {
-            const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date(raw))
-            if (dStr !== todayStr) return false
-          } catch {
-            if (String(raw).slice(0, 10) !== todayStr) return false
-          }
-        }
-        if (body.vehicle_id && o.vehicle_id && o.vehicle_id !== body.vehicle_id) return false
-        if (body.truck_plate && o.truck_plate && o.truck_plate !== body.truck_plate) return false
         return true
       })
     }

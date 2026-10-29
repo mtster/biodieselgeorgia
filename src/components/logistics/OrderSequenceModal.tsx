@@ -96,6 +96,7 @@ export const OrderSequenceModal: React.FC<OrderSequenceModalProps> = ({
     });
 
     setIsDirty(true);
+    setIsOptimized(false);
   };
 
   /**

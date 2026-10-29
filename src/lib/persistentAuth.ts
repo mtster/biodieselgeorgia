@@ -157,13 +157,12 @@ async function idbDel(key: string): Promise<void> {
 }
 
 /**
- * Rehydrate missing keys from IndexedDB into memory & localStorage
- * (Runs asynchronously in the background so it never blocks app boot)
+ * Asynchronously rehydrate memoryStore and localStorage from IndexedDB
  */
 export async function rehydrateFromIndexedDB(): Promise<void> {
+  const db = await openAuthDb();
+  if (!db) return;
   try {
-    const db = await openAuthDb();
-    if (!db) return;
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
     const req = store.openCursor();
@@ -190,11 +189,40 @@ export async function rehydrateFromIndexedDB(): Promise<void> {
   }
 }
 
+/**
+ * Asynchronously retrieve cached user, checking memory, localStorage, and IndexedDB backup
+ */
+export async function getCachedUserAsync(): Promise<User | null> {
+  if (isExplicitlyLoggedOut()) return null;
+
+  const syncUser = getCachedUser();
+  if (syncUser) return syncUser;
+
+  try {
+    const raw = await idbGet(KEY_CACHED_USER);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed) {
+        memoryStore.set(KEY_CACHED_USER, raw);
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(KEY_CACHED_USER, raw);
+          }
+        } catch {}
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.debug('Error getting cached user from IndexedDB:', e);
+  }
+  return null;
+}
+
 // Kick off background rehydration asynchronously
 if (typeof window !== 'undefined') {
   setTimeout(() => {
     rehydrateFromIndexedDB().catch(() => {});
-  }, 100);
+  }, 10);
 }
 
 /**
