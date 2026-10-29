@@ -43,7 +43,7 @@ export async function getOrdersPaginated(
   }
 
   const filterKey = JSON.stringify({ ...effectiveFilters, isLogisticsManager });
-  const countCacheKey = `count_orders_${filterKey}`;
+  const countCacheKey = `orders_count_${filterKey}`;
   const pageCacheKey = `orders_limit_${limit}_offset_${offset}_${filterKey}`;
 
   const cachedPage = appCache.get<PaginatedOrdersResult>(pageCacheKey);
@@ -204,8 +204,9 @@ export async function getOrdersPaginated(
       }
 
       query = query
-        .order('created_at', { ascending: false })
-        .order('order_date', { ascending: false })
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .order('order_date', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false })
         .range(offset, offset + limit - 1);
 
       const { data, count, error } = await query;
@@ -448,7 +449,8 @@ export async function getOrdersPaginated(
     if (createdB !== createdA) return createdB - createdA;
     const orderA = a.order_date ? new Date(a.order_date).getTime() : 0;
     const orderB = b.order_date ? new Date(b.order_date).getTime() : 0;
-    return orderB - orderA;
+    if (orderB !== orderA) return orderB - orderA;
+    return (b.id || '').localeCompare(a.id || '');
   });
 
   return {
@@ -506,8 +508,9 @@ export async function getOrders(limit = 1000, currentUser?: User | null): Promis
       }
 
       const { data, error } = await q
-        .order('created_at', { ascending: false })
-        .order('order_date', { ascending: false })
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .order('order_date', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false })
         .limit(limit);
 
       if (!error && data && data.length > 0) {

@@ -187,7 +187,7 @@ BEGIN
     v_new_doc := 'DOC-' || (FLOOR(100000 + random() * 900000)::INT)::TEXT;
     v_new_order_id := gen_random_uuid()::TEXT;
 
-    -- 5. Insert scheduled order (created_by = NULL and operator_id = NULL)
+    -- 5. Insert scheduled order (created_by = NULL, operator_id = NULL, route_rank = NULL)
     INSERT INTO public.orders (
       id,
       order_date,
@@ -202,6 +202,7 @@ BEGIN
       tanks_to_bring,
       status,
       notes,
+      route_rank,
       is_deleted
     ) VALUES (
       v_new_order_id,
@@ -221,6 +222,7 @@ BEGIN
         'comment', 'გეგმიური შეკვეთა (' || v_weekday_ka || ', სიხშირე: ' || COALESCE(v_vendor.frequency_weeks, 1) || ' კვ.)',
         'created_at', NOW()
       )),
+      NULL,
       FALSE
     );
 

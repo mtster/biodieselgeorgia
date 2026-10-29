@@ -29,8 +29,15 @@ class SimpleCache {
     if (!prefix) {
       this.store = {};
     } else {
+      const p = prefix.toLowerCase();
       Object.keys(this.store).forEach(key => {
-        if (key.startsWith(prefix)) {
+        const k = key.toLowerCase();
+        if (
+          k.startsWith(p) ||
+          k.includes(`_${p}`) ||
+          k.includes(`${p}_`) ||
+          (p === 'orders' && k.includes('order'))
+        ) {
           delete this.store[key];
         }
       });

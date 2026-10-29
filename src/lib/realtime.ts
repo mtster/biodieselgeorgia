@@ -47,7 +47,7 @@ export function debouncedInvalidateQueries(keys: string[]) {
       const keysToRun = Array.from(pendingInvalidationKeys);
       pendingInvalidationKeys.clear();
       keysToRun.forEach(key => {
-        globalQueryClient?.invalidateQueries({ queryKey: [key], refetchType: 'active' });
+        globalQueryClient?.invalidateQueries({ queryKey: [key] });
       });
     }
   }, 100);
