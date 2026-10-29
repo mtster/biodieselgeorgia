@@ -386,7 +386,7 @@ router.post("/api/optimize-route", async (req, res) => {
               }
             }
 
-            const finalOrderIds = [...orderedJobIds, ...unlocatedStops.map(s => s.id)];
+            const finalOrderIds = [...unlocatedStops.map(s => s.id), ...orderedJobIds];
 
             return res.json({
               success: true,
@@ -466,7 +466,7 @@ router.post("/api/optimize-route", async (req, res) => {
         }
       }
 
-      const optimizedOrderIds = [...route.map(s => s.id), ...unlocatedStops.map(s => s.id)];
+      const optimizedOrderIds = [...unlocatedStops.map(s => s.id), ...route.map(s => s.id)];
       return res.json({
         success: true,
         optimized_order_ids: optimizedOrderIds,

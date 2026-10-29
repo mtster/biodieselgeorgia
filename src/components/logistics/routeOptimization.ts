@@ -11,55 +11,7 @@ export interface OptimizeRouteParams {
   getVendorInfo: (order: Order) => VendorDisplayInfo;
 }
 
-// Approximate centroids for Georgian districts to ensure every stop has valid coordinates for TSP optimization
-const DISTRICT_COORDS: Record<string, [number, number]> = {
-  // [lon, lat]
-  'საბურთალო': [44.745, 41.725],
-  'ვაკე': [44.760, 41.710],
-  'ვერა': [44.785, 41.710],
-  'ცენტრი': [44.795, 41.700],
-  'მთაწმინდა': [44.790, 41.695],
-  'სოლოლაკი': [44.798, 41.688],
-  'დიდუბე': [44.780, 41.745],
-  'ჩუღურეთი': [44.805, 41.715],
-  'გლდანი': [44.825, 41.790],
-  'ნაძალადევი': [44.810, 41.745],
-  'სანზონა': [44.800, 41.750],
-  'თემქა': [44.830, 41.765],
-  'ისანი': [44.835, 41.690],
-  'ავლაბარი': [44.815, 41.690],
-  'ორთაჭალა': [44.835, 41.675],
-  'სამგორი': [44.885, 41.700],
-  'ვარკეთილი': [44.880, 41.710],
-  'ვაზისუბანი': [44.860, 41.705],
-  'დიდი დიღომი': [44.740, 41.795],
-  'დიღომი': [44.750, 41.770],
-  'ლილო': [44.970, 41.690],
-  'რუსთავი': [44.990, 41.540],
-  'მცხეთა': [44.720, 41.840],
-  'ბათუმი': [41.636, 41.643],
-  'ქუთაისი': [42.705, 42.266]
-};
-
-function resolveFallbackCoordinates(addressText: string, seed: string): [number, number] {
-  const norm = (addressText || '').toLowerCase();
-  for (const [district, coords] of Object.entries(DISTRICT_COORDS)) {
-    if (norm.includes(district.toLowerCase())) {
-      // Add slight jitter based on seed so stops in same district don't overlap completely
-      let hash = 0;
-      for (let i = 0; i < seed.length; i++) hash = (hash << 5) - hash + seed.charCodeAt(i);
-      const jitterLon = ((hash % 100) / 10000);
-      const jitterLat = (((hash >> 3) % 100) / 10000);
-      return [coords[0] + jitterLon, coords[1] + jitterLat];
-    }
-  }
-  // Default to central Tbilisi
-  return [44.8015, 41.6934];
-}
-
-/**
- * Haversine distance in kilometers
- */
+// Haversine distance in kilometers (deterministic)
 function haversineDistance(lon1: number, lat1: number, lon2: number, lat2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -73,7 +25,7 @@ function haversineDistance(lon1: number, lat1: number, lon2: number, lat2: numbe
 
 /**
  * Local 2-Opt Traveling Salesperson Problem (TSP) Solver
- * Guarantees optimal route even if backend/edge functions or Geoapify are unreachable
+ * Guarantees deterministic optimal route when Geoapify or backend is unavailable
  */
 function solveLocalTspRoute(
   stops: { id: string; lon: number; lat: number }[],
@@ -81,8 +33,10 @@ function solveLocalTspRoute(
 ): string[] {
   if (stops.length <= 1) return stops.map(s => s.id);
 
-  const remaining = [...stops];
-  // 1. Nearest Neighbor construction starting from driver's current location
+  // Deterministically sort input stops by id to eliminate random ordering differences
+  const remaining = [...stops].sort((a, b) => a.id.localeCompare(b.id));
+
+  // 1. Nearest Neighbor construction starting from driver's location
   let currentLon = startLocation[0];
   let currentLat = startLocation[1];
 
@@ -112,10 +66,10 @@ function solveLocalTspRoute(
     route.push(remaining.splice(bestIdx, 1)[0]);
   }
 
-  // 2. 2-Opt iterative improvement (untangles any intersecting line segments)
+  // 2. 2-Opt iterative improvement (deterministic untangling)
   let improved = true;
   let iterations = 0;
-  while (improved && iterations < 40 && route.length >= 4) {
+  while (improved && iterations < 50 && route.length >= 4) {
     improved = false;
     iterations++;
     for (let i = 0; i < route.length - 2; i++) {
@@ -127,13 +81,14 @@ function solveLocalTspRoute(
           haversineDistance(route[i].lon, route[i].lat, route[j].lon, route[j].lat) +
           (j + 1 < route.length ? haversineDistance(route[i + 1].lon, route[i + 1].lat, route[j + 1].lon, route[j + 1].lat) : 0);
 
-        if (d2 < d1 - 0.001) {
-          // Reverse slice between i+1 and j
+        if (d2 < d1 - 0.0001) {
           const reversed = route.slice(i + 1, j + 1).reverse();
           route.splice(i + 1, reversed.length, ...reversed);
           improved = true;
+          break;
         }
       }
+      if (improved) break;
     }
   }
 
@@ -141,7 +96,8 @@ function solveLocalTspRoute(
 }
 
 /**
- * Auto-optimize route via Geoapify Route Planner with resilient local 2-Opt TSP fallback
+ * Auto-optimize route via Geoapify Route Planner with resilient local 2-Opt TSP fallback.
+ * Orders without coordinates are excluded from Geoapify and aligned at the very top.
  */
 export async function optimizeRouteStops({
   items,
@@ -153,48 +109,71 @@ export async function optimizeRouteStops({
 }: OptimizeRouteParams): Promise<string[]> {
   if (items.length <= 1) return items.map(i => i.id);
 
-  // 1. Get driver's current GPS location with high accuracy and fast fallback
+  // 1. Separate orders into unlocated (lacking vendor coordinates) and located
+  const unlocatedOrders: Order[] = [];
+  const locatedOrders: { order: Order; lat: number; lon: number; tradeName: string; address: string }[] = [];
+
+  for (const item of items) {
+    const info = getVendorInfo(item);
+    const lat = typeof info.lat === 'number' && !isNaN(info.lat) ? info.lat : null;
+    const lon = typeof info.lon === 'number' && !isNaN(info.lon) ? info.lon : null;
+
+    if (lat !== null && lon !== null && (lat !== 0 || lon !== 0)) {
+      locatedOrders.push({
+        order: item,
+        lat,
+        lon,
+        tradeName: info.tradeName || '',
+        address: info.address || ''
+      });
+    } else {
+      unlocatedOrders.push(item);
+    }
+  }
+
+  // If no orders have coordinates, return existing list with unlocated orders at the top
+  if (locatedOrders.length === 0) {
+    return items.map(i => i.id);
+  }
+
+  // If only 1 order has coordinates, unlocated orders go to top and the single located order follows
+  if (locatedOrders.length === 1) {
+    return [...unlocatedOrders.map(o => o.id), locatedOrders[0].order.id];
+  }
+
+  // 2. Get driver's current GPS location with high accuracy, rounded to 4 decimals to avoid micro-jitter
   let startLocation: [number, number] = [44.8015, 41.6934]; // Freedom Square, Tbilisi
   if (typeof navigator !== 'undefined' && navigator.geolocation) {
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
-          timeout: 3000,
+          timeout: 2500,
           maximumAge: 120000,
           enableHighAccuracy: true
         });
       });
       if (pos?.coords?.latitude && pos?.coords?.longitude) {
-        startLocation = [pos.coords.longitude, pos.coords.latitude];
+        // Round to 4 decimal places (~11 meters) to guarantee stable, deterministic routing requests
+        const roundLon = Math.round(pos.coords.longitude * 10000) / 10000;
+        const roundLat = Math.round(pos.coords.latitude * 10000) / 10000;
+        startLocation = [roundLon, roundLat];
       }
     } catch {}
   }
 
-  // 2. Prepare stops with guaranteed valid coordinates
-  const stops = items.map(o => {
-    const info = getVendorInfo(o);
-    let lat = typeof info.lat === 'number' && !isNaN(info.lat) ? info.lat : null;
-    let lon = typeof info.lon === 'number' && !isNaN(info.lon) ? info.lon : null;
-
-    if (lat === null || lon === null) {
-      const fallback = resolveFallbackCoordinates(info.address || o.district || o.city || '', o.id);
-      lon = fallback[0];
-      lat = fallback[1];
-    }
-
-    return {
-      id: o.id,
-      vendor_id: o.vendor_id,
-      lat,
-      lon,
-      name: info.tradeName,
-      address: info.address,
-      status: o.status,
-      order_date: o.order_date,
-      vehicle_id: o.vehicle_id || vehicleId,
-      driver_id: o.driver_id || driverId
-    };
-  });
+  // 3. Prepare payload ONLY for located stops (unlocated stops are NOT passed to Geoapify)
+  const stops = locatedOrders.map(lo => ({
+    id: lo.order.id,
+    vendor_id: lo.order.vendor_id,
+    lat: lo.lat,
+    lon: lo.lon,
+    name: lo.tradeName,
+    address: lo.address,
+    status: lo.order.status,
+    order_date: lo.order.order_date,
+    vehicle_id: lo.order.vehicle_id || vehicleId,
+    driver_id: lo.order.driver_id || driverId
+  }));
 
   const requestPayload = {
     orders: stops,
@@ -204,18 +183,19 @@ export async function optimizeRouteStops({
     start_location: startLocation
   };
 
-  let orderedIds: string[] = [];
+  let orderedLocatedIds: string[] = [];
 
-  // 3. Try Supabase Edge Function 'optimize-route'
+  // 4. Try Supabase Edge Function 'optimize-route'
   if (isSupabaseConfigured && supabase) {
     try {
       const { data: fnData, error: fnErr } = await supabase.functions.invoke('optimize-route', {
         body: requestPayload
       });
       if (!fnErr && fnData?.optimized_order_ids && fnData.optimized_order_ids.length > 0) {
-        // Ensure all input items are accounted for
-        if (fnData.optimized_order_ids.length >= items.length) {
-          orderedIds = fnData.optimized_order_ids;
+        const receivedIds: string[] = fnData.optimized_order_ids;
+        // Verify all located stops are accounted for
+        if (locatedOrders.every(lo => receivedIds.includes(lo.order.id))) {
+          orderedLocatedIds = receivedIds.filter(id => locatedOrders.some(lo => lo.order.id === id));
         }
       }
     } catch (e: any) {
@@ -223,8 +203,8 @@ export async function optimizeRouteStops({
     }
   }
 
-  // 4. Try Express server /api/optimize-route
-  if (orderedIds.length === 0) {
+  // 5. Try Express server /api/optimize-route
+  if (orderedLocatedIds.length === 0) {
     try {
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
@@ -234,8 +214,11 @@ export async function optimizeRouteStops({
 
       if (res.ok) {
         const data = await res.json();
-        if (data?.optimized_order_ids && data.optimized_order_ids.length >= items.length) {
-          orderedIds = data.optimized_order_ids;
+        if (data?.optimized_order_ids && data.optimized_order_ids.length > 0) {
+          const receivedIds: string[] = data.optimized_order_ids;
+          if (locatedOrders.every(lo => receivedIds.includes(lo.order.id))) {
+            orderedLocatedIds = receivedIds.filter(id => locatedOrders.some(lo => lo.order.id === id));
+          }
         }
       }
     } catch (e: any) {
@@ -243,15 +226,19 @@ export async function optimizeRouteStops({
     }
   }
 
-  // 5. Embedded resilient local 2-Opt TSP solver fallback
-  if (orderedIds.length === 0) {
-    const validStops = stops.map(s => ({
-      id: s.id,
-      lon: s.lon as number,
-      lat: s.lat as number
+  // 6. Resilient deterministic local 2-Opt TSP solver fallback
+  if (orderedLocatedIds.length === 0) {
+    const validStops = locatedOrders.map(lo => ({
+      id: lo.order.id,
+      lon: lo.lon,
+      lat: lo.lat
     }));
-    orderedIds = solveLocalTspRoute(validStops, startLocation);
+    orderedLocatedIds = solveLocalTspRoute(validStops, startLocation);
   }
 
-  return orderedIds;
+  // 7. Combine: UNLOCATED orders are aligned to the VERY TOP, followed by optimized located orders
+  return [
+    ...unlocatedOrders.map(o => o.id),
+    ...orderedLocatedIds
+  ];
 }
