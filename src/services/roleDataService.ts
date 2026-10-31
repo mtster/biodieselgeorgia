@@ -8,6 +8,8 @@ import { sortOrdersByRouteRank } from '../utils/lexorank';
 import { KEY_ORDERS, KEY_VENDORS, getLocal } from './localStorage';
 
 const inFlightDriverVendorsCache = new Map<string, Promise<{ vData: any[]; cData: any[] }>>();
+const inFlightDriverOrdersCache = new Map<string, Promise<{ orders: Order[]; suppliers: Vendor[] }>>();
+let lastDriverOrdersResult: { key: string; time: number; data: { orders: Order[]; suppliers: Vendor[] } } | null = null;
 
 // Georgian to English transliteration map for license plate and keyword comparisons
 const ge2enPlateMap: Record<string, string> = {
@@ -242,6 +244,38 @@ export function isOrderAssignedToVehicle(o: Order, currentUser: User, trucks: Tr
  * and ONLY the specific vendors (and their contacts) for those orders.
  */
 export async function getDriverOrdersAndVendors(
+  currentUser: User,
+  trucks: Truck[],
+  employees: User[] = [],
+  cachedVendors: Vendor[] = []
+): Promise<{ orders: Order[]; suppliers: Vendor[] }> {
+  const cacheKey = `${currentUser?.id || ''}_${(currentUser as any)?.email || ''}_${trucks.map(t => t.id).sort().join(',')}`;
+
+  // Return recent result if fetched within the last 3.5 seconds
+  if (lastDriverOrdersResult && lastDriverOrdersResult.key === cacheKey && (Date.now() - lastDriverOrdersResult.time < 3500)) {
+    return lastDriverOrdersResult.data;
+  }
+
+  // Deduplicate concurrent in-flight requests (request coalescing)
+  if (inFlightDriverOrdersCache.has(cacheKey)) {
+    return inFlightDriverOrdersCache.get(cacheKey)!;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const result = await executeGetDriverOrdersAndVendors(currentUser, trucks, employees, cachedVendors);
+      lastDriverOrdersResult = { key: cacheKey, time: Date.now(), data: result };
+      return result;
+    } finally {
+      inFlightDriverOrdersCache.delete(cacheKey);
+    }
+  })();
+
+  inFlightDriverOrdersCache.set(cacheKey, fetchPromise);
+  return fetchPromise;
+}
+
+async function executeGetDriverOrdersAndVendors(
   currentUser: User,
   trucks: Truck[],
   employees: User[] = [],

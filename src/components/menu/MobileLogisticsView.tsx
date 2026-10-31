@@ -68,7 +68,17 @@ export default function MobileLogisticsView({
   }, [suppliers]);
 
   // Initial fetch on mount to guarantee orders appear immediately on load
+  const initialFetchDoneRef = useRef<boolean>(false);
+
   useEffect(() => {
+    // If orders already provided from parent on mount, avoid immediate duplicate fetch
+    if (orders && orders.length > 0 && !initialFetchDoneRef.current) {
+      initialFetchDoneRef.current = true;
+      return;
+    }
+
+    if (initialFetchDoneRef.current) return;
+
     let isMounted = true;
     const fetchInitial = async () => {
       try {
@@ -78,6 +88,7 @@ export default function MobileLogisticsView({
           employees,
           localSuppliers.length > 0 ? localSuppliers : suppliers
         );
+        initialFetchDoneRef.current = true;
         if (isMounted) {
           if (freshOrders && freshOrders.length > 0) {
             setLocalOrders(freshOrders);
@@ -96,7 +107,7 @@ export default function MobileLogisticsView({
     return () => {
       isMounted = false;
     };
-  }, [currentUser, trucks, employees]);
+  }, [currentUser?.id, trucks.length, employees.length]);
 
   // Scaleproof realtime sync for changes triggered by other users
   useEffect(() => {

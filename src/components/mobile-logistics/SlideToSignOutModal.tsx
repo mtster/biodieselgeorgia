@@ -118,16 +118,16 @@ export function SlideToSignOutModal({ isOpen, onClose, onConfirm }: SlideToSignO
           className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs cursor-pointer"
         />
 
-        {/* Modal Window without white outline border */}
+        {/* Modal Window without corner bleeding or white outline border */}
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.94 }}
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col my-auto"
+          className="relative w-full max-w-sm bg-emerald-950 rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col my-auto"
         >
           {/* Top Green Header matching Office Contacts modal */}
-          <div className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white px-5 py-4 flex items-center justify-between border-b border-emerald-800/60">
+          <div className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white px-5 py-4 flex items-center justify-between border-b border-emerald-800/60 rounded-t-3xl">
             <h3 className="text-sm font-black tracking-tight text-white leading-tight">
               გამოსვლა
             </h3>
@@ -142,7 +142,7 @@ export function SlideToSignOutModal({ isOpen, onClose, onConfirm }: SlideToSignO
           </div>
 
           {/* Body Content */}
-          <div className="p-5 space-y-4">
+          <div className="bg-white rounded-b-3xl p-5 space-y-4">
             <p className="text-xs font-bold text-slate-700 text-center">
               ნამდვილად გსურთ პორტალიდან გამოსვლა?
             </p>
@@ -178,7 +178,7 @@ export function SlideToSignOutModal({ isOpen, onClose, onConfirm }: SlideToSignO
               >
                 <span className="text-xs font-black uppercase tracking-wider text-rose-800 flex items-center gap-2">
                   <ChevronsLeft size={16} className="text-rose-600 animate-pulse stroke-[2.5]" />
-                  გასასვლელად გაასრიალეთ
+                  გასვლა
                 </span>
               </div>
 
