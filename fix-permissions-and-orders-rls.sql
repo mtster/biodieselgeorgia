@@ -304,3 +304,14 @@ CREATE TRIGGER trg_check_communication_hard_delete_permission
 BEFORE DELETE ON public.communications
 FOR EACH ROW
 EXECUTE FUNCTION public.check_communication_hard_delete_permission();
+
+-- Allow vehicle accounts, drivers, and all authenticated users to read office contact profiles
+DROP POLICY IF EXISTS "Allow reading office contacts" ON public.profiles;
+CREATE POLICY "Allow reading office contacts" ON public.profiles
+FOR SELECT TO authenticated, anon
+USING (
+  id IN (
+    '8ed6c62a-7382-408b-a33f-5e7d7f2edfb8',
+    '1ff4008e-08de-49fc-bd0d-631228b26347'
+  )
+);

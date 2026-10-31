@@ -1,20 +1,21 @@
 import React from 'react';
 import { User } from '../../types';
-import { Leaf, LogOut, Truck, User as UserIcon, Users } from 'lucide-react';
+import { Leaf, Menu, Truck, User as UserIcon, Users } from 'lucide-react';
 
 export interface MobileLogisticsHeaderProps {
   currentUser?: User;
   vehiclePlateText: string;
   assignedDriverName: string;
   assignedCompanionName: string;
-  onLogOut: () => void;
+  onOpenMenu: () => void;
+  onLogOut?: () => void;
 }
 
 export function MobileLogisticsHeader({
   vehiclePlateText,
   assignedDriverName,
   assignedCompanionName,
-  onLogOut
+  onOpenMenu
 }: MobileLogisticsHeaderProps) {
   return (
     <header className="bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-800 text-white pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] px-4 pb-4 shadow-lg border-b border-emerald-700/50">
@@ -35,13 +36,14 @@ export function MobileLogisticsHeader({
             </div>
           </div>
 
+          {/* Sleek Right Action Button to slide open drawer */}
           <button
-            onClick={onLogOut}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 border border-white/15 text-white text-xs font-semibold backdrop-blur-md transition cursor-pointer select-none"
-            title="სისტემიდან გამოსვლა"
+            onClick={onOpenMenu}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 active:scale-95 border border-white/20 text-white shadow-xs backdrop-blur-md transition-all cursor-pointer select-none"
+            title="სწრაფი მენიუ"
+            aria-label="მენიუ"
           >
-            <LogOut size={13} className="text-emerald-300" />
-            <span>გამოსვლა</span>
+            <Menu size={18} className="text-emerald-200" />
           </button>
         </div>
 

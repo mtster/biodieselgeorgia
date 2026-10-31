@@ -3,6 +3,7 @@ import { User, Order, Vendor, Warehouse, Truck } from '../../types';
 import { ClipboardList, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MobileLogisticsHeader } from '../mobile-logistics/MobileLogisticsHeader';
+import { MobileLogisticsDrawer } from '../mobile-logistics/MobileLogisticsDrawer';
 import { ActiveOrderCard } from '../mobile-logistics/ActiveOrderCard';
 import { CompletedOrderCard } from '../mobile-logistics/CompletedOrderCard';
 import { OrderCompletionModal } from '../mobile-logistics/OrderCompletionModal';
@@ -32,6 +33,7 @@ export default function MobileLogisticsView({
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showSequenceModal, setShowSequenceModal] = useState<boolean>(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [localOrders, setLocalOrders] = useState<Order[]>(orders);
   const [localSuppliers, setLocalSuppliers] = useState<Vendor[]>(suppliers);
 
@@ -388,7 +390,18 @@ export default function MobileLogisticsView({
         vehiclePlateText={vehiclePlateText}
         assignedDriverName={assignedDriverName}
         assignedCompanionName={assignedCompanionName}
+        onOpenMenu={() => setIsDrawerOpen(true)}
         onLogOut={onLogOut}
+      />
+
+      {/* Sleek Right-Side Drawer */}
+      <MobileLogisticsDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onLogOut={onLogOut}
+        vehiclePlateText={vehiclePlateText}
+        assignedDriverName={assignedDriverName}
+        assignedCompanionName={assignedCompanionName}
       />
 
       {/* Primary list space */}

@@ -513,4 +513,43 @@ router.post("/api/update-route-ranks", async (req, res) => {
   }
 });
 
+// Fetch office contacts (bypasses client-side RLS using admin credentials)
+router.get("/api/office-contacts", async (_req, res) => {
+  try {
+    const TARGET_IDS = [
+      '8ed6c62a-7382-408b-a33f-5e7d7f2edfb8',
+      '1ff4008e-08de-49fc-bd0d-631228b26347'
+    ];
+
+    if (!isSupabaseConfigured || !supabaseAdmin) {
+      return res.status(500).json({ error: "Supabase admin not configured" });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id, name, phone, role, email")
+      .in("id", TARGET_IDS);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    const profileMap = new Map((data || []).map((p: any) => [p.id, p]));
+    const contacts = TARGET_IDS.map((id, index) => {
+      const p = profileMap.get(id);
+      return {
+        id,
+        name: p?.name || (index === 0 ? 'ოფისი 1' : 'ოფისი 2'),
+        phone: p?.phone || '',
+        role: p?.role || 'office'
+      };
+    });
+
+    return res.json({ success: true, contacts });
+  } catch (err: any) {
+    console.error("Error fetching office contacts:", err);
+    return res.status(500).json({ error: err.message || "Failed to fetch office contacts" });
+  }
+});
+
 export default router;
