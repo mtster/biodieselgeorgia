@@ -192,13 +192,13 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
           className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs cursor-pointer"
         />
 
-        {/* Modal Window */}
+        {/* Modal Window without white outline border */}
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.94 }}
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-10 flex flex-col my-auto"
+          className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden z-10 flex flex-col my-auto"
         >
           {/* Sleek Minimal Header */}
           <div className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white px-5 py-4 flex items-center justify-between border-b border-emerald-800/60">

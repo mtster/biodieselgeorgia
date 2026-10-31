@@ -105,29 +105,7 @@ export function MobileLogisticsDrawer({
 
                 {/* Drawer Content */}
                 <div className="flex-1 p-4 overflow-y-auto space-y-3.5 touch-pan-y overscroll-contain">
-                  {/* 1. Crew quick overview (ეკიპაჟი) placed first */}
-                  {(assignedDriverName || assignedCompanionName) && (
-                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2 text-xs">
-                      <div className="flex items-center gap-1.5 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
-                        <UserIcon size={12} />
-                        <span>ეკიპაჟი</span>
-                      </div>
-                      {assignedDriverName && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500 text-[11px]">მძღოლი:</span>
-                          <span className="font-bold text-slate-800 truncate max-w-[150px]">{assignedDriverName}</span>
-                        </div>
-                      )}
-                      {assignedCompanionName && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500 text-[11px]">თანმხლები:</span>
-                          <span className="font-bold text-slate-800 truncate max-w-[150px]">{assignedCompanionName}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 2. Office Button (ოფისი) placed below ეკიპაჟი */}
+                  {/* Office Button (ოფისი) */}
                   <button
                     onClick={handleOpenOffice}
                     className="w-full bg-white hover:bg-slate-50 active:bg-slate-100 active:scale-[0.99] border border-slate-200/90 rounded-2xl p-3.5 flex items-center justify-between shadow-xs transition cursor-pointer text-left"
