@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Phone, MessageCircle, X, User, Loader2, AlertCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { appCache } from '../../utils/cache';
 
 interface OfficeContact {
   id: string;
@@ -19,6 +20,8 @@ const TARGET_OFFICE_IDS = [
   '8ed6c62a-7382-408b-a33f-5e7d7f2edfb8',
   '1ff4008e-08de-49fc-bd0d-631228b26347'
 ];
+
+const CACHE_KEY = 'office_contacts_cache_v1';
 
 // Clean phone for tel: protocol (e.g., +995599123456 or 599123456)
 function formatTelUri(phone: string): string {
@@ -42,15 +45,47 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
 
+    // 1. Check in-memory cache and localStorage first to eliminate duplicate fetches
+    const memoryCached = appCache.get<OfficeContact[]>(CACHE_KEY);
+    if (memoryCached && Array.isArray(memoryCached) && memoryCached.length > 0) {
+      setContacts(memoryCached);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const stored = localStorage.getItem(CACHE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          appCache.set(CACHE_KEY, parsed);
+          setContacts(parsed);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch {}
+
+    // 2. Fetch if not cached
     let isMounted = true;
     const fetchOfficeContacts = async () => {
       setLoading(true);
       setError(null);
 
-      // Helper to process fetched profiles into ordered contacts
       const processProfiles = (profilesList: any[]): OfficeContact[] => {
         const profileMap = new Map<string, any>();
         profilesList.forEach((p: any) => {
@@ -71,7 +106,7 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
       try {
         let fetchedData: any[] | null = null;
 
-        // 1. Try direct Supabase query with only real, valid columns (id, name, phone, role, email)
+        // Try direct Supabase query with valid columns
         if (isSupabaseConfigured && supabase) {
           try {
             const { data, error: fetchErr } = await supabase
@@ -87,7 +122,7 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
           }
         }
 
-        // 2. If client-side query did not return data (e.g. RLS restriction on vehicle account), use server proxy
+        // Fallback to server endpoint if client query is blocked by RLS
         if (!fetchedData || fetchedData.length === 0) {
           try {
             const res = await fetch('/api/office-contacts');
@@ -95,7 +130,12 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
               const json = await res.json();
               if (json?.contacts && Array.isArray(json.contacts)) {
                 if (isMounted) {
-                  setContacts(json.contacts);
+                  const finalContacts = json.contacts;
+                  appCache.set(CACHE_KEY, finalContacts);
+                  try {
+                    localStorage.setItem(CACHE_KEY, JSON.stringify(finalContacts));
+                  } catch {}
+                  setContacts(finalContacts);
                   setLoading(false);
                   return;
                 }
@@ -108,7 +148,12 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
 
         if (isMounted) {
           if (fetchedData && fetchedData.length > 0) {
-            setContacts(processProfiles(fetchedData));
+            const processed = processProfiles(fetchedData);
+            appCache.set(CACHE_KEY, processed);
+            try {
+              localStorage.setItem(CACHE_KEY, JSON.stringify(processed));
+            } catch {}
+            setContacts(processed);
           } else {
             setError('საკონტაქტო მონაცემების ჩატვირთვა ვერ მოხერხდა');
           }
@@ -136,7 +181,8 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      {/* Vertically and horizontally centered on ALL screens including mobile */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -148,11 +194,11 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
 
         {/* Modal Window */}
         <motion.div
-          initial={{ opacity: 0, y: 80, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 80, scale: 0.96 }}
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.94 }}
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-10 flex flex-col"
+          className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden z-10 flex flex-col my-auto"
         >
           {/* Sleek Minimal Header */}
           <div className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white px-5 py-4 flex items-center justify-between border-b border-emerald-800/60">
@@ -170,7 +216,7 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
           </div>
 
           {/* Body Content */}
-          <div className="p-5 overflow-y-auto space-y-3.5 pb-6">
+          <div className="p-5 overflow-y-auto space-y-3.5 max-h-[75vh]">
             {loading && (
               <div className="py-8 flex flex-col items-center justify-center gap-2.5 text-slate-500">
                 <Loader2 size={24} className="animate-spin text-emerald-600" />
