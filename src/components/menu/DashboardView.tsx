@@ -325,6 +325,15 @@ export default function DashboardView({
     }
   }, [trucks]);
 
+  // Fetch freshest vehicle records on mount
+  useEffect(() => {
+    getVehicles().then(fresh => {
+      if (fresh && fresh.length > 0) {
+        setLocalTrucks(fresh);
+      }
+    }).catch(() => {});
+  }, []);
+
   // Realtime subscription for orders and vehicles tables with cache invalidation
   useEffect(() => {
     const unsub = onRealtimeDbChange((table) => {

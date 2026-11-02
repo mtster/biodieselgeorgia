@@ -178,6 +178,9 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
             if (finishTimestamp) {
               vehicleUpdates.last_shift_finished_at = finishTimestamp;
             }
+          } else if (finalOrder.status !== 'cancelled') {
+            // New or updated active order assigned to vehicle -> clear finished shift timestamp
+            vehicleUpdates.last_shift_finished_at = null;
           }
 
           if (resolvedVehicleId) {
@@ -186,7 +189,19 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
             await supabase.from('vehicles').update(vehicleUpdates).eq('plate_number', finalOrder.truck_plate.trim().toUpperCase());
           }
 
-          if (vehicleUpdates.last_shift_finished_at) {
+          if ('last_shift_finished_at' in vehicleUpdates) {
+            try {
+              fetch('/api/update-vehicle-shift', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  vehicle_id: resolvedVehicleId,
+                  plate_number: finalOrder.truck_plate,
+                  finished_at: vehicleUpdates.last_shift_finished_at
+                })
+              }).catch(() => {});
+            } catch (_) {}
+
             appCache.clear('vehicles');
             appCache.clear('trucks');
             notifyDbChange('vehicles', 'UPDATE', resolvedVehicleId || finalOrder.truck_plate);
@@ -203,7 +218,7 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
 
   appCache.clear();
 
-  // Synchronize local storage vehicle cache with assigned driver/assistant
+  // Synchronize local storage vehicle cache with assigned driver/assistant and shift finish timestamp
   if (finalOrder.vehicle_id || finalOrder.truck_plate) {
     const vList = getLocal<any[]>(KEY_VEHICLES, []);
     const cleanPlate = (finalOrder.truck_plate || '').trim().toUpperCase();
@@ -212,10 +227,15 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
       (cleanPlate && (t.plate_number === cleanPlate || t.id === cleanPlate))
     );
     if (vIdx >= 0) {
+      const shiftFinishVal = finalOrder.status === 'completed'
+        ? (finalOrder.last_shift_finished_at || vList[vIdx].last_shift_finished_at)
+        : (finalOrder.status !== 'cancelled' ? null : vList[vIdx].last_shift_finished_at);
+
       vList[vIdx] = {
         ...vList[vIdx],
         driver_id: finalOrder.driver_id || null,
-        companion_id: finalOrder.companion_id || null
+        companion_id: finalOrder.companion_id || null,
+        last_shift_finished_at: shiftFinishVal
       };
       setLocal(KEY_VEHICLES, vList);
       notifyDbChange('vehicles', 'UPDATE', vList[vIdx].plate_number);
@@ -385,13 +405,14 @@ export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Pr
       );
       await Promise.all(updatePromises);
 
-      // 2. Synchronize vehicle record once
+      // 2. Synchronize vehicle record once and clear last_shift_finished_at
       if (resolvedVehicleId) {
         await supabase
           .from('vehicles')
           .update({
             driver_id: cleanDriverId,
-            companion_id: cleanCompanionId
+            companion_id: cleanCompanionId,
+            last_shift_finished_at: null
           })
           .eq('id', resolvedVehicleId);
       } else if (cleanPlate) {
@@ -399,10 +420,23 @@ export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Pr
           .from('vehicles')
           .update({
             driver_id: cleanDriverId,
-            companion_id: cleanCompanionId
+            companion_id: cleanCompanionId,
+            last_shift_finished_at: null
           })
           .eq('plate_number', cleanPlate);
       }
+
+      try {
+        fetch('/api/update-vehicle-shift', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vehicle_id: resolvedVehicleId,
+            plate_number: cleanPlate,
+            finished_at: null
+          })
+        }).catch(() => {});
+      } catch (_) {}
     } catch (e) {
       console.error('Batch assign crew failed in Supabase:', e);
       throw e;
@@ -437,7 +471,8 @@ export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Pr
       vList[vIdx] = {
         ...vList[vIdx],
         driver_id: driverId || null,
-        companion_id: companionId || null
+        companion_id: companionId || null,
+        last_shift_finished_at: null
       };
       setLocal(KEY_VEHICLES, vList);
     }

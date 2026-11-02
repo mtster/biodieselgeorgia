@@ -250,6 +250,13 @@ export default function MobileLogisticsView({
     );
   }, [myOrders]);
 
+  // When active orders exist, clear localShiftFinishedAt so active orders take precedence
+  useEffect(() => {
+    if (activeOrders.length > 0) {
+      setLocalShiftFinishedAt(null);
+    }
+  }, [activeOrders.length]);
+
   const sortedActiveOrders = useMemo(() => {
     return sortOrdersByRouteRank(activeOrders);
   }, [activeOrders]);
@@ -479,13 +486,17 @@ export default function MobileLogisticsView({
                   last_shift_finished_at: finishTimestamp
                 };
 
-                // Pass to parent saveOrder (which will atomically persist last_shift_finished_at in vehicles table)
-                onSaveOrder(orderToSave);
-
-                // Instantly update local orders state
+                // 1. Instantly update local orders state
                 setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? orderToSave : o));
 
-                // If completing the last active order for today, record vehicle shift finish time
+                // 2. Pass to parent saveOrder (which will atomically persist last_shift_finished_at in vehicles table)
+                try {
+                  await onSaveOrder(orderToSave);
+                } catch (saveErr) {
+                  console.warn('onSaveOrder error in MobileLogisticsView:', saveErr);
+                }
+
+                // 3. If completing the last active order for today, record vehicle shift finish time
                 if (isShiftFinished && finishTimestamp) {
                   const targetPlate = (orderToSave.truck_plate || vehiclePlateText || myTruck?.plate_number || '').trim().toUpperCase();
                   let targetVehicleId = orderToSave.vehicle_id || myTruck?.id || vehicleId;
@@ -521,7 +532,7 @@ export default function MobileLogisticsView({
                     }
                   }
 
-                  // 2. Invoke server proxy route with admin privileges
+                  // 2. Invoke server proxy route with admin privileges (trying both /api and root paths)
                   try {
                     const payload = JSON.stringify({
                       vehicle_id: targetVehicleId,
@@ -530,17 +541,19 @@ export default function MobileLogisticsView({
                       finished_at: finishTimestamp
                     });
 
-                    fetch('/api/update-vehicle-shift', {
+                    const res = await fetch('/api/update-vehicle-shift', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: payload
-                    }).catch(() => {
-                      return fetch('/update-vehicle-shift', {
+                    }).catch(() => null);
+
+                    if (!res || !res.ok) {
+                      await fetch('/update-vehicle-shift', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: payload
-                      });
-                    });
+                      }).catch(() => null);
+                    }
                   } catch (_) {}
 
                   // 3. Invalidate vehicle caches and broadcast realtime update across the whole system

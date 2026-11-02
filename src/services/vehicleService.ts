@@ -23,7 +23,8 @@ export function decodeVehicle(vehicle: any): Vehicle {
   return {
     ...vehicle,
     city: city || undefined,
-    warehouse_id: warehouse_id || undefined
+    warehouse_id: warehouse_id || undefined,
+    last_shift_finished_at: vehicle.last_shift_finished_at ?? null
   };
 }
 
@@ -301,11 +302,15 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
         warehouse_id: vehicle.warehouse_id || null,
         created_by: createdBy,
         auth_user_id: isValidUuid(authUserId) ? authUserId : null,
-        is_deleted: vehicle.is_deleted ?? false
+        is_deleted: vehicle.is_deleted ?? false,
+        ...(vehicle.last_shift_finished_at !== undefined ? { last_shift_finished_at: vehicle.last_shift_finished_at } : {})
       };
 
       const { id: _ignoreId, ...updateFields } = dbPayload;
       updateFields.is_deleted = vehicle.is_deleted ?? false;
+      if (vehicle.last_shift_finished_at !== undefined) {
+        updateFields.last_shift_finished_at = vehicle.last_shift_finished_at;
+      }
       let success = false;
 
       // 1. If we have an existing record ID, perform an UPDATE by ID (checking if row was actually updated)

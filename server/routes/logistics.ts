@@ -563,7 +563,7 @@ router.post(["/api/update-vehicle-shift", "/update-vehicle-shift"], async (req, 
       return res.status(500).json({ error: "Supabase admin not configured" });
     }
 
-    const finishTimestamp = finished_at || new Date().toISOString();
+    const finishTimestamp = (finished_at === null || finished_at === '') ? null : (finished_at || new Date().toISOString());
     let updatedVehicle: any = null;
 
     const isValidUuid = (val?: string) => 

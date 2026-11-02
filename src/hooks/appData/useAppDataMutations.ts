@@ -138,12 +138,30 @@ export function useAppDataMutations({
         return exists ? prev.map(o => o.id === saved.id ? saved : o) : [saved, ...prev];
       });
 
-      // Synchronize vehicle assignment when driver and/or assistant are assigned via order
+      // Synchronize vehicle assignment and shift state when driver, assistant or orders are updated
       const targetTruck = trucks.find(t => 
         (saved.vehicle_id && t.id === saved.vehicle_id) || 
         (saved.truck_plate && (t.plate_number === saved.truck_plate || t.id === saved.truck_plate))
       );
       if (targetTruck) {
+        const isCompleted = saved.status === 'completed';
+        const isCancelled = saved.status === 'cancelled';
+        const isActiveOrder = !isCompleted && !isCancelled;
+
+        if (isActiveOrder) {
+          setTrucks(prev => prev.map(t => 
+            (t.id === targetTruck.id || t.plate_number === targetTruck.plate_number)
+              ? { ...t, last_shift_finished_at: null }
+              : t
+          ));
+        } else if (isCompleted && saved.last_shift_finished_at) {
+          setTrucks(prev => prev.map(t => 
+            (t.id === targetTruck.id || t.plate_number === targetTruck.plate_number)
+              ? { ...t, last_shift_finished_at: saved.last_shift_finished_at }
+              : t
+          ));
+        }
+
         const newDriverId = saved.driver_id || null;
         const newCompanionId = saved.companion_id || null;
         if (targetTruck.driver_id !== newDriverId || targetTruck.companion_id !== newCompanionId) {
@@ -154,7 +172,8 @@ export function useAppDataMutations({
             driver_id: newDriverId,
             driver_name: dObj?.name || (newDriverId ? targetTruck.driver_name : ''),
             companion_id: newCompanionId,
-            companion_name: cObj?.name || (newCompanionId ? targetTruck.companion_name : '')
+            companion_name: cObj?.name || (newCompanionId ? targetTruck.companion_name : ''),
+            last_shift_finished_at: isActiveOrder ? null : (saved.last_shift_finished_at || targetTruck.last_shift_finished_at)
           };
           try {
             await saveTruck(updatedTruck, currentUser?.name || 'System', currentUser?.id);
