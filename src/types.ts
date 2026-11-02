@@ -132,6 +132,7 @@ export interface Order {
   address?: string;
   city?: string;
   district?: string;
+  last_shift_finished_at?: string | null;
 }
 
 export interface Communication {

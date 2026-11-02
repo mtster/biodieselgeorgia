@@ -470,62 +470,86 @@ export default function MobileLogisticsView({
               vehiclePlateText={vehiclePlateText}
               onClose={() => setSelectedOrder(null)}
               onSaveOrder={async (updatedOrder) => {
-                onSaveOrder(updatedOrder);
+                const remainingActive = activeOrders.filter(o => o.id !== updatedOrder.id);
+                const isShiftFinished = updatedOrder.status === 'completed' && remainingActive.length === 0;
+                const finishTimestamp = isShiftFinished ? new Date().toISOString() : undefined;
+
+                const orderToSave: Order = {
+                  ...updatedOrder,
+                  last_shift_finished_at: finishTimestamp
+                };
+
+                // Pass to parent saveOrder (which will atomically persist last_shift_finished_at in vehicles table)
+                onSaveOrder(orderToSave);
 
                 // Instantly update local orders state
-                setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+                setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? orderToSave : o));
 
                 // If completing the last active order for today, record vehicle shift finish time
-                if (updatedOrder.status === 'completed') {
-                  const remainingActive = activeOrders.filter(o => o.id !== updatedOrder.id);
-                  if (remainingActive.length === 0) {
-                    const finishTimestamp = new Date().toISOString();
-                    const targetVehicleId = updatedOrder.vehicle_id || myTruck?.id || vehicleId;
-                    const targetPlate = updatedOrder.truck_plate || vehiclePlateText || myTruck?.plate_number;
+                if (isShiftFinished && finishTimestamp) {
+                  const targetPlate = (orderToSave.truck_plate || vehiclePlateText || myTruck?.plate_number || '').trim().toUpperCase();
+                  let targetVehicleId = orderToSave.vehicle_id || myTruck?.id || vehicleId;
 
-                    // Immediately update local state so driver screen shows completion
-                    setLocalShiftFinishedAt(finishTimestamp);
-                    if (myTruck) {
-                      myTruck.last_shift_finished_at = finishTimestamp;
-                    }
+                  if (!targetVehicleId && targetPlate) {
+                    const matched = trucks.find(t => (t.plate_number || '').trim().toUpperCase() === targetPlate);
+                    if (matched?.id) targetVehicleId = matched.id;
+                  }
 
-                    // 1. Invoke server proxy route with admin privileges to update database bypassing client RLS
+                  // Immediately update local state so driver screen shows completion
+                  setLocalShiftFinishedAt(finishTimestamp);
+                  if (myTruck) {
+                    myTruck.last_shift_finished_at = finishTimestamp;
+                  }
+
+                  // 1. Direct Supabase update on vehicles table by ID or Plate
+                  if (isSupabaseConfigured && supabase) {
                     try {
-                      const res = await fetch('/api/update-vehicle-shift', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          vehicle_id: targetVehicleId,
-                          plate_number: targetPlate,
-                          auth_user_id: currentUser.id,
-                          finished_at: finishTimestamp
-                        })
-                      });
-                      if (!res.ok) {
-                        console.warn('Backend update-vehicle-shift returned non-ok status:', res.status);
-                      }
-                    } catch (netErr) {
-                      console.warn('Error calling /api/update-vehicle-shift:', netErr);
-                    }
-
-                    // 2. Direct client-side update attempt as additional safeguard
-                    if (isSupabaseConfigured && supabase && targetVehicleId) {
-                      try {
+                      if (targetVehicleId) {
                         await supabase
                           .from('vehicles')
                           .update({ last_shift_finished_at: finishTimestamp })
                           .eq('id', targetVehicleId);
-                      } catch (_) {}
+                      }
+                      if (targetPlate) {
+                        await supabase
+                          .from('vehicles')
+                          .update({ last_shift_finished_at: finishTimestamp })
+                          .eq('plate_number', targetPlate);
+                      }
+                    } catch (sErr) {
+                      console.warn('Direct Supabase shift finish update note:', sErr);
                     }
+                  }
 
-                    // 3. Invalidate vehicle caches and broadcast realtime update across the whole system
-                    try {
-                      appCache.clear('vehicles');
-                      appCache.clear('trucks');
-                      notifyDbChange('vehicles', 'UPDATE', targetVehicleId);
-                    } catch (bcErr) {
-                      console.warn('Realtime broadcast notification error:', bcErr);
-                    }
+                  // 2. Invoke server proxy route with admin privileges
+                  try {
+                    const payload = JSON.stringify({
+                      vehicle_id: targetVehicleId,
+                      plate_number: targetPlate,
+                      auth_user_id: currentUser.id,
+                      finished_at: finishTimestamp
+                    });
+
+                    fetch('/api/update-vehicle-shift', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: payload
+                    }).catch(() => {
+                      return fetch('/update-vehicle-shift', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: payload
+                      });
+                    });
+                  } catch (_) {}
+
+                  // 3. Invalidate vehicle caches and broadcast realtime update across the whole system
+                  try {
+                    appCache.clear('vehicles');
+                    appCache.clear('trucks');
+                    notifyDbChange('vehicles', 'UPDATE', targetVehicleId || targetPlate);
+                  } catch (bcErr) {
+                    console.warn('Realtime broadcast notification error:', bcErr);
                   }
                 }
               }}

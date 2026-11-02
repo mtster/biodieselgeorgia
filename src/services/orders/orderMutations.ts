@@ -137,21 +137,59 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
         if (error) throw error;
       }
 
-      // Synchronize vehicle record in Supabase with assigned driver/assistant
+      // Synchronize vehicle record in Supabase with assigned driver/assistant and shift finish timestamp
       if (resolvedVehicleId || finalOrder.truck_plate) {
         try {
           const vDriverId = isValidUuid(finalOrder.driver_id) ? finalOrder.driver_id : null;
           const vCompanionId = isValidUuid(finalOrder.companion_id) ? finalOrder.companion_id : null;
+          
+          const vehicleUpdates: Record<string, any> = {
+            driver_id: vDriverId,
+            companion_id: vCompanionId
+          };
+
+          // If completing order, check if this is the last active order for today for this vehicle
+          if (finalOrder.status === 'completed') {
+            let finishTimestamp = finalOrder.last_shift_finished_at;
+            if (!finishTimestamp) {
+              try {
+                const todayTbilisi = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
+                const cleanPlateUpper = finalOrder.truck_plate ? finalOrder.truck_plate.trim().toUpperCase() : '';
+                const orCond = resolvedVehicleId && cleanPlateUpper
+                  ? `vehicle_id.eq.${resolvedVehicleId},truck_plate.eq.${cleanPlateUpper}`
+                  : (resolvedVehicleId ? `vehicle_id.eq.${resolvedVehicleId}` : `truck_plate.eq.${cleanPlateUpper}`);
+
+                const { count, error: countErr } = await supabase
+                  .from('orders')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('is_deleted', false)
+                  .neq('id', finalOrder.id)
+                  .in('status', ['registered', 'driver_assigned', 'picked_up', 'uncompleted'])
+                  .or(orCond)
+                  .gte('order_date', todayTbilisi)
+                  .lte('order_date', todayTbilisi + 'T23:59:59.999Z');
+
+                if (!countErr && (count === 0 || count === null)) {
+                  finishTimestamp = new Date().toISOString();
+                }
+              } catch (_) {}
+            }
+
+            if (finishTimestamp) {
+              vehicleUpdates.last_shift_finished_at = finishTimestamp;
+            }
+          }
+
           if (resolvedVehicleId) {
-            await supabase.from('vehicles').update({
-              driver_id: vDriverId,
-              companion_id: vCompanionId
-            }).eq('id', resolvedVehicleId);
+            await supabase.from('vehicles').update(vehicleUpdates).eq('id', resolvedVehicleId);
           } else if (finalOrder.truck_plate) {
-            await supabase.from('vehicles').update({
-              driver_id: vDriverId,
-              companion_id: vCompanionId
-            }).eq('plate_number', finalOrder.truck_plate.trim().toUpperCase());
+            await supabase.from('vehicles').update(vehicleUpdates).eq('plate_number', finalOrder.truck_plate.trim().toUpperCase());
+          }
+
+          if (vehicleUpdates.last_shift_finished_at) {
+            appCache.clear('vehicles');
+            appCache.clear('trucks');
+            notifyDbChange('vehicles', 'UPDATE', resolvedVehicleId || finalOrder.truck_plate);
           }
         } catch (vSyncErr) {
           console.warn('Sync vehicle driver in saveOrder failed:', vSyncErr);

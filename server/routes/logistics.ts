@@ -553,7 +553,7 @@ router.get("/api/office-contacts", async (_req, res) => {
 });
 
 // Update vehicle shift finish timestamp (bypasses RLS with admin credentials)
-router.post("/api/update-vehicle-shift", async (req, res) => {
+router.post(["/api/update-vehicle-shift", "/update-vehicle-shift"], async (req, res) => {
   try {
     const { vehicle_id, plate_number, auth_user_id, finished_at } = req.body;
     if (!vehicle_id && !plate_number && !auth_user_id) {
