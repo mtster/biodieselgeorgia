@@ -319,3 +319,11 @@ USING (
 -- Ensure vehicles table has last_shift_finished_at column for shift completion tracking
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS last_shift_finished_at TIMESTAMPTZ DEFAULT NULL;
 
+-- Allow authenticated users (including vehicle accounts) to update last_shift_finished_at
+DROP POLICY IF EXISTS "Allow shift finished update on vehicles" ON public.vehicles;
+CREATE POLICY "Allow shift finished update on vehicles" ON public.vehicles
+FOR UPDATE TO authenticated
+USING (true)
+WITH CHECK (true);
+
+

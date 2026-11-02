@@ -14,7 +14,8 @@ import {
   checkOrderPickupDateIsToday, isOrderAssignedToVehicle, getDriverOrdersAndVendors 
 } from '../../services/roleDataService';
 import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
-import { onRealtimeDbChange } from '../../lib/realtime';
+import { onRealtimeDbChange, notifyDbChange } from '../../lib/realtime';
+import { appCache } from '../../utils/cache';
 
 interface Props {
   currentUser: User;
@@ -36,6 +37,7 @@ export default function MobileLogisticsView({
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [localOrders, setLocalOrders] = useState<Order[]>(orders);
   const [localSuppliers, setLocalSuppliers] = useState<Vendor[]>(suppliers);
+  const [localShiftFinishedAt, setLocalShiftFinishedAt] = useState<string | null>(null);
 
   // Tracking unacknowledged incoming orders for this vehicle
   const [unacknowledgedOrders, setUnacknowledgedOrders] = useState<Order[]>([]);
@@ -470,41 +472,59 @@ export default function MobileLogisticsView({
               onSaveOrder={async (updatedOrder) => {
                 onSaveOrder(updatedOrder);
 
+                // Instantly update local orders state
+                setLocalOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+
                 // If completing the last active order for today, record vehicle shift finish time
                 if (updatedOrder.status === 'completed') {
                   const remainingActive = activeOrders.filter(o => o.id !== updatedOrder.id);
                   if (remainingActive.length === 0) {
-                    const finishTimestamp = updatedOrder.pickup_date_time || new Date().toISOString();
-                    const targetVehicleId = myTruck?.id || vehicleId;
+                    const finishTimestamp = new Date().toISOString();
+                    const targetVehicleId = updatedOrder.vehicle_id || myTruck?.id || vehicleId;
+                    const targetPlate = updatedOrder.truck_plate || vehiclePlateText || myTruck?.plate_number;
 
-                    if (targetVehicleId) {
-                      if (myTruck) {
-                        myTruck.last_shift_finished_at = finishTimestamp;
+                    // Immediately update local state so driver screen shows completion
+                    setLocalShiftFinishedAt(finishTimestamp);
+                    if (myTruck) {
+                      myTruck.last_shift_finished_at = finishTimestamp;
+                    }
+
+                    // 1. Invoke server proxy route with admin privileges to update database bypassing client RLS
+                    try {
+                      const res = await fetch('/api/update-vehicle-shift', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          vehicle_id: targetVehicleId,
+                          plate_number: targetPlate,
+                          auth_user_id: currentUser.id,
+                          finished_at: finishTimestamp
+                        })
+                      });
+                      if (!res.ok) {
+                        console.warn('Backend update-vehicle-shift returned non-ok status:', res.status);
                       }
+                    } catch (netErr) {
+                      console.warn('Error calling /api/update-vehicle-shift:', netErr);
+                    }
 
+                    // 2. Direct client-side update attempt as additional safeguard
+                    if (isSupabaseConfigured && supabase && targetVehicleId) {
                       try {
-                        if (isSupabaseConfigured && supabase) {
-                          await supabase
-                            .from('vehicles')
-                            .update({ last_shift_finished_at: finishTimestamp })
-                            .eq('id', targetVehicleId);
-                        } else {
-                          await fetch('/api/update-vehicle-shift', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ vehicle_id: targetVehicleId, finished_at: finishTimestamp })
-                          });
-                        }
-                      } catch (err) {
-                        console.warn('Error saving shift completion timestamp:', err);
-                        try {
-                          await fetch('/api/update-vehicle-shift', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ vehicle_id: targetVehicleId, finished_at: finishTimestamp })
-                          });
-                        } catch {}
-                      }
+                        await supabase
+                          .from('vehicles')
+                          .update({ last_shift_finished_at: finishTimestamp })
+                          .eq('id', targetVehicleId);
+                      } catch (_) {}
+                    }
+
+                    // 3. Invalidate vehicle caches and broadcast realtime update across the whole system
+                    try {
+                      appCache.clear('vehicles');
+                      appCache.clear('trucks');
+                      notifyDbChange('vehicles', 'UPDATE', targetVehicleId);
+                    } catch (bcErr) {
+                      console.warn('Realtime broadcast notification error:', bcErr);
                     }
                   }
                 }
@@ -515,7 +535,7 @@ export default function MobileLogisticsView({
               {activeTab === 'active' ? (
                 activeOrders.length === 0 ? (
                   (() => {
-                    const shiftFinishTime = myTruck?.last_shift_finished_at;
+                    const shiftFinishTime = localShiftFinishedAt || myTruck?.last_shift_finished_at;
                     let isFinishedToday = false;
                     let formattedFinishTime = '';
 

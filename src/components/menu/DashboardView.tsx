@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { t, formatDate } from '../../utils/lang';
 import { getActiveOrdersCount } from '../../lib/db';
+import { getVehicles } from '../../services/vehicleService';
+import { appCache } from '../../utils/cache';
 import { getDashboardTodayRemindersPaginated } from '../../services/dashboardRemindersService';
 import { useDebouncedSearch } from '../../hooks/useDebounce';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -315,15 +317,35 @@ export default function DashboardView({
     fetchTodayOrdersData();
   }, [fetchTodayOrdersData]);
 
-  // Realtime subscription for orders table with cache invalidation
+  const [localTrucks, setLocalTrucks] = useState<Truck[]>(trucks);
+
+  useEffect(() => {
+    if (trucks && trucks.length > 0) {
+      setLocalTrucks(trucks);
+    }
+  }, [trucks]);
+
+  // Realtime subscription for orders and vehicles tables with cache invalidation
   useEffect(() => {
     const unsub = onRealtimeDbChange((table) => {
-      if (table === 'orders') {
+      const t = (table || '').toLowerCase();
+      if (t === 'orders') {
         dashboardCache.timestamp = 0; // invalidate cache
         fetchTodayOrdersData(true);
       }
-      if (table === 'communications' || table === 'vendor_communications') {
+      if (t === 'communications' || t === 'vendor_communications') {
         dashboardCache.remindersByFilter = {}; // invalidate reminders cache
+      }
+      if (t === 'vehicles' || t === 'trucks') {
+        appCache.clear('vehicles');
+        appCache.clear('trucks');
+        getVehicles().then(fresh => {
+          if (fresh && fresh.length > 0) {
+            setLocalTrucks(fresh);
+          }
+        }).catch(err => {
+          console.warn('Realtime getVehicles error in DashboardView:', err);
+        });
       }
     });
     return () => unsub();
@@ -375,7 +397,8 @@ export default function DashboardView({
   // Vehicles that completed all assigned orders today (Asia/Tbilisi timezone)
   const finishedTrucksToday = useMemo(() => {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
-    return (trucks || [])
+    const sourceTrucks = localTrucks.length > 0 ? localTrucks : trucks;
+    return (sourceTrucks || [])
       .filter(t => {
         if (!t || t.is_deleted || !t.last_shift_finished_at) return false;
         try {
@@ -403,7 +426,7 @@ export default function DashboardView({
         };
       })
       .sort((a, b) => (b.last_shift_finished_at || '').localeCompare(a.last_shift_finished_at || ''));
-  }, [trucks]);
+  }, [localTrucks, trucks]);
 
   // Filter staff roles strictly excluding drivers, driver assistants, and warehouse managers
   const isExcluded = (user?: User | null) => {

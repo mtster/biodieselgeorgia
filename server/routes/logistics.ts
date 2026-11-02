@@ -555,24 +555,107 @@ router.get("/api/office-contacts", async (_req, res) => {
 // Update vehicle shift finish timestamp (bypasses RLS with admin credentials)
 router.post("/api/update-vehicle-shift", async (req, res) => {
   try {
-    const { vehicle_id, finished_at } = req.body;
-    if (!vehicle_id) {
-      return res.status(400).json({ error: "vehicle_id is required" });
+    const { vehicle_id, plate_number, auth_user_id, finished_at } = req.body;
+    if (!vehicle_id && !plate_number && !auth_user_id) {
+      return res.status(400).json({ error: "vehicle identifier is required" });
     }
     if (!isSupabaseConfigured || !supabaseAdmin) {
       return res.status(500).json({ error: "Supabase admin not configured" });
     }
-    const { data, error } = await supabaseAdmin
-      .from("vehicles")
-      .update({ last_shift_finished_at: finished_at || null })
-      .eq("id", vehicle_id)
-      .select("id, plate_number, last_shift_finished_at")
-      .maybeSingle();
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    const finishTimestamp = finished_at || new Date().toISOString();
+    let updatedVehicle: any = null;
+
+    const isValidUuid = (val?: string) => 
+      Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+    // 1. Try updating by vehicle UUID if provided and is a valid UUID
+    if (isValidUuid(vehicle_id)) {
+      const { data, error } = await supabaseAdmin
+        .from("vehicles")
+        .update({ last_shift_finished_at: finishTimestamp })
+        .eq("id", vehicle_id)
+        .select("id, plate_number, last_shift_finished_at")
+        .maybeSingle();
+
+      if (!error && data) {
+        updatedVehicle = data;
+      }
     }
-    return res.json({ success: true, vehicle: data });
+
+    // 2. If not updated and plate_number is provided (or vehicle_id looks like a plate)
+    const rawPlate = plate_number || (!isValidUuid(vehicle_id) ? vehicle_id : '');
+    const cleanPlate = rawPlate ? String(rawPlate).trim().toUpperCase() : '';
+    if (!updatedVehicle && cleanPlate) {
+      const { data, error } = await supabaseAdmin
+        .from("vehicles")
+        .update({ last_shift_finished_at: finishTimestamp })
+        .ilike("plate_number", cleanPlate)
+        .select("id, plate_number, last_shift_finished_at")
+        .maybeSingle();
+
+      if (!error && data) {
+        updatedVehicle = data;
+      }
+    }
+
+    // 3. If not updated and auth_user_id is provided
+    if (!updatedVehicle && isValidUuid(auth_user_id)) {
+      const { data, error } = await supabaseAdmin
+        .from("vehicles")
+        .update({ last_shift_finished_at: finishTimestamp })
+        .eq("auth_user_id", auth_user_id)
+        .select("id, plate_number, last_shift_finished_at")
+        .maybeSingle();
+
+      if (!error && data) {
+        updatedVehicle = data;
+      }
+    }
+
+    // 4. Fallback: try by driver_id if auth_user_id or vehicle_id matches
+    if (!updatedVehicle && (isValidUuid(auth_user_id) || isValidUuid(vehicle_id))) {
+      const candidateId = isValidUuid(auth_user_id) ? auth_user_id : vehicle_id;
+      const { data, error } = await supabaseAdmin
+        .from("vehicles")
+        .update({ last_shift_finished_at: finishTimestamp })
+        .eq("driver_id", candidateId)
+        .select("id, plate_number, last_shift_finished_at")
+        .maybeSingle();
+
+      if (!error && data) {
+        updatedVehicle = data;
+      }
+    }
+
+    // 5. Also update fallback trucks table if present
+    try {
+      if (isValidUuid(vehicle_id)) {
+        await supabaseAdmin.from("trucks").update({ last_shift_finished_at: finishTimestamp }).eq("id", vehicle_id);
+      }
+      if (cleanPlate) {
+        await supabaseAdmin.from("trucks").update({ last_shift_finished_at: finishTimestamp }).ilike("plate_number", cleanPlate);
+      }
+    } catch (_) {}
+
+    // 6. Broadcast real-time change to all connected clients
+    try {
+      const channel = supabaseAdmin.channel('biodiesel_app_live_updates');
+      await channel.send({
+        type: 'broadcast',
+        event: 'db_change',
+        payload: {
+          table: 'vehicles',
+          action: 'UPDATE',
+          recordId: updatedVehicle?.id || vehicle_id,
+          timestamp: Date.now()
+        }
+      });
+    } catch (bErr) {
+      console.warn("Failed to broadcast vehicle shift update:", bErr);
+    }
+
+    return res.json({ success: true, vehicle: updatedVehicle, finished_at: finishTimestamp });
   } catch (err: any) {
     console.error("Error updating vehicle shift:", err);
     return res.status(500).json({ error: err.message || "Failed to update vehicle shift" });
