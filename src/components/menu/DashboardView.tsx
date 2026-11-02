@@ -372,6 +372,39 @@ export default function DashboardView({
   const totalLiters = orders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
+  // Vehicles that completed all assigned orders today (Asia/Tbilisi timezone)
+  const finishedTrucksToday = useMemo(() => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
+    return (trucks || [])
+      .filter(t => {
+        if (!t || t.is_deleted || !t.last_shift_finished_at) return false;
+        try {
+          const shiftDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date(t.last_shift_finished_at));
+          return shiftDate === today;
+        } catch {
+          return false;
+        }
+      })
+      .map(t => {
+        let timeStr = '';
+        try {
+          timeStr = new Intl.DateTimeFormat('ka-GE', {
+            timeZone: 'Asia/Tbilisi',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          }).format(new Date(t.last_shift_finished_at!));
+        } catch {
+          timeStr = String(t.last_shift_finished_at).substring(11, 16);
+        }
+        return {
+          ...t,
+          shiftFinishedTime: timeStr
+        };
+      })
+      .sort((a, b) => (b.last_shift_finished_at || '').localeCompare(a.last_shift_finished_at || ''));
+  }, [trucks]);
+
   // Filter staff roles strictly excluding drivers, driver assistants, and warehouse managers
   const isExcluded = (user?: User | null) => {
     if (!user) return true;
@@ -605,23 +638,7 @@ export default function DashboardView({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 space-y-4 pt-2 md:pt-3" id="dashboard-view-panel">
-      {/* Dynamic Header */}
-      <div className="bg-gradient-to-r from-emerald-800 to-emerald-950 text-white rounded-2xl p-5 shadow-sm border border-emerald-800/20 relative overflow-hidden shrink-0">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-700/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-        <div className="relative z-10 space-y-1.5">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-300 font-sans">
-            {t("Management Panel")}
-          </p>
-          <h2 className="text-xl md:text-2xl font-black">
-            {t("Welcome to Biodiesel Georgia Portal")}
-          </h2>
-          <p className="text-xs text-emerald-100/80 max-w-xl leading-relaxed">
-            {t("Here you can manage suppliers, plan collection orders, monitor warehouse balances and view detailed analytics.")}
-          </p>
-        </div>
-      </div>
-
-      {/* Grid Indicators */}
+      {/* Grid Indicators (Now positioned at the very top) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0">
         
         <button 
@@ -680,6 +697,63 @@ export default function DashboardView({
           </span>
         </button>
 
+      </div>
+
+      {/* Finished Vehicle Shifts Today */}
+      <div className="bg-white border border-gray-100 rounded-2xl p-4 md:p-4.5 shadow-xs shrink-0">
+        <div className="flex items-center justify-between border-b border-gray-50 pb-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100 shadow-2xs">
+              <Clock size={16} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm text-gray-900 tracking-tight leading-tight">
+                დღეს დასრულებული ცვლები
+              </h3>
+            </div>
+          </div>
+          <span className="text-xs font-black bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-200/70">
+            {finishedTrucksToday.length}
+          </span>
+        </div>
+
+        {finishedTrucksToday.length === 0 ? (
+          <div className="py-4 text-center text-xs text-gray-400 font-medium">
+            <span>დღეს ჯერ არცერთ ავტომობილს არ დაუსრულებია ცვლა</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+            {finishedTrucksToday.map(truck => (
+              <div
+                key={truck.id || truck.plate_number}
+                className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between gap-2 shadow-2xs transition"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {/* Georgian Plate Badge */}
+                  <div className="inline-flex items-center bg-white border border-slate-300 rounded-md px-2 py-0.5 shadow-2xs shrink-0">
+                    <span className="text-[9px] font-black text-blue-700 mr-1 tracking-tighter border-r border-slate-300 pr-1 leading-none">
+                      GE
+                    </span>
+                    <span className="text-xs font-black tracking-wider text-slate-900 font-mono leading-none">
+                      {truck.plate_number}
+                    </span>
+                  </div>
+                  {truck.driver_name && (
+                    <span className="text-[11px] font-semibold text-slate-600 truncate">
+                      {truck.driver_name}
+                    </span>
+                  )}
+                </div>
+
+                {/* Shift Finish Time Badge */}
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100/90 text-emerald-900 font-mono text-xs font-black shrink-0 border border-emerald-200">
+                  <Clock size={12} className="text-emerald-700" />
+                  <span>{truck.shiftFinishedTime}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Column Split */}

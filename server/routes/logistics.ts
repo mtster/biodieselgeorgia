@@ -552,4 +552,31 @@ router.get("/api/office-contacts", async (_req, res) => {
   }
 });
 
+// Update vehicle shift finish timestamp (bypasses RLS with admin credentials)
+router.post("/api/update-vehicle-shift", async (req, res) => {
+  try {
+    const { vehicle_id, finished_at } = req.body;
+    if (!vehicle_id) {
+      return res.status(400).json({ error: "vehicle_id is required" });
+    }
+    if (!isSupabaseConfigured || !supabaseAdmin) {
+      return res.status(500).json({ error: "Supabase admin not configured" });
+    }
+    const { data, error } = await supabaseAdmin
+      .from("vehicles")
+      .update({ last_shift_finished_at: finished_at || null })
+      .eq("id", vehicle_id)
+      .select("id, plate_number, last_shift_finished_at")
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    return res.json({ success: true, vehicle: data });
+  } catch (err: any) {
+    console.error("Error updating vehicle shift:", err);
+    return res.status(500).json({ error: err.message || "Failed to update vehicle shift" });
+  }
+});
+
 export default router;

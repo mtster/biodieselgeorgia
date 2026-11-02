@@ -315,3 +315,7 @@ USING (
     '1ff4008e-08de-49fc-bd0d-631228b26347'
   )
 );
+
+-- Ensure vehicles table has last_shift_finished_at column for shift completion tracking
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS last_shift_finished_at TIMESTAMPTZ DEFAULT NULL;
+

@@ -173,6 +173,7 @@ export interface Truck {
   auth_user_id?: string;      // Vehicle Auth User ID
   password?: string;          // Password for vehicle account
   original_plate_number?: string; // Original plate when editing
+  last_shift_finished_at?: string | null; // Shift finish timestamp
 }
 
 export type Vehicle = Truck;

@@ -134,8 +134,8 @@ ALTER TABLE public.vehicles ADD CONSTRAINT vehicles_plate_number_key UNIQUE (pla
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS warehouse_id TEXT DEFAULT NULL;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS direction_id TEXT DEFAULT NULL;
-ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT NULL;
 ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS last_shift_finished_at TIMESTAMPTZ DEFAULT NULL;
 
 -- 6. Vendors
 CREATE TABLE IF NOT EXISTS public.vendors (

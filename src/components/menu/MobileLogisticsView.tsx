@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { User, Order, Vendor, Warehouse, Truck } from '../../types';
-import { ClipboardList, List } from 'lucide-react';
+import { ClipboardList, List, CheckCircle2, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MobileLogisticsHeader } from '../mobile-logistics/MobileLogisticsHeader';
 import { MobileLogisticsDrawer } from '../mobile-logistics/MobileLogisticsDrawer';
@@ -467,16 +467,94 @@ export default function MobileLogisticsView({
               currentUser={currentUser}
               vehiclePlateText={vehiclePlateText}
               onClose={() => setSelectedOrder(null)}
-              onSaveOrder={onSaveOrder}
+              onSaveOrder={async (updatedOrder) => {
+                onSaveOrder(updatedOrder);
+
+                // If completing the last active order for today, record vehicle shift finish time
+                if (updatedOrder.status === 'completed') {
+                  const remainingActive = activeOrders.filter(o => o.id !== updatedOrder.id);
+                  if (remainingActive.length === 0) {
+                    const finishTimestamp = updatedOrder.pickup_date_time || new Date().toISOString();
+                    const targetVehicleId = myTruck?.id || vehicleId;
+
+                    if (targetVehicleId) {
+                      if (myTruck) {
+                        myTruck.last_shift_finished_at = finishTimestamp;
+                      }
+
+                      try {
+                        if (isSupabaseConfigured && supabase) {
+                          await supabase
+                            .from('vehicles')
+                            .update({ last_shift_finished_at: finishTimestamp })
+                            .eq('id', targetVehicleId);
+                        } else {
+                          await fetch('/api/update-vehicle-shift', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ vehicle_id: targetVehicleId, finished_at: finishTimestamp })
+                          });
+                        }
+                      } catch (err) {
+                        console.warn('Error saving shift completion timestamp:', err);
+                        try {
+                          await fetch('/api/update-vehicle-shift', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ vehicle_id: targetVehicleId, finished_at: finishTimestamp })
+                          });
+                        } catch {}
+                      }
+                    }
+                  }
+                }
+              }}
             />
           ) : (
             <div className="space-y-3">
               {activeTab === 'active' ? (
                 activeOrders.length === 0 ? (
-                  <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
-                    <ClipboardList size={30} className="mx-auto text-gray-300" />
-                    <p className="text-xs font-medium">თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
-                  </div>
+                  (() => {
+                    const shiftFinishTime = myTruck?.last_shift_finished_at;
+                    let isFinishedToday = false;
+                    let formattedFinishTime = '';
+
+                    if (shiftFinishTime) {
+                      try {
+                        const shiftDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date(shiftFinishTime));
+                        if (shiftDate === todayStr) {
+                          isFinishedToday = true;
+                          formattedFinishTime = new Intl.DateTimeFormat('ka-GE', {
+                            timeZone: 'Asia/Tbilisi',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                          }).format(new Date(shiftFinishTime));
+                        }
+                      } catch {}
+                    }
+
+                    return isFinishedToday ? (
+                      <div className="text-center bg-white border border-emerald-200/90 rounded-2xl py-10 px-5 shadow-xs space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center mx-auto shadow-inner">
+                          <CheckCircle2 size={32} className="stroke-[2.5]" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-black text-slate-900 tracking-tight">
+                            ცვლა დასრულდა {formattedFinishTime}-ზე
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
+                            დღევანდელი ყველა შეკვეთა წარმატებით შესრულებულია
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center bg-white border border-dashed rounded-2xl py-12 p-5 text-gray-400 space-y-2">
+                        <ClipboardList size={30} className="mx-auto text-gray-300" />
+                        <p className="text-xs font-medium">თქვენთვის მინიჭებული აქტიური შეკვეთები არ არის.</p>
+                      </div>
+                    );
+                  })()
                 ) : (
                   sortedActiveOrders.map(order => (
                     <ActiveOrderCard

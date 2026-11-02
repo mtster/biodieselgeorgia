@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Phone, MessageCircle, X, User, Loader2, AlertCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { appCache } from '../../utils/cache';
+import { onRealtimeDbChange } from '../../lib/realtime';
 
 interface OfficeContact {
   id: string;
@@ -44,6 +45,7 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
   const [contacts, setContacts] = useState<OfficeContact[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
   // Prevent background scrolling when modal is open
   useEffect(() => {
@@ -56,126 +58,149 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // 1. Check in-memory cache and localStorage first to eliminate duplicate fetches
-    const memoryCached = appCache.get<OfficeContact[]>(CACHE_KEY);
-    if (memoryCached && Array.isArray(memoryCached) && memoryCached.length > 0) {
-      setContacts(memoryCached);
-      setLoading(false);
-      return;
+  // Master fetch function with background stale-while-revalidate
+  const fetchOfficeContacts = useCallback(async (force = false) => {
+    if (!force) {
+      // 1. Instant cache retrieval for 0ms UI display
+      const memoryCached = appCache.get<OfficeContact[]>(CACHE_KEY);
+      if (memoryCached && Array.isArray(memoryCached) && memoryCached.length > 0) {
+        setContacts(memoryCached);
+        setLoading(false);
+        // Continue in background to revalidate
+      } else {
+        try {
+          const stored = localStorage.getItem(CACHE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              appCache.set(CACHE_KEY, parsed);
+              setContacts(parsed);
+              setLoading(false);
+              // Continue in background to revalidate
+            }
+          }
+        } catch {}
+      }
     }
 
+    if (contacts.length === 0) {
+      setLoading(true);
+    }
+    setError(null);
+
+    const processProfiles = (profilesList: any[]): OfficeContact[] => {
+      const profileMap = new Map<string, any>();
+      profilesList.forEach((p: any) => {
+        if (p && p.id) profileMap.set(p.id, p);
+      });
+
+      return TARGET_OFFICE_IDS.map((targetId, index) => {
+        const p = profileMap.get(targetId);
+        return {
+          id: targetId,
+          name: p?.name || (index === 0 ? 'ოფისი 1' : 'ოფისი 2'),
+          phone: p?.phone || '',
+          role: p?.role || 'office'
+        };
+      });
+    };
+
     try {
-      const stored = localStorage.getItem(CACHE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          appCache.set(CACHE_KEY, parsed);
-          setContacts(parsed);
-          setLoading(false);
-          return;
+      let fetchedData: any[] | null = null;
+
+      // Direct Supabase query with valid columns
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error: fetchErr } = await supabase
+            .from('profiles')
+            .select('id, name, phone, role, email')
+            .in('id', TARGET_OFFICE_IDS);
+
+          if (!fetchErr && data && data.length > 0) {
+            fetchedData = data;
+          }
+        } catch (e) {
+          console.warn('Client-side profiles query warning:', e);
         }
       }
-    } catch {}
 
-    // 2. Fetch if not cached
-    let isMounted = true;
-    const fetchOfficeContacts = async () => {
-      setLoading(true);
-      setError(null);
-
-      const processProfiles = (profilesList: any[]): OfficeContact[] => {
-        const profileMap = new Map<string, any>();
-        profilesList.forEach((p: any) => {
-          if (p && p.id) profileMap.set(p.id, p);
-        });
-
-        return TARGET_OFFICE_IDS.map((targetId, index) => {
-          const p = profileMap.get(targetId);
-          return {
-            id: targetId,
-            name: p?.name || (index === 0 ? 'ოფისი 1' : 'ოფისი 2'),
-            phone: p?.phone || '',
-            role: p?.role || 'office'
-          };
-        });
-      };
-
-      try {
-        let fetchedData: any[] | null = null;
-
-        // Try direct Supabase query with valid columns
-        if (isSupabaseConfigured && supabase) {
-          try {
-            const { data, error: fetchErr } = await supabase
-              .from('profiles')
-              .select('id, name, phone, role, email')
-              .in('id', TARGET_OFFICE_IDS);
-
-            if (!fetchErr && data && data.length > 0) {
-              fetchedData = data;
-            }
-          } catch (e) {
-            console.warn('Client-side profiles query warning:', e);
-          }
-        }
-
-        // Fallback to server endpoint if client query is blocked by RLS
-        if (!fetchedData || fetchedData.length === 0) {
-          try {
-            const res = await fetch('/api/office-contacts');
-            if (res.ok) {
-              const json = await res.json();
-              if (json?.contacts && Array.isArray(json.contacts)) {
-                if (isMounted) {
-                  const finalContacts = json.contacts;
-                  appCache.set(CACHE_KEY, finalContacts);
-                  try {
-                    localStorage.setItem(CACHE_KEY, JSON.stringify(finalContacts));
-                  } catch {}
-                  setContacts(finalContacts);
-                  setLoading(false);
-                  return;
-                }
+      // Fallback to server endpoint if client query is blocked by RLS
+      if (!fetchedData || fetchedData.length === 0) {
+        try {
+          const res = await fetch('/api/office-contacts');
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.contacts && Array.isArray(json.contacts)) {
+              if (isMountedRef.current) {
+                const finalContacts = json.contacts;
+                appCache.set(CACHE_KEY, finalContacts);
+                try {
+                  localStorage.setItem(CACHE_KEY, JSON.stringify(finalContacts));
+                } catch {}
+                setContacts(finalContacts);
+                setLoading(false);
+                return;
               }
             }
-          } catch (apiErr) {
-            console.warn('Server /api/office-contacts fetch failed:', apiErr);
           }
-        }
-
-        if (isMounted) {
-          if (fetchedData && fetchedData.length > 0) {
-            const processed = processProfiles(fetchedData);
-            appCache.set(CACHE_KEY, processed);
-            try {
-              localStorage.setItem(CACHE_KEY, JSON.stringify(processed));
-            } catch {}
-            setContacts(processed);
-          } else {
-            setError('საკონტაქტო მონაცემების ჩატვირთვა ვერ მოხერხდა');
-          }
-        }
-      } catch (err: any) {
-        console.warn('Error fetching office contacts:', err);
-        if (isMounted) {
-          setError('საკონტაქტო მონაცემების ჩატვირთვა ვერ მოხერხდა');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
+        } catch (apiErr) {
+          console.warn('Server /api/office-contacts fetch failed:', apiErr);
         }
       }
-    };
 
-    fetchOfficeContacts();
+      if (isMountedRef.current) {
+        if (fetchedData && fetchedData.length > 0) {
+          const processed = processProfiles(fetchedData);
+          appCache.set(CACHE_KEY, processed);
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(processed));
+          } catch {}
+          setContacts(processed);
+        } else if (contacts.length === 0) {
+          setError('საკონტაქტო მონაცემების ჩატვირთვა ვერ მოხერხდა');
+        }
+      }
+    } catch (err: any) {
+      console.warn('Error fetching office contacts:', err);
+      if (isMountedRef.current && contacts.length === 0) {
+        setError('საკონტაქტო მონაცემების ჩატვირთვა ვერ მოხერხდა');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [contacts.length]);
+
+  // Hook into across-the-app realtime broadcast live updates
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    const unsub = onRealtimeDbChange((table) => {
+      const t = (table || '').toLowerCase();
+      if (t === 'profiles' || t === 'users' || t === 'employees') {
+        // Invalidate stale cache
+        appCache.clear('office_contacts');
+        try {
+          localStorage.removeItem(CACHE_KEY);
+        } catch {}
+
+        // Live re-fetch immediately across connected devices
+        fetchOfficeContacts(true);
+      }
+    });
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
+      unsub();
     };
-  }, [isOpen]);
+  }, [fetchOfficeContacts]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchOfficeContacts(false);
+    }
+  }, [isOpen, fetchOfficeContacts]);
 
   if (!isOpen) return null;
 
@@ -217,21 +242,21 @@ export function OfficeContactsModal({ isOpen, onClose }: OfficeContactsModalProp
 
           {/* Body Content */}
           <div className="bg-white rounded-b-3xl p-5 overflow-y-auto space-y-3.5 max-h-[75vh]">
-            {loading && (
+            {loading && contacts.length === 0 && (
               <div className="py-8 flex flex-col items-center justify-center gap-2.5 text-slate-500">
                 <Loader2 size={24} className="animate-spin text-emerald-600" />
                 <span className="text-xs font-medium">იტვირთება...</span>
               </div>
             )}
 
-            {!loading && error && (
+            {!loading && error && contacts.length === 0 && (
               <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs flex items-center gap-2">
                 <AlertCircle size={15} className="text-amber-600 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            {!loading && contacts.length > 0 && (
+            {contacts.length > 0 && (
               <div className="space-y-3">
                 {contacts.map((contact) => {
                   const hasPhone = Boolean(contact.phone && contact.phone.trim().length > 3);
