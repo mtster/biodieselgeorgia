@@ -190,18 +190,6 @@ export async function saveOrder(order: Order, loggerName: string, currentUserId?
           }
 
           if ('last_shift_finished_at' in vehicleUpdates) {
-            try {
-              fetch('/api/update-vehicle-shift', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  vehicle_id: resolvedVehicleId,
-                  plate_number: finalOrder.truck_plate,
-                  finished_at: vehicleUpdates.last_shift_finished_at
-                })
-              }).catch(() => {});
-            } catch (_) {}
-
             appCache.clear('vehicles');
             appCache.clear('trucks');
             notifyDbChange('vehicles', 'UPDATE', resolvedVehicleId || finalOrder.truck_plate);
@@ -425,18 +413,6 @@ export async function batchAssignCrewToOrders(params: BatchAssignCrewParams): Pr
           })
           .eq('plate_number', cleanPlate);
       }
-
-      try {
-        fetch('/api/update-vehicle-shift', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            vehicle_id: resolvedVehicleId,
-            plate_number: cleanPlate,
-            finished_at: null
-          })
-        }).catch(() => {});
-      } catch (_) {}
     } catch (e) {
       console.error('Batch assign crew failed in Supabase:', e);
       throw e;

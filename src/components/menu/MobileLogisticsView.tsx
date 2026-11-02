@@ -532,31 +532,7 @@ export default function MobileLogisticsView({
                     }
                   }
 
-                  // 2. Invoke server proxy route with admin privileges (trying both /api and root paths)
-                  try {
-                    const payload = JSON.stringify({
-                      vehicle_id: targetVehicleId,
-                      plate_number: targetPlate,
-                      auth_user_id: currentUser.id,
-                      finished_at: finishTimestamp
-                    });
-
-                    const res = await fetch('/api/update-vehicle-shift', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: payload
-                    }).catch(() => null);
-
-                    if (!res || !res.ok) {
-                      await fetch('/update-vehicle-shift', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: payload
-                      }).catch(() => null);
-                    }
-                  } catch (_) {}
-
-                  // 3. Invalidate vehicle caches and broadcast realtime update across the whole system
+                  // Invalidate vehicle caches and broadcast realtime update across the whole system
                   try {
                     appCache.clear('vehicles');
                     appCache.clear('trucks');

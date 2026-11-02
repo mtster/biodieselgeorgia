@@ -766,7 +766,7 @@ export default function DashboardView({
                     <span className="text-[9px] font-black text-blue-700 mr-1 tracking-tighter border-r border-slate-300 pr-1 leading-none">
                       GE
                     </span>
-                    <span className="text-xs font-black tracking-wider text-slate-900 font-mono leading-none">
+                    <span className="text-xs font-semibold text-gray-800 leading-none">
                       {truck.plate_number}
                     </span>
                   </div>
@@ -778,7 +778,7 @@ export default function DashboardView({
                 </div>
 
                 {/* Shift Finish Time Badge */}
-                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100/90 text-emerald-900 font-mono text-xs font-black shrink-0 border border-emerald-200">
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100/90 text-emerald-900 text-xs font-semibold shrink-0 border border-emerald-200">
                   <Clock size={12} className="text-emerald-700" />
                   <span>{truck.shiftFinishedTime}</span>
                 </div>
