@@ -4,6 +4,7 @@ import PageHeader from '../PageHeader';
 import { t } from '../../utils/lang';
 
 import OrdersByPeriod from '../reports/OrdersByPeriod';
+import OrdersByVehicle from '../reports/OrdersByVehicle';
 import OrdersByWarehouse from '../reports/OrdersByWarehouse';
 import DeliveredOrdersBySuppliers from '../reports/DeliveredOrdersBySuppliers';
 import DeliveredOrdersByRegions from '../reports/DeliveredOrdersByRegions';
@@ -34,7 +35,7 @@ interface Props {
   currentUser?: User | null;
 }
 
-type ReportType = 'period' | 'warehouses' | 'suppliers' | 'regions' | 'managers' | 'turnover' | 'last_deliveries' | 'orders' | null;
+type ReportType = 'period' | 'vehicles' | 'warehouses' | 'suppliers' | 'regions' | 'managers' | 'turnover' | 'last_deliveries' | 'orders' | null;
 
 export default function ReportsView({
   suppliers,
@@ -56,6 +57,21 @@ export default function ReportsView({
         users={users}
         cities={cities}
         warehouses={warehouses}
+        currentUser={currentUser}
+        onBack={() => setSelectedReport(null)}
+      />
+    );
+  }
+
+  if (selectedReport === 'vehicles') {
+    return (
+      <OrdersByVehicle
+        suppliers={suppliers}
+        orders={orders}
+        users={users}
+        cities={cities}
+        warehouses={warehouses}
+        trucks={trucks}
         currentUser={currentUser}
         onBack={() => setSelectedReport(null)}
       />
@@ -164,6 +180,14 @@ export default function ReportsView({
       icon: CalendarRange,
       color: 'bg-emerald-50 text-emerald-800 border-emerald-100',
       badge: 'Period Analysis',
+    },
+    {
+      id: 'vehicles' as const,
+      title: 'გამოტანები ტრანსპორტების მიხედვით',
+      description: 'Review orders by transport vehicles with factual pickup quantities, city, and warehouse breakdown.',
+      icon: Truck,
+      color: 'bg-blue-50 text-blue-800 border-blue-100',
+      badge: 'Vehicle Analysis',
     },
     {
       id: 'orders' as const,

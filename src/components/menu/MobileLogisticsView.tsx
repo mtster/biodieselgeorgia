@@ -16,6 +16,7 @@ import {
 import { resolveCityName, resolveDistrictName } from '../../services/lookupService';
 import { onRealtimeDbChange, notifyDbChange } from '../../lib/realtime';
 import { appCache } from '../../utils/cache';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 interface Props {
   currentUser: User;

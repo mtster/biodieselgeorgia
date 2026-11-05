@@ -62,7 +62,7 @@ export default function OrdersByPeriod({
     setSearchTerm,
     debouncedSearchTerm,
     clearSearch
-  } = useDebouncedSearch('', 300);
+  } = useDebouncedSearch('', 700);
 
   const [dbOrders, setDbOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);

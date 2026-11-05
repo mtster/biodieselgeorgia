@@ -36,6 +36,7 @@ interface DashboardMemoryCache {
   completedOrders: Order[];
   totalCompletedCount: number;
   todayActiveOrdersCount: number;
+  todayFactualVolume: number;
   vendorLookup: Record<string, { trade_name: string; company_name?: string; address: string }>;
   remindersByFilter: Record<string, { reminders: Communication[]; totalCount: number; timestamp: number }>;
   timestamp: number;
@@ -46,6 +47,7 @@ const dashboardCache: DashboardMemoryCache = {
   completedOrders: [],
   totalCompletedCount: 0,
   todayActiveOrdersCount: 0,
+  todayFactualVolume: 0,
   vendorLookup: {},
   remindersByFilter: {},
   timestamp: 0
@@ -73,11 +75,15 @@ export default function DashboardView({
   ordersRef.current = orders;
 
   const todayDateStr = useMemo(() => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tbilisi' }).format(new Date());
+    } catch {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
   }, []);
 
   const isCacheValidForToday = dashboardCache.dateStr === todayDateStr && dashboardCache.timestamp > 0;
@@ -98,6 +104,9 @@ export default function DashboardView({
   const [todayActiveOrdersCount, setTodayActiveOrdersCount] = useState<number>(() => 
     isCacheValidForToday ? (dashboardCache.todayActiveOrdersCount || 0) : 0
   );
+  const [todayFactualVolume, setTodayFactualVolume] = useState<number>(() => 
+    isCacheValidForToday ? (dashboardCache.todayFactualVolume || 0) : 0
+  );
 
   // Fetch today's orders directly with vendor relation to guarantee trade_name and address
   const fetchTodayOrdersData = useCallback(async (force = false) => {
@@ -107,6 +116,7 @@ export default function DashboardView({
       setTotalCompletedOrdersCount(dashboardCache.totalCompletedCount);
       setVendorLookup(dashboardCache.vendorLookup);
       setTodayActiveOrdersCount(dashboardCache.todayActiveOrdersCount);
+      setTodayFactualVolume(dashboardCache.todayFactualVolume || 0);
       setIsLoadingCompletedOrders(false);
       return;
     }
@@ -117,6 +127,7 @@ export default function DashboardView({
       setTotalCompletedOrdersCount(dashboardCache.totalCompletedCount);
       setVendorLookup(dashboardCache.vendorLookup);
       setTodayActiveOrdersCount(dashboardCache.todayActiveOrdersCount);
+      setTodayFactualVolume(dashboardCache.todayFactualVolume || 0);
       setIsLoadingCompletedOrders(false);
       return;
     }
@@ -184,11 +195,26 @@ export default function DashboardView({
           const resolvedActCount = (!actErr && actCount !== null) ? actCount : 0;
           setTodayActiveOrdersCount(resolvedActCount);
 
+          // 3. Fetch today's factual quantities sum for completed orders (order_date today, completed, is_deleted = false)
+          const { data: factData } = await supabase
+            .from('orders')
+            .select('fact_qty')
+            .eq('is_deleted', false)
+            .eq('status', 'completed')
+            .gte('order_date', todayDateStr)
+            .lte('order_date', todayDateStr + 'T23:59:59.999Z');
+
+          const resolvedFactVolume = factData 
+            ? factData.reduce((sum, o) => sum + (Number(o.fact_qty) || 0), 0) 
+            : 0;
+          setTodayFactualVolume(resolvedFactVolume);
+
           // Update module-level cache
           dashboardCache.dateStr = todayDateStr;
           dashboardCache.completedOrders = (compData as any[]) || [];
           dashboardCache.totalCompletedCount = resolvedCount;
           dashboardCache.todayActiveOrdersCount = resolvedActCount;
+          dashboardCache.todayFactualVolume = resolvedFactVolume;
           dashboardCache.vendorLookup = { ...dashboardCache.vendorLookup, ...newLookup };
           dashboardCache.timestamp = Date.now();
         } catch (e) {
@@ -207,7 +233,7 @@ export default function DashboardView({
     const localComp = (ordersRef.current || [])
       .filter(o => {
         if (o.is_deleted) return false;
-        const oDate = (o.order_date || '').substring(0, 10);
+        const oDate = (o.order_date || o.pickup_date_time || o.created_at || '').substring(0, 10);
         if (oDate !== todayDateStr) return false;
         const s = (o.status || '').toLowerCase().trim();
         return s === 'completed';
@@ -222,9 +248,12 @@ export default function DashboardView({
     setDbCompletedOrders(localComp.slice(0, 10));
     setIsLoadingCompletedOrders(false);
 
+    const localTodaySum = localComp.reduce((sum, o) => sum + (Number(o.fact_qty) || 0), 0);
+    setTodayFactualVolume(localTodaySum);
+
     const localActCount = (ordersRef.current || []).filter(o => {
       if (o.is_deleted) return false;
-      const oDate = (o.order_date || '').substring(0, 10);
+      const oDate = (o.order_date || o.pickup_date_time || o.created_at || '').substring(0, 10);
       if (oDate !== todayDateStr) return false;
       const s = (o.status || '').toLowerCase().trim();
       return s !== 'completed' && s !== 'cancelled' && s !== 'canceled';
@@ -235,6 +264,7 @@ export default function DashboardView({
     dashboardCache.completedOrders = localComp.slice(0, 10);
     dashboardCache.totalCompletedCount = localComp.length;
     dashboardCache.todayActiveOrdersCount = localActCount;
+    dashboardCache.todayFactualVolume = localTodaySum;
     dashboardCache.timestamp = Date.now();
   }, [todayDateStr]);
 
@@ -400,7 +430,7 @@ export default function DashboardView({
     }
   };
   
-  const totalLiters = orders.reduce((sum, curr) => sum + (curr.fact_qty || 0), 0);
+  const totalLiters = todayFactualVolume;
   const activeDrivers = employees.filter(e => e.role === 'driver').length;
 
   // Vehicles that completed all assigned orders today (Asia/Tbilisi timezone)
@@ -711,7 +741,7 @@ export default function DashboardView({
           </div>
           <span className="text-xs text-gray-400 font-medium block">{t("Total Volume (Actual)")}</span>
           <span className="text-xl font-extrabold text-gray-900">
-            {totalLiters.toLocaleString()} L.
+            {totalLiters.toLocaleString()} ლ
           </span>
         </button>
 
