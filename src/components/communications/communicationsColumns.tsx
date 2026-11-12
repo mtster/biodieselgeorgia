@@ -146,7 +146,7 @@ export function getCommunicationsColumns({
       }
     },
     task_status: {
-      header: t('Task Status'),
+      header: t('Status'),
       key: 'task_status',
       render: (comm) => {
         const isCompleted = typeof comm.is_completed === 'boolean' 

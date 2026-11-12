@@ -67,7 +67,7 @@ export default function DeliveredOrdersByManagers({
 
         inFlightManagersPromise = {
           key: cacheKey,
-          promise: q.then(res => {
+          promise: Promise.resolve(q).then(res => {
             setTimeout(() => {
               if (inFlightManagersPromise?.key === cacheKey) {
                 inFlightManagersPromise = null;

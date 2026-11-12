@@ -66,7 +66,7 @@ export default function DeliveredOrdersByRegions({
 
         inFlightRegionsPromise = {
           key: cacheKey,
-          promise: q.then(res => {
+          promise: Promise.resolve(q).then(res => {
             setTimeout(() => {
               if (inFlightRegionsPromise?.key === cacheKey) {
                 inFlightRegionsPromise = null;

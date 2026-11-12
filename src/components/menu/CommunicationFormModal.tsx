@@ -46,6 +46,8 @@ export default function CommunicationFormModal({
   const [isSearching, setIsSearching] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const [selectedVendorObj, setSelectedVendorObj] = useState<Vendor | null>(() => ((editingComm as any)?.vendor as Vendor | undefined) || null);
+
   // Split reminder date & time state
   const [reminderDate, setReminderDate] = useState('');
   const [reminderTime, setReminderTime] = useState('');
@@ -72,9 +74,23 @@ export default function CommunicationFormModal({
     const term = vendorSearch.trim().toLowerCase();
     if (localComm?.vendor_id) {
       const cleanLId = String(localComm.vendor_id).trim().toLowerCase();
+      if (selectedVendorObj && (selectedVendorObj.id === localComm.vendor_id || (selectedVendorObj.id && String(selectedVendorObj.id).trim().toLowerCase() === cleanLId))) {
+        return selectedVendorObj;
+      }
+      const initV = (editingComm as any)?.vendor as Vendor | undefined;
+      if (initV && (initV.id === localComm.vendor_id || (initV.id && String(initV.id).trim().toLowerCase() === cleanLId))) {
+        return initV;
+      }
       const v = suppliers.find((s) => s.id === localComm.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanLId)) || 
                 remoteSuppliers.find((s) => s.id === localComm.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanLId));
       if (v) return v;
+    }
+    if (selectedVendorObj) {
+      const sTrade = (selectedVendorObj.trade_name || '').trim().toLowerCase();
+      const sComp = (selectedVendorObj.company_name || '').trim().toLowerCase();
+      if (!term || sTrade === term || sComp === term) {
+        return selectedVendorObj;
+      }
     }
     if (!term) return null;
     return suppliers.find((s) => {
@@ -86,10 +102,10 @@ export default function CommunicationFormModal({
       const comp = (s.company_name || '').trim().toLowerCase();
       return trade === term || comp === term;
     }) || null;
-  }, [suppliers, remoteSuppliers, vendorSearch, localComm?.vendor_id]);
+  }, [suppliers, remoteSuppliers, vendorSearch, localComm?.vendor_id, selectedVendorObj, editingComm]);
 
-  const selectedAddress = matchedVendor?.address || '';
-  const currentVendorId = localComm?.vendor_id || matchedVendor?.id || '';
+  const selectedAddress = matchedVendor?.address || selectedVendorObj?.address || (editingComm as any)?.vendor?.address || (localComm as any)?.vendor?.address || '';
+  const currentVendorId = localComm?.vendor_id || matchedVendor?.id || selectedVendorObj?.id || '';
 
   // Contacts pagination state & modal
   const INITIAL_CONTACTS_SIZE = 4;
@@ -364,27 +380,42 @@ export default function CommunicationFormModal({
       let initVName = '';
       const vId = editingComm.vendor_id ? String(editingComm.vendor_id).trim() : '';
       const cleanVId = vId.toLowerCase();
+      const initVendor = ((editingComm as any)?.vendor as Vendor | undefined) || null;
       const suppObj = suppliers.find(s => s.id === vId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
       if (suppObj) {
         initVName = suppObj.trade_name || suppObj.company_name || '';
         setVendorSearch(initVName);
+        setSelectedVendorObj(suppObj);
+      } else if (initVendor && (initVendor.id === vId || !vId || (initVendor.id && String(initVendor.id).trim().toLowerCase() === cleanVId))) {
+        initVName = initVendor.trade_name || initVendor.company_name || editingComm.vendor_name || '';
+        setVendorSearch(initVName);
+        setSelectedVendorObj(initVendor);
       } else if (editingComm.vendor_name) {
         initVName = editingComm.vendor_name;
         setVendorSearch(initVName);
+        if (vId) {
+          getVendorById(vId).then(v => {
+            if (v) {
+              setSelectedVendorObj(v);
+            }
+          }).catch(() => {});
+        }
       } else if (vId) {
         getVendorById(vId).then(v => {
           if (v) {
             const name = v.trade_name || v.company_name || '';
             setVendorSearch(name);
+            setSelectedVendorObj(v);
             setLocalComm(prev => prev ? {
               ...prev,
               vendor_id: v.id,
               vendor_name: name
             } : null);
           }
-        });
+        }).catch(() => {});
       } else {
         setVendorSearch('');
+        setSelectedVendorObj(null);
       }
 
       setLocalComm({ 
@@ -441,6 +472,7 @@ export default function CommunicationFormModal({
       };
     } else {
       setLocalComm(null);
+      setSelectedVendorObj(null);
       setVendorSearch('');
       setReminderDate('');
       setReminderTime('');
@@ -454,6 +486,7 @@ export default function CommunicationFormModal({
   if (!localComm) return null;
 
   const handleSelectVendor = (s: Vendor) => {
+    setSelectedVendorObj(s);
     const displayName = s.trade_name || s.company_name || '';
 
     setLocalComm(prev => prev ? {
@@ -638,6 +671,7 @@ export default function CommunicationFormModal({
                   setVendorSearch(val);
                   setShowVendorSuggestions(true);
                   if (val === '') {
+                    setSelectedVendorObj(null);
                     setLocalComm(prev => prev ? { ...prev, vendor_id: '', vendor_name: '' } : null);
                   }
                   if (fieldErrors.vendor_id) {

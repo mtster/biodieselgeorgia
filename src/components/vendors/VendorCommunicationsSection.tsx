@@ -154,6 +154,7 @@ export default function VendorCommunicationsSection({
     {
       header: t('Type'),
       key: 'type',
+      className: 'text-center',
       render: (comm) => {
         const styleMap: Record<string, string> = {
           action: 'bg-emerald-50 text-emerald-800 border-emerald-100',
@@ -168,7 +169,7 @@ export default function VendorCommunicationsSection({
         const statusClass = styleMap[comm.type] || 'bg-slate-50 text-slate-700 border-slate-100';
         const label = labelMap[comm.type] || comm.type;
         return (
-          <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold tracking-wide ${statusClass}`}>
+          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full border text-[10px] font-semibold tracking-wide ${statusClass}`}>
             {t(label)}
           </span>
         );
@@ -213,32 +214,55 @@ export default function VendorCommunicationsSection({
       }
     },
     {
-      header: t('Responsible'),
+      header: t('Responsible User'),
       key: 'responsible_user_id',
       render: (comm) => {
-        if (comm.type !== 'task') return <span className="text-gray-400">-</span>;
-        const emp = users.find(u => u.id === comm.responsible_user_id);
-        return emp ? <span className="font-medium text-blue-600">{emp.name}</span> : <span className="text-gray-400">-</span>;
+        const respId = comm.responsible_user_id || comm.user_id;
+        if (!respId) {
+          const fallbackName = (comm as any).responsible_user_name || (comm as any).user_name;
+          return fallbackName ? <span className="font-semibold text-gray-800">{fallbackName}</span> : <span className="text-gray-400">-</span>;
+        }
+        const cleanId = String(respId).trim().toLowerCase();
+        const emp = users.find(u => u.id === respId || (u.id && String(u.id).trim().toLowerCase() === cleanId));
+        const authorName = emp?.name || 
+          (comm as any).responsible_user?.name || 
+          (comm as any).user?.name || 
+          (cleanId === String(currentUser.id).trim().toLowerCase() ? currentUser.name : null) || 
+          (comm as any).responsible_user_name || 
+          (comm as any).user_name || 
+          (!cleanId.includes('-') && cleanId.length < 40 ? respId : '') ||
+          '-';
+        return authorName !== '-' ? (
+          <span className="font-semibold text-gray-800">{authorName}</span>
+        ) : (
+          <span className="text-gray-400">-</span>
+        );
       }
     },
     {
-      header: t('Task Status'),
+      header: t('Status'),
       key: 'task_status',
+      className: 'text-center',
       render: (comm) => {
-        if (comm.type !== 'task' || !comm.task_status) return <span className="text-gray-400">-</span>;
-        const labelMap: Record<string, string> = {
-          pending: t('Pending'),
-          in_progress: t('In Progress'),
-          completed: t('Completed'),
-        };
-        const styleMap: Record<string, string> = {
-          pending: 'bg-rose-50 text-rose-800 border-rose-100',
-          in_progress: 'bg-indigo-50 text-indigo-850 border-indigo-100',
-          completed: 'bg-emerald-50 text-emerald-850 border-emerald-100'
-        };
+        const isCompleted = typeof comm.is_completed === 'boolean' 
+          ? comm.is_completed 
+          : comm.task_status === 'completed';
+
+        if (comm.type !== 'task' && comm.is_completed === undefined && !comm.task_status) {
+          return <span className="text-gray-400">-</span>;
+        }
+
+        if (isCompleted) {
+          return (
+            <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-800 border-emerald-100">
+              {t('Completed')}
+            </span>
+          );
+        }
+
         return (
-          <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wide uppercase ${styleMap[comm.task_status] || 'bg-slate-50 text-slate-700'}`}>
-            {labelMap[comm.task_status] || comm.task_status}
+          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full border text-[9px] font-bold tracking-wide uppercase bg-blue-50 text-blue-800 border-blue-100">
+            {t('Active')}
           </span>
         );
       }

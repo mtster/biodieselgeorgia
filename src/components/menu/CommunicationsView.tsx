@@ -24,7 +24,7 @@ const defaultCommunicationsColumns: ManagedColumn[] = [
   { id: 'user_name', label: 'Operator / User', visible: true },
   { id: 'comment', label: 'Interaction Comment', visible: true },
   { id: 'responsible_user_id', label: 'Responsible User', visible: true },
-  { id: 'task_status', label: 'Task Status', visible: true },
+  { id: 'task_status', label: 'Status', visible: true },
   { id: 'date_time', label: 'Created', visible: true }
 ];
 
@@ -544,7 +544,7 @@ export default function CommunicationsView({
             {/* Task Status Filter */}
             <div className="relative w-full md:w-auto min-w-[145px]">
               <span className="absolute -top-1.5 left-3 px-1 text-[9px] font-bold text-[#3182ce] bg-[#f8fafc] select-none z-10 text-left font-sans uppercase tracking-wider">
-                {t("Task Status")}
+                {t("Status")}
               </span>
               <select
                 value={taskStatusFilter}

@@ -58,6 +58,8 @@ export const OrderGeneralFields: React.FC<OrderGeneralFieldsProps> = ({
         setFieldErrors={setFieldErrors}
         suppliers={suppliers}
         selectedVendorId={editingOrder.vendor_id}
+        address={editingOrder.address || (editingOrder as any).vendor?.address || selectedSupplier?.address}
+        initialVendor={(editingOrder as any).vendor || selectedSupplier}
       />
       
       {/* Destination storage dropdown */}

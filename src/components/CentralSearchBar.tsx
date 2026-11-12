@@ -23,7 +23,9 @@ interface CentralSearchBarProps {
   onSearchChange: (val: string) => void;
   onSearchSubmit?: () => void;
   searchPlaceholder?: string;
+  placeholder?: string;
   filters?: FilterOption[];
+  filterDropdowns?: FilterOption[];
   idPrefix?: string;
   suggestions?: SearchSuggestionItem[];
   onSelectSuggestion?: (item: SearchSuggestionItem) => void;
@@ -31,6 +33,9 @@ interface CentralSearchBarProps {
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
   selectedAddress?: string;
+  onClear?: () => void;
+  showSuggestionsCount?: boolean;
+  hasMore?: boolean;
 }
 
 export default function CentralSearchBar({
@@ -38,14 +43,19 @@ export default function CentralSearchBar({
   onSearchChange,
   onSearchSubmit,
   searchPlaceholder = "Search...",
+  placeholder,
   filters = [],
+  filterDropdowns,
   idPrefix = "search",
   suggestions,
   onSelectSuggestion,
   isSearching = false,
   isLoadingMore = false,
+  hasMore,
   onLoadMore,
   selectedAddress,
+  onClear,
+  showSuggestionsCount
 }: CentralSearchBarProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
@@ -143,7 +153,11 @@ export default function CentralSearchBar({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onSearchChange('');
+                if (onClear) {
+                  onClear();
+                } else {
+                  onSearchChange('');
+                }
                 setShowDropdown(false);
               }}
               className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer shrink-0"

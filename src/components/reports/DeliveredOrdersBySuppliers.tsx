@@ -85,7 +85,7 @@ export default function DeliveredOrdersBySuppliers({
 
         inFlightSuppliersPromise = {
           key: cacheKey,
-          promise: q.then(res => {
+          promise: Promise.resolve(q).then(res => {
             setTimeout(() => {
               if (inFlightSuppliersPromise?.key === cacheKey) {
                 inFlightSuppliersPromise = null;

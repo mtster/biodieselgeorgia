@@ -89,10 +89,11 @@ export function StandardTable<T>({
             <tr className="select-none h-10">
               {columns.map((col, idx) => {
                 const hasCustomPx = col.className?.includes('px-');
+                const hasAlign = col.className?.includes('text-center') || col.className?.includes('text-right') || col.className?.includes('text-left');
                 return (
                   <th
                     key={col.key || idx}
-                    className={`py-1.5 ${hasCustomPx ? '' : 'px-3.5'} text-[11px] text-gray-400 uppercase font-mono bg-slate-50 z-20 border-b border-gray-200 whitespace-nowrap text-left align-middle ${
+                    className={`py-1.5 ${hasCustomPx ? '' : 'px-3.5'} text-[11px] text-gray-400 uppercase font-mono bg-slate-50 z-20 border-b border-gray-200 whitespace-nowrap ${hasAlign ? '' : 'text-left'} align-middle ${
                       col.className || ''
                     }`}
                   >

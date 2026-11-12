@@ -161,7 +161,7 @@ export default function OrdersByPeriod({
 
         inFlightOrdersByPeriodPromise = {
           key: cacheKey,
-          promise: query.then(res => {
+          promise: Promise.resolve(query).then(res => {
             setTimeout(() => {
               if (inFlightOrdersByPeriodPromise?.key === cacheKey) {
                 inFlightOrdersByPeriodPromise = null;
@@ -220,7 +220,7 @@ export default function OrdersByPeriod({
 
   // Helper to resolve manager display name
   const getManagerDisplayName = (vendor?: Vendor | null, ord?: Order): string => {
-    const managerId = vendor?.manager_id || ord?.manager_id;
+    const managerId = vendor?.manager_id || (ord as any)?.manager_id;
     if (!managerId) return '-';
     const cleanId = String(managerId).trim().toLowerCase();
     const mgr = users.find(u => u.id === managerId || (u.id && String(u.id).trim().toLowerCase() === cleanId));
@@ -250,7 +250,7 @@ export default function OrdersByPeriod({
       // 3. Manager filter check
       if (selectedManager) {
         const cleanSelected = String(selectedManager).trim().toLowerCase();
-        const vendorManagerId = vendor?.manager_id || ord.manager_id;
+        const vendorManagerId = vendor?.manager_id || (ord as any)?.manager_id;
         if (!vendorManagerId) return false;
         const cleanMid = String(vendorManagerId).trim().toLowerCase();
         if (cleanMid !== cleanSelected) return false;

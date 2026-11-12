@@ -1061,7 +1061,9 @@ export default function DashboardView({
               </div>
             ) : (
               reminders.map(rem => {
-                const supplier = suppliers.find(s => s.id === rem.vendor_id);
+                const cleanVId = rem.vendor_id ? String(rem.vendor_id).trim().toLowerCase() : '';
+                const lookupVendor = rem.vendor_id ? (vendorLookup[rem.vendor_id] || vendorLookup[cleanVId]) : null;
+                const supplier = (rem as any).vendor || lookupVendor || suppliers.find(s => s.id === rem.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
                 const hasTime = !!rem.has_time;
                 const reminderDate = rem.reminder_time ? new Date(rem.reminder_time) : null;
                 const timeStr = hasTime && reminderDate && !isNaN(reminderDate.getTime())
@@ -1070,35 +1072,86 @@ export default function DashboardView({
                 const isPastDue = hasTime && reminderDate && !isNaN(reminderDate.getTime())
                   ? now.getTime() > reminderDate.getTime()
                   : false;
+                const vendorDisplayName = supplier?.trade_name || supplier?.company_name || rem.vendor_name || t("Direct / General");
+                const vendorAddress = supplier?.address || (rem as any).vendor?.address || lookupVendor?.address || '';
+
+                const hasComment = !!(rem.comment && rem.comment.trim());
 
                 return (
                   <button
                     key={rem.id}
                     type="button"
                     onClick={() => onSelectReminder?.(rem)}
-                    className={`w-full text-left p-3 rounded-xl space-y-1 transition cursor-pointer border ${
+                    className={`w-full text-left p-3 rounded-xl flex flex-col justify-center gap-1.5 transition cursor-pointer border ${
                       isPastDue
                         ? 'bg-red-100/90 hover:bg-red-200/80 border-red-300 text-red-950 shadow-xs'
                         : 'bg-rose-50/30 hover:bg-rose-50/60 border-rose-100/60 text-gray-800'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className={`text-xs font-bold leading-none ${isPastDue ? 'text-red-950 font-black' : 'text-gray-800'}`}>
-                        {supplier?.trade_name || rem.vendor_name || t("Direct / General")}
-                      </span>
-                      {timeStr && (
-                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                          isPastDue
-                            ? 'text-red-900 bg-red-200/90 border border-red-300/60'
-                            : 'text-rose-700 bg-rose-100/50'
-                        }`}>
-                          {timeStr}
-                        </span>
-                      )}
-                    </div>
-                    <p className={`text-xs line-clamp-2 ${isPastDue ? 'text-red-900' : 'text-gray-600'}`}>
-                      {rem.comment}
-                    </p>
+                    {vendorAddress ? (
+                      <div className="grid grid-cols-2 gap-2.5 items-center w-full">
+                        <div className="min-w-0 pr-1">
+                          <span
+                            className={`text-xs font-bold leading-normal truncate block ${
+                              isPastDue ? 'text-red-950 font-black' : 'text-gray-800'
+                            }`}
+                            title={vendorDisplayName}
+                          >
+                            {vendorDisplayName}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex items-center justify-end gap-1.5 text-right pl-1">
+                          <span
+                            className={`font-normal text-xs select-none truncate block ${
+                              isPastDue ? 'text-red-800/80' : 'text-gray-400'
+                            }`}
+                            title={vendorAddress}
+                          >
+                            ({vendorAddress})
+                          </span>
+                          {timeStr && (
+                            <span
+                              className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                                isPastDue
+                                  ? 'text-red-900 bg-red-200/90 border border-red-300/60'
+                                  : 'text-rose-700 bg-rose-100/50'
+                              }`}
+                            >
+                              {timeStr}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <div className="min-w-0 flex-1">
+                          <span
+                            className={`text-xs font-bold leading-normal truncate block ${
+                              isPastDue ? 'text-red-950 font-black' : 'text-gray-800'
+                            }`}
+                            title={vendorDisplayName}
+                          >
+                            {vendorDisplayName}
+                          </span>
+                        </div>
+                        {timeStr && (
+                          <span
+                            className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                              isPastDue
+                                ? 'text-red-900 bg-red-200/90 border border-red-300/60'
+                                : 'text-rose-700 bg-rose-100/50'
+                            }`}
+                          >
+                            {timeStr}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {hasComment && (
+                      <p className={`text-xs line-clamp-2 leading-relaxed ${isPastDue ? 'text-red-900' : 'text-gray-600'}`}>
+                        {rem.comment}
+                      </p>
+                    )}
                   </button>
                 );
               })

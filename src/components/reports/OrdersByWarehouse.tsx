@@ -79,7 +79,7 @@ export default function OrdersByWarehouse({
 
         inFlightWarehousePromise = {
           key: cacheKey,
-          promise: q.then(res => {
+          promise: Promise.resolve(q).then(res => {
             setTimeout(() => {
               if (inFlightWarehousePromise?.key === cacheKey) {
                 inFlightWarehousePromise = null;

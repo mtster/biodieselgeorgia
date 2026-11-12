@@ -79,13 +79,19 @@ export default function OrderForm({
       return;
     }
     const cleanVendorId = String(editingOrder.vendor_id).trim().toLowerCase();
-    const vendorObj = suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
+    const vendorObj = ((editingOrder as any).vendor as Vendor | undefined) || suppliers.find(s => s.id === editingOrder.vendor_id || (s.id && String(s.id).trim().toLowerCase() === cleanVendorId));
     if (vendorObj) {
       setSelectedSupplier(vendorObj);
       const name = vendorObj.trade_name || vendorObj.company_name || '';
       setVendorSearch(name);
-      if (!editingOrder.vendor_name) {
-        setEditingOrder(prev => prev ? { ...prev, vendor_name: name } : null);
+      if (!editingOrder.vendor_name || !editingOrder.address) {
+        setEditingOrder(prev => prev ? { 
+          ...prev, 
+          vendor_name: prev.vendor_name || name,
+          address: prev.address || vendorObj.address,
+          city: prev.city || vendorObj.city,
+          district: prev.district || vendorObj.district
+        } : null);
       }
       if (!vendorObj.comments || vendorObj.comments.length === 0) {
         getVendorById(editingOrder.vendor_id).then(v => {

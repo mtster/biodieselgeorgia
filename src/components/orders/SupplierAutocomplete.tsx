@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Vendor, Order } from '../../types';
 import { t } from '../../utils/lang';
 import { useDebounce } from '../../hooks/useDebounce';
-import { getVendorsPaginated } from '../../services/vendorService';
+import { getVendorsPaginated, getVendorById } from '../../services/vendorService';
 import { Loader2, Search, Building2, MapPin } from 'lucide-react';
 
 interface Props {
@@ -15,6 +15,8 @@ interface Props {
   setFieldErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   suppliers: Vendor[];
   selectedVendorId?: string;
+  address?: string;
+  initialVendor?: Vendor | null;
 }
 
 export default function SupplierAutocomplete({
@@ -26,7 +28,9 @@ export default function SupplierAutocomplete({
   fieldErrors,
   setFieldErrors,
   suppliers,
-  selectedVendorId
+  selectedVendorId,
+  address,
+  initialVendor
 }: Props) {
   const debouncedSearch = useDebounce(vendorSearch, 250);
   const [remoteSuppliers, setRemoteSuppliers] = useState<Vendor[]>([]);
@@ -35,7 +39,7 @@ export default function SupplierAutocomplete({
   const [hasMore, setHasMore] = useState(false);
   const [remoteOffset, setRemoteOffset] = useState(0);
   const [displayLimit, setDisplayLimit] = useState(5);
-  const [selectedVendorObj, setSelectedVendorObj] = useState<Vendor | null>(null);
+  const [selectedVendorObj, setSelectedVendorObj] = useState<Vendor | null>(() => initialVendor || null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -63,17 +67,34 @@ export default function SupplierAutocomplete({
         if (!vendorSearch) {
           setVendorSearch(v.trade_name || v.company_name || '');
         }
+      } else if (initialVendor && (initialVendor.id === selectedVendorId || (initialVendor.id && String(initialVendor.id).trim().toLowerCase() === cleanVId))) {
+        setSelectedVendorObj(initialVendor);
+        if (!vendorSearch) {
+          setVendorSearch(initialVendor.trade_name || initialVendor.company_name || '');
+        }
+      } else {
+        getVendorById(selectedVendorId).then((fetched) => {
+          if (fetched) {
+            setSelectedVendorObj(fetched);
+            if (!vendorSearch) {
+              setVendorSearch(fetched.trade_name || fetched.company_name || '');
+            }
+          }
+        }).catch(() => {});
       }
     } else {
       setSelectedVendorObj(null);
     }
-  }, [selectedVendorId, suppliers]);
+  }, [selectedVendorId, suppliers, initialVendor]);
 
   // Identify currently matched / selected vendor to display the address badge
   const matchedVendor = useMemo(() => {
     if (selectedVendorId) {
       if (selectedVendorObj && (selectedVendorObj.id === selectedVendorId || String(selectedVendorObj.id).trim().toLowerCase() === String(selectedVendorId).trim().toLowerCase())) {
         return selectedVendorObj;
+      }
+      if (initialVendor && (initialVendor.id === selectedVendorId || String(initialVendor.id).trim().toLowerCase() === String(selectedVendorId).trim().toLowerCase())) {
+        return initialVendor;
       }
       const cleanVId = String(selectedVendorId).trim().toLowerCase();
       const v = suppliers.find((s) => s.id === selectedVendorId || (s.id && String(s.id).trim().toLowerCase() === cleanVId));
@@ -82,9 +103,9 @@ export default function SupplierAutocomplete({
     const term = vendorSearch.trim().toLowerCase();
     if (!term) return null;
     return suppliers.find((s) => (s.trade_name?.trim().toLowerCase() === term || s.company_name?.trim().toLowerCase() === term)) || null;
-  }, [selectedVendorId, selectedVendorObj, suppliers, vendorSearch]);
+  }, [selectedVendorId, selectedVendorObj, initialVendor, suppliers, vendorSearch]);
 
-  const selectedAddress = matchedVendor?.address || selectedVendorObj?.address || '';
+  const selectedAddress = matchedVendor?.address || selectedVendorObj?.address || initialVendor?.address || address || '';
 
   // Background search for suppliers not in local cache (fetching 5 at a time)
   useEffect(() => {
