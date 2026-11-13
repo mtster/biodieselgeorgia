@@ -93,10 +93,13 @@ export default function OrderForm({
           district: prev.district || vendorObj.district
         } : null);
       }
-      if (!vendorObj.comments || vendorObj.comments.length === 0) {
+      if (!Array.isArray(vendorObj.comments)) {
         getVendorById(editingOrder.vendor_id).then(v => {
-          if (v && v.comments && v.comments.length > 0) {
-            setSelectedSupplier(v);
+          if (v) {
+            setSelectedSupplier({
+              ...v,
+              comments: Array.isArray(v.comments) ? v.comments : []
+            });
           }
         });
       }

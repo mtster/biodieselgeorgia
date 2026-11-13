@@ -37,6 +37,7 @@ export async function handleCreateUser(req: Request, res: Response) {
           permissions: perms,
           privileges: perms,
           vendor_id: vendor_id || null,
+          warehouse_id: warehouse_id || null,
         }
       };
 
@@ -70,7 +71,6 @@ export async function handleCreateUser(req: Request, res: Response) {
         phone: (phone && String(phone).trim()) || "",
         role: assignedRole,
         permissions: perms,
-        warehouse_id: warehouse_id || null,
         vendor_id: vendor_id || null,
         is_blocked: is_blocked ?? false,
         email: cleanEmail ? cleanEmail : null
@@ -123,7 +123,6 @@ export async function handleCreateUser(req: Request, res: Response) {
         phone: cleanPhone,
         role: assignedRole,
         permissions: {},
-        privileges: [],
         vendor_id: null,
         is_blocked: is_blocked ?? false,
         is_deleted: false,
@@ -169,6 +168,7 @@ export async function handleCreateUser(req: Request, res: Response) {
         permissions: perms,
         privileges: perms,
         vendor_id,
+        warehouse_id: warehouse_id || null,
       },
     });
 
@@ -187,8 +187,6 @@ export async function handleCreateUser(req: Request, res: Response) {
         phone: cleanPhone,
         role: assignedRole,
         permissions: perms,
-        privileges: perms,
-        warehouse_id: warehouse_id || null,
         vendor_id: vendor_id || null,
         is_blocked: is_blocked ?? false,
         is_deleted: false
@@ -196,7 +194,7 @@ export async function handleCreateUser(req: Request, res: Response) {
 
       const { data: profileData, error: profileError } = await supabaseAdmin
         .from("profiles")
-        .insert([profilePayload])
+        .upsert([profilePayload], { onConflict: "id" })
         .select("*")
         .single();
 
@@ -209,7 +207,10 @@ export async function handleCreateUser(req: Request, res: Response) {
 
     res.json({
       success: true,
-      user: profile || {
+      user: profile ? {
+        ...profile,
+        ...(warehouse_id ? { warehouse_id } : {})
+      } : {
         id: adminData.user.id,
         email: cleanEmail,
         name: cleanName,
@@ -218,6 +219,7 @@ export async function handleCreateUser(req: Request, res: Response) {
         role: assignedRole,
         permissions: perms,
         vendor_id,
+        ...(warehouse_id ? { warehouse_id } : {}),
         is_blocked: is_blocked ?? false
       }
     });

@@ -283,7 +283,7 @@ export default function VendorsView({
         title={t("Remove Supplier?")}
         message={
           <span>
-            {t("Are you sure you want to delete supplier")} <strong>"{deleteConfirmName}"</strong>? {t("This supplier profile coordinates will be soft deleted.")}
+            {t("Are you sure you want to delete supplier")} <strong>"{deleteConfirmName}"</strong>?
           </span>
         }
       />

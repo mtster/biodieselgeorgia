@@ -51,7 +51,7 @@ export default function VendorCommunicationsSection({
     }
 
     setIsLoading(true);
-    getCommunicationsPaginated(INITIAL_PAGE_SIZE, 0, { vendorId: editingVendor.id })
+    getCommunicationsPaginated(INITIAL_PAGE_SIZE, 0, { vendorId: editingVendor.id, skipRelatedHydration: true })
       .then(res => {
         if (!isMounted) return;
         const fetched = res.communications || [];
@@ -76,7 +76,7 @@ export default function VendorCommunicationsSection({
     if (isLoadingMore || !hasMore || !editingVendor.id) return;
     setIsLoadingMore(true);
     try {
-      const res = await getCommunicationsPaginated(SCROLL_PAGE_SIZE, offset, { vendorId: editingVendor.id });
+      const res = await getCommunicationsPaginated(SCROLL_PAGE_SIZE, offset, { vendorId: editingVendor.id, skipRelatedHydration: true });
       const newItems = res.communications || [];
       setLoadedComms(prev => {
         const existingIds = new Set(prev.map(c => c.id));

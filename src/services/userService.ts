@@ -123,7 +123,6 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
             email: cleanEmail,
             role: user.role,
             permissions: {},
-            privileges: [],
             is_deleted: false,
             is_blocked: false,
             vendor_id: null

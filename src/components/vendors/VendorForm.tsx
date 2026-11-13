@@ -35,6 +35,7 @@ import ErrorModal from '../ErrorModal';
 import VendorCommentModal from './VendorCommentModal';
 import VendorCommunicationModal from './VendorCommunicationModal';
 import VendorCommunicationsSection from './VendorCommunicationsSection';
+import VendorOrdersSection from './VendorOrdersSection';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import FormModal from '../FormModal';
 import { StandardTable, ColumnConfig } from '../StandardTable';
@@ -571,121 +572,132 @@ export default function VendorForm({
   const isOperator = currentUser?.role === 'operator';
 
   return (
-    <div className="animate-in fade-in duration-200 max-w-4xl" id="vendors-form-panel">
+    <div className="animate-in fade-in duration-200 w-full" id="vendors-form-panel">
       <fieldset disabled={isReadOnly} className="contents disabled:opacity-95">
-        <div className="space-y-6 pt-2 text-left">
-          <div 
-            className={`space-y-5 ${isOperator ? "pointer-events-none select-none" : ""}`}
-            onFocusCapture={(e) => {
-              if (isOperator) {
-                (e.target as HTMLElement).blur?.();
-              }
-            }}
-            onKeyDownCapture={(e) => {
-              if (isOperator) {
-                e.preventDefault();
-                e.stopPropagation();
-              }
-            }}
-            aria-readonly={isOperator ? true : undefined}
-          >
-            <VendorFormFields
-              editingVendor={editingVendor}
-              setEditingVendor={setEditingVendor}
-              fieldErrors={fieldErrors}
-              setFieldErrors={setFieldErrors}
-              warehouses={warehouses}
-              users={users}
-              cities={cities}
-              districts={districts}
-              directions={directions}
-              currentUser={currentUser}
-            />
-
-            {/* Supplier Login Account Fields */}
-            <VendorAccountSection
-              usernameInput={usernameInput}
-              setUsernameInput={setUsernameInput}
-              passwordInput={passwordInput}
-              setPasswordInput={setPasswordInput}
-              usernameError={fieldErrors.username}
-              passwordError={fieldErrors.password}
-              onClearErrors={(field) => setFieldErrors(prev => ({ ...prev, [field]: '' }))}
-            />
-          </div>
-
-          {/* Contacts & Comments Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-0">
-            <VendorContactsSection
-              contacts={tempContacts}
-              onAddContact={() => openContactModal()}
-              onModifyContact={(c) => openContactModal(c)}
-              onTogglePrimaryContact={(id) => {
-                const updated = tempContacts.map(c => ({
-                  ...c,
-                  is_default: c.id === id
-                }));
-                // Reorder: sort with primary contact first
-                const sorted = sortVendorContacts(updated);
-                // Update sort_orders based on index
-                const reordered = sorted.map((c, idx) => ({
-                  ...c,
-                  sort_order: sorted.length - idx
-                }));
-                setTempContacts(reordered);
-              }}
-              onReorderContacts={(startIndex, endIndex) => {
-                const updated = [...tempContacts];
-                const [removed] = updated.splice(startIndex, 1);
-                updated.splice(endIndex, 0, removed);
-                
-                // The default/primary contact must always remain at index 0 (top)
-                const defaultIdx = updated.findIndex(c => c.is_default === true || (c.is_default as any) === 'true');
-                if (defaultIdx > 0) {
-                  const [defaultContact] = updated.splice(defaultIdx, 1);
-                  updated.unshift(defaultContact);
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 pt-2 text-left items-start">
+          {/* Left Column: Supplier Fields, Account, Contacts & Comments */}
+          <div className="xl:col-span-6 space-y-6 min-w-0">
+            <div 
+              className={`space-y-5 ${isOperator ? "pointer-events-none select-none" : ""}`}
+              onFocusCapture={(e) => {
+                if (isOperator) {
+                  (e.target as HTMLElement).blur?.();
                 }
-                
-                // Re-assign sort_orders based on position in array
-                const reordered = updated.map((c, idx) => ({
-                  ...c,
-                  sort_order: updated.length - idx
-                }));
-                setTempContacts(reordered);
               }}
-              error={fieldErrors.contacts}
+              onKeyDownCapture={(e) => {
+                if (isOperator) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              aria-readonly={isOperator ? true : undefined}
+            >
+              <VendorFormFields
+                editingVendor={editingVendor}
+                setEditingVendor={setEditingVendor}
+                fieldErrors={fieldErrors}
+                setFieldErrors={setFieldErrors}
+                warehouses={warehouses}
+                users={users}
+                cities={cities}
+                districts={districts}
+                directions={directions}
+                currentUser={currentUser}
+              />
+
+              {/* Supplier Login Account Fields */}
+              <VendorAccountSection
+                usernameInput={usernameInput}
+                setUsernameInput={setUsernameInput}
+                passwordInput={passwordInput}
+                setPasswordInput={setPasswordInput}
+                usernameError={fieldErrors.username}
+                passwordError={fieldErrors.password}
+                onClearErrors={(field) => setFieldErrors(prev => ({ ...prev, [field]: '' }))}
+              />
+            </div>
+
+            {/* Contacts & Comments Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-0">
+              <VendorContactsSection
+                contacts={tempContacts}
+                onAddContact={() => openContactModal()}
+                onModifyContact={(c) => openContactModal(c)}
+                onTogglePrimaryContact={(id) => {
+                  const updated = tempContacts.map(c => ({
+                    ...c,
+                    is_default: c.id === id
+                  }));
+                  // Reorder: sort with primary contact first
+                  const sorted = sortVendorContacts(updated);
+                  // Update sort_orders based on index
+                  const reordered = sorted.map((c, idx) => ({
+                    ...c,
+                    sort_order: sorted.length - idx
+                  }));
+                  setTempContacts(reordered);
+                }}
+                onReorderContacts={(startIndex, endIndex) => {
+                  const updated = [...tempContacts];
+                  const [removed] = updated.splice(startIndex, 1);
+                  updated.splice(endIndex, 0, removed);
+                  
+                  // The default/primary contact must always remain at index 0 (top)
+                  const defaultIdx = updated.findIndex(c => c.is_default === true || (c.is_default as any) === 'true');
+                  if (defaultIdx > 0) {
+                    const [defaultContact] = updated.splice(defaultIdx, 1);
+                    updated.unshift(defaultContact);
+                  }
+                  
+                  // Re-assign sort_orders based on position in array
+                  const reordered = updated.map((c, idx) => ({
+                    ...c,
+                    sort_order: updated.length - idx
+                  }));
+                  setTempContacts(reordered);
+                }}
+                error={fieldErrors.contacts}
+              />
+
+              <VendorCommentsSection
+                comments={editingVendor.comments || []}
+                onAddComment={() => openCommentModal()}
+                onModifyComment={(c) => openCommentModal(c)}
+                onRemoveComment={(id) => setCommentDeleteId(id)}
+                users={users}
+              />
+            </div>
+          </div>
+
+          {/* Right Column on Wide Screens (Falls back to bottom on narrower windows): Communications & Orders */}
+          <div className="xl:col-span-6 space-y-6 min-w-0">
+            <VendorCommunicationsSection
+              communications={tempCommunications}
+              editingVendor={editingVendor}
+              currentUser={currentUser}
+              users={users}
+              isReadOnly={isReadOnly}
+              onAddComm={() => {
+                setActiveComm(null);
+                setIsCommModalOpen(true);
+              }}
+              onEditComm={(comm) => {
+                setActiveComm(comm);
+                setIsCommModalOpen(true);
+              }}
+              onTriggerDeleteComm={(comm) => {
+                setActiveComm(comm);
+                setIsCommDeleteModalOpen(true);
+              }}
+              onSaveCommunication={onSaveCommunication}
+              onDeleteCommunication={onDeleteCommunication}
             />
 
-            <VendorCommentsSection
-              comments={editingVendor.comments || []}
-              onAddComment={() => openCommentModal()}
-              onModifyComment={(c) => openCommentModal(c)}
-              onRemoveComment={(id) => setCommentDeleteId(id)}
+            <VendorOrdersSection
+              editingVendor={editingVendor}
               users={users}
             />
           </div>
-
-          <VendorCommunicationsSection
-            communications={tempCommunications}
-            editingVendor={editingVendor}
-            currentUser={currentUser}
-            users={users}
-            isReadOnly={isReadOnly}
-            onAddComm={() => {
-              setActiveComm(null);
-              setIsCommModalOpen(true);
-            }}
-            onEditComm={(comm) => {
-              setActiveComm(comm);
-              setIsCommModalOpen(true);
-            }}
-            onTriggerDeleteComm={(comm) => {
-              setActiveComm(comm);
-              setIsCommDeleteModalOpen(true);
-            }}
-            onSaveCommunication={onSaveCommunication}
-            onDeleteCommunication={onDeleteCommunication}
-          />
         </div>
       </fieldset>
 

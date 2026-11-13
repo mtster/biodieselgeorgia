@@ -280,7 +280,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
         title={t("Remove User?")}
         message={
           <span>
-            {t("Are you sure you want to completely delete user account profile for")} <strong>"{deleteConfirmName}"</strong>? {t("This is a permanent administrative soft-deletion.")}
+            {t("Are you sure you want to completely delete user account profile for")} <strong>"{deleteConfirmName}"</strong>?
           </span>
         }
       />

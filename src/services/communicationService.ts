@@ -86,6 +86,7 @@ export async function getCommunicationsPaginated(
     taskResponsible?: string;
     startDate?: string;
     endDate?: string;
+    skipRelatedHydration?: boolean;
   }
 ): Promise<PaginatedCommunicationsResult> {
   const filterKey = JSON.stringify(filters || {});
@@ -189,7 +190,9 @@ export async function getCommunicationsPaginated(
         }
 
         const vendorIds = (data || []).map((item: any) => item.vendor_id).filter(Boolean);
-        const vendorMap = await resolveVendorsMap(vendorIds);
+        const vendorMap = filters?.skipRelatedHydration
+          ? new Map<string, any>()
+          : await resolveVendorsMap(vendorIds);
 
         const normalizedData = (data || []).map((comm: any) => {
           const isDone = typeof comm.is_completed === 'boolean' 

@@ -12,6 +12,8 @@ import {
   PaginatedOrdersResult
 } from './orderUtils';
 
+const inFlightOrders = new Map<string, Promise<PaginatedOrdersResult>>();
+
 export async function getOrdersPaginated(
   limit: number = 12,
   offset: number = 0,
@@ -30,6 +32,8 @@ export async function getOrdersPaginated(
     vendorId?: string;
     managerId?: string;
     salesManagerId?: string;
+    sortBy?: 'created_at_desc' | 'order_date_desc';
+    skipRelatedHydration?: boolean;
   },
   currentUser?: User | null
 ): Promise<PaginatedOrdersResult> {
@@ -56,6 +60,11 @@ export async function getOrdersPaginated(
     return { orders: [], totalCount: cachedCount };
   }
 
+  if (inFlightOrders.has(pageCacheKey)) {
+    return inFlightOrders.get(pageCacheKey)!;
+  }
+
+  const promise = (async (): Promise<PaginatedOrdersResult> => {
   if (isSupabaseConfigured && supabase) {
     try {
       // If filtering by location / direction (properties on vendors table)
@@ -65,10 +74,12 @@ export async function getOrdersPaginated(
       const targetManager = effectiveFilters?.managerId || effectiveFilters?.salesManagerId;
       const hasVendorFilter = Boolean(targetCity || targetDistrict || targetDirection);
 
+      const skipHydration = Boolean(effectiveFilters?.skipRelatedHydration);
       const countConfig = cachedCount !== null ? {} : { count: 'exact' as const };
-      const selectQuery = hasVendorFilter 
-        ? '*, vendors!inner(id, manager_id, city, district, direction_id, trade_name, company_name, id_code, address)' 
-        : '*';
+      const vendorSelectFields = 'id, manager_id, warehouse_id, city, district, direction_id, trade_name, company_name, id_code, address, comments';
+      const selectQuery = hasVendorFilter
+        ? `*, vendors!inner(${vendorSelectFields})`
+        : (skipHydration ? '*' : `*, vendors(${vendorSelectFields})`);
 
       let query = supabase
         .from('orders')
@@ -203,11 +214,19 @@ export async function getOrdersPaginated(
         }
       }
 
-      query = query
-        .order('created_at', { ascending: false, nullsFirst: false })
-        .order('order_date', { ascending: false, nullsFirst: false })
-        .order('id', { ascending: false })
-        .range(offset, offset + limit - 1);
+      if (effectiveFilters?.sortBy === 'order_date_desc') {
+        query = query
+          .order('order_date', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + limit - 1);
+      } else {
+        query = query
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .order('order_date', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + limit - 1);
+      }
 
       const { data, count, error } = await query;
 
@@ -224,94 +243,214 @@ export async function getOrdersPaginated(
           appCache.set(countCacheKey, count);
         }
 
-        // Fetch vendor info for all vendor_ids present on this page in chunks
-        const vendorIds = Array.from(new Set((data as any[]).map(item => item.vendor_id).filter(id => typeof id === 'string' && id.trim().length > 0)));
+        // Seed vendorMap from embedded vendors relation returned by the primary query
         const vendorMap = new Map<string, any>();
-        if (vendorIds.length > 0) {
-          try {
-            const vendorChunks: string[][] = [];
-            for (let i = 0; i < vendorIds.length; i += 35) {
-              vendorChunks.push(vendorIds.slice(i, i + 35));
+        if (!skipHydration) {
+          (data as any[]).forEach(o => {
+            if (o.vendors && o.vendors.id) {
+              const normalizedV = {
+                ...o.vendors,
+                comments: Array.isArray(o.vendors.comments) ? o.vendors.comments : []
+              };
+              o.vendors = normalizedV;
+              vendorMap.set(normalizedV.id, normalizedV);
+              vendorMap.set(normalizedV.id.toLowerCase().trim(), normalizedV);
+              appCache.set(`vendor_summary_${normalizedV.id}`, normalizedV);
             }
-            await Promise.all(vendorChunks.map(async (chunk) => {
-              const { data: vendorsData } = await supabase
-                .from('vendors')
-                .select('id, trade_name, company_name, id_code, address, city, district, direction_id')
-                .in('id', chunk);
-              if (vendorsData) {
-                vendorsData.forEach(v => {
-                  vendorMap.set(v.id, v);
-                  if (v.id) {
-                    vendorMap.set(v.id.toLowerCase().trim(), v);
-                  }
-                });
-              }
-            }));
-          } catch (vErr) {
-            console.warn('Failed to prefetch vendors for orders page:', vErr);
-          }
+          });
         }
 
-        // Prefetch vehicle info for plate numbers in chunks
-        const vehicleIds = Array.from(new Set((data as any[]).map(item => item.vehicle_id).filter(id => typeof id === 'string' && id.trim().length > 0)));
-        const vehicleMap = new Map<string, string>();
-        if (vehicleIds.length > 0) {
-          try {
-            const vhChunks: string[][] = [];
-            for (let i = 0; i < vehicleIds.length; i += 35) {
-              vhChunks.push(vehicleIds.slice(i, i + 35));
-            }
-            await Promise.all(vhChunks.map(async (chunk) => {
-              const { data: vhData } = await supabase
-                .from('vehicles')
-                .select('id, plate_number')
-                .in('id', chunk);
-              if (vhData) {
-                vhData.forEach(vh => {
-                  if (vh.id) {
-                    vehicleMap.set(vh.id, vh.plate_number);
-                  }
-                });
-              }
-            }));
-          } catch (vhErr) {
-            console.warn('Failed to prefetch vehicles for orders page:', vhErr);
-          }
-        }
-
-        // Prefetch contact info for all orders on this page in chunks
-        const contactIds = Array.from(new Set((data as any[]).map(item => item.contact_id).filter(id => typeof id === 'string' && id.trim().length > 0)));
-        const contactMap = new Map<string, any>();
-        if (contactIds.length > 0) {
-          try {
-            const contactChunks: string[][] = [];
-            for (let i = 0; i < contactIds.length; i += 35) {
-              contactChunks.push(contactIds.slice(i, i + 35));
-            }
-            await Promise.all(contactChunks.map(async (chunk) => {
-              const { data: contactsData } = await supabase
-                .from('vendor_contacts')
-                .select('id, vendor_id, name, phone, is_default, position')
-                .in('id', chunk);
-              if (contactsData) {
-                contactsData.forEach(c => {
-                  contactMap.set(c.id, c);
-                });
-              }
-            }));
-          } catch (cErr) {
-            console.warn('Failed to prefetch contacts by id for orders page:', cErr);
-          }
-        }
-
-        // Also prefetch default contacts for vendors of orders that don't have a contact_id or if contact wasn't found in chunks
-        const unresolvedVendorIds = Array.from(new Set(
+        const missingVendorIds = skipHydration ? [] : Array.from(new Set(
           (data as any[])
-            .filter(item => !item.contact_id || !contactMap.has(item.contact_id))
+            .map(item => item.vendor_id)
+            .filter(id => {
+              if (typeof id !== 'string' || !id.trim()) return false;
+              if (vendorMap.has(id) || vendorMap.has(id.toLowerCase().trim())) return false;
+              const cachedV = appCache.get<any>(`vendor_summary_${id}`);
+              if (cachedV && Array.isArray(cachedV.comments)) {
+                vendorMap.set(id, cachedV);
+                vendorMap.set(id.toLowerCase().trim(), cachedV);
+                return false;
+              }
+              return true;
+            })
+        ));
+
+        // Resolve vehicles from vehicles_map / per-id cache first, then collect remaining IDs
+        const cachedVehiclesMap = appCache.get<Map<string, string>>('vehicles_map');
+        const vehicleMap = new Map<string, string>();
+        const missingVehicleIds = skipHydration ? [] : Array.from(new Set(
+          (data as any[])
+            .filter(item => !item.truck_plate && typeof item.vehicle_id === 'string' && item.vehicle_id.trim().length > 0)
+            .map(item => item.vehicle_id)
+            .filter(id => {
+              const plateFromMap = cachedVehiclesMap?.get(id);
+              if (plateFromMap) {
+                vehicleMap.set(id, plateFromMap);
+                return false;
+              }
+              const cachedPlate = appCache.get<string>(`vehicle_plate_${id}`);
+              if (cachedPlate !== null) {
+                vehicleMap.set(id, cachedPlate);
+                return false;
+              }
+              return true;
+            })
+        ));
+
+        // Resolve contacts by contact_id from cache first, then collect remaining IDs
+        const contactMap = new Map<string, any>();
+        const missingContactIds = skipHydration ? [] : Array.from(new Set(
+          (data as any[])
+            .map(item => item.contact_id)
+            .filter(id => {
+              if (typeof id !== 'string' || !id.trim()) return false;
+              const cachedContact = appCache.get<any>(`vendor_contact_item_${id}`);
+              if (cachedContact) {
+                contactMap.set(id, cachedContact);
+                return false;
+              }
+              return true;
+            })
+        ));
+
+        // Pre-identify orders that lack a contact_id so default vendor contacts load in the same parallel batch
+        const vendorContactsMap = new Map<string, any[]>();
+        const noContactVendorIds = skipHydration ? [] : Array.from(new Set(
+          (data as any[])
+            .filter(item => !item.contact_id && typeof item.vendor_id === 'string' && item.vendor_id.trim().length > 0)
+            .map(item => item.vendor_id)
+            .filter(vid => {
+              const cachedDefault = appCache.get<any>(`vendor_default_contact_${vid}`);
+              if (cachedDefault) {
+                vendorContactsMap.set(vid, [cachedDefault]);
+                return false;
+              }
+              return true;
+            })
+        ));
+
+        // Run all remaining hydration queries in parallel in a single roundtrip
+        const hydrationTasks: Promise<void>[] = [];
+
+        if (missingVendorIds.length > 0) {
+          for (let i = 0; i < missingVendorIds.length; i += 35) {
+            const chunk = missingVendorIds.slice(i, i + 35);
+            hydrationTasks.push((async () => {
+              try {
+                const { data: vendorsData } = await supabase
+                  .from('vendors')
+                  .select(vendorSelectFields)
+                  .in('id', chunk);
+                if (vendorsData) {
+                  vendorsData.forEach((v: any) => {
+                    const normalizedV = {
+                      ...v,
+                      comments: Array.isArray(v.comments) ? v.comments : []
+                    };
+                    vendorMap.set(normalizedV.id, normalizedV);
+                    if (normalizedV.id) {
+                      vendorMap.set(normalizedV.id.toLowerCase().trim(), normalizedV);
+                      appCache.set(`vendor_summary_${normalizedV.id}`, normalizedV);
+                    }
+                  });
+                }
+              } catch (vErr) {
+                console.warn('Failed to prefetch vendors for orders page:', vErr);
+              }
+            })());
+          }
+        }
+
+        if (missingVehicleIds.length > 0) {
+          for (let i = 0; i < missingVehicleIds.length; i += 35) {
+            const chunk = missingVehicleIds.slice(i, i + 35);
+            hydrationTasks.push((async () => {
+              try {
+                const { data: vhData } = await supabase
+                  .from('vehicles')
+                  .select('id, plate_number')
+                  .in('id', chunk);
+                if (vhData) {
+                  vhData.forEach(vh => {
+                    if (vh.id) {
+                      vehicleMap.set(vh.id, vh.plate_number);
+                      appCache.set(`vehicle_plate_${vh.id}`, vh.plate_number || '');
+                    }
+                  });
+                }
+              } catch (vhErr) {
+                console.warn('Failed to prefetch vehicles for orders page:', vhErr);
+              }
+            })());
+          }
+        }
+
+        if (missingContactIds.length > 0) {
+          for (let i = 0; i < missingContactIds.length; i += 35) {
+            const chunk = missingContactIds.slice(i, i + 35);
+            hydrationTasks.push((async () => {
+              try {
+                const { data: contactsData } = await supabase
+                  .from('vendor_contacts')
+                  .select('id, vendor_id, name, phone, is_default, position')
+                  .in('id', chunk);
+                if (contactsData) {
+                  contactsData.forEach(c => {
+                    contactMap.set(c.id, c);
+                    appCache.set(`vendor_contact_item_${c.id}`, c);
+                  });
+                }
+              } catch (cErr) {
+                console.warn('Failed to prefetch contacts by id for orders page:', cErr);
+              }
+            })());
+          }
+        }
+
+        if (noContactVendorIds.length > 0) {
+          for (let i = 0; i < noContactVendorIds.length; i += 35) {
+            const chunk = noContactVendorIds.slice(i, i + 35);
+            hydrationTasks.push((async () => {
+              try {
+                const { data: vContactsData } = await supabase
+                  .from('vendor_contacts')
+                  .select('id, vendor_id, name, phone, is_default, position')
+                  .in('vendor_id', chunk)
+                  .eq('is_deleted', false);
+                if (vContactsData) {
+                  vContactsData.forEach(c => {
+                    if (!vendorContactsMap.has(c.vendor_id)) {
+                      vendorContactsMap.set(c.vendor_id, []);
+                    }
+                    vendorContactsMap.get(c.vendor_id)!.push(c);
+                  });
+                  chunk.forEach(vid => {
+                    const list = vendorContactsMap.get(vid) || [];
+                    const def = list.find(item => item.is_default) || list[0];
+                    if (def) {
+                      appCache.set(`vendor_default_contact_${vid}`, def);
+                    }
+                  });
+                }
+              } catch (vcErr) {
+                console.warn('Failed to prefetch contacts by vendor_id for orders page:', vcErr);
+              }
+            })());
+          }
+        }
+
+        if (hydrationTasks.length > 0) {
+          await Promise.all(hydrationTasks);
+        }
+
+        // Fallback only if any order had a contact_id that no longer exists in vendor_contacts
+        const unresolvedVendorIds = skipHydration ? [] : Array.from(new Set(
+          (data as any[])
+            .filter(item => item.contact_id && !contactMap.has(item.contact_id) && !vendorContactsMap.has(item.vendor_id))
             .map(item => item.vendor_id)
             .filter(id => typeof id === 'string' && id.trim().length > 0)
         ));
-        const vendorContactsMap = new Map<string, any[]>();
         if (unresolvedVendorIds.length > 0) {
           try {
             const unresChunks: string[][] = [];
@@ -334,7 +473,7 @@ export async function getOrdersPaginated(
               }
             }));
           } catch (vcErr) {
-            console.warn('Failed to prefetch contacts by vendor_id for orders page:', vcErr);
+            console.warn('Failed to prefetch fallback contacts by vendor_id for orders page:', vcErr);
           }
         }
 
@@ -444,11 +583,18 @@ export async function getOrdersPaginated(
   }
 
   filtered.sort((a, b) => {
-    const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
-    if (createdB !== createdA) return createdB - createdA;
     const orderA = a.order_date ? new Date(a.order_date).getTime() : 0;
     const orderB = b.order_date ? new Date(b.order_date).getTime() : 0;
+    const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+    if (effectiveFilters?.sortBy === 'order_date_desc') {
+      if (orderB !== orderA) return orderB - orderA;
+      if (createdB !== createdA) return createdB - createdA;
+      return (b.id || '').localeCompare(a.id || '');
+    }
+
+    if (createdB !== createdA) return createdB - createdA;
     if (orderB !== orderA) return orderB - orderA;
     return (b.id || '').localeCompare(a.id || '');
   });
@@ -457,6 +603,14 @@ export async function getOrdersPaginated(
     orders: filtered.slice(offset, offset + limit),
     totalCount: filtered.length
   };
+  })();
+
+  inFlightOrders.set(pageCacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlightOrders.delete(pageCacheKey);
+  }
 }
 
 export async function getActiveOrdersCount(currentUser?: User | null): Promise<number> {

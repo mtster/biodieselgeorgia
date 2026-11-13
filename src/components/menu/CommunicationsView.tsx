@@ -637,7 +637,6 @@ export default function CommunicationsView({
         onDelete={() => {
           if (editingComm) {
             setDeleteConfirmId(editingComm.id);
-            setEditingComm(null);
           }
         }}
       />
@@ -650,6 +649,7 @@ export default function CommunicationsView({
           if (deleteConfirmId) {
             onDelete(deleteConfirmId);
             setDeleteConfirmId(null);
+            setEditingComm(null);
           }
         }}
         title={t("Delete Log Entry")}

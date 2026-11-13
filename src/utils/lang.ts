@@ -828,7 +828,7 @@ const GEORGIAN_DICTIONARY: Record<string, string> = {
   "Remove User?": "წაშალოთ მომხმარებელი?",
   "Are you sure you want to completely delete user account profile for": "დარწმუნებული ხართ, რომ გსურთ სრულად წაშალოთ მომხმარებლის პროფილი: ",
   "This is a permanent administrative soft-deletion.": "ეს არის შეუმცდარი ადმინისტრაციული წაშლა.",
-  "Remove Supplier?": "წაშალოთ მომწოდებელი?",
+  "Remove Supplier?": "მომწოდებლის წაშლა",
   "This supplier profile coordinates will be soft deleted.": "ეს მომწოდებლის პროფილი წაიშლება.",
   "No, Go Back": "არა, უკან დაბრუნება",
   "Administrator (Admin)": "ადმინისტრატორი (Admin)",
