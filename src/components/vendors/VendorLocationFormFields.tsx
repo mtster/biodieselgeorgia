@@ -70,7 +70,7 @@ export default function VendorLocationFormFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
-          label={t("Exact Address (Details, Floor, Entry) *")}
+          label={t("Exact Address *")}
           type="text"
           value={editingVendor.address}
           onChange={(e) => {

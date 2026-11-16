@@ -197,7 +197,7 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
         // 2. Direct fallback to Supabase Edge Function URL
         if (!synced && token) {
           try {
-            const baseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
+            const baseUrl = String((import.meta as any).env?.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '');
             const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
             if (baseUrl) {
               const functionUrl = `${baseUrl}/functions/v1/vehicle-user`;

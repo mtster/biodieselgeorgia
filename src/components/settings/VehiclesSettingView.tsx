@@ -131,7 +131,7 @@ export default function VehiclesSettingView({
         title={t("Decommission vehicle?")}
         message={
           <span>
-            {t("Are you sure you want to delete vehicle license plate")} <strong>"{truckToDelete}"</strong>? {t("This will mark it as soft-deleted and prevent active log assignments.")}
+            {t("Are you sure you want to delete vehicle license plate")} <strong>"{truckToDelete}"</strong>?
           </span>
         }
       />

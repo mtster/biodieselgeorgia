@@ -734,7 +734,7 @@ export default function VendorImportModal({
           }
         } catch (expressErr) {
           console.warn('Falling back to Supabase Edge Function for Gemini parse', expressErr);
-          const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
+          const supabaseUrl = String((import.meta as any).env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '');
           const supabaseKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
 
           const edgeRes = await fetch(`${supabaseUrl}/functions/v1/import-excel`, {

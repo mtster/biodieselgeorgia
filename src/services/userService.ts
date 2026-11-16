@@ -163,7 +163,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
           finalUser = updated || { ...user, ...updatePayload };
         }
       } else if (isNew) {
-        const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
+        const functionUrl = `${String((import.meta as any).env?.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')}/functions/v1/create-user`;
         let resData: any = null;
         let createdOnExpress = false;
 
@@ -300,7 +300,7 @@ export async function saveUser(user: User, loggerName: string): Promise<User> {
               }
               updatedOnEdge = true;
             } else {
-              const functionUrl = `${(import.meta as any).env?.VITE_SUPABASE_URL || ''}/functions/v1/create-user`;
+              const functionUrl = `${String((import.meta as any).env?.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')}/functions/v1/create-user`;
               const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
               const edgeRes = await fetch(functionUrl, {
                 method: 'POST',
