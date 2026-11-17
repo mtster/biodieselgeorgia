@@ -146,9 +146,13 @@ Deno.serve(async (req) => {
         } catch (_) {}
       }
       if (targetDelId) {
-        await supabaseAdmin.auth.admin.deleteUser(targetDelId).catch(() => {});
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(targetDelId);
+        } catch (_) {}
       }
-      await supabaseAdmin.from("vehicles").update({ is_deleted: true }).eq("plate_number", cleanPlate).catch(() => {});
+      try {
+        await supabaseAdmin.from("vehicles").update({ is_deleted: true }).eq("plate_number", cleanPlate);
+      } catch (_) {}
       return new Response(JSON.stringify({ success: true, action: "deleted" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }

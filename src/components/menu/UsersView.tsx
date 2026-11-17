@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { t } from '../../utils/lang';
 import { User, UserRole, Warehouse } from '../../types';
-import { Plus, Search, Trash2, Edit2, ShieldAlert, X } from 'lucide-react';
+import { Plus, Search, Trash2, Edit2, ShieldAlert, X, Loader2 } from 'lucide-react';
 import PageHeader from '../PageHeader';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import DeleteButton from '../DeleteButton';
@@ -21,7 +21,7 @@ interface Props {
   suppliers?: any[];
   orders?: any[];
   communications?: any[];
-  onSave: (user: User) => void;
+  onSave: (user: User) => Promise<User | void> | void;
   onDelete: (id: string, name: string) => void;
   setDeleteAlertMessage?: (msg: string | null) => void;
 }
@@ -52,6 +52,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
   // States
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Action triggers for child forms
   const formRef = useRef<{ save: () => void; fillDummy: () => void }>(null);
@@ -102,9 +103,17 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
     scrollMainToTop();
   };
 
-  const handleSaveFromForm = (payload: User) => {
-    onSave(payload);
-    setEditingUser(null);
+  const handleSaveFromForm = async (payload: User) => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const saved = await onSave(payload);
+      if (saved !== undefined) {
+        setEditingUser(null);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const filtered = users.filter(usr => {
@@ -148,22 +157,27 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
       )}
       {showSave && (
         <button 
+          type="button"
+          disabled={isSaving}
           onClick={() => {
             formRef.current?.fillDummy();
           }}
-          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
+          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-xl text-xs text-slate-700 transition cursor-pointer select-none"
         >
           {t("Fill Dummy")}
         </button>
       )}
       {showSave && (
         <button 
+          type="button"
+          disabled={isSaving}
           onClick={() => {
             formRef.current?.save();
           }}
-          className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none"
+          className="px-5 py-2 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer select-none flex items-center gap-1.5"
         >
-          {t("Save")}
+          {isSaving && <Loader2 size={13} className="animate-spin shrink-0" />}
+          <span>{t("Save")}</span>
         </button>
       )}
     </>
@@ -235,7 +249,7 @@ export default function UsersView({ users, currentUser, warehouses, suppliers = 
       {/* 1. STANDARDIZED PAGE HEADER */}
       <PageHeader 
         title={t("Users")}
-        onBack={editingUser ? () => setEditingUser(null) : undefined}
+        onBack={editingUser ? () => { if (!isSaving) setEditingUser(null); } : undefined}
         backButtonId="user-form-back-arrow"
         actions={headerActions}
       />

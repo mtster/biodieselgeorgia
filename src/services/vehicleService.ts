@@ -470,16 +470,9 @@ export async function deleteVehicle(plate: string, loggerName: string): Promise<
           } catch (_) {}
 
           if (!delDone) {
-            const delRes = await fetch('/api/delete-vehicle-account', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify(deletePayload)
-            });
-            if (delRes.status === 404) {
-              await fetch('/delete-vehicle-account', {
+            const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
+            if (useProxy) {
+              const delRes = await fetch('/api/delete-vehicle-account', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -487,6 +480,16 @@ export async function deleteVehicle(plate: string, loggerName: string): Promise<
                 },
                 body: JSON.stringify(deletePayload)
               });
+              if (delRes.status === 404) {
+                await fetch('/delete-vehicle-account', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify(deletePayload)
+                });
+              }
             }
           }
         }
