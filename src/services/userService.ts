@@ -391,40 +391,78 @@ export async function deleteUser(id: string, name: string, loggerName: string, c
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data: dbProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', id)
-        .maybeSingle();
+      if (currentUserRole && currentUserRole !== 'admin') {
+        const { data: dbProfile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', id)
+          .maybeSingle();
 
-      if (dbProfile?.role === 'admin' && currentUserRole && currentUserRole !== 'admin') {
-        throw new Error('ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.');
+        if (dbProfile?.role === 'admin') {
+          throw new Error('ადმინისტრატორის როლის მქონე მომხმარებლის წაშლა შეუძლია მხოლოდ ადმინისტრატორს.');
+        }
       }
 
       const sessionRes = await supabase.auth.getSession();
       const token = sessionRes.data.session?.access_token;
+      let deletedOnServer = false;
+
       if (token) {
-        try {
-          const res = await fetch('/api/delete-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ id })
-          });
-          if (res.ok) {
-            console.log('User deleted via /api/delete-user API');
+        const useProxy = typeof window !== 'undefined' && !window.location.hostname.includes('vercel.app');
+        if (useProxy) {
+          try {
+            const res = await fetch('/api/delete-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ id })
+            });
+            if (res.ok) {
+              deletedOnServer = true;
+            }
+          } catch (delErr) {
+            console.warn('API delete-user call failed:', delErr);
           }
-        } catch (delErr) {
-          console.warn('API delete-user call failed:', delErr);
+        }
+
+        if (!deletedOnServer) {
+          try {
+            const functionUrl = `${String((import.meta as any).env?.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')}/functions/v1/create-user`;
+            const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+            const edgeRes = await fetch(functionUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseAnonKey,
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ action: 'delete', id })
+            });
+            if (edgeRes.ok) {
+              deletedOnServer = true;
+            } else {
+              const errBody = await edgeRes.json().catch(() => ({}));
+              if (edgeRes.status === 403 && errBody?.error) {
+                throw new Error(errBody.error);
+              }
+            }
+          } catch (edgeDelErr: any) {
+            if (edgeDelErr?.message?.includes('ადმინისტრატორის')) {
+              throw edgeDelErr;
+            }
+            console.warn('Edge create-user (delete) call failed:', edgeDelErr);
+          }
         }
       }
 
-      await supabase
-        .from('profiles')
-        .update({ is_deleted: true, is_blocked: true })
-        .eq('id', id);
+      if (!deletedOnServer) {
+        await supabase
+          .from('profiles')
+          .update({ is_deleted: true, is_blocked: true })
+          .eq('id', id);
+      }
 
     } catch (e) {
       console.error('Supabase deleteUser failed', e);

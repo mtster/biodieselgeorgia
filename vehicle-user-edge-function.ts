@@ -155,6 +155,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    let cachedAuthUsers: any[] | null = null;
+    const getAuthUsers = async (): Promise<any[]> => {
+      if (cachedAuthUsers !== null) return cachedAuthUsers;
+      const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+      cachedAuthUsers = listData?.users || [];
+      return cachedAuthUsers;
+    };
+
     let existingUser: any = null;
 
     // 1. Check by provided auth_user_id or id
@@ -193,8 +201,8 @@ Deno.serve(async (req) => {
       const oldClean = String(original_plate_number).trim().replace(/-/g, "").toLowerCase();
       const oldEmail = `${oldClean}@biodiesel.ge`;
       try {
-        const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-        existingUser = listData?.users?.find((u: any) => 
+        const users = await getAuthUsers();
+        existingUser = users.find((u: any) => 
           u.email?.toLowerCase() === oldEmail.toLowerCase() ||
           u.user_metadata?.plate_number === original_plate_number
         ) || null;
@@ -204,8 +212,8 @@ Deno.serve(async (req) => {
     // 4. Check by new plate email or metadata
     if (!existingUser) {
       try {
-        const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-        existingUser = listData?.users?.find((u: any) => 
+        const users = await getAuthUsers();
+        existingUser = users.find((u: any) => 
           u.email?.toLowerCase() === newEmail.toLowerCase() ||
           u.user_metadata?.plate_number === cleanPlate
         ) || null;
@@ -301,8 +309,8 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-      const conflicting = listData?.users?.find(
+      const users = await getAuthUsers();
+      const conflicting = users.find(
         (u: any) => u.email?.toLowerCase() === newEmail.toLowerCase()
       );
       if (conflicting) {
@@ -332,27 +340,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Ensure vehicles table receives auth_user_id and is upserted
-    try {
-      const vCreatePayload: any = {
-        plate_number: cleanPlate,
-        auth_user_id: adminData.user.id,
-        is_deleted: false
-      };
-      if (body.model) vCreatePayload.model = body.model;
-      if (body.driver_id !== undefined) vCreatePayload.driver_id = body.driver_id || null;
-      if (body.companion_id !== undefined) vCreatePayload.companion_id = body.companion_id || null;
-      if (body.city !== undefined) vCreatePayload.city = body.city || null;
-      if (body.warehouse_id !== undefined) vCreatePayload.warehouse_id = body.warehouse_id || null;
-      if (body.direction_id !== undefined) vCreatePayload.direction_id = body.direction_id || null;
-
-      if (vehicle_id && /^[0-9a-f-]{36}$/i.test(vehicle_id)) {
-        await supabaseAdmin.from("vehicles").update(vCreatePayload).eq("id", vehicle_id);
-      } else {
-        await supabaseAdmin.from("vehicles").upsert([vCreatePayload], { onConflict: "plate_number" });
+    // Only patch auth_user_id on vehicles if updating an existing vehicle_id; new vehicles are inserted by client right after
+    if (vehicle_id && /^[0-9a-f-]{36}$/i.test(vehicle_id)) {
+      try {
+        await supabaseAdmin.from("vehicles").update({ auth_user_id: adminData.user.id }).eq("id", vehicle_id);
+      } catch (dbErr) {
+        console.warn("Failed to set auth_user_id on vehicles table:", dbErr);
       }
-    } catch (dbErr) {
-      console.warn("Failed to set auth_user_id on vehicles table:", dbErr);
     }
 
     return new Response(JSON.stringify({

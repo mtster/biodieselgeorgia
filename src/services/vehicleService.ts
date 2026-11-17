@@ -9,6 +9,8 @@ export { KEY_VEHICLES };
 
 export const DEFAULT_VEHICLES: Vehicle[] = [];
 
+let inFlightVehicles: Promise<Vehicle[]> | null = null;
+
 export function decodeVehicle(vehicle: any): Vehicle {
   if (!vehicle) return vehicle;
   let city = vehicle.city || '';
@@ -31,42 +33,51 @@ export function decodeVehicle(vehicle: any): Vehicle {
 export async function getVehicles(): Promise<Vehicle[]> {
   const cached = appCache.get<Vehicle[]>('vehicles_cache');
   if (cached && cached.length > 0) return cached;
+  if (inFlightVehicles) return inFlightVehicles;
 
-  let result: Vehicle[] = [];
-  if (isSupabaseConfigured && supabase) {
+  inFlightVehicles = (async () => {
     try {
-      const { data, error } = await supabase.from('vehicles').select('*').eq('is_deleted', false).order('plate_number');
-      if (!error && data) {
-        result = data.map(v => decodeVehicle(v));
-      } else {
-        const { data: fallbackData, error: fallbackError } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
-        if (!fallbackError && fallbackData) result = fallbackData.map(v => decodeVehicle(v));
+      let result: Vehicle[] = [];
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase.from('vehicles').select('*').eq('is_deleted', false).order('plate_number');
+          if (!error && data) {
+            result = data.map(v => decodeVehicle(v));
+          } else {
+            const { data: fallbackData, error: fallbackError } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
+            if (!fallbackError && fallbackData) result = fallbackData.map(v => decodeVehicle(v));
+          }
+        } catch (e) {
+          console.warn('Supabase getVehicles failed, trying trucks table...', e);
+          try {
+            const { data, error } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
+            if (!error && data) result = data.map(v => decodeVehicle(v));
+          } catch (err) {
+            console.error('Unified getVehicles fallback failed', err);
+          }
+        }
       }
-    } catch (e) {
-      console.warn('Supabase getVehicles failed, trying trucks table...', e);
-      try {
-        const { data, error } = await supabase.from('trucks').select('*').eq('is_deleted', false).order('plate_number');
-        if (!error && data) result = data.map(v => decodeVehicle(v));
-      } catch (err) {
-        console.error('Unified getVehicles fallback failed', err);
+
+      if (result.length === 0) {
+        result = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
       }
+
+      if (result.length > 0) {
+        appCache.set('vehicles_cache', result);
+        const map = new Map<string, string>();
+        result.forEach(v => {
+          if (v?.id) map.set(v.id, v.plate_number);
+        });
+        appCache.set('vehicles_map', map);
+      }
+
+      return result;
+    } finally {
+      inFlightVehicles = null;
     }
-  }
+  })();
 
-  if (result.length === 0) {
-    result = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES).filter(item => !item.is_deleted).map(v => decodeVehicle(v));
-  }
-
-  if (result.length > 0) {
-    appCache.set('vehicles_cache', result);
-    const map = new Map<string, string>();
-    result.forEach(v => {
-      if (v?.id) map.set(v.id, v.plate_number);
-    });
-    appCache.set('vehicles_map', map);
-  }
-
-  return result;
+  return inFlightVehicles;
 }
 
 export async function findDeletedVehicle(plate: string): Promise<Vehicle | null> {
@@ -128,8 +139,8 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
   }
 
   if (isSupabaseConfigured && supabase) {
-    // If authUserId not present, check database vehicles table
-    if (!isValidUuid(authUserId)) {
+    // If authUserId not present on an existing vehicle, check database vehicles table
+    if (!isValidUuid(authUserId) && !isNewVehicle) {
       try {
         const queryPlates = [cleanCurrentPlate];
         if (cleanOriginalPlate) queryPlates.push(cleanOriginalPlate);
@@ -408,10 +419,12 @@ export async function saveVehicle(vehicle: Vehicle & { password?: string; origin
         await trackChange(loggerName, 'Vehicle updated', 'Model', prev.model || '', vehicle.model);
       }
     }
+    appCache.clear('vehicles_');
     notifyDbChange('vehicles', 'UPDATE', cleanCurrentPlate);
   } else {
     setLocal(KEY_VEHICLES, [...list, { ...vehicle, is_deleted: vehicle.is_deleted ?? false, plate_number: cleanCurrentPlate }]);
     await trackChange(loggerName, 'Vehicle added', 'Plate Number', '', cleanCurrentPlate);
+    appCache.clear('vehicles_');
     notifyDbChange('vehicles', 'CREATE', cleanCurrentPlate);
   }
   return decodeVehicle({ ...vehicle, is_deleted: vehicle.is_deleted ?? false, plate_number: cleanCurrentPlate });
@@ -492,6 +505,7 @@ export async function deleteVehicle(plate: string, loggerName: string): Promise<
   const list = getLocal<Vehicle[]>(KEY_VEHICLES, DEFAULT_VEHICLES);
   setLocal(KEY_VEHICLES, list.map(item => item.plate_number === cleanPlate ? { ...item, is_deleted: true } : item));
   await trackChange(loggerName, 'Vehicle deleted', 'Plate Number', cleanPlate, '');
+  appCache.clear('vehicles_');
   notifyDbChange('vehicles', 'DELETE', cleanPlate);
   return true;
 }
