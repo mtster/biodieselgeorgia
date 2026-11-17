@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     // 3. Database profiles table is the authoritative source of truth for customized/assigned permissions
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('role, permissions, privileges, is_blocked, is_deleted')
+      .select('role, permissions, is_blocked, is_deleted')
       .eq('id', requester.id)
       .maybeSingle();
 
@@ -102,10 +102,8 @@ Deno.serve(async (req) => {
         isAuthorized = true;
       } else {
         const pPerms = profile.permissions || {};
-        const pPrivs = profile.privileges || {};
         if (
-          (Array.isArray(pPerms.vehicles) && (pPerms.vehicles.includes('modify') || pPerms.vehicles.includes('add'))) ||
-          (Array.isArray(pPrivs.vehicles) && (pPrivs.vehicles.includes('modify') || pPrivs.vehicles.includes('add')))
+          Array.isArray(pPerms.vehicles) && (pPerms.vehicles.includes('modify') || pPerms.vehicles.includes('add'))
         ) {
           isAuthorized = true;
         }

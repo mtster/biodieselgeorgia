@@ -3,13 +3,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, Authorization, Content-Type, Accept, X-Requested-With',
+  'Access-Control-Max-Age': '86400',
 }
 
 serve(async (req) => {
   // Handle CORS preflight inspection standard hook
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { status: 200, headers: corsHeaders })
   }
 
   try {
@@ -52,7 +54,7 @@ serve(async (req) => {
     }
 
     // Check caller attributes in user_metadata or Profiles table
-    let isAuthorized = requester.user_metadata?.role === 'admin';
+    let isAuthorized = requester.app_metadata?.role === 'admin' || requester.user_metadata?.role === 'admin';
     if (!isAuthorized) {
       const { data: profile } = await supabaseAdmin
         .from('profiles')
@@ -93,7 +95,7 @@ serve(async (req) => {
 
     // Parse payload fields once
     const body = await req.json().catch(() => ({}));
-    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id, is_blocked } = body;
+    let { action, id, email, password, name, personal_id, phone, role, permissions, privileges, vendor_id, warehouse_id, is_blocked } = body;
     const perms = permissions || privileges || {};
     
     // Standardize legacy role names to match database constraint
@@ -128,7 +130,6 @@ serve(async (req) => {
           phone: cleanPhone,
           role: assignedRole,
           permissions: {},
-          privileges: [],
           vendor_id: null,
           is_blocked: is_blocked ?? false,
           is_deleted: false,
@@ -160,8 +161,6 @@ serve(async (req) => {
 
       const cleanEmail = formatAuthEmail(email, cleanPersonalId);
       const cleanPassword = (password && String(password).trim()) || 'Georgia2026!';
-      const cleanName = (name && String(name).trim()) || 'New User';
-      const cleanPhone = (phone && String(phone).trim()) || '+995 599 00 00 00';
 
       // Create user auth credentials in auth.users
       const { data: adminData, error: adminErr } = await supabaseAdmin.auth.admin.createUser({
@@ -181,7 +180,8 @@ serve(async (req) => {
           role: assignedRole,
           permissions: perms,
           privileges: perms,
-          vendor_id
+          vendor_id,
+          warehouse_id: warehouse_id || null
         }
       })
 
@@ -220,7 +220,7 @@ serve(async (req) => {
         }
       }
 
-      return new Response(JSON.stringify({ success: true, user: userToUpsert }), {
+      return new Response(JSON.stringify({ success: true, user: { ...userToUpsert, warehouse_id: warehouse_id || null } }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       })
@@ -254,7 +254,8 @@ serve(async (req) => {
           role: assignedRole,
           permissions: perms,
           privileges: perms,
-          vendor_id: vendor_id || null
+          vendor_id: vendor_id || null,
+          warehouse_id: warehouse_id || null
         }
       }
       if (cleanEmail) {
