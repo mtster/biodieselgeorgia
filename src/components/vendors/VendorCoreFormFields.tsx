@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Vendor, Warehouse } from '../../types';
 import { t } from '../../utils/lang';
 import { FormInput, FormSelect } from '../FormInput';
@@ -18,6 +18,19 @@ export default function VendorCoreFormFields({
   setFieldErrors,
   warehouses
 }: Props) {
+  const [priceInput, setPriceInput] = useState<string>(() => {
+    const val = editingVendor.price_per_liter;
+    return val !== undefined && val !== null && val !== 0 ? String(val) : '';
+  });
+
+  useEffect(() => {
+    const numVal = Number(editingVendor.price_per_liter || 0);
+    const parsedLocal = parseFloat(priceInput);
+    const localNum = isNaN(parsedLocal) ? 0 : parsedLocal;
+    if (localNum !== numVal) {
+      setPriceInput(numVal === 0 ? '' : String(numVal));
+    }
+  }, [editingVendor.id, editingVendor.price_per_liter]);
   return (
     <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-5 text-left">
       <span className="text-xs font-bold uppercase text-gray-400 tracking-wider block border-b border-gray-100 pb-2">
@@ -78,13 +91,18 @@ export default function VendorCoreFormFields({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
           label={t("Base Price per Litre (₾)")}
-          type="number"
-          step="0.01"
+          type="text"
+          inputMode="decimal"
           fontClass="font-mono"
-          value={editingVendor.price_per_liter || ''}
+          value={priceInput}
           onChange={(e) => {
-            setEditingVendor(prev => prev ? { ...prev, price_per_liter: parseFloat(e.target.value) || 0 } : null);
-            if (fieldErrors.price_per_liter) setFieldErrors(prev => ({ ...prev, price_per_liter: '' }));
+            const normalized = e.target.value.replace(',', '.');
+            if (normalized === '' || /^\d*\.?\d*$/.test(normalized)) {
+              setPriceInput(normalized);
+              const parsed = parseFloat(normalized);
+              setEditingVendor(prev => prev ? { ...prev, price_per_liter: isNaN(parsed) ? 0 : parsed } : null);
+              if (fieldErrors.price_per_liter) setFieldErrors(prev => ({ ...prev, price_per_liter: '' }));
+            }
           }}
           error={fieldErrors.price_per_liter}
         />

@@ -323,7 +323,7 @@ export default function SupplierAutocomplete({
         </p>
       )}
 
-      {showVendorSuggestions && (
+      {showVendorSuggestions && (vendorSearch.trim().length > 0 || filteredSuggestions.length > 0 || isSearching) && (
         <div
           onScroll={(e) => {
             const el = e.currentTarget;

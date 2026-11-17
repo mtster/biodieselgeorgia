@@ -548,17 +548,21 @@ export default function VendorImportModal({
         for (const distInfo of missingDistricts) {
           const parentCityLower = distInfo.city.trim().toLowerCase();
           const cityId = resolvedCityIds[parentCityLower] || resolvedCityIds[distInfo.city] || '';
-          
-          if (cityId) {
-            const savedD = await saveDistrict({
+          const distTrim = distInfo.district.trim();
+          const distLower = distTrim.toLowerCase();
+
+          if (cityId && distTrim) {
+            const existingInCity = localDistricts.find(d => d.city_id === cityId && d.name.trim().toLowerCase() === distLower);
+            const savedD = existingInCity || await saveDistrict({
               id: '',
               city_id: cityId,
-              name: distInfo.district,
+              name: distTrim,
               created_by: 'import'
             }, 'import');
-            resolvedDistrictIds[distInfo.district.trim().toLowerCase()] = savedD.id;
-            resolvedDistrictIds[distInfo.district.trim()] = savedD.id;
-            newDistrictsList.push(savedD);
+            resolvedDistrictIds[`${cityId}::${distLower}`] = savedD.id;
+            resolvedDistrictIds[distLower] = savedD.id;
+            resolvedDistrictIds[distTrim] = savedD.id;
+            if (!existingInCity) newDistrictsList.push(savedD);
           }
         }
         if (newDistrictsList.length > 0) {
@@ -702,6 +706,99 @@ export default function VendorImportModal({
     const batchSize = 50;
 
     try {
+      // Ensure every non-empty city, district, and direction in rowsToImport resolves to a real DB ID
+      const effectiveCityMap: Record<string, string> = { ...cityResolutionMap };
+      const effectiveDistrictMap: Record<string, string> = { ...districtResolutionMap };
+      const effectiveDirectionMap: Record<string, string> = { ...directionResolutionMap };
+
+      const knownCities = [...localCities];
+      knownCities.forEach(c => {
+        const lower = c.name.trim().toLowerCase();
+        if (!effectiveCityMap[lower]) effectiveCityMap[lower] = c.id;
+        if (!effectiveCityMap[c.name.trim()]) effectiveCityMap[c.name.trim()] = c.id;
+      });
+
+      const knownDistricts = [...localDistricts];
+      knownDistricts.forEach(d => {
+        const lower = d.name.trim().toLowerCase();
+        if (d.city_id) effectiveDistrictMap[`${d.city_id}::${lower}`] = d.id;
+        if (!effectiveDistrictMap[lower]) effectiveDistrictMap[lower] = d.id;
+        if (!effectiveDistrictMap[d.name.trim()]) effectiveDistrictMap[d.name.trim()] = d.id;
+      });
+
+      const knownDirections = [...localDirections];
+      knownDirections.forEach(dir => {
+        const lower = dir.name.trim().toLowerCase();
+        if (!effectiveDirectionMap[lower]) effectiveDirectionMap[lower] = dir.id;
+        if (!effectiveDirectionMap[dir.name.trim()]) effectiveDirectionMap[dir.name.trim()] = dir.id;
+      });
+
+      const createdCitiesBatch: City[] = [];
+      const createdDistrictsBatch: District[] = [];
+      const createdDirectionsBatch: Direction[] = [];
+
+      for (const r of rowsToImport) {
+        const rawCity = (r.city || '').toString().trim();
+        let resolvedCId = '';
+        if (rawCity) {
+          const cLower = rawCity.toLowerCase();
+          resolvedCId = effectiveCityMap[cLower] || effectiveCityMap[rawCity] || '';
+          if (!resolvedCId) {
+            const savedC = await saveCity({ id: '', name: rawCity, created_by: 'import', is_deleted: false }, 'import');
+            resolvedCId = savedC.id;
+            effectiveCityMap[cLower] = savedC.id;
+            effectiveCityMap[rawCity] = savedC.id;
+            knownCities.push(savedC);
+            createdCitiesBatch.push(savedC);
+          }
+        }
+
+        const rawDistrict = (r.district || '').toString().trim();
+        if (rawDistrict) {
+          const dLower = rawDistrict.toLowerCase();
+          const scopedKey = resolvedCId ? `${resolvedCId}::${dLower}` : '';
+          let resolvedDId = (scopedKey ? effectiveDistrictMap[scopedKey] : '') || '';
+          if (!resolvedDId) {
+            const existingD = knownDistricts.find(d =>
+              d.name.trim().toLowerCase() === dLower && (!resolvedCId || d.city_id === resolvedCId)
+            );
+            if (existingD) {
+              resolvedDId = existingD.id;
+            } else if (resolvedCId) {
+              const savedD = await saveDistrict({ id: '', city_id: resolvedCId, name: rawDistrict, created_by: 'import' }, 'import');
+              resolvedDId = savedD.id;
+              knownDistricts.push(savedD);
+              createdDistrictsBatch.push(savedD);
+            }
+          }
+          if (resolvedDId) {
+            if (scopedKey) effectiveDistrictMap[scopedKey] = resolvedDId;
+            if (!effectiveDistrictMap[dLower]) effectiveDistrictMap[dLower] = resolvedDId;
+            if (!effectiveDistrictMap[rawDistrict]) effectiveDistrictMap[rawDistrict] = resolvedDId;
+          }
+        }
+
+        const rawDir = (r.direction || '').toString().trim();
+        if (rawDir) {
+          const dirLower = rawDir.toLowerCase();
+          let resolvedDirId = effectiveDirectionMap[dirLower] || effectiveDirectionMap[rawDir] || '';
+          if (!resolvedDirId) {
+            const savedDir = await saveDirection({ id: '', name: rawDir, created_by: 'import', is_deleted: false }, 'import');
+            resolvedDirId = savedDir.id;
+            effectiveDirectionMap[dirLower] = savedDir.id;
+            effectiveDirectionMap[rawDir] = savedDir.id;
+            knownDirections.push(savedDir);
+            createdDirectionsBatch.push(savedDir);
+          }
+        }
+      }
+
+      if (createdCitiesBatch.length > 0) setLocalCities(prev => [...prev, ...createdCitiesBatch]);
+      if (createdDistrictsBatch.length > 0) setLocalDistricts(prev => [...prev, ...createdDistrictsBatch]);
+      if (createdDirectionsBatch.length > 0) setLocalDirections(prev => [...prev, ...createdDirectionsBatch]);
+
+      const defaultCityId = knownCities.find(c => c.name.trim() === 'თბილისი')?.id || knownCities[0]?.id || '';
+
       for (let i = 0; i < rowsToImport.length; i += batchSize) {
         const batchRows = rowsToImport.slice(i, i + batchSize);
         setProgressMsg(`პროცესინგი: იგზავნება ${i + 1}-დან ${Math.min(i + batchSize, rowsToImport.length)}-მდე ჩანაწერი Gemini API-ში...`);
@@ -766,13 +863,19 @@ export default function VendorImportModal({
         await Promise.all(batchRows.map(async (row) => {
           const aiExtract = aiMap[row.row_id] || { contacts: [], comments: [] };
 
-          const mappedCityId = cityResolutionMap[row.city.trim().toLowerCase()] || cityResolutionMap[row.city.trim()] || '';
-          const mappedCityName = localCities.find(c => c.id === mappedCityId)?.name || row.city || 'თბილისი';
+          const cityTrim = (row.city || '').toString().trim();
+          const mappedCityId = (cityTrim ? (effectiveCityMap[cityTrim.toLowerCase()] || effectiveCityMap[cityTrim]) : '') || defaultCityId;
 
-          const mappedDistrictId = districtResolutionMap[row.district.trim().toLowerCase()] || districtResolutionMap[row.district.trim()] || '';
-          const mappedDistrictName = localDistricts.find(d => d.id === mappedDistrictId)?.name || row.district || 'ვაკე';
+          const distTrim = (row.district || '').toString().trim();
+          const distLower = distTrim.toLowerCase();
+          const mappedDistrictId = distTrim
+            ? ((mappedCityId ? effectiveDistrictMap[`${mappedCityId}::${distLower}`] : '') || effectiveDistrictMap[distLower] || effectiveDistrictMap[distTrim] || '')
+            : '';
 
-          const mappedDirectionId = directionResolutionMap[(row.direction || '').trim().toLowerCase()] || directionResolutionMap[(row.direction || '').trim()] || null;
+          const dirTrim = (row.direction || '').toString().trim();
+          const mappedDirectionId = dirTrim
+            ? (effectiveDirectionMap[dirTrim.toLowerCase()] || effectiveDirectionMap[dirTrim] || null)
+            : null;
           
           const mappedWarehouseId = warehouseResolutionMap[(row.warehouse || '').trim().toLowerCase()] || warehouseResolutionMap[(row.warehouse || '').trim()] || (localWarehouses[0]?.id || '');
 
@@ -811,8 +914,8 @@ export default function VendorImportModal({
             trade_name: row.trade_name,
             company_code: uniqueCompCode,
             bank_account: row.bank_account || 'GE00TB0000000000000000',
-            city: mappedCityName,
-            district: mappedDistrictName,
+            city: mappedCityId,
+            district: mappedDistrictId,
             address: row.address || 'Imported Address',
             price_per_liter: row.price_per_liter || 0.05,
             warehouse_id: mappedWarehouseId,

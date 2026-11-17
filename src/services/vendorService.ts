@@ -1138,26 +1138,83 @@ export async function saveVendor(
         }
       }
 
+      const archiveDeletedCompanyCode = async (code: string, excludeId?: string): Promise<boolean> => {
+        const clean = (code || '').trim();
+        if (!clean) return false;
+        let dq = supabase
+          .from('vendors')
+          .select('id, company_code')
+          .eq('is_deleted', true)
+          .eq('company_code', clean)
+          .limit(1);
+        if (excludeId) {
+          dq = dq.neq('id', excludeId);
+        }
+        const { data: deletedRows } = await dq;
+        const deletedMatch = deletedRows?.[0];
+        if (!deletedMatch?.id) return false;
+
+        const baseDeletedCode = `deleted-${clean}`;
+        const { data: existingArchived } = await supabase
+          .from('vendors')
+          .select('id')
+          .eq('company_code', baseDeletedCode)
+          .limit(1);
+        const archivedCode = existingArchived && existingArchived.length > 0
+          ? `${baseDeletedCode}-${deletedMatch.id.slice(0, 6)}`
+          : baseDeletedCode;
+
+        const { error: archiveErr } = await supabase
+          .from('vendors')
+          .update({ company_code: archivedCode })
+          .eq('id', deletedMatch.id);
+        if (archiveErr) {
+          console.warn('Failed to archive deleted vendor company_code:', archiveErr);
+          return false;
+        }
+        return true;
+      };
+
       if (isNew) {
+        await archiveDeletedCompanyCode(finalCompCode, finalVendor.id);
         const dbPayload = cleanVendorDbPayload(finalVendor);
         const { error } = await supabase.from('vendors').insert([dbPayload]);
         if (error) {
-          console.error('Supabase insert error details:', error);
           if ((error as any).code === '23505') {
-            console.warn('Skipping duplicate company_code conflict in Supabase:', finalCompCode);
-            return decodeVendorCustomFields(finalVendor);
+            const archived = await archiveDeletedCompanyCode(finalCompCode, finalVendor.id);
+            if (archived) {
+              const { error: retryErr } = await supabase.from('vendors').insert([dbPayload]);
+              if (retryErr) {
+                throw retryErr;
+              }
+            } else {
+              throw new Error(`კოდი "${finalCompCode}" უკვე გამოყენებულია ბაზაში.`);
+            }
+          } else {
+            console.error('Supabase insert error details:', error);
+            throw error;
           }
-          throw error;
         }
       } else {
         // Updating existing vendor in Supabase (ensuring frequency_weeks, is_planned, etc. are persisted)
         const dbPayload = cleanVendorDbPayload(finalVendor);
         delete dbPayload.id; // Do not alter primary key
 
-        const { error } = await supabase
+        let { error } = await supabase
           .from('vendors')
           .update(dbPayload)
           .eq('id', finalVendor.id);
+
+        if (error && (error as any).code === '23505') {
+          const archived = await archiveDeletedCompanyCode(finalCompCode, finalVendor.id);
+          if (archived) {
+            const retryRes = await supabase
+              .from('vendors')
+              .update(dbPayload)
+              .eq('id', finalVendor.id);
+            error = retryRes.error;
+          }
+        }
 
         if (error) {
           // If RLS blocked full update due to restricted operator role, fallback to comments-only update
@@ -1170,8 +1227,7 @@ export async function saveVendor(
           } else {
             console.error('Supabase update vendor error details:', error);
             if ((error as any).code === '23505') {
-              console.warn('Skipping duplicate company_code conflict in Supabase:', finalCompCode);
-              return decodeVendorCustomFields(finalVendor);
+              throw new Error(`კოდი "${finalCompCode}" უკვე გამოყენებულია ბაზაში.`);
             }
             throw error;
           }
@@ -1181,10 +1237,6 @@ export async function saveVendor(
       // Save contacts to separate table
       await saveVendorContacts(finalVendor.id, cleanContacts, currentUserId);
     } catch (e: any) {
-      if (e?.code === '23505') {
-        console.warn('Duplicate key constraint caught in saveVendor, continuing safely:', e);
-        return decodeVendorCustomFields(finalVendor);
-      }
       console.error('Supabase saveVendor failed', e);
       throw e;
     }
