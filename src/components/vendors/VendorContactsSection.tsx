@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { t, formatContactPhone } from '../../utils/lang';
 import { VendorContact } from '../../types';
 import AddButton from '../AddButton';
-import { Plus, Phone, Star, Pencil, GripVertical, Loader2 } from 'lucide-react';
+import { Phone, Star, GripVertical, Loader2 } from 'lucide-react';
 
 interface VendorContactsSectionProps {
   contacts: VendorContact[];
@@ -54,9 +54,21 @@ export default function VendorContactsSection({
     if (!pos) return '';
     const clean = pos.trim().toLowerCase();
     if (clean === 'other' || clean === 'other position' || clean === 'სხვა თანამდებობა' || clean === 'სხვა') return 'სხვა';
+    if (clean === 'director' || clean === 'director/owner' || clean === 'დირექტორი / მფლობელი' || clean === 'დირექტორი/მფლობელი' || clean === 'დირექტორი') return 'დირ.';
+    if (clean === 'manager' || clean === 'მენეჯერი') return 'მენეჯ.';
+    if (clean === 'object_number' || clean === 'object number' || clean === 'ობიექტის ნომერი') return 'ო/ნ';
+    if (clean === 'accountant' || clean === 'ბუღალტერი') return 'ბუღ.';
+    if (clean === 'cook' || clean === 'მზარეული') return 'მზარ.';
+    return t(pos) || pos;
+  };
+
+  const formatFullPosition = (pos?: string) => {
+    if (!pos) return '';
+    const clean = pos.trim().toLowerCase();
+    if (clean === 'other' || clean === 'other position' || clean === 'სხვა თანამდებობა' || clean === 'სხვა') return 'სხვა';
     if (clean === 'director' || clean === 'director/owner' || clean === 'დირექტორი / მფლობელი' || clean === 'დირექტორი/მფლობელი' || clean === 'დირექტორი') return 'დირექტორი';
     if (clean === 'manager' || clean === 'მენეჯერი') return t('Manager');
-    if (clean === 'object_number' || clean === 'ობიექტის ნომერი') return t('Object Number');
+    if (clean === 'object_number' || clean === 'object number' || clean === 'ობიექტის ნომერი') return t('Object Number');
     if (clean === 'accountant' || clean === 'ბუღალტერი') return t('Accountant');
     if (clean === 'cook' || clean === 'მზარეული') return t('Cook');
     return t(pos) || pos;
@@ -120,57 +132,60 @@ export default function VendorContactsSection({
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
-                className={`p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs text-left group transition-all duration-200 ${
+                onClick={() => onModifyContact(c)}
+                className={`p-2.5 bg-slate-50 hover:bg-slate-200/60 border border-slate-100 rounded-xl flex items-center justify-between gap-1.5 text-xs text-left group transition-colors duration-200 cursor-pointer ${
                   draggedIndex === index ? 'opacity-40 border-dashed border-emerald-300 bg-emerald-50/20' : ''
-                } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                }`}
               >
-                <div className="flex gap-2 items-center min-w-0 flex-1">
+                <div className="flex gap-1.5 items-center min-w-0 flex-1">
                   {isDraggable ? (
-                    <div className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-0.5">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-0.5 shrink-0"
+                    >
                       <GripVertical size={14} />
                     </div>
                   ) : (
-                    <div className="w-[18px]" /> // Spacer to align
+                    <div className="w-3.5 shrink-0" />
                   )}
-                  <div className="flex gap-2 items-center min-w-0 flex-1 overflow-hidden">
-                    <span className="font-extrabold text-gray-800 truncate flex-1 min-w-0">
-                      {c.name}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-sans uppercase font-semibold whitespace-nowrap shrink-0" title={formatPosition(c.position)}>
-                      {formatPosition(c.position)}
-                    </span>
-                    {isInactive && (
-                      <span className="text-[9.5px] bg-amber-50 text-amber-700 border border-amber-200/60 font-semibold px-1.5 py-0.5 rounded-md shrink-0">
-                        {t("Inactive")}
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-x-2 min-w-0 max-w-full">
+                      <span className="font-extrabold text-gray-800 truncate min-w-0">
+                        {c.name}
                       </span>
-                    )}
-                    <span className="text-xs md:text-[13px] text-emerald-800 font-mono font-bold select-all inline-flex items-center gap-1 ml-1 shrink-0 tracking-tight">
+                      {c.position && (
+                        <span
+                          className="inline-block text-[10px] text-gray-400 font-sans uppercase font-semibold whitespace-nowrap shrink-0"
+                          title={formatFullPosition(c.position)}
+                        >
+                          {formatPosition(c.position)}
+                        </span>
+                      )}
+                      {isInactive && (
+                        <span className="inline-block text-[9.5px] bg-amber-50 text-amber-700 border border-amber-200/60 font-semibold px-1.5 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                          {t("Inactive")}
+                        </span>
+                      )}
+                    </div>
+                    <span className="inline-flex text-xs md:text-[13px] text-emerald-800 font-mono font-bold items-center gap-1 shrink-0 tracking-tight whitespace-nowrap">
                       <Phone size={11} className="shrink-0 text-emerald-700" />
                       <span>{formatContactPhone(c.phone)}</span>
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 select-none text-right shrink-0">
-                  {/* Star design toggle next to edit button */}
+                <div className="flex items-center select-none text-right shrink-0">
                   <button
                     type="button"
-                    onClick={() => onTogglePrimaryContact(c.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePrimaryContact(c.id);
+                    }}
                     title={isPrimary ? t("Primary Contact") : t("Mark as Primary")}
-                    className={`p-1.5 transition cursor-pointer rounded-lg hover:bg-slate-100 ${
+                    className={`p-1.5 transition cursor-pointer rounded-lg hover:bg-slate-300/50 ${
                       isPrimary ? 'text-amber-500 hover:text-amber-600' : 'text-gray-300 hover:text-amber-500'
                     }`}
                   >
                     <Star size={13} fill={isPrimary ? "#fbbf24" : "none"} strokeWidth={2} />
-                  </button>
-
-                  {/* Sleek borderless pencil edit button */}
-                  <button
-                    type="button"
-                    onClick={() => onModifyContact(c)}
-                    className="p-1.5 text-gray-400 hover:text-emerald-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-                    title={t("Modify")}
-                  >
-                    <Pencil size={13} />
                   </button>
                 </div>
               </div>
